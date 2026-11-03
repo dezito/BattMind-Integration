@@ -201,16 +201,18 @@ reloaded. If the file is deleted, the latest version is put back on the next res
 
 ### HACS (recommended)
 
-[![Open your Home Assistant and add the repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=dezito&repository=BattMind-Integration&category=integration)
+[![Open BattMind in HACS in your Home Assistant.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=dezito&repository=BattMind-Integration&category=integration)
 
-1. **HACS** → ⋮ → **Custom repositories**: add `https://github.com/dezito/BattMind-Integration` as **Integration**.
-2. Search for **BattMind**, install it, and restart Home Assistant.
-3. Add the integration:
+1. Open **HACS**, search for **BattMind**, install it, and restart Home Assistant.
+2. Add the integration:
 
    [![Open your Home Assistant and add BattMind.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=battmind)
 
    or **Settings → Devices & services → Add integration → BattMind**.
-4. Create the automation that controls the home battery, e.g. with the [blueprint](docs/actions.md#the-blueprint).
+3. Create the automation that controls the home battery, e.g. with the [blueprint](docs/actions.md#the-blueprint).
+
+If **BattMind** does not show up in the HACS search, add it as a custom repository first: **HACS** → ⋮ →
+**Custom repositories** → `https://github.com/dezito/BattMind-Integration` with type **Integration**, then search again.
 
 ### Manual
 

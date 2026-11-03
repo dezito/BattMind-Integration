@@ -177,6 +177,39 @@ private agent memory). Update or remove a note when it stops being true.
   that links into it. Anchor links to emoji headings need a leading hyphen
   (`#-buy-to-sell`).
 
+### HACS default-catalog review
+
+Points a HACS reviewer raised; check every change against them.
+
+- Never write the user's own configuration (`automations.yaml`,
+  `scripts.yaml`, `configuration.yaml`, packages or any other YAML the user
+  edits), not at startup and not from a repair fix flow, even atomically: one
+  bad dump costs the user their automations. When a bundled blueprint input
+  changes shape, keep the blueprint backward compatible (e.g. accept a single
+  entity as well as a list) and, if the user has to act, raise a repair that
+  tells them what to do in the editor. Reading the configuration is fine, in
+  the executor. To read a blueprint automation's inputs, read
+  `automations.yaml` (the file the UI editor edits): the automation entity's
+  `raw_config` is the substituted configuration, without `use_blueprint`.
+  Writing the integration's own files is fine: its `.storage` data, its
+  backup/debug folders, and a bundled blueprint under
+  `blueprints/automation/<domain>/` only when it is missing or the user
+  confirmed the update repair.
+- Services that replace or delete stored data, or change config entries or
+  options (`import_data`, and any similar new service), must be registered
+  with `homeassistant.helpers.service.async_register_admin_service`, not
+  `hass.services.async_register`. Cover it with a test that calls the service
+  with `Context(user_id=hass_read_only_user.id)` and expects `Unauthorized`.
+- Check the integration in ha-dev, not only in tests, and read
+  `home-assistant.log` for `Detected blocking call` and errors from the
+  integration. Tests that fake Home Assistant objects (`SimpleNamespace`,
+  mocks) must match what Home Assistant really holds; prefer real files and
+  real components.
+- README and `docs/getting-started.md`: the repository is in (or submitted to)
+  the HACS default catalog, so the install steps lead with searching for the
+  integration in HACS. Adding it as a custom repository is only a fallback
+  after the steps.
+
 ### PyScript import
 
 Many users still run the PyScript version, so the import must keep working and
