@@ -2174,10 +2174,10 @@ views:
 
               {% set months = (a.months or []) | selectattr('measured_charged', 'defined') | list -%}
               {% if months -%}
-              | @@month@@ | @@charged@@ kWh | @@discharged@@ kWh | @@loss@@ |
-              |:---|---:|---:|---:|
+              | @@month@@ | @@charged@@ kWh | @@discharged@@ kWh | @@loss@@ | @@loss_outliers@@ |
+              |:---|---:|---:|---:|---:|
               {% for m in months | reverse -%}
-              | **{{ m.label }}** | {{ m.measured_charged }} | {{ m.measured_discharged }} | {{ p(m.loss) }} |
+              | **{{ m.label }}** | {{ m.measured_charged }} | {{ m.measured_discharged }} | {{ p(m.loss) }} | {{ m.loss_outliers or '–' }} |
               {% endfor %}
               {%- endif %}
             grid_options:
