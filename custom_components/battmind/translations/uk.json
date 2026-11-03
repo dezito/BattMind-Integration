@@ -616,6 +616,38 @@
       }
     }
   },
+  "exceptions": {
+    "action_failed": {
+      "message": "Дію не виконано: {error}"
+    },
+    "backup_invalid_name": {
+      "message": "Неприпустима назва файлу резервної копії: {name}"
+    },
+    "backup_not_found": {
+      "message": "Резервну копію {path} не знайдено"
+    },
+    "backup_unreadable": {
+      "message": "Не вдалося прочитати резервну копію {name}: {error}"
+    },
+    "backup_wrong_integration": {
+      "message": "{name} не є резервною копією BattMind"
+    },
+    "entry_not_loaded": {
+      "message": "Запис конфігурації BattMind {entry_id} не завантажено"
+    },
+    "not_an_entry": {
+      "message": "{entry_id} не є записом конфігурації BattMind"
+    },
+    "what_if_history_failed": {
+      "message": "Не вдалося прочитати історію Recorder і довгострокову статистику: {error}"
+    },
+    "what_if_no_buy_price": {
+      "message": "Для історичного порівняння what-if потрібна сутність ціни купівлі"
+    },
+    "what_if_no_recorder": {
+      "message": "Для історичного порівняння what-if потрібен Recorder"
+    }
+  },
   "issues": {
     "blueprint_update": {
       "title": "Нова версія blueprint {name}",

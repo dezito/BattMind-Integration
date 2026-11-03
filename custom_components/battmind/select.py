@@ -13,6 +13,9 @@ from .const import SELECT_SETTINGS
 from .coordinator import BattMindCoordinator
 from .entity import BattMindEntity
 
+# the entities read the coordinator's data and change only the integration's own settings
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator: BattMindCoordinator = entry.runtime_data

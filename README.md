@@ -332,6 +332,21 @@ See [FAQ and troubleshooting](docs/faq-troubleshooting.md). In short:
 - Turn on **Diagnostic file log** under **Configure → Advanced** (`battmind_<prefix>.log` in the config folder).
 - Found a bug? Press **Export debug info** on the device (or run `battmind.export_debug`) right after it happened, and follow the
   notification: it links to the file and to a prefilled GitHub issue. See [Report a problem](docs/faq-troubleshooting.md#report-a-problem).
+- **Settings → Devices & services → BattMind → ⋮ → Download diagnostics** gives the same anonymised data without
+  the databases.
+
+---
+
+## Removal
+
+1. **Settings → Devices & services → BattMind**: delete each entry with **⋮ → Delete**. BattMind first saves the
+   entry's data to `battmind_backups/<prefix>_<time>_deleted.json`, so it can be imported again in a new entry, and then
+   removes its databases and its dashboard.
+2. Delete the automations that control the home battery, or switch them to other entities: they stop working without
+   BattMind's entities.
+3. **HACS** → BattMind → ⋮ → **Remove**, then restart Home Assistant.
+4. Optional: delete what is left in the config folder: `battmind_backups/`, `battmind_debug/`,
+   `blueprints/automation/battmind/` and `battmind_<prefix>.log`.
 
 ---
 
