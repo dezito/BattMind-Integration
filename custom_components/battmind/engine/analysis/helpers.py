@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import datetime
+from statistics import median
+from typing import Callable
 
 from ...utils.helpers import reset_time_to_hour
 
@@ -29,6 +31,18 @@ EMPTY_MARGIN = 2.0  # % above the minimum battery level that counts as empty
 
 
 SCORE_STEPS = 60  # battery levels in the hindsight optimisation
+
+
+SCORE_VERSION = 2  # raised when the hindsight model changes: older scores are not published (2: efficiency per power, profit requirements)
+
+
+LOSS_DAY_MIN_CHARGED = 0.2  # battery sizes a day has to charge for its measured loss
+
+
+LOSS_OUTLIER_MADS = 3.0  # a day whose loss is more than this many (scaled) median absolute deviations from the median is left out
+
+
+LOSS_OUTLIER_MIN_DAYS = 10  # days with a measured loss needed before outliers are left out
 
 
 FORECAST_TYPES = ("ema", "trend", "average")
@@ -121,39 +135,113 @@ def grid_cost(kwh: float, buy: float, sell: float) -> float:
 
 
 def hindsight_cost(rows: list[dict], start: float, end: float, low: float, high: float,
-                   max_charge: float, max_discharge: float, efficiency: float, wear: float) -> float | None:
+                   max_charge: float, max_discharge: float, charge_efficiency: Callable[[float], float],
+                   discharge_efficiency: Callable[[float], float], wear: float, min_profit_per_kwh: float = 0.0,
+                   min_total_profit: float = 0.0, min_sell_kwh: float = 0.0) -> float | None:
     """Lowest grid cost of a day with perfect knowledge of consumption, solar and prices.
 
     rows: per hour {"load": kWh house - solar (negative = surplus), "buy", "sell"}. The battery
     starts with start kWh, ends with at least end kWh and stays within low..high; charging and
-    discharging are limited per hour and lose efficiency each way, wear is paid per kWh charged.
+    discharging are limited per hour (AC kWh) and lose the efficiency at that hour's AC kWh
+    (charge_efficiency / discharge_efficiency(kWh) like the optimiser's curves), wear is paid per
+    kWh charged. Like the optimiser, min_profit_per_kwh (per kWh out of the battery) and
+    min_total_profit (per hour charging from the grid or selling) only steer the choice, and a
+    sale needs min_sell_kwh: the result is the real cost of the cheapest plan BattMind may make.
     """
-    if high - low <= 0.01 or efficiency <= 0.0:
+    if high - low <= 0.01:
         return None
+
+    def ac_kwh(battery_kwh: float, efficiency: Callable[[float], float], charging: bool) -> float | None:
+        """AC kWh of battery_kwh at the efficiency of the AC kWh itself (two fixed point passes)."""
+        ac = battery_kwh
+        for _ in range(2):
+            value = efficiency(ac)
+            if value <= 0.0:
+                return None
+            ac = battery_kwh / value if charging else battery_kwh * value
+        return ac
+
     step = (high - low) / SCORE_STEPS
-    up = int(max_charge * efficiency / step + 1e-9)
-    down = int(max_discharge / efficiency / step + 1e-9)
+    # AC kWh per number of battery level steps up (charged) and down (delivered) within an hour
+    ups, downs = [0.0], [0.0]
+    for moves, efficiency, charging, limit in ((ups, charge_efficiency, True, max_charge), (downs, discharge_efficiency, False, max_discharge)):
+        while len(moves) <= SCORE_STEPS:
+            ac = ac_kwh(len(moves) * step, efficiency, charging)
+            if ac is None or ac > limit + 1e-9:
+                break
+            moves.append(ac)
+    if len(ups) == 1 and len(downs) == 1:
+        return None
     inf = float("inf")
-    costs = [inf] * (SCORE_STEPS + 1)
-    costs[min(max(round((start - low) / step), 0), SCORE_STEPS)] = 0.0
+    # per battery level (objective incl. the profit requirements, real cost)
+    costs = [(inf, inf)] * (SCORE_STEPS + 1)
+    costs[min(max(round((start - low) / step), 0), SCORE_STEPS)] = (0.0, 0.0)
     for row in rows:
-        new = [inf] * (SCORE_STEPS + 1)
-        for i, cost in enumerate(costs):
-            if cost == inf:
+        new = [(inf, inf)] * (SCORE_STEPS + 1)
+        load = row["load"]
+        for i, (objective, cost) in enumerate(costs):
+            if objective == inf:
                 continue
-            for j in range(max(i - down, 0), min(i + up, SCORE_STEPS) + 1):
-                delta = (j - i) * step
-                if delta > 0:
-                    ac = delta / efficiency
-                    total = cost + grid_cost(row["load"] + ac, row["buy"], row["sell"]) + wear * ac
+            for j in range(max(i - len(downs) + 1, 0), min(i + len(ups) - 1, SCORE_STEPS) + 1):
+                if j > i:
+                    ac = ups[j - i]
+                    real = grid_cost(load + ac, row["buy"], row["sell"]) + wear * ac
+                    penalty = min_total_profit if ac - max(-load, 0.0) > 0.01 else 0.0  # charged from the grid
+                elif j < i:
+                    ac = downs[i - j]
+                    sold = ac - max(load, 0.0)
+                    if 0.01 < sold < min_sell_kwh:
+                        continue
+                    real = grid_cost(load - ac, row["buy"], row["sell"])
+                    penalty = ac * min_profit_per_kwh + (min_total_profit if sold > 0.01 else 0.0)
                 else:
-                    total = cost + grid_cost(row["load"] + delta * efficiency, row["buy"], row["sell"])
-                if total < new[j]:
-                    new[j] = total
+                    real, penalty = grid_cost(load, row["buy"], row["sell"]), 0.0
+                total = objective + real + penalty
+                if total < new[j][0]:
+                    new[j] = (total, cost + real)
         costs = new
     target = min(max(round((end - low) / step), 0), SCORE_STEPS)
     best = min(costs[target:])
-    return None if best == inf else best
+    return None if best[0] == inf else best[1]
+
+
+def measured_loss(charged: float, discharged: float, stored: float, charge_efficiency: float) -> float | None:
+    """Round trip loss of AC kWh charged and discharged while the battery gained stored kWh (battery side).
+
+    The level change is counted as the AC kWh it took to charge it (stored / charge efficiency), so
+    a day that empties or fills the battery is neither too lossy nor too efficient.
+    """
+    if charge_efficiency <= 0.0:
+        return None
+    charged_used = charged - stored / charge_efficiency
+    return round(1 - discharged / charged_used, 3) if charged_used > 0.0 else None
+
+
+def loss_days(days: dict[str, dict], kwh_per_percent: float, charge_efficiency: float, min_charged: float) -> tuple[dict[str, tuple[float, float, float]], set[str]]:
+    """The days with a measured loss {date: (charged, discharged, stored kWh)} and the dates left out as outliers.
+
+    A day needs min_charged kWh charged and its start and end level. With LOSS_OUTLIER_MIN_DAYS such
+    days, a day whose loss is further than LOSS_OUTLIER_MADS scaled median absolute deviations from
+    the median (e.g. a jump of the battery level or a day the battery hardly ran) is an outlier.
+    """
+    values: dict[str, tuple[float, float, float]] = {}
+    losses: dict[str, float] = {}
+    for date, day in days.items():
+        charged, discharged = _num(day.get("charged")), _num(day.get("discharged"))
+        if charged < min_charged or not _is_num(day.get("soc_start")) or not _is_num(day.get("soc_end")):
+            continue
+        stored = (day["soc_end"] - day["soc_start"]) * kwh_per_percent
+        loss = measured_loss(charged, discharged, stored, charge_efficiency)
+        if loss is not None:
+            values[date] = (charged, discharged, stored)
+            losses[date] = loss
+    outliers: set[str] = set()
+    if len(losses) >= LOSS_OUTLIER_MIN_DAYS:
+        middle = median(losses.values())
+        spread = median(abs(loss - middle) for loss in losses.values())
+        limit = LOSS_OUTLIER_MADS * 1.4826 * max(spread, 0.01)
+        outliers = {date for date, loss in losses.items() if abs(loss - middle) > limit}
+    return values, outliers
 
 
 def summarize_day(rows: list[dict], soc_start: float | None, minimum: float) -> dict:
