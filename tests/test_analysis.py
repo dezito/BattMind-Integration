@@ -6,9 +6,12 @@ import datetime
 import pytest
 
 from custom_components.battmind.engine.analysis.helpers import (
+    SCORE_VERSION,
     evaluate_price_day,
     grid_cost,
     hindsight_cost,
+    loss_days,
+    measured_loss,
     rules_of_entries,
     split_flows,
     summarize_day,
@@ -67,14 +70,71 @@ def test_split_flows_solar_first() -> None:
     assert (flows["solar_home"], flows["battery_home"], flows["grid_home"]) == (0.5, 1.0, 0.5)
 
 
+def _hindsight(rows, efficiency=lambda _: 1.0, discharge=None, **kwargs):
+    return hindsight_cost(
+        rows, start=1.0, end=1.0, low=1.0, high=9.0, max_charge=3.0, max_discharge=3.0,
+        charge_efficiency=efficiency, discharge_efficiency=discharge or efficiency, **{"wear": 0.0, **kwargs},
+    )
+
+
 def test_hindsight_moves_energy_to_the_expensive_hours() -> None:
     rows = [{"load": 1.0, "buy": 1.0, "sell": 0.5}] * 4 + [{"load": 1.0, "buy": 3.0, "sell": 0.5}] * 4
     no_battery = sum(grid_cost(r["load"], r["buy"], r["sell"]) for r in rows)
-    optimal = hindsight_cost(rows, start=1.0, end=1.0, low=1.0, high=9.0, max_charge=3.0, max_discharge=3.0, efficiency=1.0, wear=0.0)
+    optimal = _hindsight(rows)
     # 4 kWh moved from 1.00 to 3.00 price hours (within a step of the 60 battery levels)
     assert optimal == pytest.approx(no_battery - 8.0, abs=0.15)
-    lossy = hindsight_cost(rows, start=1.0, end=1.0, low=1.0, high=9.0, max_charge=3.0, max_discharge=3.0, efficiency=0.9, wear=0.1)
+    lossy = _hindsight(rows, efficiency=lambda _: 0.9, wear=0.1)
     assert optimal < lossy < no_battery
+
+
+def test_hindsight_uses_the_efficiency_at_the_hours_power() -> None:
+    """The house uses 0.5 kWh an hour: the battery discharges at 500 W, where it is far less efficient
+    than at full power. A spread that pays at full power efficiency does not pay at 500 W."""
+    rows = [{"load": 0.5, "buy": 2.5, "sell": 0.0}] * 4 + [{"load": 0.5, "buy": 3.2, "sell": 0.0}] * 4
+    no_battery = sum(grid_cost(r["load"], r["buy"], r["sell"]) for r in rows)
+
+    def low_power(kwh: float) -> float:
+        return 0.75 if kwh < 1.0 else 0.95
+
+    # 2.5 / 0.95 / 0.95 = 2.77 < 3.2: worth it at full power efficiency
+    assert _hindsight(rows, efficiency=lambda _: 0.95) < no_battery - 0.5
+    # charged at full power, delivered at 500 W: 2.5 / 0.95 / 0.75 = 3.51 > 3.2
+    assert _hindsight(rows, efficiency=lambda _: 0.95, discharge=low_power) == pytest.approx(no_battery)
+
+
+def test_hindsight_respects_the_profit_requirements() -> None:
+    rows = [{"load": 1.0, "buy": 1.0, "sell": 0.0}] * 4 + [{"load": 1.0, "buy": 1.15, "sell": 0.0}] * 4
+    no_battery = sum(grid_cost(r["load"], r["buy"], r["sell"]) for r in rows)
+    assert _hindsight(rows) < no_battery - 0.4
+    # 0.15 a kWh is below min_profit_per_kwh: not a saving BattMind may make; the result stays real money
+    assert _hindsight(rows, min_profit_per_kwh=0.2) == pytest.approx(no_battery)
+    # min_total_profit per charge hour: one 3 kWh charge hour (0.45) pays, smaller ones do not
+    assert no_battery - 0.5 < _hindsight(rows, min_total_profit=0.3) < no_battery - 0.3
+
+
+def test_measured_loss_counts_the_level_change_as_charged_ac() -> None:
+    """75 % round trip (0.96 x 0.78125): a day that empties the battery and a day that fills it give the same loss."""
+    charge, discharge = 0.96, 0.78125
+    # 4 kWh AC charged, 7 kWh taken from the battery: 3.24 kWh less in it
+    drained = measured_loss(4.0, 7.0 * discharge, 4.0 * charge - 7.0, charge)
+    # 10 kWh AC charged, 2 kWh taken from the battery: 7.6 kWh more in it
+    filled = measured_loss(10.0, 2.0 * discharge, 10.0 * charge - 2.0, charge)
+    assert drained == pytest.approx(0.25, abs=0.001)
+    assert filled == pytest.approx(0.25, abs=0.001)
+    # nothing charged that is not still in the battery
+    assert measured_loss(1.0, 0.0, 1.0, 1.0) is None
+
+
+def test_loss_days_leave_out_outliers() -> None:
+    days = {f"2026-10-{day:02d}": {"charged": 10.0, "discharged": 7.5 + (day % 3) * 0.1, "soc_start": 50.0, "soc_end": 50.0} for day in range(1, 16)}
+    days["2026-10-20"] = {"charged": 10.0, "discharged": 2.0, "soc_start": 50.0, "soc_end": 50.0}  # a jump of the level
+    days["2026-10-21"] = {"charged": 1.0, "discharged": 0.0, "soc_start": 50.0, "soc_end": 50.0}  # hardly charged
+    days["2026-10-22"] = {"charged": 10.0, "discharged": 7.5, "soc_start": None, "soc_end": 50.0}
+    values, outliers = loss_days(days, 0.1, 1.0, 2.0)
+    assert set(values) == {*(f"2026-10-{day:02d}" for day in range(1, 16)), "2026-10-20"}
+    assert outliers == {"2026-10-20"}
+    # too few days to tell an outlier
+    assert loss_days(dict(list(days.items())[:5]) | {"2026-10-20": days["2026-10-20"]}, 0.1, 1.0, 2.0)[1] == set()
 
 
 def test_rules_split_grid_and_solar_charging() -> None:
@@ -409,3 +469,45 @@ def test_price_forecast_is_corrected_with_its_bias() -> None:
     assert engine.run_job(snap, engine.hour_end, now.replace(minute=0)).error is None
     assert engine.run_job(snap, engine.price_forecast_corrections).value == {}
     assert engine.run_job(snap, engine.get_grid_prices).value[hour] == provider[hour]
+
+
+def test_published_loss_leaves_out_outliers_and_old_scores() -> None:
+    engine = started_engine(datetime.datetime.combine(DAY, datetime.time(0, 5)), 50.0)
+    engine.config["solar"]["powerwall_battery_size"] = 10.0
+    engine.config["solar"]["battery_charging_efficiency_curve"] = {"1000": 100, "5000": 100}
+    days = engine.analysis_db["days"]
+    for back in range(1, 13):
+        date = (DAY - datetime.timedelta(days=back)).isoformat()
+        days[date] = {"charged": 10.0, "discharged": 7.5, "soc_start": 50.0, "soc_end": 50.0, "final": True}
+    # the battery level jumped: a loss of 80 % that day
+    jumped = (DAY - datetime.timedelta(days=13)).isoformat()
+    days[jumped] = {"charged": 10.0, "discharged": 2.0, "soc_start": 50.0, "soc_end": 50.0, "final": True}
+    days[(DAY - datetime.timedelta(days=1)).isoformat()]["score"] = {"actual": 1.0, "no_battery": 3.0, "optimal": 0.0, "v": SCORE_VERSION}
+    days[(DAY - datetime.timedelta(days=2)).isoformat()]["score"] = {"actual": 3.0, "no_battery": 3.0, "optimal": 0.0}
+
+    result = engine.run_job(snapshot(datetime.datetime.combine(DAY, datetime.time(0, 5)), 50.0), engine.publish_analysis)
+
+    analysis = result.attributes["analysis"]
+    assert analysis["loss"]["last_30"] == pytest.approx(0.25)
+    month = next(row for row in analysis["months"] if row["month"] == jumped[:7])
+    assert month["loss_outliers"] == 1
+    # only the score of the current hindsight model
+    assert [row["date"] for row in analysis["scores"]] == [(DAY - datetime.timedelta(days=1)).isoformat()]
+    assert analysis["score_30"] == pytest.approx(2 / 3, abs=0.001)
+
+
+def test_a_score_of_an_older_model_is_calculated_again_while_the_hours_are_kept() -> None:
+    engine = started_engine(datetime.datetime.combine(DAY, datetime.time(0, 5)), 20.0)
+    _run_day(engine)
+    day = engine.analysis_db["days"][DAY.isoformat()]
+    assert day["score"]["v"] == SCORE_VERSION
+    day["score"] = {"actual": 9.0, "no_battery": 9.0, "optimal": 9.0}
+
+    now = datetime.datetime.combine(DAY + datetime.timedelta(days=1), datetime.time(0, 59))
+    snap = snapshot(now, _level(23))
+    snap.buffers = _buffers()
+    assert engine.run_job(snap, engine.hour_end, now.replace(minute=0)).error is None
+
+    score = engine.analysis_db["days"][DAY.isoformat()]["score"]
+    assert score["v"] == SCORE_VERSION
+    assert score["optimal"] <= score["actual"] != 9.0

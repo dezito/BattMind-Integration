@@ -6,7 +6,7 @@ import logging
 
 from ...const import CHARGING_TYPES
 from ...utils.efficiency import learned_efficiency_curve, measured_efficiency_steps, parse_efficiency_curve
-from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_TYPES, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, _is_num, _num
+from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_VERSION, _is_num, _num, loss_days, measured_loss
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,21 +71,25 @@ class AnalysisPublishing:
         energy: dict[str, dict] = {}
         for date in sorted(days):
             day = days[date]
-            month = energy.setdefault(date[:7], {**dict.fromkeys(DAY_SUMS, 0.0), "price_sum": 0.0, "price_hours": 0, "soc_start": None, "soc_end": None, "days": 0})
+            month = energy.setdefault(date[:7], {**dict.fromkeys(DAY_SUMS, 0.0), "price_sum": 0.0, "price_hours": 0, "days": 0})
             for key in (*DAY_SUMS, "price_sum", "price_hours"):
                 month[key] += _num(day.get(key))
-            if month["soc_start"] is None:
-                month["soc_start"] = day.get("soc_start")
-            if _is_num(day.get("soc_end")):
-                month["soc_end"] = day["soc_end"]
             month["days"] += 1
 
-        def loss_of(charged: float, discharged: float, soc_start, soc_end) -> float | None:
-            """Measured round trip loss: what went in and did not come out (corrected for the level change)."""
+        # measured round trip loss of the closed days, outliers left out --------
+        charge_efficiency = self.charging_efficiency()
+        loss_values, loss_outliers = loss_days(closed, size / 100, charge_efficiency, size * LOSS_DAY_MIN_CHARGED)
+
+        def loss_of(first: str = "", last: str = "9999") -> float | None:
+            """Measured round trip loss of the days first..last: what went in and did not come out."""
+            selected = [value for date, value in loss_values.items() if first <= date <= last and date not in loss_outliers]
+            charged = sum(value[0] for value in selected)
             if charged < size:
                 return None
-            stored = self.percentage_to_kwh(soc_end - soc_start) if _is_num(soc_start) and _is_num(soc_end) else 0.0
-            return round(1 - (discharged + stored) / charged, 3)
+            return measured_loss(charged, sum(value[1] for value in selected), sum(value[2] for value in selected), charge_efficiency)
+
+        def outliers_of(first: str = "", last: str = "9999") -> int:
+            return sum(1 for date in loss_outliers if first <= date <= last)
 
         months = []
         for key in sorted(set(economy) | set(energy))[-ANALYSIS_MONTHS:]:
@@ -124,7 +128,8 @@ class AnalysisPublishing:
                     battery_share=round(f["battery_home"] / home, 3) if home > 0 else None,
                     measured_charged=round(f["charged"], 1),
                     measured_discharged=round(f["discharged"], 1),
-                    loss=loss_of(f["charged"], f["discharged"], f["soc_start"], f["soc_end"]),
+                    loss=loss_of(f"{key}-01", f"{key}-31"),
+                    loss_outliers=outliers_of(f"{key}-01", f"{key}-31"),
                 )
             months.append(row)
 
@@ -134,14 +139,6 @@ class AnalysisPublishing:
         last_30 = window(today - datetime.timedelta(days=30))
         last_7 = window(today - datetime.timedelta(days=7))
         all_days = window(datetime.date.min)
-
-        def loss_window(selected: list[dict]) -> float | None:
-            if not selected:
-                return None
-            return loss_of(
-                sum(_num(day.get("charged")) for day in selected), sum(_num(day.get("discharged")) for day in selected),
-                selected[0].get("soc_start"), selected[-1].get("soc_end"),
-            )
 
         def sufficiency(selected: list[dict]) -> float | None:
             home = sum(_num(day.get("home")) for day in selected)
@@ -303,7 +300,8 @@ class AnalysisPublishing:
         scores = []
         for date, day in sorted(closed.items()):
             score = day.get("score")
-            if not score:
+            # a score of an older hindsight model is not comparable
+            if not isinstance(score, dict) or score.get("v") != SCORE_VERSION:
                 continue
             saved = score["no_battery"] - score["actual"]
             possible = score["no_battery"] - score["optimal"]
@@ -338,8 +336,8 @@ class AnalysisPublishing:
             "loss": {
                 "configured": round(solar_cfg["powerwall_charge_discharge_loss"], 3),
                 "used": round(self.effective_round_trip_loss(), 3),
-                "last_30": loss_window(last_30),
-                "all": loss_window(all_days),
+                "last_30": loss_of((today - datetime.timedelta(days=30)).isoformat()),
+                "all": loss_of(),
             },
             "self_sufficiency": {"last_7": sufficiency(last_7), "last_30": sufficiency(last_30), "all": sufficiency(all_days)},
             "forecast": forecast,

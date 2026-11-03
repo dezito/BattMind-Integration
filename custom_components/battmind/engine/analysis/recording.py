@@ -8,7 +8,7 @@ from ...const import HISTORY_BUFFER_HOURS, PRICE_ADDER_DAY_BETWEEN_DIVIDER
 from ...utils.efficiency import EFFICIENCY_BACKFILL_VERSION, add_efficiency_measurement, measure_efficiency
 from ...utils.helpers import days_between, reset_time_to_hour
 from ...utils.power import unit_factor_to_w
-from .helpers import ANALYSIS_DAYS, FORECAST_TYPES, PRICE_FORECAST_DAYS, PRICE_HOURS_DAYS, _is_num, _num, _r, evaluate_price_day, grid_cost, hindsight_cost, hourly_prices, rules_of_entries, summarize_day
+from .helpers import ANALYSIS_DAYS, FORECAST_TYPES, PRICE_FORECAST_DAYS, PRICE_HOURS_DAYS, SCORE_VERSION, _is_num, _num, _r, evaluate_price_day, grid_cost, hindsight_cost, hourly_prices, rules_of_entries, summarize_day
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,9 +57,12 @@ class AnalysisRecording:
         }
         hours = self.analysis_db["hours"]
         hours[start.strftime("%Y-%m-%dT%H")] = row
-        # a day whose last hour was missed (restart) is finished by the next day
+        # a day whose last hour was missed (restart) is finished by the next day, a score of an
+        # older hindsight model is calculated again while the hours are kept
         for date in sorted({key[:10] for key in hours}):
-            if date < start.date().isoformat() and not self.analysis_db["days"].get(date, {}).get("final"):
+            known = self.analysis_db["days"].get(date, {})
+            outdated = isinstance(known.get("score"), dict) and known["score"].get("v") != SCORE_VERSION
+            if date < start.date().isoformat() and (not known.get("final") or outdated):
                 self._analysis_day(datetime.date.fromisoformat(date), final=True)
         self._analysis_day(start.date(), final=start.hour == 23)
         oldest = (start.date() - datetime.timedelta(days=1)).isoformat()
@@ -107,12 +110,17 @@ class AnalysisRecording:
             self.percentage_to_kwh(solar["powerwall_battery_level_max"]),
             self.max_kwh_charging,
             self.max_kwh_discharging,
-            self.battery_efficiency(),
+            # the optimiser's efficiency at the hour's power and its profit requirements
+            self.charging_efficiency,
+            self.discharging_efficiency,
             wear,
+            min_profit_per_kwh=self.get_min_profit_per_kwh(),
+            min_total_profit=self.get_min_total_profit(),
+            min_sell_kwh=self.number("min_sell_kwh"),
         )
         if optimal is None:
             return None
-        return {"actual": round(actual, 3), "no_battery": round(no_battery, 3), "optimal": round(min(optimal, actual), 3)}
+        return {"actual": round(actual, 3), "no_battery": round(no_battery, 3), "optimal": round(min(optimal, actual), 3), "v": SCORE_VERSION}
 
     def _efficiency_measure(self, flow: list, levels: list, start: float, end: float) -> float:
         """Add the measurements of the battery power and level rows between start and end; returns the time measured until."""

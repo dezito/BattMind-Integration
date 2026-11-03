@@ -97,10 +97,19 @@ check the wear you set against the battery's guarantee (e.g. 6000 cycles).
 
 ### Measured round trip loss
 
-`1 − (discharged + change of the battery level) ÷ charged`, measured with the battery's power sensor (AC to
-AC), per month, the last 30 days and in total. **Used now** is the loss BattMind plans with: the configured
-one, or the measured one after 6 full cycles if *loss from history* is on. When efficiency curves are
-configured, **Used now** is their combined loss at the configured maximum charge/discharge power.
+`1 − discharged ÷ (charged − change of the battery level ÷ charging efficiency)`, measured with the
+battery's power sensor (AC to AC), per month, the last 30 days and in total. The change of the battery level
+is counted as the AC energy it took to charge it, so a day that empties the battery does not look too lossy
+and a day that fills it does not look too efficient.
+
+The loss is added up from whole days that charged at least 20 % of the battery size. With at least 10 such
+days, a day whose loss is more than 3 scaled median absolute deviations from the median of all days is left
+out as an outlier – typically a jump of the battery level (recalibration) or a day the battery hardly ran,
+where its standby consumption dominates. The month table shows how many days were left out (**Outliers**).
+
+**Used now** is the loss BattMind plans with: the configured one, or the measured one after 6 full cycles if
+*loss from history* is on. When efficiency curves are configured, **Used now** is their combined loss at the
+configured maximum charge/discharge power.
 
 If the measured loss is far from the configured one, check the battery power sensor (and its sign) before
 changing the loss.
@@ -196,8 +205,11 @@ How much of the possible saving was reached each day:
 `score = (cost without battery − actual cost) ÷ (cost without battery − best possible cost)`
 
 The best possible cost is calculated afterwards with the day's actual consumption, solar and prices, the
-same start and end level, power, loss and wear. Forecast errors therefore count against the score – 100 %
-would require knowing the future.
+same start and end level, power, loss and wear, and the same battery model as the optimiser: the efficiency
+at each hour's charge/discharge power (when the efficiency curves are used) and the profit requirements
+(*min. profit per kWh*, *min. total profit*, *min. kWh to sell*). A trade that would not have met them is
+not counted as a possible saving. Forecast errors still count against the score – 100 % would require
+knowing the future.
 
 <details>
 <summary>Screenshot</summary>
