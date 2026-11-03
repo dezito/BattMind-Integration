@@ -25,7 +25,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
-from ..const import CONF_ENTITY_PREFIX, PRICE_PROVIDER_PRIORITY, SIGNAL_UPDATE, build_config, default_options
+from ..const import CONF_ENTITY_PREFIX, DOMAIN, PRICE_PROVIDER_PRIORITY, SIGNAL_UPDATE, build_config, default_options
 from ..engine import BattMindEngine, JobResult
 from ..engine.planner.what_if import PROGRESS_INTERVAL
 from ..utils.formatting import translate
@@ -227,7 +227,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         {"phase", "seconds"}, and then while the simulation runs (see WhatIf.what_if()).
         """
         if "recorder" not in self.hass.config.components:
-            raise HomeAssistantError("Recorder is required for the historical what-if comparison")
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="what_if_no_recorder")
         price_ids = self.config["prices"]["entity_ids"]
         price_providers = []
         # PRICE_PROVIDER_PRIORITY order: the what-if uses the first provider with price
@@ -280,7 +280,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
                     provider
                 )
         if not price_providers:
-            raise HomeAssistantError("A buy-price entity is required for the historical what-if comparison")
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="what_if_no_buy_price")
         entities = {
             entity_id
             for entity_id in (
@@ -405,7 +405,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
                 else {}
             )
         except Exception as err:  # noqa: BLE001
-            raise HomeAssistantError(f"Could not read Recorder history and long-term statistics: {err}") from err
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="what_if_history_failed", translation_placeholders={"error": str(err)}) from err
         # the raw history of a year can be large: it is converted outside the event loop
         report_phase("hourly")
         combined_stats, statistical_timestamps, tariff_history = await self.hass.async_add_executor_job(

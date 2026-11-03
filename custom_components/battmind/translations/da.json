@@ -751,6 +751,38 @@
       }
     }
   },
+  "exceptions": {
+    "action_failed": {
+      "message": "Handlingen mislykkedes: {error}"
+    },
+    "backup_invalid_name": {
+      "message": "Ugyldigt navn på backup-fil: {name}"
+    },
+    "backup_not_found": {
+      "message": "Backuppen {path} blev ikke fundet"
+    },
+    "backup_unreadable": {
+      "message": "Kunne ikke læse backuppen {name}: {error}"
+    },
+    "backup_wrong_integration": {
+      "message": "{name} er ikke en BattMind-backup"
+    },
+    "entry_not_loaded": {
+      "message": "BattMind-konfigurationsindgangen {entry_id} er ikke indlæst"
+    },
+    "not_an_entry": {
+      "message": "{entry_id} er ikke en BattMind-konfigurationsindgang"
+    },
+    "what_if_history_failed": {
+      "message": "Kunne ikke læse Recorder-historikken og langtidsstatistikken: {error}"
+    },
+    "what_if_no_buy_price": {
+      "message": "Den historiske what-if-sammenligning kræver en købspris-entitet"
+    },
+    "what_if_no_recorder": {
+      "message": "Recorder skal være aktiv for den historiske what-if-sammenligning"
+    }
+  },
   "issues": {
     "blueprint_update": {
       "title": "Ny version af blueprinten {name}",

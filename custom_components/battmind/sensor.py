@@ -10,6 +10,9 @@ from .const import POWERWALL_ACTION_STATES, SENSOR_KEYS
 from .coordinator import BattMindCoordinator
 from .entity import BattMindUpdatingEntity
 
+# the entities read the coordinator's data and change only the integration's own settings
+PARALLEL_UPDATES = 0
+
 MAX_STATE_LENGTH = 255
 
 

@@ -616,6 +616,38 @@
       }
     }
   },
+  "exceptions": {
+    "action_failed": {
+      "message": "Die Aktion ist fehlgeschlagen: {error}"
+    },
+    "backup_invalid_name": {
+      "message": "Ungültiger Name der Backup-Datei: {name}"
+    },
+    "backup_not_found": {
+      "message": "Backup {path} nicht gefunden"
+    },
+    "backup_unreadable": {
+      "message": "Backup {name} konnte nicht gelesen werden: {error}"
+    },
+    "backup_wrong_integration": {
+      "message": "{name} ist kein BattMind-Backup"
+    },
+    "entry_not_loaded": {
+      "message": "Der BattMind-Konfigurationseintrag {entry_id} ist nicht geladen"
+    },
+    "not_an_entry": {
+      "message": "{entry_id} ist kein BattMind-Konfigurationseintrag"
+    },
+    "what_if_history_failed": {
+      "message": "Recorder-Verlauf und Langzeitstatistiken konnten nicht gelesen werden: {error}"
+    },
+    "what_if_no_buy_price": {
+      "message": "Für den historischen What-if-Vergleich wird eine Kaufpreis-Entität benötigt"
+    },
+    "what_if_no_recorder": {
+      "message": "Für den historischen What-if-Vergleich wird der Recorder benötigt"
+    }
+  },
   "issues": {
     "blueprint_update": {
       "title": "Neue Version des Blueprints {name}",

@@ -751,6 +751,38 @@
       }
     }
   },
+  "exceptions": {
+    "action_failed": {
+      "message": "The action failed: {error}"
+    },
+    "backup_invalid_name": {
+      "message": "Invalid backup file name: {name}"
+    },
+    "backup_not_found": {
+      "message": "Backup {path} not found"
+    },
+    "backup_unreadable": {
+      "message": "Could not read backup {name}: {error}"
+    },
+    "backup_wrong_integration": {
+      "message": "{name} is not a BattMind backup"
+    },
+    "entry_not_loaded": {
+      "message": "BattMind config entry {entry_id} is not loaded"
+    },
+    "not_an_entry": {
+      "message": "{entry_id} is not a BattMind config entry"
+    },
+    "what_if_history_failed": {
+      "message": "Could not read the Recorder history and long-term statistics: {error}"
+    },
+    "what_if_no_buy_price": {
+      "message": "A buy-price entity is required for the historical what-if comparison"
+    },
+    "what_if_no_recorder": {
+      "message": "The Recorder is required for the historical what-if comparison"
+    }
+  },
   "issues": {
     "blueprint_update": {
       "title": "New version of the blueprint {name}",

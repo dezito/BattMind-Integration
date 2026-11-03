@@ -616,6 +616,38 @@
       }
     }
   },
+  "exceptions": {
+    "action_failed": {
+      "message": "Akcja nie powiodła się: {error}"
+    },
+    "backup_invalid_name": {
+      "message": "Nieprawidłowa nazwa pliku kopii zapasowej: {name}"
+    },
+    "backup_not_found": {
+      "message": "Nie znaleziono kopii zapasowej {path}"
+    },
+    "backup_unreadable": {
+      "message": "Nie można odczytać kopii zapasowej {name}: {error}"
+    },
+    "backup_wrong_integration": {
+      "message": "{name} nie jest kopią zapasową BattMind"
+    },
+    "entry_not_loaded": {
+      "message": "Wpis konfiguracji BattMind {entry_id} nie jest wczytany"
+    },
+    "not_an_entry": {
+      "message": "{entry_id} nie jest wpisem konfiguracji BattMind"
+    },
+    "what_if_history_failed": {
+      "message": "Nie można odczytać historii Recordera i statystyk długoterminowych: {error}"
+    },
+    "what_if_no_buy_price": {
+      "message": "Historyczne porównanie what-if wymaga encji ceny zakupu"
+    },
+    "what_if_no_recorder": {
+      "message": "Historyczne porównanie what-if wymaga Recordera"
+    }
+  },
   "issues": {
     "blueprint_update": {
       "title": "Nowa wersja blueprintu {name}",

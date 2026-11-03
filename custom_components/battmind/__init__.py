@@ -340,13 +340,28 @@ WHAT_IF_SCHEMA = vol.Schema(
 )
 
 
+def _validation_error(err: HomeAssistantError | str) -> ServiceValidationError:
+    """A translated ServiceValidationError for an error from a service action."""
+    if isinstance(err, HomeAssistantError) and err.translation_domain == DOMAIN and err.translation_key:
+        return ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key=err.translation_key,
+            translation_placeholders=err.translation_placeholders,
+        )
+    return ServiceValidationError(
+        translation_domain=DOMAIN, translation_key="action_failed", translation_placeholders={"error": str(err)}
+    )
+
+
 def _coordinators(hass: HomeAssistant, call: ServiceCall) -> list[BattMindCoordinator]:
     entry_id = call.data.get("config_entry_id")
     entries = hass.config_entries.async_loaded_entries(DOMAIN)
     if entry_id:
         entries = [entry for entry in entries if entry.entry_id == entry_id]
         if not entries:
-            raise ServiceValidationError(f"BattMind config entry {entry_id} is not loaded")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="entry_not_loaded", translation_placeholders={"entry_id": entry_id}
+            )
     return [entry.runtime_data for entry in entries]
 
 
@@ -422,7 +437,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                     title=title,
                     notification_id=notification_id,
                 )
-                raise ServiceValidationError(str(err)) from err
+                raise _validation_error(err) from err
             except Exception as err:
                 _LOGGER.exception("Unexpected error while running the BattMind what-if simulation")
                 persistent_notification.async_create(
@@ -439,7 +454,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                     title=title,
                     notification_id=notification_id,
                 )
-                raise ServiceValidationError(str(result.error))
+                raise _validation_error(result.error)
             output[coordinator.prefix] = result.value
             persistent_notification.async_create(
                 hass,
@@ -458,11 +473,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def _import_data(call: ServiceCall) -> None:
         entry = hass.config_entries.async_get_entry(call.data["config_entry_id"])
         if entry is None or entry.domain != DOMAIN:
-            raise ServiceValidationError(f"{call.data['config_entry_id']} is not a BattMind config entry")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="not_an_entry",
+                translation_placeholders={"entry_id": call.data["config_entry_id"]},
+            )
         try:
             await async_import(hass, entry, call.data["file"].split("/")[-1], call.data["restore_configuration"])
         except HomeAssistantError as err:
-            raise ServiceValidationError(str(err)) from err
+            raise _validation_error(err) from err
 
     hass.services.async_register(
         DOMAIN, SERVICE_EXPORT_DATA, _export_data, schema=SERVICE_SCHEMA, supports_response=SupportsResponse.OPTIONAL
