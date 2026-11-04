@@ -18,20 +18,19 @@ from typing import Any, Callable
 
 from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
-from ..const import CONF_ENTITY_PREFIX, DOMAIN, PRICE_PROVIDER_PRIORITY, SIGNAL_UPDATE, build_config, default_options
+from ..const import CONF_ENTITY_PREFIX, DOMAIN, SIGNAL_UPDATE, build_config, default_options
 from ..engine import BattMindEngine, JobResult
 from ..engine.planner.what_if import PROGRESS_INTERVAL
 from ..utils.formatting import translate
 from ..management.debug_export import DebugRecorder
 from ..management.storage import BattMindStorage
-from ..prices.energidataservice import eds_sell_costs
+from ..prices import CombinedPriceProvider
 from .data import CoordinatorData
 from .events import CoordinatorEvents
 from .lifecycle import CoordinatorLifecycle
@@ -113,6 +112,11 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
     def legacy_prefix(self) -> str | None:
         """Prefix of the PyScript installation chosen for import in the config flow (None = no import)."""
         return self.entry.data.get("legacy_prefix")
+
+    @property
+    def price_provider(self) -> CombinedPriceProvider | None:
+        """The engine's price provider: everything about prices (entities, snapshot, history)."""
+        return self.engine.price_provider if self.engine is not None else None
 
     @property
     def signal(self) -> str:
@@ -228,57 +232,10 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         """
         if "recorder" not in self.hass.config.components:
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="what_if_no_recorder")
-        price_ids = self.config["prices"]["entity_ids"]
-        price_providers = []
-        # PRICE_PROVIDER_PRIORITY order: the what-if uses the first provider with price
-        # history for each hour and falls back to the next one.
-        provider_keys = {
-            "stromligning": ("Strømligning", "stromligning_buy_current_price", "stromligning_sell_current_price"),
-            "energidataservice": (
-                "Energi Data Service", "energidataservice_buy_entity_id", "energidataservice_sell_entity_id"
-            ),
-        }
-        for name, buy_key, sell_key in (provider_keys[key] for key in PRICE_PROVIDER_PRIORITY):
-            buy_id = price_ids[buy_key]
-            if buy_id:
-                sell_id = price_ids[sell_key] or None
-                provider = {
-                    "name": name,
-                    "buy_entity_id": buy_id,
-                    "sell_entity_id": sell_id,
-                    "sell_fee": abs(self.config["prices"].get("sell_fee", 0.0)),
-                }
-                if name == "Strømligning":
-                    provider["sell_tariff_entity_ids"] = {
-                        tariff: price_ids[key]
-                        for tariff, key in (
-                            ("transmissions_nettarif", "stromligning_sell_nettariff"),
-                            ("systemtarif", "stromligning_sell_systemtariff"),
-                            ("elafgift", "stromligning_sell_electricity_tax"),
-                            ("tariffs", "stromligning_sell_distribution"),
-                            ("surcharge", "stromligning_sell_surcharge"),
-                        )
-                        if price_ids[key]
-                    }
-                elif sell_id:
-                    # Energi Data Service never records its tariffs attribute; a sensor without
-                    # it is a raw price (tariffs disabled), which the live planner uses as is.
-                    # An unknown state keeps the conservative assumption that tariffs are included.
-                    sell_state = self.hass.states.get(sell_id)
-                    provider["sell_includes_tariffs"] = (
-                        sell_state is None
-                        or sell_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
-                        or bool(sell_state.attributes.get("tariffs"))
-                    )
-                    if not provider["sell_includes_tariffs"]:
-                        # selling still costs Energinet's net and system tariff: from the buy sensor
-                        buy_state = self.hass.states.get(buy_id)
-                        sell_costs = eds_sell_costs(buy_state.attributes if buy_state else None)
-                        if sell_costs:
-                            provider["sell_costs"] = sell_costs
-                price_providers.append(
-                    provider
-                )
+        # in PRICE_PROVIDER_PRIORITY order: the what-if uses the first provider with price
+        # history for each hour and falls back to the next one
+        provider = self.price_provider
+        price_providers = provider.history_sources(self.hass.states.get) if provider else []
         if not price_providers:
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="what_if_no_buy_price")
         entities = {

@@ -37,7 +37,7 @@ custom_components/battmind/             The HA integration (HACS payload)
 │   ├── history/                         Recorder queries and stored history
 │   ├── analysis/                        Results, recording, and published analysis
 │   └── battery.py / state.py            Battery model and planning state
-├── prices/                              Price-source adapters and factory
+├── prices/                              Price providers; CombinedPriceProvider is the only entry point
 ├── management/                          Storage, backups, dashboard, and blueprint setup
 ├── utils/                               Shared codecs, formatting, and calculations
 ├── sensor.py / number.py / switch.py    Main HA entity platforms
@@ -101,6 +101,12 @@ Read the relevant documentation before changing behavior. In particular:
   missing, stale, unavailable, malformed, or non-numeric. Handle these cases
   explicitly and consistently with the existing fail-safe behavior; do not
   silently invent prices or measurements.
+- All price handling goes through `CombinedPriceProvider` (`prices/`, built by
+  `create_price_provider()`): which price entities to read, the snapshot, the
+  recorded price history, the provider priority (`PRICE_PROVIDER_PRIORITY`:
+  Strømligning before Energi Data Service) and the prices themselves. Other
+  code calls its methods (the coordinator via `coordinator.price_provider`)
+  and never reads price entities, config keys or provider attributes itself.
 - Keep network and blocking work out of the event loop. Follow the existing
   coordinator/executor lifecycle and ensure workers and resources are cleaned
   up on unload.

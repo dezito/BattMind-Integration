@@ -207,7 +207,7 @@
         "data": {
           "price_providers": "Preisanbieter"
         },
-        "description": "Wähle, woher die Stundenpreise kommen. Bei beiden wird der erste mit einem Preis für eine Stunde genutzt, und der andere füllt die Lücken.",
+        "description": "Wähle, woher die Stundenpreise kommen. Bei beiden hat Strømligning Vorrang: sein Preis wird für jede Stunde genutzt, für die er einen hat, und Energi Data Service füllt die Lücken.",
         "title": "Strompreise"
       },
       "user": {
@@ -463,7 +463,7 @@
         "data": {
           "price_providers": "Preisanbieter"
         },
-        "description": "Wähle, woher die Stundenpreise kommen. Bei beiden wird der erste mit einem Preis für eine Stunde genutzt, und der andere füllt die Lücken.",
+        "description": "Wähle, woher die Stundenpreise kommen. Bei beiden hat Strømligning Vorrang: sein Preis wird für jede Stunde genutzt, für die er einen hat, und Energi Data Service füllt die Lücken.",
         "title": "Strompreise"
       }
     },

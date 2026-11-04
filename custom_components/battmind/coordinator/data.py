@@ -23,7 +23,6 @@ from ..engine.analysis.helpers import ANALYSIS_DAYS
 from ..utils.efficiency import EFFICIENCY_BACKFILL_DAYS
 from ..utils.helpers import float_or_none
 from ..utils.power import merge_rows
-from ..prices import TARIFF_STATE_KEYS
 from .constants import FORECAST_TIMEOUT, STATISTICS_REFRESH_SECONDS
 
 _LOGGER = logging.getLogger(__name__)
@@ -187,20 +186,8 @@ class CoordinatorData:
         return snapshot
 
     def _price_snapshot(self) -> dict:
-        entity_ids = self.config["prices"]["entity_ids"]
-        attributes: dict[str, dict] = {}
-        values: dict[str, float] = {}
-        for key, entity_id in entity_ids.items():
-            if not entity_id or entity_id in attributes:
-                continue
-            state = self.hass.states.get(entity_id)
-            if state is None:
-                continue
-            attributes[entity_id] = dict(state.attributes)
-            if key in TARIFF_STATE_KEYS:
-                value = float_or_none(state.state)
-                values[entity_id] = value if value is not None else 0.0
-        return {"attributes": attributes, "values": values}
+        provider = self.price_provider
+        return provider.snapshot(self.hass.states.get) if provider else {"attributes": {}, "values": {}}
 
     def _ev_charging_snapshot(self) -> list[dict]:
         """The planned charging of each Cable Juice Planner car (charge_plan of its current_charging_rule)."""
@@ -424,10 +411,10 @@ class CoordinatorData:
         from homeassistant.components.recorder import get_instance
         from homeassistant.components.recorder.statistics import statistics_during_period
 
-        prices = self.config["prices"]["entity_ids"]
-        price_id = prices["energidataservice_buy_entity_id"] or prices["stromligning_buy_current_price"]
+        # the buy price history of every price provider; the engine combines them (CombinedPriceProvider)
+        price_ids = self.price_provider.buy_price_entity_ids() if self.price_provider else []
         home = self.config["home"]["entity_ids"]
-        entities = {e for e in (*self.buffered_entities, price_id) if e}
+        entities = {e for e in (*self.buffered_entities, *price_ids) if e}
         end = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
         try:
             stats = await get_instance(self.hass).async_add_executor_job(
@@ -437,7 +424,6 @@ class CoordinatorData:
             _LOGGER.warning("Analysis: could not read the long-term statistics: %s", err)
             return
         data = {
-            "price_entity_id": price_id,
             "stats": {
                 # power and battery level: the mean of the hour; prices (state_class total, e.g.
                 # Energi Data Service and Strømligning) only have the state at the end of the hour

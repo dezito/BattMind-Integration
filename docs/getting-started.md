@@ -87,8 +87,8 @@ The loss and the wear decide how big a price difference has to be before BattMin
 
 ### Prices
 
-Choose Energi Data Service and/or Strømligning. With both, the first one with a price for an hour is used,
-and the other fills the gaps.
+Choose Energi Data Service and/or Strømligning. With both, Strømligning has priority: its price is used for
+every hour it has one, and Energi Data Service fills the gaps (also in the what-if and the analysis).
 
 - **Energi Data Service:** enable *Carnot* in Energi Data Service to plan beyond the published prices.
   Without a separate sell sensor, the buy price minus tariffs is used as sell price. A sell sensor

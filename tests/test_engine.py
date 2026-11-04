@@ -96,8 +96,8 @@ def snapshot(now: datetime.datetime, battery_level: float, settings: dict | None
     )
 
 
-def started_engine(now: datetime.datetime, battery_level: float, with_history: bool = True) -> BattMindEngine:
-    engine = BattMindEngine(build_config(OPTIONS), "test", TEXTS)
+def started_engine(now: datetime.datetime, battery_level: float, with_history: bool = True, options: dict | None = None) -> BattMindEngine:
+    engine = BattMindEngine(build_config({**OPTIONS, **(options or {})}), "test", TEXTS)
     databases = {"power_values": _power_values_db()} if with_history else {}
     result = engine.run_job(snapshot(now, battery_level), engine.startup, databases)
     assert result.error is None, result.error

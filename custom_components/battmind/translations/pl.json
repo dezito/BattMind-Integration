@@ -207,7 +207,7 @@
         "data": {
           "price_providers": "Dostawcy cen"
         },
-        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy obu używany jest pierwszy z ceną dla danej godziny, a drugi uzupełnia luki.",
+        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy obu pierwszeństwo ma Strømligning: jego cena jest używana dla każdej godziny, dla której ją ma, a Energi Data Service uzupełnia luki.",
         "title": "Ceny energii"
       },
       "user": {
@@ -463,7 +463,7 @@
         "data": {
           "price_providers": "Dostawcy cen"
         },
-        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy obu używany jest pierwszy z ceną dla danej godziny, a drugi uzupełnia luki.",
+        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy obu pierwszeństwo ma Strømligning: jego cena jest używana dla każdej godziny, dla której ją ma, a Energi Data Service uzupełnia luki.",
         "title": "Ceny energii"
       }
     },

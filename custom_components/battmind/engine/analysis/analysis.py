@@ -93,7 +93,11 @@ class Analysis(AnalysisRecording, AnalysisPublishing):
         solar = series(self.config["solar"]["entity_ids"]["production_entity_id"])
         ignored = [series(entity_id) for entity_id in ids["ignore_consumption_from_entity_ids"] or [] if entity_id]
         soc = series(ids["powerwall_battery_level_entity_id"], power=False)
-        price = series(data.get("price_entity_id") or "", power=False)
+        # the buy price history: per hour the first price provider with a price (PRICE_PROVIDER_PRIORITY)
+        provider = self.price_provider
+        price = provider.combine_history(
+            {entity_id: series(entity_id, power=False) for entity_id in provider.buy_price_entity_ids()}
+        ) if provider else {}
         positive_is_charging = home["invert_powerwall_watt_flow_entity_id"]
 
         by_date: dict[str, dict[str, dict]] = {}

@@ -5,7 +5,7 @@ import datetime
 import logging
 
 from ..utils.helpers import to_datetime
-from .base import BasePriceProvider, _naive, price_at
+from .base import BasePriceProvider, GetState, _naive, price_at
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -14,14 +14,17 @@ class StromligningPriceProvider(BasePriceProvider):
     """Strømligning ('prices' attribute with start/price, tariffs as separate sensors)."""
 
     source_name = "stromligning"
+    display_name = "Strømligning"
+    buy_key = "stromligning_buy_current_price"
+    sell_key = "stromligning_sell_current_price"
 
     def __init__(self, config: dict) -> None:
         super().__init__(config)
         get = self.entity_ids.get
-        self.buy_current_price = get("stromligning_buy_current_price", "")
+        self.buy_current_price = get(self.buy_key, "")
         self.buy_tomorrow_available = get("stromligning_buy_tomorrow_available", "")
         self.buy_forecasts = get("stromligning_buy_forecasts", "")
-        self.sell_current_price = get("stromligning_sell_current_price", "")
+        self.sell_current_price = get(self.sell_key, "")
         self.sell_tomorrow_available = get("stromligning_sell_tomorrow_available", "")
         self.sell_forecasts = get("stromligning_sell_forecasts", "")
         self.sell_distribution = get("stromligning_sell_distribution", "")
@@ -38,8 +41,21 @@ class StromligningPriceProvider(BasePriceProvider):
             self._distribution_prices = dict(self._rows(self.attributes[self.sell_distribution].get("prices")))
         super().update(price_data, now)
 
-    def buy_price_entity_id(self) -> str:
-        return self.buy_current_price
+    def history_source(self, get_state: GetState) -> dict | None:
+        source = super().history_source(get_state)
+        if source:
+            source["sell_tariff_entity_ids"] = {
+                tariff: self.entity_ids[key]
+                for tariff, key in (
+                    ("transmissions_nettarif", "stromligning_sell_nettariff"),
+                    ("systemtarif", "stromligning_sell_systemtariff"),
+                    ("elafgift", "stromligning_sell_electricity_tax"),
+                    ("tariffs", "stromligning_sell_distribution"),
+                    ("surcharge", "stromligning_sell_surcharge"),
+                )
+                if self.entity_ids.get(key)
+            }
+        return source
 
     @staticmethod
     def _rows(rows):
