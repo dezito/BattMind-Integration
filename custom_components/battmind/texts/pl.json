@@ -244,7 +244,8 @@
       "charging_watt": "Ładowanie {watt}W",
       "discharging_watt": "Rozładowanie {watt}W",
       "force_powerwall_max_hours_old_discharge": "Rozładowanie starszych kWh dozwolone",
-      "blocked_solar_charge": "Zablokowane ładowanie z energii słonecznej"
+      "blocked_solar_charge": "Zablokowane ładowanie z energii słonecznej",
+      "learning": "Uczenie się zużycia ({days}/{needed} dni): sprzedaż i blokowanie ładowania z energii słonecznej są wyłączone"
     },
     "startup": {
       "configuration": {
@@ -475,7 +476,7 @@
     "help_charging": "Nadwyżka PV zawsze ładuje pierwsza; sieć nigdy nie wypiera energii PV, która zostałaby sprzedana taniej niż kosztuje energia z sieci.\n\n* **Najtańsze godziny**: naładuj baterię w najtańszych godzinach na dzienne zużycie (*do pełna*: do maks.).\n  * **Tanie okresy cenowe**: liczba lokalnych okresów niskiej ceny wykrywanych każdego dnia.\n  * **Wzrost ceny w tanich okresach**: o ile cena może wzrosnąć powyżej najniższej ceny w okresie, zanim okres się zakończy.\n  * **Wzrost względem najniższej ceny**: o ile cena w danej godzinie może przekroczyć najniższą cenę dnia, aby nadal kwalifikować się do tej reguły.\n* **Najdroższe godziny**: ładuj na najdroższe godziny, których bateria nie pokrywa.\n* **Potrzebne przed maks. poziomem**: doładuj brakującą odrobinę, zanim słońce naładuje baterię.\n* **Ujemne ceny**: napełnij baterię, gdy ładowanie się opłaca, nawet jeśli energia nie zostanie zużyta.",
     "help_discharging": "* **Tylko z zyskiem**: blokuj rozładowanie w godzinach, gdy koszt kWh w baterii (ze stratami i zużyciem) jest wyższy od ceny.\n* **Priorytet najdroższych godzin**: oszczędzaj baterię na najdroższe godziny do kolejnego ładowania.\n* **Przed słońcem**: zużyj/sprzedaj energię przed słońcem, gdy bateria i tak napełni się z PV, a nadwyżka sprzedawana jest tanio.\n* **Maks. godzin starych kWh**: starsza energia jest zużywana nawet bez zysku i sprzedawana, gdy to się bardziej opłaca.",
     "help_selling": "* **Maksymalizuj zysk**: sprzedawaj w najdroższych okresach, gdy daje to więcej niż własne zużycie.\n* **Sprzedaj nadwyżkę kWh**: sprzedaj energię, która nie zostanie zużyta, zanim bateria będzie pusta lub znów pełna.\n* **Poziom baterii o północy**: patrz tylko do północy zamiast na cały okres prognozy.\n* **Kup, aby sprzedać**: ładuj tanio z sieci tylko po to, by sprzedać kWh, gdy opłaca się to po stratach i zużyciu.",
-    "help_solar": "* **Ładowanie z PV**: uwzględnij nadwyżkę PV w planie.\n* **Optymalizuj ładowanie z PV**: sprzedawaj nadwyżkę PV w drogich godzinach, a baterię ładuj w tanich godzinach słonecznych.",
+    "help_solar": "* **Ładowanie z PV**: uwzględnij nadwyżkę PV w planie.\n* **Optymalizuj ładowanie z PV**: sprzedawaj nadwyżkę PV w drogich godzinach, a baterię ładuj w tanich godzinach słonecznych. Tylko gdy bateria nadal zostanie naładowana przy 80 % późniejszej prognozy PV, i najwyżej jedna zmiana z blokady na ładowanie na godzinę.",
     "consumption_forecast": "Prognoza zużycia",
     "history_title": "Historia",
     "section_economy": "Ekonomia miesięcznie",

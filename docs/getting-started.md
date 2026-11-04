@@ -138,8 +138,11 @@ Open the **BattMind** dashboard in the sidebar:
 - **Settings** has all the rules. They are all on by default, and the
   [whole period optimisation](rules/optimizer.md) controls the battery.
 
-Give it a day or two. The consumption forecast gets better as BattMind stores the consumption per hour,
-and the solar forecast gets better as it stores the solar surplus per weather type.
+Give it a day or two. At the first start BattMind reads the consumption of the last days from Home
+Assistant's long-term statistics, and the forecast gets better as it stores the consumption per hour. The
+solar forecast gets better as it stores the solar surplus per weather type. Until there are 3 days of
+consumption history, BattMind doesn't sell from the battery or block solar charging, see
+[Learning the consumption](how-it-works.md#learning-the-consumption).
 
 ## 5. Control the battery
 

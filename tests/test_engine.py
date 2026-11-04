@@ -16,7 +16,7 @@ import pytest
 from custom_components.battmind.utils.codec import decode, encode
 from custom_components.battmind.const import POWERWALL_ACTION_STATES, build_config, default_options
 from custom_components.battmind.engine import BattMindEngine, Snapshot
-from custom_components.battmind.engine.energy.energy import derive_power_values
+from custom_components.battmind.engine.energy.energy import POWER_VALUE_KEYS, derive_power_values
 
 TZ = zoneinfo.ZoneInfo("Europe/Copenhagen")
 DAY = datetime.date(2026, 10, 22)
@@ -499,3 +499,149 @@ def test_house_consumption_does_not_subtract_battery_charging_twice(
     }
     values = derive_power_values(home, consumption, 200.0, charging, discharging, 0.0)
     assert values["power_consumption_without_all_exclusion"] == pytest.approx(expected)
+
+
+def _measured_consumption(now: datetime.datetime, watt: float) -> dict:
+    """Buffers with a constant measured house consumption for the last days."""
+    return {"sensor.consumption": [(now.replace(tzinfo=TZ).timestamp() - 3 * 86400, watt)]}
+
+
+def test_hours_without_history_do_not_pull_the_consumption_correction_down() -> None:
+    """A new installation has history for a few hours only: the other hours aren't 0 % of the forecast.
+
+    Hour 3 has a real 0 W history: it stays a 0 kWh forecast and doesn't change the factor either.
+    """
+    now = datetime.datetime.combine(DAY, datetime.time(12, 30))
+    engine = BattMindEngine(build_config(OPTIONS), "test", TEXTS)
+    history = {hour: values for hour, values in _power_values_db().items() if hour in (10, 11)}
+    history[3] = {key: [[stamp, 0.0] for stamp, _ in rows] for key, rows in _power_values_db()[3].items()}
+    assert engine.run_job(snapshot(now, 50), engine.startup, {"power_values": history}).error is None
+    snap = snapshot(now, 50)
+    snap.buffers = _measured_consumption(now, 600.0)
+    assert engine.run_job(snap, engine.charge_if_needed, True).error is None
+    assert engine.plan[0]["hour_cost_prediction"]["correction_factor"] == pytest.approx(1.0)
+    assert engine.plan[1]["hour_cost_prediction"]["ema"][3]["kwh"] == 0.0
+    assert engine.plan[1]["hour_cost_prediction"]["ema"][10]["kwh"] == pytest.approx(0.6)
+
+
+def _hourly_statistics(now: datetime.datetime, days: int, watt: float) -> list[tuple[float, float]]:
+    """Hourly means from days before now until the hour before the current one."""
+    start = datetime.datetime.combine(now.date() - datetime.timedelta(days=days), datetime.time(0))
+    hours = int((now.replace(minute=0) - start).total_seconds() // 3600)
+    return [((start + datetime.timedelta(hours=hour)).replace(tzinfo=TZ).timestamp(), watt) for hour in range(hours)]
+
+
+def test_power_values_backfill_fills_only_the_missing_days() -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(12, 30))
+    engine = started_engine(now, 50, with_history=False)
+    assert engine.run_job(snapshot(now, 50), engine.is_learning).value
+    # the live recording of today 09:59 is kept
+    engine.power_values_db[9] = {key: [[now.replace(hour=9, minute=59), 900.0]] for key in POWER_VALUE_KEYS}
+    statistics = {"sensor.consumption": _hourly_statistics(now, 5, 0.7), "sensor.battery_power": _hourly_statistics(now, 5, 0.0)}
+    snap = snapshot(now, 50)
+    snap.units = {**snap.units, "sensor.consumption": "kW"}
+
+    result = engine.run_job(snap, engine.power_values_backfill, statistics)
+    assert result.error is None, result.error
+    assert result.value == 5 * 24 + 12 - 1  # every hour before 12:00, but not today 09:00
+    assert "power_values" in result.db_saves
+    consumption = engine.power_values_db[9]["power_consumption_without_all_exclusion"]
+    assert consumption[0] == [now.replace(hour=9, minute=59), 900.0]
+    assert [row[1] for row in consumption[1:]] == [700.0] * 5
+    assert [row[0] for row in consumption] == sorted((row[0] for row in consumption), reverse=True)
+    assert engine.power_values_db[13]["power_consumption_without_all_exclusion"][0][0] == datetime.datetime.combine(
+        DAY - datetime.timedelta(days=1), datetime.time(13, 59)
+    )
+    assert engine.run_job(snap, engine.consumption_days_known).value == 5
+    assert not engine.run_job(snap, engine.is_learning).value
+
+    # every later start only fills what is still missing
+    assert engine.run_job(snap, engine.power_values_backfill, statistics).value == 0
+
+
+def test_power_values_backfill_skips_hours_without_the_battery_flow() -> None:
+    """Without the battery flow the consumption can't be corrected for the battery: the hour is left out."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 30))
+    engine = started_engine(now, 50, with_history=False)
+    statistics = {"sensor.consumption": _hourly_statistics(now, 2, 700.0), "sensor.battery_power": _hourly_statistics(now, 1, 0.0)}
+    result = engine.run_job(snapshot(now, 50), engine.power_values_backfill, statistics)
+    assert result.value == 24 + 12
+    assert engine.run_job(snapshot(now, 50), engine.consumption_days_known).value == 1
+
+
+@pytest.mark.parametrize("with_history", [False, True])
+def test_learning_turns_off_selling_and_solar_blocking(with_history: bool) -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine, snap = solar_engine(now, 95, True)
+    if not with_history:
+        engine.load_power_values_db({})
+    result = engine.run_job(snap, engine.charge_if_needed, True)
+    assert result.error is None, result.error
+    learning = "Lærer forbruget (0/3 dage)" in result.states["current_charging_rule"]
+    assert learning is not with_history
+    for key in ("most_profit", "sell_excess_kwh_available", "grid_charge_to_sell", "optimize_solar_charging", "discharge_before_solar"):
+        assert engine.run_job(snap, engine.enabled, key).value is with_history
+    assert engine.run_job(snap, engine.enabled, "cheapest_hour_fill_planner").value
+    if not with_history:
+        days = [day for day in engine.plan if isinstance(day, int)]
+        assert not any(engine.plan[day]["force_discharge_timestamps"] for day in days)
+        assert not any(engine.plan[day]["blocked_solar_charge_timestamps"] for day in days)
+        assert not any(row["action"] in ("force_discharge", "blocked_solar_charge") for row in engine.optimizer_shadow["hours"])
+
+
+NO_SELLING = {
+    key: False
+    for key in ("discharge_before_solar", "most_profit", "sell_excess_kwh_available", "grid_charge_to_sell", "force_powerwall_max_hours_old_discharge")
+}
+
+
+@pytest.mark.parametrize("optimizer_control", [True, False])
+def test_solar_charging_released_in_an_hour_is_not_blocked_again_that_hour(optimizer_control: bool) -> None:
+    """10:00 sells for 2.0 and the sun fills the battery later: blocked, until it was released once this hour."""
+    now = datetime.datetime.combine(DAY, datetime.time(10, 10))
+    engine, snap = solar_engine(now, 60, True)
+    snap.settings.update({**NO_SELLING, "optimizer_control": optimizer_control})
+    prices = engine.sell_price_cache["prices"]
+    for ts in [ts for ts in prices if ts.date() == DAY and ts.hour == 10]:
+        prices[ts] = 2.0
+
+    result = engine.run_job(snap, engine.charge_if_needed, True)
+    assert result.error is None, result.error
+    assert result.states["powerwall_action"] == "blocked_solar_charge"
+    assert engine.unblocked_hour is None
+
+    # released once this hour (e.g. the forecast dropped): not blocked again before 11:00
+    engine.unblocked_hour = now.replace(minute=0)
+    result = engine.run_job(snap, engine.charge_if_needed, True)
+    assert result.error is None, result.error
+    assert result.states["powerwall_action"] != "blocked_solar_charge"
+    assert not [ts for ts in engine.plan[0]["blocked_solar_charge_timestamps"] if ts.hour == 10]
+    assert engine.unblocked_hour == now.replace(minute=0)
+
+
+SOLAR_OPTIONS = {
+    "production_entity_id": "sensor.solar",
+    "forecast_entity_id": "sensor.solcast_today",
+    "hourly_service_entity_id": "weather.home",
+}
+
+
+@pytest.mark.parametrize("solar_history", [False, True])
+def test_solcast_alone_when_there_is_no_solar_history(solar_history: bool) -> None:
+    """No solar history for the hour and weather: Solcast alone, not averaged with an unknown 0."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options=SOLAR_OPTIONS)
+    noon = datetime.datetime.combine(DAY + datetime.timedelta(days=1), datetime.time(12))
+    if solar_history:
+        score = engine.forecast_score({"condition": "sunny"})
+        engine.solar_available_db[12][score] = [[noon - datetime.timedelta(days=day + 1), 1000.0] for day in range(10)]
+    engine.get_solar_kwh_forecast = lambda: {noon: (2.0, 0.5)}
+    snap = snapshot(now, 50)
+    snap.entity_states["sensor.solar"] = "0"
+    daily = [{"datetime": datetime.datetime.combine(DAY + datetime.timedelta(days=day), datetime.time(0)).isoformat(), "condition": "sunny"} for day in range(8)]
+    snap.forecast_dict = {"hourly": [{"datetime": noon.isoformat(), "condition": "sunny"}], "daily": daily}
+    assert engine.run_job(snap, engine.local_energy_prediction).error is None
+    prediction = engine.solar_prediction_db[1]["total"]
+    # weighted 1:3 with the history, else Solcast alone (an unknown database used to make it 0.75 x Solcast)
+    # (the prediction is rounded to 0.1 kWh)
+    assert prediction[12] == pytest.approx((1.0 * 0.5 + 2.0 * 1.5) / 2 if solar_history else 2.0, abs=0.051)

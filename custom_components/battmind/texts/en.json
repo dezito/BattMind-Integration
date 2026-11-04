@@ -244,7 +244,8 @@
       "charging_watt": "Charging {watt}W",
       "discharging_watt": "Discharging {watt}W",
       "force_powerwall_max_hours_old_discharge": "Discharging older kWh allowed",
-      "blocked_solar_charge": "Blocked solar charging"
+      "blocked_solar_charge": "Blocked solar charging",
+      "learning": "Learning the consumption ({days}/{needed} days): selling and blocked solar charging are off"
     },
     "startup": {
       "configuration": {
@@ -475,7 +476,7 @@
     "help_charging": "Solar surplus always charges first; grid charging never pushes out solar that would be sold for less than the grid kWh cost.\n\n* **Cheapest hours**: fill the battery in the cheapest hours for the day's consumption (*fill up*: to max).\n  * **Cheap price periods**: number of local low-price periods identified per day.\n  * **Cheap-period price increase**: how much the price can rise above a period's lowest price before the period ends.\n  * **Cheapest-price increase**: how much an hour can be above the day's lowest price and still qualify for this rule.\n* **Most expensive hours**: charge for the most expensive hours the battery doesn't cover.\n* **Needed before max level**: charge the little that is missing before the sun fills the battery.\n* **Negative prices**: fill the battery when charging pays even if the energy is never used.",
     "help_discharging": "* **Profit only**: block discharging in hours where the battery's kWh cost (incl. loss and wear) is higher than the price.\n* **Prioritise expensive hours**: save the battery for the most expensive hours until it is charged again.\n* **Before the sun**: use/sell the battery before the sun when it gets full of solar anyway and the surplus is sold cheaply.\n* **Max. hours old kWh**: energy older than this is used even without profit, and sold when that pays more.",
     "help_selling": "* **Maximise profit**: sell in the most expensive periods when that pays more than using the energy yourself.\n* **Sell excess kWh**: sell the energy that isn't used before the battery is empty or full again.\n* **Use midnight battery level**: only look until midnight instead of the whole forecast period.\n* **Buy to sell**: charge cheaply from the grid only to sell the kWh again when it pays after loss and wear.",
-    "help_solar": "* **Solar charging**: include the solar surplus in the plan.\n* **Optimise solar charging**: sell the solar surplus in the expensive hours and fill the battery in the cheap solar hours instead.",
+    "help_solar": "* **Solar charging**: include the solar surplus in the plan.\n* **Optimise solar charging**: sell the solar surplus in the expensive hours and fill the battery in the cheap solar hours instead. Only when the battery is still filled with 80 % of the later solar forecast, and at most one switch from blocked to charging per hour.",
     "consumption_forecast": "Consumption forecast",
     "history_title": "History",
     "section_economy": "Economy per month",

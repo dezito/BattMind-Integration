@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import datetime
 import logging
+import math
 from copy import deepcopy
 
-from ...utils.helpers import average, get_specific_values
+from ...const import LEARNING_MIN_DAYS
+from ...utils.helpers import average, get_specific_values, reset_time_to_hour, start_of_day
+from ...utils.power import unit_factor_to_w
 
 from .forecast import EnergyForecast
 from .price import EnergyPrice
@@ -23,6 +26,8 @@ POWER_VALUE_KEYS = (
     "power_consumption_without_ignored",
     "power_consumption_without_all_exclusion",
 )
+# the key the consumption forecast is made from
+CONSUMPTION_KEY = "power_consumption_without_all_exclusion"
 
 
 def derive_power_values(home: dict, consumption: float, ignored: float, charging: float, discharging: float, solar: float) -> dict:
@@ -134,7 +139,82 @@ class Energy(EnergyForecast, EnergySolar, EnergyPrice):
         hour_values = self.power_values_db[self.now().hour]
         for key, value in data.items():
             hour_values[key] = [[self.now(), value], *hour_values.get(key, [])][:keep]
+        self._job_cache.pop("learning", None)
         self.mark_dirty("power_values")
+
+    def consumption_days_known(self) -> int:
+        """Days of consumption history of the hour of the day with the fewest."""
+        return min(len(self.power_values_db.get(hour, {}).get(CONSUMPTION_KEY) or []) for hour in range(24))
+
+    def is_learning(self) -> bool:
+        """Too little consumption history to bet on the forecast (LEARNING_MIN_DAYS)."""
+        if "learning" not in self._job_cache:
+            self._job_cache["learning"] = self.consumption_days_known() < LEARNING_MIN_DAYS
+        return self._job_cache["learning"]
+
+    def power_values_backfill(self, statistics: dict) -> int:
+        """Fill the hours missing in the consumption history from the hourly mean statistics.
+
+        statistics: {entity_id: [(hour start epoch, mean)]}. Runs at every start and only adds
+        days an hour of the day doesn't have yet, so a new installation gets a forecast right away
+        and hours where Home Assistant was not running are filled later. An hour is only added when
+        the consumption, the ignored consumers and the battery flow all have a mean (a missing
+        solar mean counts as 0 W). The battery flow is the net mean of the hour, so an hour that
+        both charged and discharged only counts the difference. Returns the number of hours added.
+        """
+        home = self.config["home"]
+        ids = home["entity_ids"]
+        consumption_id = ids["power_consumption_entity_id"]
+        if not consumption_id or self._snap is None:
+            return 0
+        flow_id = ids["powerwall_watt_flow_entity_id"]
+        solar_id = self.config["solar"]["entity_ids"]["production_entity_id"]
+        ignored_ids = [entity_id for entity_id in ids["ignore_consumption_from_entity_ids"] or [] if entity_id]
+        required = [consumption_id, *ignored_ids, *([flow_id] if flow_id else [])]
+
+        means: dict[str, dict[datetime.datetime, float]] = {}
+        for entity_id, rows in (statistics or {}).items():
+            factor = unit_factor_to_w(self._snap.units.get(entity_id))
+            means[entity_id] = {
+                datetime.datetime.fromtimestamp(timestamp, self._snap.tz).replace(tzinfo=None): float(mean) * factor
+                for timestamp, mean in rows
+                if isinstance(mean, (int, float)) and math.isfinite(mean)
+            }
+
+        if not self.power_values_db:
+            self.load_power_values_db({})
+        keep = int(self.config["database"]["power_values_db_data_to_save"])
+        current_hour = reset_time_to_hour(self.now())
+        first = start_of_day(self.now()) - datetime.timedelta(days=keep)
+        added = 0
+        for hour_start in sorted(means.get(consumption_id, {})):
+            if not first <= hour_start < current_hour or any(hour_start not in means.get(e, {}) for e in required):
+                continue
+            hour_values = self.power_values_db.setdefault(hour_start.hour, {})
+            known_days = {row[0].date() for row in hour_values.get(CONSUMPTION_KEY) or [] if isinstance(row[0], datetime.datetime)}
+            if hour_start.date() in known_days:
+                continue
+            flow = [means[flow_id][hour_start]] if flow_id else [0.0]
+            values = derive_power_values(
+                home,
+                abs(means[consumption_id][hour_start]),
+                abs(sum(means[e][hour_start] for e in ignored_ids)),
+                self._charging_watt(flow),
+                self._discharging_watt(flow),
+                abs(means.get(solar_id, {}).get(hour_start, 0.0)) if solar_id else 0.0,
+            )
+            # stored like hour_end() does: at minute 59 of the hour
+            stamp = hour_start.replace(minute=59)
+            for key, value in values.items():
+                rows = [*(hour_values.get(key) or []), [stamp, round(value, 2)]]
+                rows.sort(key=lambda row: row[0] if isinstance(row[0], datetime.datetime) else datetime.datetime.min, reverse=True)
+                hour_values[key] = rows[:keep]
+            added += 1
+        if added:
+            self._job_cache.pop("learning", None)
+            self.mark_dirty("power_values")
+            _LOGGER.info("Consumption history: %s hours added from the long-term statistics", added)
+        return added
 
     # ------------------------------------------------------------------ #
     # Solar database: solar surplus per hour and weather score (newest first)

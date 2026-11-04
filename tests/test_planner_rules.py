@@ -433,6 +433,33 @@ def test_optimizer_respects_min_profit_per_kwh() -> None:
     assert optimize(hours, 5.0, strict, 0.0).actions[0] != "grid_charging"
 
 
+@pytest.mark.parametrize(("later_solar", "blocked"), [(5.5, False), (7.0, True)])
+def test_optimizer_blocks_solar_charging_only_with_a_margin(later_solar: float, blocked: bool) -> None:
+    """Room 5 kWh: 5.5 kWh later sun fills it only if all of it comes, 7 kWh also with 80 % of it."""
+    cfg = OptimizerConfig(**{**CFG.__dict__, "max_charge": 10.0})
+    hours = [
+        OptimizerHour(datetime.datetime.combine(DAY, datetime.time(10)), 2.0, 1.0, 0.0, 5.0),
+        OptimizerHour(datetime.datetime.combine(DAY, datetime.time(11)), 2.0, 0.1, 0.0, later_solar),
+        OptimizerHour(datetime.datetime.combine(DAY, datetime.time(18)), 3.0, 0.5, 4.0, 0.0),
+    ]
+    for hour in hours:
+        hour.forbidden = {"force_discharge"}  # selling the battery too would beat both
+    assert (optimize(hours, 50.0, cfg, 0.0).actions[0] == "blocked_solar_charge") is blocked
+
+
+def test_optimizer_blocks_without_margin_when_selling_beats_storing() -> None:
+    """Selling at 3.0 beats any later use (buy 2.0): no bet on the later sun, so no margin is needed."""
+    hours = [
+        OptimizerHour(datetime.datetime.combine(DAY, datetime.time(10)), 3.5, 3.0, 0.0, 5.0),
+        OptimizerHour(datetime.datetime.combine(DAY, datetime.time(18)), 2.0, 0.5, 4.0, 0.0),
+    ]
+    for hour in hours:
+        hour.forbidden = {"force_discharge"}  # selling the battery too would beat both
+    assert optimize(hours, 50.0, CFG, 0.0).actions[0] == "blocked_solar_charge"
+    hours[0].block_allowed = False
+    assert optimize(hours, 50.0, CFG, 0.0).actions[0] != "blocked_solar_charge"
+
+
 def test_optimizer_never_sells_in_excluded_hours() -> None:
     hours = [OptimizerHour(0, 1.0, 5.0, 0.0, 0.0, can_sell=False)]
     assert optimize(hours, 80.0, CFG, end_value_per_kwh=0.0).actions != ["force_discharge"]

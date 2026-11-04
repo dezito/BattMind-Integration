@@ -83,11 +83,15 @@ class EnergyForecast:
                 _LOGGER.error("Invalid Solcast data in %s: %s", entity_id, err)
         return forecast
 
-    def _database_solar(self, score: float, date: datetime.datetime) -> tuple[float, float]:
-        """(kWh surplus, sell value) for an hour from the stored solar history at a weather score."""
+    def _database_solar(self, score: float, date: datetime.datetime) -> tuple[float, float, bool]:
+        """(kWh surplus, sell value, has history) for an hour from the stored solar history at a weather score.
+
+        has history is False when neither the score nor its neighbours have measurements: the 0 kWh
+        is then unknown, not a measured 0.
+        """
         scores = self.solar_available_db.get(date.hour)
         if not scores:
-            return 0.0, 0.0
+            return 0.0, 0.0, False
         power_list = get_closest_key(score, scores) or []
         forecast_value = self.get_forecast_value(power_list) if power_list else 0.0
         neighbours = []
@@ -99,7 +103,7 @@ class EnergyForecast:
                 neighbours.append(self.get_forecast_value(upper))
         values = ([forecast_value] * 3 if power_list else []) + neighbours
         sell_price = self.sell_value(self.get_forecast_value(self.kwh_avg_prices_db["history_sell"][date.hour][day_of_week(date)]))
-        return max(average(values), 0.0) / 1000, sell_price
+        return max(average(values), 0.0) / 1000, sell_price, bool(values)
 
     def local_energy_prediction(self) -> None:
         """Predict the solar surplus per hour for today + the next days (self.solar_prediction_db)."""
@@ -118,16 +122,20 @@ class EnergyForecast:
                 forecast = self.get_forecast(timestamp)
                 hour_kwh = []
                 hour_sell = []
+                database_used = False
                 if forecast is not None:
-                    kwh, sell = self._database_solar(self.forecast_score(forecast), timestamp)
-                    weight = (0.5 if timestamp in solcast else 1.0) * factor
-                    hour_kwh.append(round(kwh * weight, 1))
-                    hour_sell.append(round(sell * weight, 1))
+                    kwh, sell, known = self._database_solar(self.forecast_score(forecast), timestamp)
                     prediction["total_database"].append(round(kwh, 1))
                     prediction["total_database_sell"].append(round(sell, 1))
+                    # no solar history for the hour and weather: Solcast alone instead of averaging with an unknown 0
+                    if known or timestamp not in solcast:
+                        database_used = True
+                        weight = (0.5 if timestamp in solcast else 1.0) * factor
+                        hour_kwh.append(round(kwh * weight, 1))
+                        hour_sell.append(round(sell * weight, 1))
                 if timestamp in solcast:
                     kwh, sell = solcast[timestamp]
-                    weight = (1.5 if forecast is not None else 1.0) * factor
+                    weight = (1.5 if database_used else 1.0) * factor
                     hour_kwh.append(round(kwh * weight, 1))
                     hour_sell.append(round(sell * weight, 1))
                     prediction["total_forecast"].append(round(kwh, 1))
