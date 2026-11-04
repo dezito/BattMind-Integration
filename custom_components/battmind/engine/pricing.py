@@ -48,14 +48,14 @@ class Pricing:
             return cache["prices"]
 
         provider = self.price_provider
-        prices = (provider.sell_prices if sell_prices else provider.buy_prices) if provider else {}
+        prices = (provider.get_sell_prices() if sell_prices else provider.get_buy_prices()) if provider else {}
         if prices:
-            sources = provider.sell_price_sources if sell_prices else provider.buy_price_sources
+            sources = provider.get_price_sources(sell_prices)
             if corrections:
                 current_hour = reset_time_to_hour(now)
                 prices = {
                     timestamp: round(price + corrections.get(days_between(current_hour, timestamp), 0.0), 2)
-                    if str(sources.get(timestamp, "")).endswith(":forecast") else price
+                    if provider.is_forecast(timestamp, sell_prices) else price
                     for timestamp, price in prices.items()
                 }
             # hours of the plan the provider has no price for are filled from the price history

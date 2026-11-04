@@ -345,7 +345,7 @@ def test_backfill_from_the_statistics() -> None:
         "sensor.battery_level": [(ts, 50.0) for ts in hours],
         "sensor.price": [(ts, 1.5) for ts in hours],
     }
-    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": stats, "price_entity_id": "sensor.price"})
+    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": stats})
     assert result.error is None, result.error
     assert engine.analysis_backfilled()
     old = engine.analysis_db["days"][(DAY - datetime.timedelta(days=5)).isoformat()]
@@ -362,10 +362,32 @@ def test_backfill_from_the_statistics() -> None:
     engine.analysis_db["backfilled"] = True
     assert not engine.analysis_backfilled()
     stats["sensor.price"] = [(ts, 2.0) for ts in hours]
-    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": stats, "price_entity_id": "sensor.price"})
+    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": stats})
     assert result.error is None, result.error
     assert engine.analysis_backfilled()
     assert engine.analysis_db["days"][(DAY - datetime.timedelta(days=5)).isoformat()]["price_sum"] == pytest.approx(48.0)
+
+
+def test_backfill_prefers_stromligning_per_hour() -> None:
+    """Strømligning first (PRICE_PROVIDER_PRIORITY), Energi Data Service for the hours without it."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 5))
+    # Energi Data Service is sensor.price
+    engine = started_engine(now, 50.0, options={"stromligning_buy_current_price": "sensor.stromligning"})
+    first = datetime.datetime.combine(DAY - datetime.timedelta(days=10), datetime.time(0), tzinfo=TZ)
+    hours = [(first + datetime.timedelta(hours=h)).timestamp() for h in range(10 * 24 + 12)]
+    sl_day = DAY - datetime.timedelta(days=5)
+    stats = {
+        "sensor.consumption": [(ts, 500.0) for ts in hours],
+        "sensor.battery_power": [(ts, 0.0) for ts in hours],
+        "sensor.battery_level": [(ts, 50.0) for ts in hours],
+        "sensor.stromligning": [(ts, 1.0) for ts in hours if datetime.datetime.fromtimestamp(ts, TZ).date() == sl_day],
+        "sensor.price": [(ts, 3.0) for ts in hours],
+    }
+    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": stats})
+    assert result.error is None, result.error
+    days = engine.analysis_db["days"]
+    assert days[sl_day.isoformat()]["price_sum"] == pytest.approx(24.0)
+    assert days[(DAY - datetime.timedelta(days=6)).isoformat()]["price_sum"] == pytest.approx(72.0)
 
 
 def test_price_day_is_judged_per_days_ahead() -> None:

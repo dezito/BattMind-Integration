@@ -37,8 +37,8 @@ class EnergyPrice:
         provider = self.price_provider
         refund = provider.refund if provider else 0.0
         # only the provider's prices - the hours filled from the history must not be stored again
-        grid = {ts.hour: price for ts, price in (provider.buy_prices if provider else {}).items() if ts.date() == today}
-        sell = {ts.hour: price for ts, price in (provider.sell_prices if provider else {}).items() if ts.date() == today}
+        grid = {ts.hour: price for ts, price in (provider.get_buy_prices() if provider else {}).items() if ts.date() == today}
+        sell = {ts.hour: price for ts, price in (provider.get_sell_prices() if provider else {}).items() if ts.date() == today}
         if len(grid) < 23:
             _LOGGER.warning("Missing hours in today's prices (buy %s, sell %s), not saving the price history", len(grid), len(sell))
             return

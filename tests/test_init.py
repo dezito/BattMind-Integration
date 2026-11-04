@@ -31,6 +31,7 @@ from custom_components.battmind.const import (
     WHAT_IF_TEXTS,
 )
 from custom_components.battmind.engine import JobResult
+from custom_components.battmind.prices import create_price_provider
 
 from .conftest import CONSUMPTION, PREFIX, async_advance, async_unload_and_join, set_source_states
 
@@ -235,6 +236,8 @@ async def test_what_if_reads_statistics_and_raw_recorder_history(
             "energidataservice_sell_entity_id": "sensor.eds_sell",
         }
     )
+    # a changed configuration reloads the entry, which builds a new price provider
+    coordinator.engine.price_provider = create_price_provider(coordinator.config)
     recorder = AsyncMock()
     recorder.async_add_executor_job.side_effect = [{}, {}, {}]
     coordinator.async_run_job = AsyncMock(return_value=JobResult(value={}))
@@ -305,6 +308,7 @@ async def test_what_if_reports_the_loading_phases_until_the_simulation_starts(
     hass.config.components.add("recorder")
     coordinator = loaded_entry.runtime_data
     coordinator.config["prices"]["entity_ids"]["energidataservice_sell_entity_id"] = "sensor.eds_sell"
+    coordinator.engine.price_provider = create_price_provider(coordinator.config)
     release = asyncio.Event()
 
     async def recorder_job(*args):

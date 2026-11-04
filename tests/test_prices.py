@@ -6,6 +6,7 @@ import datetime
 import pytest
 
 from custom_components.battmind.const import build_config, default_options
+from custom_components.battmind.prices import create_price_provider
 from custom_components.battmind.prices.base import calculate_sell_price
 from custom_components.battmind.prices.energidataservice import EnergiDataServicePriceProvider
 from custom_components.battmind.prices.stromligning import StromligningPriceProvider
@@ -115,3 +116,68 @@ def test_raw_energi_data_service_sell_price_gets_the_selling_costs_from_the_buy_
     assert _eds_provider(False).sell_real_prices[timestamp] == pytest.approx(round(2.5 - 0.03 - 0.054 - 0.09, 2))
     # with tariffs in the sell sensor they are subtracted, plus the selling costs
     assert _eds_provider(True).sell_real_prices[timestamp] == pytest.approx(round(2.5 - 1.324 - 0.03 - 0.054 - 0.09, 2))
+
+
+class _State:
+    def __init__(self, state: str, attributes: dict | None = None) -> None:
+        self.state = state
+        self.attributes = attributes or {}
+
+
+def _both_providers():
+    return create_price_provider(build_config({
+        **default_options(),
+        "energidataservice_buy_entity_id": "sensor.eds",
+        "energidataservice_sell_entity_id": "sensor.eds_sell",
+        "stromligning_buy_current_price": "sensor.stromligning",
+        "stromligning_sell_nettariff": "sensor.sell_nettariff",
+    }))
+
+
+def test_stromligning_has_priority_over_energi_data_service() -> None:
+    provider = _both_providers()
+    assert [type(p) for p in provider.providers] == [StromligningPriceProvider, EnergiDataServicePriceProvider]
+    assert provider.buy_price_entity_ids() == ["sensor.stromligning", "sensor.eds"]
+    # recorded history: per hour Strømligning first, Energi Data Service fills the gaps
+    assert provider.combine_history({
+        "sensor.eds": {1.0: 3.0, 2.0: 3.0},
+        "sensor.stromligning": {1.0: 1.0},
+        "sensor.other": {3.0: 9.0},
+    }) == {1.0: 1.0, 2.0: 3.0}
+    # the what-if history sources in the same order
+    states = {"sensor.eds_sell": _State("1.0", {"tariffs": {}})}
+    sources = provider.history_sources(states.get)
+    assert [source["name"] for source in sources] == ["Strømligning", "Energi Data Service"]
+    assert sources[0]["sell_tariff_entity_ids"] == {"transmissions_nettarif": "sensor.sell_nettariff"}
+    assert sources[1]["sell_entity_id"] == "sensor.eds_sell" and sources[1]["sell_includes_tariffs"] is False
+
+
+def test_combined_provider_reads_the_price_entities_and_merges_the_prices() -> None:
+    provider = _both_providers()
+    eds = {
+        "raw_today": [{"hour": row["start"], "price": 3.0} for row in _rows(TODAY, lambda hour: 0.0)],
+        "forecast": [{"hour": row["start"], "price": 2.0} for row in _rows(TOMORROW, lambda hour: 0.0)],
+    }
+    states = {
+        # Strømligning only has the first 12 hours
+        "sensor.stromligning": _State("2.0", {"prices": _rows(TODAY, lambda hour: 1.0)[:12]}),
+        "sensor.eds": _State("3.0", eds),
+        "sensor.eds_sell": _State("3.0", eds),
+        "sensor.sell_nettariff": _State("0.05"),
+    }
+    snapshot = provider.snapshot(states.get)
+    assert set(snapshot["attributes"]) == {"sensor.stromligning", "sensor.eds", "sensor.eds_sell", "sensor.sell_nettariff"}
+    # only the tariff sensors are read as a state
+    assert snapshot["values"] == {"sensor.sell_nettariff": 0.05}
+
+    now = datetime.datetime.combine(TODAY, datetime.time(10, 30))
+    provider.update_prices(snapshot, now)
+    morning, evening = (datetime.datetime.combine(TODAY, datetime.time(hour)) for hour in (8, 20))
+    assert provider.get_buy_price(now) == 1.0
+    assert provider.get_buy_prices()[morning] == 1.0 and provider.price_source(morning) == "stromligning:real"
+    assert provider.get_buy_prices()[evening] == 3.0 and provider.price_source(evening) == "energidataservice:real"
+    tomorrow = datetime.datetime.combine(TOMORROW, datetime.time(8))
+    assert provider.is_forecast(tomorrow)
+    assert provider.get_buy_forecast_prices()[tomorrow] > provider.get_buy_forecast_prices(adder=False)[tomorrow] == pytest.approx(2.0, abs=0.005)
+    assert tomorrow not in provider.get_buy_real_prices()
+    assert provider.buy_price_entity_id() == "sensor.stromligning, sensor.eds"

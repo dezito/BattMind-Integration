@@ -4,8 +4,10 @@ from __future__ import annotations
 import datetime
 import logging
 
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+
 from ..utils.helpers import days_between, to_datetime
-from .base import BasePriceProvider, _ZERO_TARIFFS, _naive
+from .base import BasePriceProvider, GetState, _ZERO_TARIFFS, _naive
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -14,14 +16,36 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
     """https://github.com/MTrab/energidataservice (raw_today / raw_tomorrow / forecast attributes)."""
 
     source_name = "energidataservice"
+    display_name = "Energi Data Service"
+    buy_key = "energidataservice_buy_entity_id"
+    sell_key = "energidataservice_sell_entity_id"
 
     def __init__(self, config: dict) -> None:
         super().__init__(config)
-        self.buy_entity_id = self.entity_ids.get("energidataservice_buy_entity_id", "")
-        self.sell_entity_id = self.entity_ids.get("energidataservice_sell_entity_id", "") or self.buy_entity_id
+        self.buy_entity_id = self.entity_ids.get(self.buy_key, "")
+        self.sell_entity_id = self.entity_ids.get(self.sell_key, "") or self.buy_entity_id
 
-    def buy_price_entity_id(self) -> str:
-        return self.buy_entity_id
+    def history_source(self, get_state: GetState) -> dict | None:
+        source = super().history_source(get_state)
+        sell_id = source and source["sell_entity_id"]
+        if not sell_id:
+            return source
+        # Energi Data Service never records its tariffs attribute; a sensor without it is a raw
+        # price (tariffs disabled), which the live planner uses as is. An unknown state keeps the
+        # conservative assumption that tariffs are included.
+        sell_state = get_state(sell_id)
+        source["sell_includes_tariffs"] = (
+            sell_state is None
+            or sell_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+            or bool(sell_state.attributes.get("tariffs"))
+        )
+        if not source["sell_includes_tariffs"]:
+            # selling still costs Energinet's net and system tariff: from the buy sensor
+            buy_state = get_state(source["buy_entity_id"])
+            sell_costs = eds_sell_costs(buy_state.attributes if buy_state else None)
+            if sell_costs:
+                source["sell_costs"] = sell_costs
+        return source
 
     @staticmethod
     def _rows(rows):
