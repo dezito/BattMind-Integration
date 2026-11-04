@@ -31,8 +31,28 @@ consumers, default the last 15 days). The forecast for an hour is made from thos
 | **Average** | a very regular consumption |
 
 The forecast is then corrected by how the last 48 hours went: if the house used 10 % more than forecast,
-the forecast is raised 10 %. The [analysis](dashboard-analysis.md#forecast-accuracy) shows which type
+the forecast is raised 10 %. Hours of the day without history, and hours whose forecast is 0 W, are left
+out of the correction. The [analysis](dashboard-analysis.md#forecast-accuracy) shows which type
 would have been most accurate for your house.
+
+At every start BattMind fills the days missing in the consumption history from Home Assistant's long-term
+statistics (as many days as the consumption history keeps). A new installation therefore plans with the
+house's real consumption right away, and hours where Home Assistant wasn't running are filled in later.
+Days already in the history are kept. This needs statistics (`state_class: measurement`) for the house
+consumption, the ignored consumers and the battery power; an hour where one of them is missing is left out.
+The battery power is the average of the hour, so an hour that both charged and discharged only counts the
+difference.
+
+### Learning the consumption
+
+Until every hour of the day has at least **3 days** of consumption history, the forecast is too uncertain
+to bet on. During that time BattMind doesn't sell from the battery and doesn't block solar charging (the
+rules [Before the sun](rules/discharging.md), [Maximise profit](rules/selling.md),
+[Sell excess kWh](rules/selling.md), [Buy to sell](rules/charging.md), [Max. age of kWh](rules/discharging.md)
+and [Optimise solar charging](rules/solar.md) are treated as off, whatever their switches say), because both
+count on the forecast being right. Grid charging and
+normal operation run as usual. `sensor.<prefix>_current_charging_rule` shows *Learning the consumption
+(x/3 days)* while it lasts. With the long-term statistics above this is usually over at the first start.
 
 <p align="center">
   <img src="../images/consumption-forecast.png" alt="Consumption forecast per hour with the average, EMA and trend forecast types" width="100%">
@@ -46,8 +66,9 @@ The plan uses the **solar surplus**: solar production minus the house's consumpt
 - **Own history:** BattMind stores the measured surplus per hour and per weather score (cloud cover, UV and
   temperature from the weather forecast). For a forecast hour it looks up the hours with the same weather score
 
-With both, Solcast counts 75 % and the history 25 %. Without Solcast, the history alone is used, so the
-forecast also works without Solcast after a few weeks.
+With both, Solcast counts 75 % and the history 25 %. When the history has no measurement for the hour and
+weather score (or the scores next to it), Solcast is used alone instead of being averaged with an unknown
+0. Without Solcast, the history alone is used, so the forecast also works without Solcast after a few weeks.
 
 In an hour with solar surplus the sun covers the house, so the battery isn't planned to discharge in it.
 

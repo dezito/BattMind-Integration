@@ -177,6 +177,8 @@ class CoordinatorLifecycle:
                 f"📟{t('ui.startup.calc_charging_plan')}",
             ]
             self.set_charging_rule(f"📟{t('ui.startup.calc_charging_plan')}")
+            # before the first plan, so a new installation plans with its consumption right away
+            await self._async_power_values_backfill()
 
             self._register_triggers()
             self.started = True

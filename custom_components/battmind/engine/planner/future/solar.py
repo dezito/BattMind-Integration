@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from ....utils.formatting import emoji_parse
 from ....utils.helpers import average
+from ...optimizer import SOLAR_BLOCK_MARGIN
 from .._helpers import _optimize_solar_blocking
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,12 +57,14 @@ class FutureSolar:
                 # same conversion as battery_level_flow_prediction()
                 available[h] = ctx.kwh_to_percentage(min(solar[h], ctx.max_kwh_charging)) * ctx.efficiency
                 prices[h] = average(sell_by_hour[h]) if sell_by_hour.get(h) else float(predicted_prices[h])
-        candidates = [h for h in available if h not in busy]
+        # an hour where solar charging was released isn't blocked again before the next hour
+        released = ctx.now.hour if day == 0 and self.solar_block_released() else None
+        candidates = [h for h in available if h not in busy and h != released]
         if not candidates:
             return
 
         blocked_hours, flow, charged, original_charged = _optimize_solar_blocking(
-            hours, delta, available, prices, candidates, float(original[hours[0]][0]), minimum, maximum
+            hours, delta, available, prices, candidates, float(original[hours[0]][0]), minimum, maximum, SOLAR_BLOCK_MARGIN
         )
         if not blocked_hours:
             return

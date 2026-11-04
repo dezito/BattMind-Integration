@@ -244,7 +244,8 @@
       "charging_watt": "Lader {watt}W",
       "discharging_watt": "Aflader {watt}W",
       "force_powerwall_max_hours_old_discharge": "Afladning af ældre kWh tilladt",
-      "blocked_solar_charge": "Blokeret solcelle opladning"
+      "blocked_solar_charge": "Blokeret solcelle opladning",
+      "learning": "Lærer forbruget ({days}/{needed} dage): salg og blokeret solcelle opladning er slået fra"
     },
     "startup": {
       "configuration": {
@@ -475,7 +476,7 @@
     "help_charging": "Soloverskud lader altid først; nettet fortrænger aldrig sol, der ellers sælges billigere end net-strømmen koster.\n\n* **Billigste timer**: fyld batteriet i de billigste timer til dagens forbrug (*fyld op*: til max).\n  * **Billige prisperioder**: antal lokale lavprisperioder, der findes pr. dag.\n  * **Stigning for billige prisperioder**: hvor meget prisen må stige over periodens laveste pris, før perioden slutter.\n  * **Stigning for billigste pris**: hvor meget en time må ligge over dagens laveste pris for stadig at kunne bruges af denne regel.\n* **Dyreste timer**: lad til de dyreste timer, batteriet ikke dækker.\n* **Brug for inden max niveau**: lad det lidt der mangler, før solen fylder batteriet.\n* **Negative priser**: fyld batteriet, når ladningen betaler sig, selv hvis strømmen aldrig bruges.",
     "help_discharging": "* **Kun ved profit**: bloker afladning i timer, hvor batteriets kWh-pris (inkl. tab og slid) er højere end elprisen.\n* **Prioriter dyreste timer**: gem batteriet til de dyreste timer, indtil det lades igen.\n* **Før solen**: brug/sælg batteriet før solen, når det alligevel bliver fuldt af sol, og overskuddet sælges billigt.\n* **Maks. timer gamle kWh**: strøm ældre end dette bruges selv uden fortjeneste og sælges, når det giver mere.",
     "help_selling": "* **Maksimer profit**: sælg i de dyreste perioder, når det giver mere end selv at bruge strømmen.\n* **Sælg overskydende kWh**: sælg den strøm, der ikke bruges, før batteriet er tomt eller fuldt igen.\n* **Brug batteriniveau ved midnat**: kig kun til midnat i stedet for hele prognoseperioden.\n* **Køb for at sælge**: lad billigt fra nettet kun for at sælge strømmen igen, når det betaler sig efter tab og slid.",
-    "help_solar": "* **Solcelleopladning**: medtag soloverskuddet i planen.\n* **Optimer solcelleopladning**: sælg soloverskuddet i de dyre timer og fyld batteriet i de billige soltimer i stedet.",
+    "help_solar": "* **Solcelleopladning**: medtag soloverskuddet i planen.\n* **Optimer solcelleopladning**: sælg soloverskuddet i de dyre timer og fyld batteriet i de billige soltimer i stedet. Kun når batteriet stadig bliver fyldt med 80 % af den senere solprognose, og højst ét skift fra blokeret til opladning i timen.",
     "consumption_forecast": "Forbrugsprognose",
     "history_title": "Historik",
     "section_economy": "Økonomi pr. måned",

@@ -50,13 +50,16 @@ using it now wouldn't pay for what it cost. The reason is in the plan (‚è≥ or ü
   beats using the energy in the house.
 - **Min. kWh for export**, **min. total profit** or **excluded sell hours** stop small sales.
 - The energy is needed before the battery is charged again.
+- In the first days BattMind is still [learning the consumption](how-it-works.md#learning-the-consumption)
+  and doesn't sell or block solar charging at all.
 
 ## The battery level forecast is wrong
 
 - Check the sign of the **battery power** sensor: positive while discharging. Otherwise enable **Invert**.
 - Check whether the **house consumption** sensor includes the battery's charging/discharging, and tell the
   setup.
-- In the first days the consumption and solar history is thin. See
+- In the first days the consumption and solar history is thin. Without long-term statistics for the house
+  consumption (`state_class: measurement`) the consumption history starts from the installation. See
   [Forecast accuracy](dashboard-analysis.md#forecast-accuracy) after a week.
 
 ## The measured loss is much higher or lower than expected

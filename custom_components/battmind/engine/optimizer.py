@@ -17,6 +17,10 @@ ACTIONS = ("discharge_allowed", "force_solar_only_charging", "grid_charging", "f
 # stops when its planned kWh are in the battery, and force discharge runs per sell period
 # (15 min): grid charging and selling can be a part of the hour
 FRACTIONS = (0.25, 0.5, 0.75, 1.0)
+# Blocking solar charging bets on the later sun filling the battery anyway. Only block when the
+# battery is still filled with this part of the later solar forecast, so a forecast that is a bit
+# too high doesn't stop and start the blocking every few minutes.
+SOLAR_BLOCK_MARGIN = 0.8
 
 
 @dataclass
@@ -29,6 +33,7 @@ class OptimizerHour:
     can_sell: bool = True  # False in the excluded sell hours
     fraction: float = 1.0  # part of the hour left (the current hour); scales the charge/discharge rate
     forbidden: set = field(default_factory=set)  # actions not allowed (their rule switch is off)
+    block_allowed: bool = True  # False: solar charging may not be blocked (it was released earlier in the hour)
 
 
 @dataclass
@@ -122,7 +127,29 @@ def step_hour(
     return min(max(new_level, cfg.level_min), cfg.level_max), cost, delivered, grid_kwh
 
 
-def _allowed(hour: OptimizerHour, level: float, action: str, cfg: OptimizerConfig, delivered: float) -> bool:
+@dataclass
+class _Later:
+    """What comes after an hour: the solar the battery can take the same day, the highest buy price."""
+
+    solar: float
+    buy: float
+
+
+def _later(hours: list[OptimizerHour], cfg: OptimizerConfig) -> list[_Later]:
+    later = [_Later(0.0, 0.0)] * len(hours)
+    solar, buy, day = 0.0, 0.0, None
+    for index in reversed(range(len(hours))):
+        hour = hours[index]
+        current = hour.timestamp.date() if hasattr(hour.timestamp, "date") else None
+        if current != day:
+            solar, day = 0.0, current
+        later[index] = _Later(solar, buy)
+        solar += min(max(hour.solar, 0.0), cfg.max_charge * hour.fraction)
+        buy = max(buy, hour.buy)
+    return later
+
+
+def _allowed(hour: OptimizerHour, level: float, action: str, cfg: OptimizerConfig, delivered: float, later: _Later | None = None) -> bool:
     if action in hour.forbidden:
         return False
     if action == "force_discharge":
@@ -130,7 +157,16 @@ def _allowed(hour: OptimizerHour, level: float, action: str, cfg: OptimizerConfi
     if action == "grid_charging":
         return level < cfg.level_max - 0.01
     if action == "blocked_solar_charge":
-        return hour.solar > 0.0
+        if hour.solar <= 0.0 or not hour.block_allowed:
+            return False
+        if later is None:
+            return True
+        # no bet: a stored kWh can never save more than the sold one earns now
+        if hour.sell >= later.buy * cfg.efficiency**2:
+            return True
+        # else the battery must still be filled the same day with SOLAR_BLOCK_MARGIN of the later sun
+        room = max(cfg.level_max - level, 0.0) * cfg.battery_size / 100.0
+        return later.solar * SOLAR_BLOCK_MARGIN * cfg.efficiency >= room - 0.01
     return True
 
 
@@ -153,13 +189,15 @@ def optimize(hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfi
     options += [("grid_charging", cfg.max_charge * fraction) for fraction in FRACTIONS]
     options += [("force_discharge", cfg.max_discharge * fraction) for fraction in FRACTIONS]  # capped per hour by its rate
     choice: list[list[tuple[str, float | None]]] = []
-    for hour in reversed(hours):
+    later = _later(hours, cfg)
+    for position in reversed(range(len(hours))):
+        hour = hours[position]
         new_value, new_choice = [], []
         for level in levels:
             best_cost, best_option = None, options[0]
             for action, limit in options:
                 new_level, cost, delivered, _ = step_hour(hour, level, action, cfg, limit)
-                if not _allowed(hour, level, action, cfg, delivered):
+                if not _allowed(hour, level, action, cfg, delivered, later[position]):
                     continue
                 # min_profit_per_kwh / min_total_profit only steer the choice, the reported costs are real money
                 total = cost + delivered * cfg.min_profit_per_kwh + value[index(new_level)]

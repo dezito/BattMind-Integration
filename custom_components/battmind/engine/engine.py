@@ -22,7 +22,7 @@ import time
 from typing import Any, Callable
 
 from ..utils.codec import encode
-from ..const import ENTITY_UNAVAILABLE_STATES, NUMBER_SETTINGS, SWITCH_SETTINGS
+from ..const import ENTITY_UNAVAILABLE_STATES, LEARNING_DISABLED_SWITCHES, NUMBER_SETTINGS, SWITCH_SETTINGS
 from .analysis.analysis import Analysis
 from .energy.energy import Energy
 from .history.history import History
@@ -98,6 +98,8 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self.last_plan_hash: str | None = None
         self.last_overview = ""
         self.last_powerwall_action = ""
+        # the hour in which the battery last ran something else than blocked_solar_charge
+        self.unblocked_hour: datetime.datetime | None = None
         self.error_count = 0
 
         # per job
@@ -205,7 +207,9 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         return None
 
     def enabled(self, key: str) -> bool:
-        """State of a setting switch."""
+        """State of a setting switch; the selling and solar blocking rules are off while learning."""
+        if key in LEARNING_DISABLED_SWITCHES and self.is_learning():
+            return False
         return bool(self.setting(key))
 
     def number(self, key: str) -> float:

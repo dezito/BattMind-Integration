@@ -33,6 +33,17 @@ level, so the plan for the next days doesn't change.
 In the blocked hours the action is `blocked_solar_charge`: the inverter should not charge the battery from
 solar, so the surplus is exported.
 
+Blocking is a bet that the later sun fills the battery, so BattMind leaves room for a forecast that is too
+high:
+
+- **Margin:** an hour is only blocked when the battery is still filled with **80 %** of the later solar
+  forecast the same day. The exception is an hour where the sold surplus earns more than a stored kWh
+  could ever save later (the sell price is above the highest later buy price after the charging loss):
+  then there is nothing to bet on.
+- **Once an hour:** when the battery has been allowed to charge from solar in an hour (e.g. because the
+  forecast dropped), solar charging isn't blocked again before the next hour. The battery can switch from
+  blocked to charging once an hour, but not back and forth every few minutes.
+
 **Example:** the sun fills the battery by 13:00 either way. The sell price is 0.90 kr/kWh at 09:00 and
 0.20 kr/kWh at 13:00. BattMind blocks solar charging at 09:00 (the surplus is sold at 0.90) and lets the
 battery catch up at 13:00 (where the surplus would only have earned 0.20).

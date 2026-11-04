@@ -358,6 +358,35 @@ class CoordinatorData:
         for rows in self._statistics.values():
             del rows[: bisect.bisect_left(rows, (cutoff - 3600,))]
 
+    async def _async_power_values_backfill(self) -> None:
+        """Every start: the hours missing in the consumption history from the long-term statistics (engine/energy)."""
+        if "recorder" not in self.hass.config.components or not self.statistics_entities:
+            return
+        from homeassistant.components.recorder import get_instance
+        from homeassistant.components.recorder.statistics import statistics_during_period
+
+        days = int(self.config["database"]["power_values_db_data_to_save"])
+        end = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+        try:
+            stats = await get_instance(self.hass).async_add_executor_job(
+                statistics_during_period, self.hass, end - datetime.timedelta(days=days + 1), end,
+                set(self.statistics_entities), "hour", None, {"mean"},
+            )
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Consumption history: could not read the long-term statistics: %s", err)
+            return
+        rows = {
+            entity_id: [
+                (row["start"].timestamp() if isinstance(row["start"], datetime.datetime) else float(row["start"]), row["mean"])
+                for row in entity_rows if row.get("mean") is not None
+            ]
+            for entity_id, entity_rows in stats.items()
+        }
+        if not rows.get(self.config["home"]["entity_ids"]["power_consumption_entity_id"]):
+            _LOGGER.info("Consumption history: no long-term statistics of the consumption, the history starts from now")
+            return
+        await self.async_run_job("power_values_backfill", rows)
+
     async def _async_efficiency_backfill(self) -> None:
         """The first time: the battery power and level of the recorder history for the measured efficiency (engine/analysis)."""
         if "recorder" not in self.hass.config.components:

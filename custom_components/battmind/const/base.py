@@ -25,6 +25,19 @@ PRICE_ADDER_DAY_BETWEEN_DIVIDER = 30
 CHARGING_HISTORY_COMBINE_AFTER = 24 * 3
 HISTORY_BUFFER_HOURS = 50
 
+# Learning: until every hour of the day has this many days of consumption history, the
+# consumption forecast is too uncertain to sell from the battery or to block solar charging
+# (both bet on the battery being full anyway). Grid charging and normal operation still run.
+LEARNING_MIN_DAYS = 3
+LEARNING_DISABLED_SWITCHES = (
+    "discharge_before_solar",
+    "most_profit",
+    "sell_excess_kwh_available",
+    "grid_charge_to_sell",
+    "force_powerwall_max_hours_old_discharge",
+    "optimize_solar_charging",
+)
+
 ENTITY_UNAVAILABLE_STATES = (None, "unavailable", "unknown")
 POWERWALL_ACTION_STATES = (
     "battery_stopped",

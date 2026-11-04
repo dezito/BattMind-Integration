@@ -5,7 +5,7 @@ import datetime
 import hashlib
 import logging
 
-from ..const import CHARGING_TYPES, EMOJI_DESCRIPTION_GROUPS
+from ..const import CHARGING_TYPES, EMOJI_DESCRIPTION_GROUPS, LEARNING_MIN_DAYS
 from ..utils.formatting import active_charging_rules, emoji_parse, emoji_rules
 from ..utils.helpers import float_or_none, limit_dict_size, reset_time_to_hour, start_of_day
 
@@ -74,6 +74,14 @@ class Planning:
             if isinstance(timestamp, datetime.datetime) and reset_time_to_hour(timestamp) == current_hour:
                 return timestamp
         return None
+
+    def solar_block_released(self) -> bool:
+        """The battery ran something else than blocked_solar_charge earlier in the current hour.
+
+        Solar charging is then not blocked again before the next hour, so the battery can switch from
+        blocked to charging once an hour, but not back and forth every few minutes.
+        """
+        return self.unblocked_hour == reset_time_to_hour(self.now())
 
     def current_period_in_force_discharge(self):
         now = self.now()
@@ -146,6 +154,9 @@ class Planning:
             if (float_or_none(self.entity_state(self.config["solar"]["entity_ids"]["production_entity_id"])) or 0.0) > 0:
                 current_rules["solar"] = True
 
+            if self.is_learning():
+                rule += f"\n📚{t('ui.charge_if_needed.learning', days=self.consumption_days_known(), needed=LEARNING_MIN_DAYS)}"
+
             to_timestamp = self.now()
             from_timestamp = to_timestamp - datetime.timedelta(minutes=self.config["cron_interval"])
             watt_flow = int(self._wc.average(self.config["home"]["entity_ids"]["powerwall_watt_flow_entity_id"], from_timestamp, to_timestamp))
@@ -157,6 +168,8 @@ class Planning:
             self.session_rules.update(current_rules)
             self.set_charging_rule(rule)
             self.set_state("powerwall_action", action)
+            if action != "blocked_solar_charge":
+                self.unblocked_hour = reset_time_to_hour(self.now())
             if action != self.last_powerwall_action:
                 _LOGGER.info("Battery action: %s (%s)", action, rule.split("\n")[0])
             self.last_powerwall_action = action

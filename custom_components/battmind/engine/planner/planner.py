@@ -111,8 +111,13 @@ class Planner(WhatIf, Overview, ChargingHours, ChargingFlow, FutureCharging):
             ]
             if consumption <= 0.0:
                 continue
-            forecast = self.get_forecast_value(self.power_values_db.get(dt.hour, {}).get("power_consumption_without_all_exclusion", [0.0]))
-            diff_procent.append(consumption / forecast if forecast > 0.0 else 0.0)
+            # an hour of the day without history has no forecast to correct (counting it as 0 pulled
+            # the factor towards 0 on a new installation); a forecast of 0 W from the history is a
+            # real 0, but the ratio is undefined and the factor doesn't change it anyway
+            forecast = self.get_forecast_value(self.power_values_db.get(dt.hour, {}).get("power_consumption_without_all_exclusion"))
+            if forecast <= 0.0:
+                continue
+            diff_procent.append(consumption / forecast)
         correction_factor = sum(diff_procent) / len(diff_procent) if diff_procent else 1.0
 
         for day in range(amount_of_days):

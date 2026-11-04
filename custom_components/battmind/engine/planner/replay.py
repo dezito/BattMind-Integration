@@ -68,6 +68,10 @@ class ReplayInputs:
     def local_energy_prediction(self) -> None:
         """The solar surplus prediction is set by replay_plan()."""
 
+    def is_learning(self) -> bool:
+        # the replay knows the actual consumption of every hour
+        return False
+
     def shadow_optimize(self, hours, start_level, cfg, end_value):
         if self.enabled("optimizer_control"):
             return super().shadow_optimize(hours, start_level, cfg, end_value)

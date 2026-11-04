@@ -84,6 +84,8 @@ class FutureOptimizer:
                     timestamp, average(buy_by_hour[timestamp]), self.sell_price_in_hour(ctx, timestamp),
                     0.0 if solar > 0.0 else prediction["kwh"] * fraction, solar,
                     can_sell=hour not in exclude_hours, fraction=fraction,
+                    # an hour where solar charging was released isn't blocked again before the next hour
+                    block_allowed=not (timestamp == ctx.current_hour and self.solar_block_released()),
                 ))
                 # same priority as charge_if_needed()
                 limit = None
