@@ -11,10 +11,13 @@ import pytest
 
 from homeassistant.components.http.auth import async_sign_path
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.setup import async_setup_component
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.battmind.const import DOMAIN
-from custom_components.battmind.management.debug_export import DEBUG_DIR, KEEP_FILES, Redactor
+from custom_components.battmind.management.debug_export import DEBUG_DIR, KEEP_FILES, Redactor, async_debug_data, jsonable
 
 from . import debug_replay
 from .conftest import CONSUMPTION, PREFIX, PRICE
@@ -64,6 +67,87 @@ async def test_export_is_anonymised(hass: HomeAssistant, config_dir: Path, loade
     item = hass.data["persistent_notification"][f"{PREFIX}_debug_export"]
     assert "issues/new?template=bug_report.yml" in item["message"]
     assert file.split("/")[-1] in item["message"]
+
+
+AUTOMATIONS = """
+- id: '1700000000000'
+  alias: Thomas battery
+  use_blueprint:
+    path: battmind/battery_control.yaml
+    input:
+      battmind_action: {action_sensor}
+      grid_charging:
+        - action: number.set_value
+          target:
+            entity_id: number.thomas_wallbox_current
+          data:
+            value: 16
+        - action: goodwe.set_parameter
+          data:
+            device_id: {device_id}
+        - action: notify.mobile_app_thomas_phone
+          data:
+            message: "{{{{ states('sensor.thomas_inverter_soc') }}}}"
+- id: '1700000000001'
+  alias: Other blueprint
+  use_blueprint:
+    path: homeassistant/motion_light.yaml
+    input: {{}}
+"""
+
+
+async def test_export_has_blueprint_automations_and_integrations(hass: HomeAssistant, config_dir: Path, loaded_entry) -> None:
+    """The blueprint automations with their inputs, the devices and the integrations they use, anonymised."""
+    hass.states.async_set("person.thomas", "home", {"friendly_name": "Thomas Sloth"})
+    wallbox = MockConfigEntry(domain="wallbox", title="Thomas' Wallbox")
+    wallbox.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=wallbox.entry_id, identifiers={("wallbox", "WB123456")}, name="Thomas lader",
+        manufacturer="Wallbox", model="Pulsar Plus", sw_version="6.2.1", serial_number="WB123456",
+    )
+    ent_reg = er.async_get(hass)
+    ent_reg.async_get_or_create("number", "wallbox", "WB123456_current", suggested_object_id="thomas_wallbox_current", device_id=device.id, config_entry=wallbox)
+    hass.states.async_set("number.thomas_wallbox_current", "16", {"unit_of_measurement": "A"})
+    ent_reg.async_get_or_create("automation", "automation", "1700000000000", suggested_object_id="thomas_battery")
+    hass.states.async_set("automation.thomas_battery", "on", {"last_triggered": None, "current": 0})
+    hass.services.async_register("number", "set_value", lambda call: None)
+    action_sensor = next(
+        entry.entity_id for entry in er.async_entries_for_config_entry(ent_reg, loaded_entry.entry_id) if entry.entity_id.endswith("_powerwall_action")
+    )
+    Path(hass.config.path("automations.yaml")).write_text(AUTOMATIONS.format(action_sensor=action_sensor, device_id=device.id), encoding="utf-8")
+
+    response = await hass.services.async_call(DOMAIN, "export_debug", {}, blocking=True, return_response=True)
+    data, text = _read(config_dir.parent / response["files"][PREFIX])
+
+    for secret in ("Thomas", "thomas", "WB123456", "mobile_app"):
+        assert secret not in text, secret
+    assert data["blueprints"]["files"]["battmind/battery_control.yaml"] == {"installed": True, "bundled": True, "up_to_date": True}
+    [automation] = data["blueprints"]["automations"]
+    assert automation["alias"] == "<redacted> battery" and automation["this_instance"] is True
+    assert automation["entity"]["state"] == "on"
+    # entities are named after the input, service names are kept, the notify service is not
+    actions = automation["input"]["grid_charging"]
+    assert actions[0] == {"action": "number.set_value", "target": {"entity_id": "number.grid_charging"}, "data": {"value": 16}}
+    assert actions[1]["action"] == "goodwe.set_parameter"
+    assert actions[2]["action"].startswith("notify.entity_")
+    assert actions[2]["data"]["message"] == "{{ states('sensor.grid_charging') }}"
+    assert automation["input"]["battmind_action"] == action_sensor
+
+    entity = data["entities"]["number.grid_charging"]
+    assert entity["platform"] == "wallbox" and entity["blueprint"] is True and entity["unit"] == "A"
+    device_info = {"manufacturer": "Wallbox", "model": "Pulsar Plus", "sw_version": "6.2.1", "integrations": ["wallbox"]}
+    assert entity["device"] == device_info
+    assert data["devices"] == {device.id: device_info}
+    assert data["integrations"]["wallbox"] == {"custom": False, "version": None, "entries": ["not_loaded"]}
+    assert data["integrations"]["goodwe"]["custom"] is False
+    assert "number" not in data["integrations"] and DOMAIN not in data["integrations"]
+
+    # a changed blueprint (old version or own changes) comes with its content
+    blueprint = Path(hass.config.path("blueprints", "automation", DOMAIN, "battery_control.yaml"))
+    blueprint.write_text(blueprint.read_text(encoding="utf-8").replace("BattMind - control", "BattMind (mine) - control"), encoding="utf-8")
+    raw, redactor = await async_debug_data(hass, loaded_entry.runtime_data, dt_util.now(), databases=False)
+    file = (await hass.async_add_executor_job(jsonable, raw, redactor))["blueprints"]["files"]["battmind/battery_control.yaml"]
+    assert file["up_to_date"] is False and "BattMind (mine) - control" in file["content"]
 
 
 async def test_button_keeps_the_newest_files(hass: HomeAssistant, config_dir: Path, loaded_entry) -> None:
