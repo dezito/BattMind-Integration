@@ -186,6 +186,8 @@ class FutureDischargeRules:
             }
 
         # or sell it in the most expensive periods when that pays more than using it
+        if "force_discharge" in self.unsupported_actions():
+            old_kwh = 0.0  # the inverter can't sell from the battery, the old energy is only used
         usage_value = average(usage_prices) if usage_prices else 0.0
         exclude_hours = self.get_exclude_sell_hours()
         sell_prices, sell_price, using_grid_sell_price = self.sell_prices_for_window(ctx, 

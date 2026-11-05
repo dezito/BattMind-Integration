@@ -53,6 +53,7 @@ class OptimizerConfig:
     min_total_profit: float = 0.0  # steers the choice only: a charge hour / sale hour has to earn this much
     usage_reserve: float = 0.0  # % kept for the house; force discharge may not export below it
     step: float = 0.5  # % resolution of the battery level
+    unsupported: frozenset = frozenset()  # actions the inverter can't run (never planned)
 
 
 @dataclass
@@ -150,7 +151,7 @@ def _later(hours: list[OptimizerHour], cfg: OptimizerConfig) -> list[_Later]:
 
 
 def _allowed(hour: OptimizerHour, level: float, action: str, cfg: OptimizerConfig, delivered: float, later: _Later | None = None) -> bool:
-    if action in hour.forbidden:
+    if action in hour.forbidden or action in cfg.unsupported:
         return False
     if action == "force_discharge":
         return hour.can_sell and delivered - min(delivered, hour.consumption) >= max(cfg.min_sell_kwh, 0.01)

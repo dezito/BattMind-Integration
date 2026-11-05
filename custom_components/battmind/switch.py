@@ -11,7 +11,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import DOMAIN, SWITCH_SETTINGS
+from .const import DOMAIN, SWITCH_SETTINGS, unsupported_actions, unsupported_switches
 from .coordinator import BattMindCoordinator
 from .entity import BattMindEntity
 
@@ -37,6 +37,10 @@ class BattMindSwitch(BattMindEntity, SwitchEntity, RestoreEntity):
         super().__init__(coordinator, "switch", key)
         self._default = info["default"]
         self._attr_entity_category = EntityCategory.CONFIG
+        # the rule needs a battery action the inverter can't run (configuration): the planner
+        # treats it as off, the switch keeps its value for when the action is supported again
+        if action := unsupported_switches(unsupported_actions(coordinator.config)).get(key):
+            self._attr_extra_state_attributes = {"unsupported_action": action}
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()

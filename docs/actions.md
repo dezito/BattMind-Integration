@@ -20,6 +20,30 @@ the inverter does on its own. BattMind only steps in with the other five actions
 Why the battery is in an action is shown in `sensor.<prefix>_current_charging_rule` (e.g. *Charging up to
 💸*) and in the plan on the dashboard.
 
+### When the inverter can't run an action
+
+Not every inverter can run all the actions. Select the ones yours can't run in the configuration
+(*Configure → Home battery → controllable modes*). `discharge_allowed` and `battery_stopped` are always
+used. BattMind then never plans an unsupported action, neither with the
+[optimiser](rules/optimizer.md) nor with the rules, and the rules that need it count as off:
+
+| Unsupported action | Rules that count as off |
+|---|---|
+| `grid_charging` | cheapest periods (and fill up), most expensive periods, required before max level, negative prices, buy to sell |
+| `force_discharge` | maximise profit, sell excess kWh, before the sun, buy to sell. *Max. kWh age* still uses old energy, but doesn't sell it |
+| `force_solar_only_charging` | profit only, prioritise by energy cost, maximise profit. These hold energy for a later hour, which needs a battery that can stop discharging |
+| `blocked_solar_charge` | optimise solar charging |
+
+The switches keep their value and get the attribute `unsupported_action`, so they work again when you clear
+the selection. The generated dashboard hides them under **Settings**, together with the settings only those
+rules use (the cheap price periods with `grid_charging`), and a section left without settings is hidden
+with its *Read more*. A dashboard you have edited in the UI is not changed: press *Reset dashboard* to get
+the generated one. The what-if simulator uses the same limits. If an unsupported action is somehow still due,
+BattMind runs `force_solar_only_charging` instead of `grid_charging` or `blocked_solar_charge` (if the
+inverter supports it), and `discharge_allowed` otherwise.
+
+Leave the blueprint's field for an unsupported action empty.
+
 ## The blueprint
 
 The blueprint **BattMind - control the home battery** is installed with the integration and works with all

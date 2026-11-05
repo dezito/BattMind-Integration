@@ -98,6 +98,10 @@ set it to 0, the action is only sent when BattMind changes it, and nothing catch
 If it still doesn't follow, check the blueprint's trace (*Automations → ⋮ → Traces*): did the actions run,
 and did the inverter accept them?
 
+If the inverter can't run the action at all (e.g. it can't block solar charging), select it under
+*Configure → Home battery → controllable modes*. BattMind then plans without it. See
+[When the inverter can't run an action](actions.md#when-the-inverter-cant-run-an-action).
+
 ## Today's charging history looks wrong
 
 Call `battmind.recalc_charging_history_today` (or the button on the dashboard) to recalculate it from the

@@ -38,6 +38,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "power_consumption_entity_id_include_powerwall_charging": False,
         "power_consumption_entity_id_include_powerwall_discharging": False,
         "invert_powerwall_watt_flow_entity_id": False,
+        # battery actions the inverter can't run (CONTROLLABLE_ACTIONS); their rules are off
+        "unsupported_actions": [],
     },
     "language": "da",
     "prices": {
@@ -108,6 +110,7 @@ OPTION_PATHS: dict[str, str] = {
     "battery_charging_efficiency_curve": "solar.battery_charging_efficiency_curve",
     "battery_discharging_efficiency_curve": "solar.battery_discharging_efficiency_curve",
     "powerwall_wear_cost_per_kwh": "solar.powerwall_wear_cost_per_kwh",
+    "unsupported_actions": "home.unsupported_actions",
     # prices
     "energidataservice_buy_entity_id": "prices.entity_ids.energidataservice_buy_entity_id",
     "energidataservice_sell_entity_id": "prices.entity_ids.energidataservice_sell_entity_id",
@@ -166,6 +169,7 @@ FLOW_STEPS: dict[str, list[str]] = {
         "battery_discharging_efficiency_curve",
         "powerwall_wear_cost_per_kwh",
     ],
+    "battery_actions": ["unsupported_actions"],
     "consumption": [
         "power_consumption_entity_id",
         "power_consumption_entity_id_include_powerwall_charging",
@@ -212,7 +216,7 @@ PRICE_PROVIDER_KEYS: dict[str, list[str]] = {
 # Options flow menu -> pages walked through in order
 OPTIONS_MENU: dict[str, list[str]] = {
     "general": ["general"],
-    "battery": ["battery_entities", "battery_specs"],
+    "battery": ["battery_entities", "battery_specs", "battery_actions"],
     "consumption": ["consumption"],
     "prices": ["price_provider", "prices_energidataservice", "prices_stromligning", "prices_stromligning_tariffs", "price_fees"],
     "solar": ["solar", "weather"],

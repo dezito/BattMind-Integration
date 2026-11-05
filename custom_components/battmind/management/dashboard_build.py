@@ -6,6 +6,7 @@ author's price/solar entities. At setup it is rewritten for this config entry:
 * own entities ``<platform>.battmind_*`` -> ``<platform>.<prefix>_*``
 * external entities (Energi Data Service, Strømligning, Solcast) -> the configured ones
 * cards bound to an external entity that is not configured are removed
+* the switches and settings of rules that need an unsupported battery action are removed
 * ``@@key@@`` placeholders -> ``dashboard.key`` of texts/<language>.json (BattMind's language),
   ``@@forecast_span@@`` -> days_to_predict - 0.5 days, ``@@sell_fee_value@@`` -> the sell fee,
   ``@@valuta@@`` / ``@@valuta_kwh@@`` -> the currency of Home Assistant
@@ -31,7 +32,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.json import cached_json_fragment, json_fragment
 from homeassistant.helpers.storage import Store
 
-from ..const import DOMAIN, normalize_language
+from ..const import DOMAIN, normalize_language, unsupported_actions, unsupported_switches
 from ..utils.formatting import load_texts
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ _OWN_ENTITY = re.compile(r"\b(sensor|binary_sensor|switch|number|select|text|but
 _PLACEHOLDER = re.compile(r"@@(\w+)@@")
 _SOLCAST_DAYS = ("tomorrow", "day_3", "day_4", "day_5", "day_6", "day_7")
 _DROP = object()
+_GAP = object()  # where _prune removed a list item
 
 
 def dashboard_url(prefix: str) -> str:
@@ -151,6 +153,51 @@ def external_entities(config: dict[str, Any]) -> dict[str, str]:
 DEBUG_BUTTON_SWITCH = "input_boolean.dezito_show_debug_button"
 
 
+# settings only used by the rules of an action: hidden with the rule switches when the action is unsupported
+_ACTION_SETTINGS = {
+    "grid_charging": (
+        "number.battmind_cheap_price_periods",
+        "number.battmind_cheap_price_period_rise_threshold",
+        "number.battmind_cheapest_price_rise_threshold",
+    ),
+}
+
+
+def unsupported_entities(config: dict[str, Any]) -> set[str]:
+    """Template entity ids of the rules that need an action the battery can't run."""
+    unsupported = unsupported_actions(config)
+    entities = {f"switch.battmind_{key}" for key in unsupported_switches(unsupported)}
+    for action in unsupported:
+        entities.update(_ACTION_SETTINGS.get(action, ()))
+    return entities
+
+
+def _is_type(node: Any, *types: str) -> bool:
+    return isinstance(node, dict) and node.get("type") in types
+
+
+def _tidy(items: list[Any]) -> list[Any]:
+    """After a removal (_GAP): no divider at the ends or twice in a row, and no heading left with only its help text."""
+    groups: list[list[Any]] = []
+    for item in items:
+        if not groups or _is_type(item, "heading"):
+            groups.append([])
+        groups[-1].append(item)
+    result: list[Any] = []
+    for group in groups:
+        if _is_type(group[0], "heading") and _GAP in group and all(item is _GAP or _is_type(item, "heading", "markdown") for item in group):
+            continue
+        for item in group:
+            if item is _GAP:
+                continue
+            if _is_type(item, "divider") and (not result or _is_type(result[-1], "divider")):
+                continue
+            result.append(item)
+    while result and _is_type(result[-1], "divider"):
+        result.pop()
+    return result
+
+
 def _prune(node: Any, missing: set[str]) -> Any:
     """Remove cards/series/list items bound to a missing entity, and containers left empty."""
     if isinstance(node, list):
@@ -159,9 +206,8 @@ def _prune(node: Any, missing: set[str]) -> Any:
             if isinstance(item, str) and item in missing:
                 continue
             item = _prune(item, missing)
-            if item is not _DROP:
-                items.append(item)
-        return items
+            items.append(_GAP if item is _DROP else item)
+        return _tidy(items) if _GAP in items else items
     if isinstance(node, dict):
         if node.get("entity") in missing:
             return _DROP
@@ -222,6 +268,8 @@ def render_dashboard(
     missing = {source for source, target in mapping.items() if not target}
     if existing is not None and DEBUG_BUTTON_SWITCH not in existing:
         missing.add(DEBUG_BUTTON_SWITCH)
+    # the rules the battery can't run (unsupported_actions) are off, so their switches and settings are hidden
+    missing |= unsupported_entities(config)
     content = yaml.dump(_prune(template, missing), Dumper=_Dumper, allow_unicode=True, sort_keys=False, width=1000)
 
     replace = {source: target for source, target in mapping.items() if target and source != target}

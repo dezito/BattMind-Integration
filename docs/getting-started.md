@@ -78,6 +78,13 @@ renamed yourself are kept).
 The loss and the wear decide how big a price difference has to be before BattMind uses the battery. See
 [How BattMind plans](how-it-works.md#the-cost-of-a-kwh-from-the-battery).
 
+### Home battery – controllable modes
+
+Leave everything unselected if your inverter can run all the [actions](actions.md#the-six-actions). If it
+can't run one of them, e.g. it can't block solar charging or sell from the battery, select it under
+**Modes the battery can't run**. BattMind then never plans that action, and the rules that need it count as
+off and are hidden on the dashboard. See [When the inverter can't run an action](actions.md#when-the-inverter-cant-run-an-action).
+
 ### Consumption
 
 - **House consumption:** the house's own consumption. Tell BattMind if the sensor includes the battery's

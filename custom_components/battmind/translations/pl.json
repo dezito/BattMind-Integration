@@ -49,6 +49,16 @@
         "description": "Służy do przeliczania między % a kWh, ograniczania planu i obliczania kosztu energii w baterii.",
         "title": "Bateria domowa - specyfikacja"
       },
+      "battery_actions": {
+        "title": "Bateria domowa - sterowalne tryby",
+        "description": "BattMind planuje z tymi trybami baterii (czujnik Akcja magazynu energii). Jeśli twój falownik nie może uruchomić danego trybu, zaznacz go tutaj. BattMind nigdy go wtedy nie planuje, a reguły, które go wymagają, zostają wyłączone. Normalna praca (discharge_allowed) i zatrzymanie bezpieczeństwa z powodu temperatury są zawsze używane. Nie zaznaczaj niczego, jeśli bateria obsługuje wszystkie tryby.",
+        "data": {
+          "unsupported_actions": "Tryby, których bateria nie obsługuje"
+        },
+        "data_description": {
+          "unsupported_actions": "Ładowanie z sieci: reguły ładowania z sieci są wyłączone (najtańsze okresy, najdroższe okresy, przed osiągnięciem maksymalnego poziomu, ujemne ceny, kup, aby sprzedać). Wymuszone rozładowanie: sprzedaż z baterii jest wyłączona (maksymalizuj zysk, sprzedaj nadwyżkę kWh, przed słońcem, kup, aby sprzedać); stara energia jest tylko zużywana, nie sprzedawana. Tylko ładowanie słoneczne: zatrzymywanie energii na później jest wyłączone (tylko przy zysku, priorytet wg kosztu energii, maksymalizuj zysk). Blokuj ładowanie słoneczne: optymalizacja ładowania energią słoneczną jest wyłączona. Przełączniki zachowują swoją wartość, ale są traktowane jako wyłączone."
+        }
+      },
       "consumption": {
         "data_description": {
           "power_consumption_entity_id": "Zużycie domu (encja w watach), nie zużycie z sieci",
@@ -285,6 +295,16 @@
         },
         "description": "Służy do przeliczania między % a kWh, ograniczania planu i obliczania kosztu energii w baterii.",
         "title": "Bateria domowa - specyfikacja"
+      },
+      "battery_actions": {
+        "title": "Bateria domowa - sterowalne tryby",
+        "description": "BattMind planuje z tymi trybami baterii (czujnik Akcja magazynu energii). Jeśli twój falownik nie może uruchomić danego trybu, zaznacz go tutaj. BattMind nigdy go wtedy nie planuje, a reguły, które go wymagają, zostają wyłączone. Normalna praca (discharge_allowed) i zatrzymanie bezpieczeństwa z powodu temperatury są zawsze używane. Nie zaznaczaj niczego, jeśli bateria obsługuje wszystkie tryby.",
+        "data": {
+          "unsupported_actions": "Tryby, których bateria nie obsługuje"
+        },
+        "data_description": {
+          "unsupported_actions": "Ładowanie z sieci: reguły ładowania z sieci są wyłączone (najtańsze okresy, najdroższe okresy, przed osiągnięciem maksymalnego poziomu, ujemne ceny, kup, aby sprzedać). Wymuszone rozładowanie: sprzedaż z baterii jest wyłączona (maksymalizuj zysk, sprzedaj nadwyżkę kWh, przed słońcem, kup, aby sprzedać); stara energia jest tylko zużywana, nie sprzedawana. Tylko ładowanie słoneczne: zatrzymywanie energii na później jest wyłączone (tylko przy zysku, priorytet wg kosztu energii, maksymalizuj zysk). Blokuj ładowanie słoneczne: optymalizacja ładowania energią słoneczną jest wyłączona. Przełączniki zachowują swoją wartość, ale są traktowane jako wyłączone."
+        }
       },
       "consumption": {
         "data_description": {
@@ -662,6 +682,14 @@
     }
   },
   "selector": {
+    "unsupported_actions": {
+      "options": {
+        "grid_charging": "Ładowanie z sieci (grid_charging)",
+        "force_discharge": "Wymuszone rozładowanie do sieci (force_discharge)",
+        "force_solar_only_charging": "Tylko ładowanie słoneczne, bez rozładowania (force_solar_only_charging)",
+        "blocked_solar_charge": "Blokuj ładowanie słoneczne (blocked_solar_charge)"
+      }
+    },
     "restore_backup": {
       "options": {
         "none": "Nie przywracaj (zacznij od zera)"

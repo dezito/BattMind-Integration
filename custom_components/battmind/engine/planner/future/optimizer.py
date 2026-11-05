@@ -48,6 +48,7 @@ class FutureOptimizer:
             min_sell_kwh=self.number("min_sell_kwh"),
             min_total_profit=self.get_min_total_profit(),
             usage_reserve=self.number("usage_reserve"),
+            unsupported=self.unsupported_actions(),
         )
 
     def shadow_plan(self, ctx, days):
@@ -99,6 +100,10 @@ class FutureOptimizer:
                     action = "blocked_solar_charge"
                 else:
                     action = "force_solar_only_charging"
+                # what charge_if_needed() runs when the inverter can't run the action
+                action = self.supported_action(action)
+                if action not in ("grid_charging", "force_discharge"):
+                    limit = None
                 rule_actions.append(action)
                 rule_limits.append(limit)
         if not hours:

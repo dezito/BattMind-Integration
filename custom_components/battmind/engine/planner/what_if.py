@@ -15,6 +15,7 @@ from ...const import (
     WHAT_IF_NUMBERS,
     WHAT_IF_SWITCHES,
     WHAT_IF_TEXTS,
+    unsupported_switches,
 )
 from ..optimizer import OptimizerConfig, OptimizerHour
 from ..energy.energy import derive_power_values
@@ -582,7 +583,11 @@ class WhatIf:
             value = float_or_none(settings.get(key))
             return float(NUMBER_SETTINGS[key]["default"]) if value is None else value
 
+        disabled = unsupported_switches(cfg.unsupported)
+
         def enabled(key: str) -> bool:
+            if key in disabled:  # needs a battery action the inverter can't run
+                return False
             value = settings.get(key)
             return bool(SWITCH_SETTINGS[key]["default"] if value is None else value)
 
