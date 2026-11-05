@@ -8,7 +8,7 @@ import voluptuous as vol
 
 from homeassistant.helpers import selector
 
-from ..const import ENTITY_OPTION_KEYS, LANGUAGES, OPTION_PATHS, currency_symbol, default_options, normalize_language
+from ..const import CONTROLLABLE_ACTIONS, ENTITY_OPTION_KEYS, LANGUAGES, OPTION_PATHS, currency_symbol, default_options, normalize_language
 from ..utils.helpers import get_dict_value_with_path
 from ..utils.efficiency import parse_efficiency_curve
 
@@ -22,6 +22,7 @@ ENERGIDATASERVICE_URL = "https://github.com/MTrab/energidataservice"  # {eds_url
 CONFIG_FLOW_STEPS = [
     "battery_entities",
     "battery_specs",
+    "battery_actions",
     "consumption",
     "price_provider",
     "prices_energidataservice",
@@ -89,6 +90,14 @@ SELECTORS: dict[str, Any] = {
     "battery_charging_efficiency_curve": OBJECT,
     "battery_discharging_efficiency_curve": OBJECT,
     "powerwall_wear_cost_per_kwh": _number(0, 10, 0.01, "{valuta_kwh}"),
+    "unsupported_actions": selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=list(CONTROLLABLE_ACTIONS),
+            multiple=True,
+            mode=selector.SelectSelectorMode.LIST,
+            translation_key="unsupported_actions",
+        )
+    ),
     # consumption
     "power_consumption_entity_id": _entity("sensor", device_class="power"),
     "power_consumption_entity_id_include_powerwall_charging": BOOLEAN,
@@ -157,6 +166,7 @@ REQUIRED_KEYS = {
     "kwh_avg_prices_db_data_to_save",
     "charging_history_db_data_to_save",
 }
+LIST_KEYS = {"ignore_consumption_from_entity_ids", "unsupported_actions"}
 INT_KEYS = {
     "days_to_predict",
     "cron_interval",
@@ -170,7 +180,7 @@ INT_KEYS = {
 def _form_value(key: str, value: Any) -> Any:
     if key == "cron_interval":
         return str(int(value)) if value not in (None, "") else "5"
-    if key == "ignore_consumption_from_entity_ids":
+    if key in LIST_KEYS:
         return list(value or [])
     return value
 
@@ -194,6 +204,8 @@ def build_schema(keys: list[str], values: dict[str, Any], currency: str | None =
             schema[marker(key, description={"suggested_value": value or None})] = field
         elif key == "ignore_consumption_from_entity_ids":
             schema[vol.Optional(key, description={"suggested_value": value})] = field
+        elif key == "unsupported_actions":
+            schema[vol.Optional(key, default=value)] = field
         elif key in REQUIRED_KEYS:
             schema[vol.Required(key, default=value)] = field
         elif field is OBJECT:
@@ -212,6 +224,8 @@ def normalize_input(keys: list[str], user_input: dict[str, Any]) -> dict[str, An
             result[key] = value or ""
         elif key == "ignore_consumption_from_entity_ids":
             result[key] = list(value or [])
+        elif key == "unsupported_actions":
+            result[key] = [action for action in CONTROLLABLE_ACTIONS if action in (value or [])]
         elif key in INT_KEYS:
             result[key] = int(float(value))
         elif SELECTORS[key] is BOOLEAN:

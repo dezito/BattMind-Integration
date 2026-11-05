@@ -49,6 +49,16 @@
         "description": "Wird genutzt, um zwischen % und kWh umzurechnen, den Plan zu begrenzen und zu berechnen, was die Energie im Akku kostet.",
         "title": "Hausakku - Daten"
       },
+      "battery_actions": {
+        "title": "Hausakku - steuerbare Modi",
+        "description": "BattMind plant mit diesen Akku-Modi (der Sensor Powerwall-Aktion). Wenn dein Wechselrichter einen Modus nicht ausführen kann, wähle ihn hier aus. BattMind plant ihn dann nie, und die Regeln, die ihn brauchen, werden ausgeschaltet. Normalbetrieb (discharge_allowed) und der Temperatur-Sicherheitsstopp werden immer verwendet. Lass alles abgewählt, wenn der Akku jeden Modus ausführen kann.",
+        "data": {
+          "unsupported_actions": "Modi, die der Akku nicht ausführen kann"
+        },
+        "data_description": {
+          "unsupported_actions": "Netzladung: die Regeln zum Laden aus dem Netz sind aus (günstigste Zeiträume, teuerste Zeiträume, vor maximalem Niveau, negative Preise, kaufen um zu verkaufen). Erzwungene Entladung: das Verkaufen aus dem Akku ist aus (Gewinn maximieren, überschüssige kWh verkaufen, vor der Sonne, kaufen um zu verkaufen); alte Energie wird nur verbraucht, nicht verkauft. Nur Solarladung: das Zurückhalten der Energie für später ist aus (nur bei Gewinn, nach Energiekosten priorisieren, Gewinn maximieren). Solarladung blockieren: Solarladung optimieren ist aus. Die Schalter behalten ihren Wert, zählen aber als aus."
+        }
+      },
       "consumption": {
         "data_description": {
           "power_consumption_entity_id": "Hausverbrauch (Watt-Entität), nicht Netzverbrauch",
@@ -285,6 +295,16 @@
         },
         "description": "Wird genutzt, um zwischen % und kWh umzurechnen, den Plan zu begrenzen und zu berechnen, was die Energie im Akku kostet.",
         "title": "Hausakku - Daten"
+      },
+      "battery_actions": {
+        "title": "Hausakku - steuerbare Modi",
+        "description": "BattMind plant mit diesen Akku-Modi (der Sensor Powerwall-Aktion). Wenn dein Wechselrichter einen Modus nicht ausführen kann, wähle ihn hier aus. BattMind plant ihn dann nie, und die Regeln, die ihn brauchen, werden ausgeschaltet. Normalbetrieb (discharge_allowed) und der Temperatur-Sicherheitsstopp werden immer verwendet. Lass alles abgewählt, wenn der Akku jeden Modus ausführen kann.",
+        "data": {
+          "unsupported_actions": "Modi, die der Akku nicht ausführen kann"
+        },
+        "data_description": {
+          "unsupported_actions": "Netzladung: die Regeln zum Laden aus dem Netz sind aus (günstigste Zeiträume, teuerste Zeiträume, vor maximalem Niveau, negative Preise, kaufen um zu verkaufen). Erzwungene Entladung: das Verkaufen aus dem Akku ist aus (Gewinn maximieren, überschüssige kWh verkaufen, vor der Sonne, kaufen um zu verkaufen); alte Energie wird nur verbraucht, nicht verkauft. Nur Solarladung: das Zurückhalten der Energie für später ist aus (nur bei Gewinn, nach Energiekosten priorisieren, Gewinn maximieren). Solarladung blockieren: Solarladung optimieren ist aus. Die Schalter behalten ihren Wert, zählen aber als aus."
+        }
       },
       "consumption": {
         "data_description": {
@@ -662,6 +682,14 @@
     }
   },
   "selector": {
+    "unsupported_actions": {
+      "options": {
+        "grid_charging": "Laden aus dem Netz (grid_charging)",
+        "force_discharge": "Erzwungene Entladung ins Netz (force_discharge)",
+        "force_solar_only_charging": "Nur Solarladung, keine Entladung (force_solar_only_charging)",
+        "blocked_solar_charge": "Solarladung blockieren (blocked_solar_charge)"
+      }
+    },
     "restore_backup": {
       "options": {
         "none": "Nicht wiederherstellen (leer beginnen)"

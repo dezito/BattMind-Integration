@@ -50,6 +50,7 @@ async def _to_price_provider(hass: HomeAssistant):
         {"powerwall_battery_level_entity_id": BATTERY_LEVEL, "powerwall_watt_flow_entity_id": BATTERY_FLOW, "invert_powerwall_watt_flow_entity_id": True},
     )
     result = await _configure(hass, result, "battery_specs", BATTERY_SPECS)
+    result = await _configure(hass, result, "battery_actions", {"unsupported_actions": ["blocked_solar_charge"]})
     return await _configure(hass, result, "consumption", {"power_consumption_entity_id": CONSUMPTION})
 
 
@@ -80,6 +81,7 @@ async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
     assert options["powerwall_battery_level_entity_id"] == BATTERY_LEVEL
     assert options["invert_powerwall_watt_flow_entity_id"] is True
     assert options["powerwall_battery_size"] == 13.5
+    assert options["unsupported_actions"] == ["blocked_solar_charge"]
     assert options["cron_interval"] == 5  # the dropdown value is stored as int
     assert options["stromligning_buy_current_price"] == ""  # provider not chosen
     assert options["hourly_service_entity_id"] == ""
@@ -216,8 +218,31 @@ async def test_options_flow_changes_battery_size(hass: HomeAssistant, loaded_ent
     result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
     assert result["step_id"] == "battery_specs"
     result = await hass.config_entries.options.async_configure(result["flow_id"], {**form_defaults(result), "powerwall_battery_size": 20.0})
+    assert result["step_id"] == "battery_actions"
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done(wait_background_tasks=True)
     assert loaded_entry.options["powerwall_battery_size"] == 20.0
     # the update listener reloads the entry with the new configuration
     assert loaded_entry.runtime_data.config["solar"]["powerwall_battery_size"] == 20.0
+
+
+async def test_options_flow_switches_off_the_rules_of_an_unsupported_action(hass: HomeAssistant, loaded_entry) -> None:
+    """The rules of a battery action the inverter can't run count as off; their switches keep their value."""
+    result = await hass.config_entries.options.async_init(loaded_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "menu_battery"})
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
+    assert result["step_id"] == "battery_actions"
+    assert form_defaults(result) == {"unsupported_actions": []}
+    # only the controllable actions can be chosen
+    with pytest.raises(InvalidData):
+        await hass.config_entries.options.async_configure(result["flow_id"], {"unsupported_actions": ["discharge_allowed"]})
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"unsupported_actions": ["force_discharge"]})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert loaded_entry.options["unsupported_actions"] == ["force_discharge"]
+    prefix = loaded_entry.data[CONF_ENTITY_PREFIX]
+    most_profit = hass.states.get(f"switch.{prefix}_most_profit")
+    assert most_profit.attributes["unsupported_action"] == "force_discharge"
+    assert "unsupported_action" not in hass.states.get(f"switch.{prefix}_cheapest_hour_fill_planner").attributes

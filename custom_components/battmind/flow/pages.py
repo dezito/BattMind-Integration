@@ -103,6 +103,9 @@ class BattMindFlowPages:
     async def async_step_battery_specs(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("battery_specs", user_input)
 
+    async def async_step_battery_actions(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("battery_actions", user_input)
+
     async def async_step_consumption(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("consumption", user_input)
 

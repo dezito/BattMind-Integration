@@ -295,6 +295,18 @@ Keep these invariants when touching any planner rule:
   `only_discharge_on_profit` (decided with the user: switching one discharge
   switch off must change the plan on its own). The optimiser is
   always calculated.
+- Unsupported battery actions (option `unsupported_actions`, page
+  `battery_actions`, `CONTROLLABLE_ACTIONS` / `ACTION_SWITCHES` in
+  `const/base.py`): the optimiser never chooses them (`OptimizerConfig.unsupported`),
+  `enabled()` turns their rules off, and `supported_action()` maps a leftover
+  action in `charge_if_needed()` and the rule plan. The switches stay available
+  and keep their value (an unavailable entity is restored as `unavailable`, so
+  the value would be lost); they only get the attribute `unsupported_action`.
+  The generated dashboard hides them (`unsupported_entities()` in
+  `management/dashboard_build.py`, plus `_ACTION_SETTINGS` for settings only
+  those rules use); `_prune` then drops dangling dividers and a heading left
+  with only its *Read more*.
+  A new rule that needs an action must be added to `ACTION_SWITCHES`.
 - Rule switches default on (except `use_midnight_battery_level`);
   `powerwall_max_hours_old` default 48.
 - The shadow plan simulates rule hours with the planned kWh and respects

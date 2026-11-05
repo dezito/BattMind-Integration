@@ -151,6 +151,13 @@ class Planning:
                 action = "force_solar_only_charging"
                 rule = t("ui.charge_if_needed.not_charging")
 
+            if (supported := self.supported_action(action)) != action:
+                # the rules don't plan an action the inverter can't run, this only catches leftovers
+                _LOGGER.debug("Battery action %s is not supported by the inverter, running %s", action, supported)
+                current_rules.clear()
+                action = supported
+                rule = t(f"ui.charge_if_needed.{'discharge_allowed' if action == 'discharge_allowed' else 'not_charging'}")
+
             if (float_or_none(self.entity_state(self.config["solar"]["entity_ids"]["production_entity_id"])) or 0.0) > 0:
                 current_rules["solar"] = True
 

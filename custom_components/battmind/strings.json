@@ -75,6 +75,16 @@
           "powerwall_wear_cost_per_kwh": "Cost of wear per kWh taken from the battery (battery price / expected lifetime in kWh). Discharging must earn more than this."
         }
       },
+      "battery_actions": {
+        "title": "Home battery - controllable modes",
+        "description": "BattMind plans with these battery modes (the sensor Powerwall action). If your inverter can't run a mode, select it here. BattMind then never plans it, and the rules that need it are switched off. Normal operation (discharge_allowed) and the temperature safety stop are always used. Leave everything unselected if the battery can run every mode.",
+        "data": {
+          "unsupported_actions": "Modes the battery can't run"
+        },
+        "data_description": {
+          "unsupported_actions": "Grid charging: the grid charging rules are off (cheapest periods, most expensive periods, required before max level, negative prices, buy to sell). Force discharge: selling from the battery is off (maximise profit, sell excess kWh, before the sun, buy to sell); old energy is only used, not sold. Solar only charging: holding the energy for later is off (profit only, prioritise by energy cost, maximise profit). Block solar charging: optimise solar charging is off. The switches keep their value, but count as off."
+        }
+      },
       "consumption": {
         "title": "House consumption",
         "description": "BattMind stores the consumption per hour and predicts how much the battery must cover the next days.",
@@ -315,6 +325,16 @@
           "powerwall_wear_cost_per_kwh": "Cost of wear per kWh taken from the battery (battery price / expected lifetime in kWh). Discharging must earn more than this."
         }
       },
+      "battery_actions": {
+        "title": "Home battery - controllable modes",
+        "description": "BattMind plans with these battery modes (the sensor Powerwall action). If your inverter can't run a mode, select it here. BattMind then never plans it, and the rules that need it are switched off. Normal operation (discharge_allowed) and the temperature safety stop are always used. Leave everything unselected if the battery can run every mode.",
+        "data": {
+          "unsupported_actions": "Modes the battery can't run"
+        },
+        "data_description": {
+          "unsupported_actions": "Grid charging: the grid charging rules are off (cheapest periods, most expensive periods, required before max level, negative prices, buy to sell). Force discharge: selling from the battery is off (maximise profit, sell excess kWh, before the sun, buy to sell); old energy is only used, not sold. Solar only charging: holding the energy for later is off (profit only, prioritise by energy cost, maximise profit). Block solar charging: optimise solar charging is off. The switches keep their value, but count as off."
+        }
+      },
       "consumption": {
         "title": "House consumption",
         "description": "BattMind stores the consumption per hour and predicts how much the battery must cover the next days.",
@@ -483,6 +503,14 @@
     }
   },
   "selector": {
+    "unsupported_actions": {
+      "options": {
+        "grid_charging": "Grid charging (grid_charging)",
+        "force_discharge": "Force discharge to the grid (force_discharge)",
+        "force_solar_only_charging": "Solar only charging, no discharging (force_solar_only_charging)",
+        "blocked_solar_charge": "Block solar charging (blocked_solar_charge)"
+      }
+    },
     "import_source": {
       "options": {
         "none": "Do not import"

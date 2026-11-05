@@ -22,7 +22,15 @@ import time
 from typing import Any, Callable
 
 from ..utils.codec import encode
-from ..const import ENTITY_UNAVAILABLE_STATES, LEARNING_DISABLED_SWITCHES, NUMBER_SETTINGS, SWITCH_SETTINGS
+from ..const import (
+    ENTITY_UNAVAILABLE_STATES,
+    LEARNING_DISABLED_SWITCHES,
+    NUMBER_SETTINGS,
+    SWITCH_SETTINGS,
+    supported_action,
+    unsupported_actions,
+    unsupported_switches,
+)
 from .analysis.analysis import Analysis
 from .energy.energy import Energy
 from .history.history import History
@@ -206,9 +214,23 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
             return NUMBER_SETTINGS[key]["default"]
         return None
 
+    def unsupported_actions(self) -> frozenset[str]:
+        """The battery actions the inverter can't run (configuration)."""
+        return unsupported_actions(self.config)
+
+    def supported_action(self, action: str) -> str:
+        """action, or what the battery runs instead when the inverter can't run it."""
+        return supported_action(action, self.unsupported_actions())
+
     def enabled(self, key: str) -> bool:
-        """State of a setting switch; the selling and solar blocking rules are off while learning."""
+        """State of a setting switch.
+
+        The selling and solar blocking rules are off while learning, and every rule that needs a
+        battery action the inverter can't run is off.
+        """
         if key in LEARNING_DISABLED_SWITCHES and self.is_learning():
+            return False
+        if key in unsupported_switches(self.unsupported_actions()):
             return False
         return bool(self.setting(key))
 

@@ -7,7 +7,7 @@ import yaml
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.battmind.const import LANGUAGES, NUMBER_SETTINGS, SELECT_SETTINGS, SWITCH_SETTINGS, TEXT_SETTINGS, build_config
+from custom_components.battmind.const import ACTION_SWITCHES, CONTROLLABLE_ACTIONS, LANGUAGES, NUMBER_SETTINGS, SELECT_SETTINGS, SWITCH_SETTINGS, TEXT_SETTINGS, build_config
 from custom_components.battmind.management.dashboard_build import render_dashboard
 from custom_components.battmind.utils.formatting import format_analysis_help_text, format_help_text, load_texts
 
@@ -432,3 +432,43 @@ def test_status_section_drops_missing_entities() -> None:
     assert "sensor.solar_power_production" not in entities
     assert "sensor.battmind_kwh_charged_by_solar" not in entities
     assert entities[-2:] == ["sensor.sl_price", "sensor.battmind_analysis"]
+
+
+def _settings_rows(unsupported: list[str]) -> tuple[list[str], list[str]]:
+    """Headings and entity rows of the settings view."""
+    content = yaml.safe_load(render_dashboard(build_config({**OPTIONS, "language": "en", "unsupported_actions": unsupported}), "battmind"))
+    view = content["views"][1]
+    headings = [node["heading"] for node in walk(view) if node.get("type") == "heading"]
+    rows = [row for node in walk(view) if node.get("type") == "entities" for row in node["entities"]]
+    return headings, [row["entity"] for row in rows if "entity" in row]
+
+
+def _entities_lists(unsupported: list[str]) -> list[list[dict]]:
+    content = yaml.safe_load(render_dashboard(build_config({**OPTIONS, "unsupported_actions": unsupported}), "battmind"))
+    return [node["entities"] for node in walk(content["views"][1]) if node.get("type") == "entities"]
+
+
+@pytest.mark.parametrize("action", list(CONTROLLABLE_ACTIONS))
+def test_unsupported_action_hides_its_rules_on_the_settings_view(action: str) -> None:
+    all_headings, all_entities = _settings_rows([])
+    headings, entities = _settings_rows([action])
+
+    hidden = {f"switch.battmind_{key}" for key in ACTION_SWITCHES[action]}
+    assert hidden <= set(all_entities)
+    assert not hidden & set(entities)
+    # everything else stays
+    for entity in all_entities:
+        if entity not in hidden and not entity.startswith("number.battmind_cheap"):
+            assert entity in entities, entity
+    for rows in _entities_lists([action]):
+        types = [row.get("type") for row in rows]
+        assert rows and types[0] != "divider" and types[-1] != "divider", rows
+        assert all(not (a == b == "divider") for a, b in zip(types, types[1:])), rows
+
+    if action == "grid_charging":
+        # the whole section goes: its switches and the cheap price settings only those rules use
+        assert not any(entity.startswith("number.battmind_cheap") for entity in entities)
+        assert "Charging from the grid" in all_headings
+        assert "Charging from the grid" not in headings
+    else:
+        assert headings == all_headings

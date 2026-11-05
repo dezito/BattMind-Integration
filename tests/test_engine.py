@@ -14,7 +14,16 @@ from pathlib import Path
 import pytest
 
 from custom_components.battmind.utils.codec import decode, encode
-from custom_components.battmind.const import POWERWALL_ACTION_STATES, build_config, default_options
+from custom_components.battmind.const import (
+    ACTION_SWITCHES,
+    CONTROLLABLE_ACTIONS,
+    POWERWALL_ACTION_STATES,
+    SWITCH_SETTINGS,
+    build_config,
+    default_options,
+    supported_action,
+    unsupported_actions,
+)
 from custom_components.battmind.engine import BattMindEngine, Snapshot
 from custom_components.battmind.engine.energy.energy import POWER_VALUE_KEYS, derive_power_values
 
@@ -645,3 +654,83 @@ def test_solcast_alone_when_there_is_no_solar_history(solar_history: bool) -> No
     # weighted 1:3 with the history, else Solcast alone (an unknown database used to make it 0.75 x Solcast)
     # (the prediction is rounded to 0.1 kWh)
     assert prediction[12] == pytest.approx((1.0 * 0.5 + 2.0 * 1.5) / 2 if solar_history else 2.0, abs=0.051)
+
+
+# (time, battery level, solar blocking scenario: no selling and a high sell price at 10:00)
+UNSUPPORTED_SCENARIOS = [
+    *((datetime.time(hour, 30), level, False) for hour in (0, 4, 10, 19) for level in (5, 60, 95)),
+    (datetime.time(10, 10), 60, True),
+]
+
+
+def _planned_actions(extra_options: dict | None, optimizer_control: bool) -> tuple[set[str], set[str], list]:
+    """(actions in both plans, actions run now, engines) over UNSUPPORTED_SCENARIOS with every rule on."""
+    planned, current, engines = set(), set(), []
+    for time, level, block_solar in UNSUPPORTED_SCENARIOS:
+        now = datetime.datetime.combine(DAY, time)
+        engine, snap = solar_engine(now, level, True, extra_options)
+        snap.settings.update({key: True for key in SWITCH_SETTINGS if key != "use_midnight_battery_level"})
+        snap.settings["optimizer_control"] = optimizer_control
+        if block_solar:
+            snap.settings.update(NO_SELLING)
+            prices = engine.sell_price_cache["prices"]
+            for ts in [ts for ts in prices if ts.date() == DAY and ts.hour == 10]:
+                prices[ts] = 2.0
+        result = engine.run_job(snap, engine.charge_if_needed, True)
+        assert result.error is None, result.error
+        assert not [message for message, title, _ in result.notifications if "error" in title.lower()]
+        planned.update(action for plan in engine.shadow_plan_actions.values() for action, _ in plan.values())
+        current.add(result.states["powerwall_action"])
+        engines.append((engine, snap))
+    return planned, current, engines
+
+
+_SUPPORTED_PLANS: dict[bool, set[str]] = {}  # the planned actions with every action supported
+
+
+@pytest.mark.parametrize("optimizer_control", [True, False])
+@pytest.mark.parametrize("action", CONTROLLABLE_ACTIONS)
+def test_unsupported_action_is_never_planned(action: str, optimizer_control: bool) -> None:
+    """An action the inverter can't run is never planned or run, and the rules that need it are off."""
+    if optimizer_control not in _SUPPORTED_PLANS:
+        _SUPPORTED_PLANS[optimizer_control] = _planned_actions(None, optimizer_control)[0]
+    assert action in _SUPPORTED_PLANS[optimizer_control]  # the scenarios use every action when it is supported
+
+    planned, current, engines = _planned_actions({"unsupported_actions": [action]}, optimizer_control)
+    assert action not in planned
+    assert action not in current
+    for engine, snap in engines:
+        for key in ACTION_SWITCHES[action]:
+            assert engine.run_job(snap, engine.enabled, key).value is False, key
+        assert engine.run_job(snap, engine.enabled, "solar_charging").value is True
+        assert action not in {row["action"] for row in engine.optimizer_shadow["hours"]}
+        days = [day for day in engine.plan if isinstance(day, int)]
+        if action == "grid_charging":
+            assert not charge_hours(engine)
+        if action == "force_discharge":
+            assert not any(engine.plan[day]["force_discharge_timestamps"] for day in days)
+        if action == "blocked_solar_charge":
+            assert not any(engine.plan[day]["blocked_solar_charge_timestamps"] for day in days)
+
+
+@pytest.mark.parametrize(
+    ("unsupported", "action", "expected"),
+    [
+        ([], "force_discharge", "force_discharge"),
+        (["force_discharge"], "force_discharge", "discharge_allowed"),
+        (["grid_charging"], "grid_charging", "force_solar_only_charging"),
+        (["blocked_solar_charge"], "blocked_solar_charge", "force_solar_only_charging"),
+        (["blocked_solar_charge", "force_solar_only_charging"], "blocked_solar_charge", "discharge_allowed"),
+        (["force_solar_only_charging"], "force_solar_only_charging", "discharge_allowed"),
+        (list(CONTROLLABLE_ACTIONS), "battery_stopped", "battery_stopped"),
+    ],
+)
+def test_unsupported_action_falls_back_to_what_the_battery_can_run(unsupported: list, action: str, expected: str) -> None:
+    assert supported_action(action, frozenset(unsupported)) == expected
+    assert supported_action(action, unsupported_actions(build_config({**OPTIONS, "unsupported_actions": unsupported}))) == expected
+
+
+def test_unsupported_actions_ignore_unknown_values() -> None:
+    config = build_config({**OPTIONS, "unsupported_actions": ["force_discharge", "discharge_allowed", "battery_stopped", "x"]})
+    assert unsupported_actions(config) == {"force_discharge"}
+    assert unsupported_actions(build_config(OPTIONS)) == frozenset()

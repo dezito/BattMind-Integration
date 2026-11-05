@@ -47,6 +47,67 @@ POWERWALL_ACTION_STATES = (
     "force_discharge",
     "blocked_solar_charge",
 )
+# Battery actions an inverter may not support (config option unsupported_actions).
+# discharge_allowed (normal operation) and battery_stopped (safety stop) are always needed.
+CONTROLLABLE_ACTIONS = (
+    "grid_charging",
+    "force_discharge",
+    "force_solar_only_charging",
+    "blocked_solar_charge",
+)
+# The rule switches that need an action: they are off while the action is unsupported
+ACTION_SWITCHES: dict[str, tuple[str, ...]] = {
+    "grid_charging": (
+        "cheapest_hour_fill_planner",
+        "cheapest_hour_fill_up",
+        "most_expensive_planner",
+        "needed_before_max_level_planner",
+        "negative_price_planner",
+        "grid_charge_to_sell",
+    ),
+    "force_discharge": (
+        "most_profit",
+        "sell_excess_kwh_available",
+        "grid_charge_to_sell",
+        "discharge_before_solar",
+    ),
+    # these rules hold energy for a later hour, which needs a battery that can stop discharging
+    "force_solar_only_charging": (
+        "only_discharge_on_profit",
+        "prioritize_discharge_hours_by_energy_cost",
+        "most_profit",
+    ),
+    "blocked_solar_charge": ("optimize_solar_charging",),
+}
+
+
+def unsupported_actions(config: dict) -> frozenset[str]:
+    """The actions the battery can't run (home.unsupported_actions in CONFIG)."""
+    values = (config.get("home") or {}).get("unsupported_actions") or ()
+    return frozenset(action for action in values if action in CONTROLLABLE_ACTIONS)
+
+
+def unsupported_switches(unsupported: frozenset[str] | set[str]) -> dict[str, str]:
+    """Rule switch -> the first unsupported action it needs."""
+    switches: dict[str, str] = {}
+    for action in CONTROLLABLE_ACTIONS:
+        if action in unsupported:
+            for key in ACTION_SWITCHES[action]:
+                switches.setdefault(key, action)
+    return switches
+
+
+def supported_action(action: str, unsupported: frozenset[str] | set[str]) -> str:
+    """The action to run instead of an unsupported one (the closest the battery can do).
+
+    Not charging from the grid or the sun holds the battery, else it runs normally.
+    """
+    if action not in unsupported:
+        return action
+    if action in ("grid_charging", "blocked_solar_charge") and "force_solar_only_charging" not in unsupported:
+        return "force_solar_only_charging"
+    return "discharge_allowed"
+
 
 # Languages with runtime texts in texts/<language>.json
 LANGUAGES = {

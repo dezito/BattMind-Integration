@@ -75,6 +75,16 @@
           "powerwall_wear_cost_per_kwh": "Slitage pr. kWh der tages fra batteriet (batteriets pris / forventet levetid i kWh). Afladning skal tjene mere end dette."
         }
       },
+      "battery_actions": {
+        "title": "Husbatteri - styrbare tilstande",
+        "description": "BattMind planlægger med disse batteritilstande (sensoren Powerwall handling). Hvis din inverter ikke kan køre en tilstand, så vælg den her. BattMind planlægger den så aldrig, og de regler der bruger den bliver slået fra. Normal drift (discharge_allowed) og temperatur-sikkerhedsstoppet bruges altid. Lad alt være fravalgt, hvis batteriet kan køre alle tilstande.",
+        "data": {
+          "unsupported_actions": "Tilstande batteriet ikke kan køre"
+        },
+        "data_description": {
+          "unsupported_actions": "Netopladning: reglerne for opladning fra nettet er slået fra (billigste perioder, dyreste perioder, nødvendig før max niveau, negative priser, køb for at sælge). Tvangsafladning: salg fra batteriet er slået fra (maksimer profit, sælg overskydende kWh, før solen, køb for at sælge); gammel energi bliver kun brugt, ikke solgt. Kun solcelleopladning: at gemme energien til senere er slået fra (kun ved profit, prioriter efter energikost, maksimer profit). Bloker solcelleopladning: optimer solcelleopladning er slået fra. Kontakterne beholder deres værdi, men tæller som slået fra."
+        }
+      },
       "consumption": {
         "title": "Husets forbrug",
         "description": "BattMind gemmer forbruget time for time og forudsiger hvor meget batteriet skal dække de næste dage.",
@@ -315,6 +325,16 @@
           "powerwall_wear_cost_per_kwh": "Slitage pr. kWh der tages fra batteriet (batteriets pris / forventet levetid i kWh). Afladning skal tjene mere end dette."
         }
       },
+      "battery_actions": {
+        "title": "Husbatteri - styrbare tilstande",
+        "description": "BattMind planlægger med disse batteritilstande (sensoren Powerwall handling). Hvis din inverter ikke kan køre en tilstand, så vælg den her. BattMind planlægger den så aldrig, og de regler der bruger den bliver slået fra. Normal drift (discharge_allowed) og temperatur-sikkerhedsstoppet bruges altid. Lad alt være fravalgt, hvis batteriet kan køre alle tilstande.",
+        "data": {
+          "unsupported_actions": "Tilstande batteriet ikke kan køre"
+        },
+        "data_description": {
+          "unsupported_actions": "Netopladning: reglerne for opladning fra nettet er slået fra (billigste perioder, dyreste perioder, nødvendig før max niveau, negative priser, køb for at sælge). Tvangsafladning: salg fra batteriet er slået fra (maksimer profit, sælg overskydende kWh, før solen, køb for at sælge); gammel energi bliver kun brugt, ikke solgt. Kun solcelleopladning: at gemme energien til senere er slået fra (kun ved profit, prioriter efter energikost, maksimer profit). Bloker solcelleopladning: optimer solcelleopladning er slået fra. Kontakterne beholder deres værdi, men tæller som slået fra."
+        }
+      },
       "consumption": {
         "title": "Husets forbrug",
         "description": "BattMind gemmer forbruget time for time og forudsiger hvor meget batteriet skal dække de næste dage.",
@@ -483,6 +503,14 @@
     }
   },
   "selector": {
+    "unsupported_actions": {
+      "options": {
+        "grid_charging": "Opladning fra nettet (grid_charging)",
+        "force_discharge": "Tvangsafladning til nettet (force_discharge)",
+        "force_solar_only_charging": "Kun solcelleopladning, ingen afladning (force_solar_only_charging)",
+        "blocked_solar_charge": "Bloker solcelleopladning (blocked_solar_charge)"
+      }
+    },
     "import_source": {
       "options": {
         "none": "Importer ikke"
