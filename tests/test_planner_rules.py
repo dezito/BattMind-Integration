@@ -549,11 +549,21 @@ def test_optimizer_controls_the_battery(negative: bool) -> None:
     assert result.states["powerwall_action"] in ("grid_charging", "discharge_allowed", "force_solar_only_charging", "force_discharge", "blocked_solar_charge")
 
 
-def test_optimizer_respects_min_total_profit() -> None:
-    hours = [OptimizerHour(0, 1.0, 0.0, 0.0, 0.0), OptimizerHour(1, 1.4, 0.0, 5.0, 0.0)]
-    assert optimize(hours, 5.0, CFG, 0.0).actions[0] == "grid_charging"
+def test_optimizer_min_total_profit_limits_sales_only() -> None:
+    """min_total_profit is a cost per sale hour: it never blocks charging for the house."""
     strict = OptimizerConfig(**{**CFG.__dict__, "min_total_profit": 5.0})
-    assert optimize(hours, 5.0, strict, 0.0).actions[0] != "grid_charging"
+    use = [OptimizerHour(0, 1.0, 0.0, 0.0, 0.0), OptimizerHour(1, 1.4, 0.0, 5.0, 0.0)]
+    assert optimize(use, 5.0, CFG, 0.0).actions[0] == "grid_charging"
+    assert optimize(use, 5.0, strict, 0.0).actions[0] == "grid_charging"
+    sell = [OptimizerHour(0, 1.0, 0.0, 0.0, 0.0), OptimizerHour(1, 3.0, 2.0, 0.0, 0.0)]
+    assert optimize(sell, 5.0, CFG, 0.0).actions == ["grid_charging", "force_discharge"]
+    assert "force_discharge" not in optimize(sell, 5.0, strict, 0.0).actions
+
+
+def test_negative_prices_ignore_min_profit_per_kwh() -> None:
+    """min_profit_per_kwh is for kWh out of the battery; a negative price charge pays without them."""
+    engine, _ = planned(0, 30, {**OFF, "negative_price_planner": True, "min_profit_per_kwh": 5.0}, negative=True)
+    assert [ts for ts in charge_hours(engine) if engine.charge_hours[ts].get("negative_price_planner")]
 
 
 
@@ -581,7 +591,7 @@ def test_holding_for_a_more_expensive_hour_needs_only_its_own_switch(off: tuple,
     cost" off forbids holding it, also while "Profit only" is on (before, either switch allowed it)."""
     from custom_components.battmind.engine.optimizer import optimize_with_rules
 
-    cfg = OptimizerConfig(**{**CFG.__dict__, "min_total_profit": 100.0})  # no grid charging: only hold or use
+    cfg = OptimizerConfig(**{**CFG.__dict__, "unsupported": frozenset({"grid_charging"})})  # only hold or use
     hours = [OptimizerHour(0, 2.5, 0.0, 1.0, 0.0), OptimizerHour(1, 4.0, 0.0, 1.0, 0.0)]
     result, explanations = optimize_with_rules(hours, 15.0, cfg, 0.0, lambda switch: switch not in off)
     if held:
@@ -597,7 +607,7 @@ def test_holding_without_a_more_expensive_hour_is_profit_only(profit_only: bool)
     switched off the battery is used (also with "Prioritise by energy cost" on)."""
     from custom_components.battmind.engine.optimizer import optimize_with_rules
 
-    cfg = OptimizerConfig(**{**CFG.__dict__, "min_total_profit": 100.0})  # no grid charging: only hold or use
+    cfg = OptimizerConfig(**{**CFG.__dict__, "unsupported": frozenset({"grid_charging"})})  # only hold or use
     hours = [OptimizerHour(0, 1.0, 0.0, 1.0, 0.0)]
     off = () if profit_only else ("only_discharge_on_profit",)
     result, explanations = optimize_with_rules(hours, 50.0, cfg, 3.0, lambda switch: switch not in off)

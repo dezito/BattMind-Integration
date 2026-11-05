@@ -239,13 +239,22 @@ def test_no_history_means_no_grid_charging_for_the_own_consumption() -> None:
     assert charge_hours(engine) == []
 
 
-@pytest.mark.parametrize("settings", [{"min_profit_per_kwh": 5.0}, {"min_total_profit": 100.0}])
-def test_min_profit_applies_to_grid_charging_without_the_profit_switch(settings: dict) -> None:
-    """min_profit_per_kwh / min_total_profit apply to every rule, not only to only_discharge_on_profit."""
+def test_min_profit_applies_to_grid_charging_without_the_profit_switch() -> None:
+    """min_profit_per_kwh (on the later discharge) applies to every rule, not only to only_discharge_on_profit."""
     now = datetime.datetime.combine(DAY, datetime.time(3, 30))
     engine = started_engine(now, 5)
-    plan(engine, now, 5, {"only_discharge_on_profit": False, **settings})
+    plan(engine, now, 5, {"only_discharge_on_profit": False, "min_profit_per_kwh": 5.0})
     assert charge_hours(engine) == []
+
+
+def test_min_total_profit_does_not_block_grid_charging_for_the_house() -> None:
+    """min_total_profit is only for sales to the grid."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 5)
+    plan(engine, now, 5, {"only_discharge_on_profit": False, "min_total_profit": 100.0})
+    assert charge_hours(engine)
+    assert not [ts for ts in charge_hours(engine) if engine.charge_hours[ts].get("grid_charge_to_sell")]
+    assert not [sale for day in engine.plan if isinstance(day, int) for sale in engine.plan[day]["force_discharge_timestamps"].values()]
 
 
 def test_round_trip_loss_in_price_and_battery_level() -> None:

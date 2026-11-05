@@ -27,8 +27,8 @@ be charged before it (grid at the buy price, solar at the sell price it would ot
 price is 0.90 kr/kWh: using the battery would lose 0.09 kr per kWh. Discharging is blocked, and the energy
 is saved for the evening.
 
-Only the profit per kWh counts here – **min. total profit** doesn't block small hours, because not using
-the battery for the house earns nothing.
+Only the profit per kWh counts here – **min. total profit** is only for sales to the grid, so it doesn't
+block small hours.
 
 ---
 

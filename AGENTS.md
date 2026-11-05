@@ -268,12 +268,15 @@ Keep these invariants when touching any planner rule:
   out if that solar is sold for more than the grid kWh costs.
 - `solar_prediction_db["total"]` is solar SURPLUS (production minus house
   consumption), so there is no battery consumption in hours with surplus.
-- `min_profit_per_kwh` / `min_total_profit` apply to every charge/discharge
-  rule; `min_sell_kwh` to every sale. Exception:
+- `min_profit_per_kwh` applies to discharging: every kWh out of the battery
+  (used or sold). Charge rules check it on the later use/sale of the charged
+  kWh; `negative_price_planner` (no discharge) only needs 0.01. `min_total_profit`
+  and `min_sell_kwh` apply only to sales to the grid (decided with the user
+  2026-11-05), never to charging or self consumption. Exception:
   `force_powerwall_max_hours_old_discharge` uses old energy even without
   profit, but only sells it when selling beats using it. In the optimiser,
-  `min_total_profit` is a fixed cost per charge/sale hour and must NOT block
-  plain self consumption.
+  `min_profit_per_kwh` is a cost per delivered kWh and `min_total_profit` a
+  fixed cost per force discharge hour.
 - Charging loss is round trip: 1 kWh out costs price/(1-loss)
   (`calc_battery_loss_cost`), split evenly: grid kWh × sqrt(1-loss) into the
   battery, used/sold kWh ÷ sqrt(1-loss) out (`battery_efficiency()`).

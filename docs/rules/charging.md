@@ -83,7 +83,10 @@ at 0.70 kr/kWh – and no more, so the sun still has room.
 When you are paid to use power, charging pays even if the kWh are never used. The price has to be so low
 that the loss and the wear are covered:
 
-`price × (1 + loss part) + wear ≤ −min. profit per kWh` (at least −0.01)
+`price × (1 + loss part) + wear ≤ −0.01`
+
+**Min. profit per kWh** doesn't apply here: it is for kWh out of the battery, and this charge pays
+without them.
 
 With 10 % loss and 0.10 kr wear, the price has to be below about **−0.10 kr/kWh**. The battery is then
 filled as far as possible – also when it pushes solar out, as long as that solar is sold for more than the

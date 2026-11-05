@@ -114,7 +114,7 @@ what_if:
           mode: box
     min_profit_per_kwh:
       name: Minimum profit per kWh
-      description: Require at least this much profit per discharged kWh before the optimizer allows the action.
+      description: Require at least this much profit per kWh out of the battery (used in the house or sold).
       selector:
         number:
           min: 0
@@ -124,7 +124,7 @@ what_if:
           mode: box
     min_total_profit:
       name: Minimum total profit
-      description: Require at least this much total profit for a charging or selling action.
+      description: Require at least this much total profit for a sale to the grid.
       selector:
         number:
           min: 0

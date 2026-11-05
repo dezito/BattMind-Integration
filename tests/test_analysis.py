@@ -108,8 +108,15 @@ def test_hindsight_respects_the_profit_requirements() -> None:
     assert _hindsight(rows) < no_battery - 0.4
     # 0.15 a kWh is below min_profit_per_kwh: not a saving BattMind may make; the result stays real money
     assert _hindsight(rows, min_profit_per_kwh=0.2) == pytest.approx(no_battery)
-    # min_total_profit per charge hour: one 3 kWh charge hour (0.45) pays, smaller ones do not
-    assert no_battery - 0.5 < _hindsight(rows, min_total_profit=0.3) < no_battery - 0.3
+    # min_total_profit is only for sales to the grid: charging for the house is not limited by it
+    assert _hindsight(rows, min_total_profit=100.0) == pytest.approx(_hindsight(rows))
+
+
+def test_hindsight_min_total_profit_limits_sales_only() -> None:
+    # 2 kWh sold at 1.6 after charging at 1.0: 1.2 earned in one sale hour
+    rows = [{"load": 0.0, "buy": 1.0, "sell": 0.0}] * 2 + [{"load": 0.0, "buy": 2.0, "sell": 1.6}]
+    assert _hindsight(rows, min_sell_kwh=0.1) < -1.0
+    assert _hindsight(rows, min_sell_kwh=0.1, min_total_profit=100.0) == pytest.approx(0.0)
 
 
 def test_measured_loss_counts_the_level_change_as_charged_ac() -> None:

@@ -98,9 +98,11 @@ class FutureSupport:
         """Profit per kWh charged at charge_price and used/sold at use_price, after loss and wear."""
         return use_price - (charge_price + ctx.calc_battery_loss_cost(charge_price) + abs(ctx.config["solar"]["powerwall_wear_cost_per_kwh"]))
 
-    def is_profitable(self, ctx, kwh_profit, kwh, periods_in_hour=1):
-        """min_profit_per_kwh and min_total_profit (per hour, split over the price periods)."""
-        return kwh_profit >= ctx.get_min_profit_per_kwh() and kwh_profit * kwh >= self.get_min_total_profit() / periods_in_hour
+    def is_profitable(self, ctx, kwh_profit, kwh, periods_in_hour=1, sale=False):
+        """min_profit_per_kwh, and for a sale to the grid also min_total_profit (per hour, split over the price periods)."""
+        if kwh_profit < ctx.get_min_profit_per_kwh():
+            return False
+        return not sale or kwh_profit * kwh >= self.get_min_total_profit() / periods_in_hour
 
     def allow_discharge(self, ctx, timestamp):
         """The battery is charged for this hour, so it has to be allowed to discharge in it."""

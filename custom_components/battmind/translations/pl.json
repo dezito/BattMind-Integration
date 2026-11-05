@@ -570,10 +570,10 @@
         "name": "Wzrost dla tanich okresów"
       },
       "min_profit_per_kwh": {
-        "name": "Min. zysk na kWh (ładowanie / rozładowanie)"
+        "name": "Min. zysk na kWh (rozładowanie)"
       },
       "min_total_profit": {
-        "name": "Min. całkowity zysk (ładowanie / rozładowanie)"
+        "name": "Min. całkowity zysk (sprzedaż do sieci)"
       },
       "min_sell_kwh": {
         "name": "Min. nadwyżka kWh do sprzedaży"
@@ -728,8 +728,8 @@
         "round_trip_loss": {"name": "Całkowita strata ładowania", "description": "Tymczasowa całkowita strata ładowania w procentach. Jeśli podana, zastępuje w tej symulacji skonfigurowane krzywe sprawności. Pomiń, aby użyć bieżącego ustawienia."},
         "wear_cost_per_kwh": {"name": "Zużycie na kWh", "description": "Tymczasowy koszt zużycia na rozładowaną kWh. Pomiń, aby użyć bieżącego ustawienia."},
         "usage_reserve": {"name": "Rezerwa dla domu", "description": "Tymczasowy procent zarezerwowany dla domu i niesprzedawany. Pomiń, aby użyć bieżącego ustawienia."},
-        "min_profit_per_kwh": {"name": "Minimalny zysk na kWh", "description": "Zaplanowane ładowanie, rozładowanie lub sprzedaż musi osiągnąć ten zysk na kWh. Pomiń, aby użyć bieżącego ustawienia."},
-        "min_total_profit": {"name": "Minimalny łączny zysk", "description": "Godzina ładowania lub sprzedaż musi osiągnąć ten łączny zysk. Pomiń, aby użyć bieżącego ustawienia."},
+        "min_profit_per_kwh": {"name": "Minimalny zysk na kWh", "description": "Każda kWh pobrana z baterii (zużyta w domu lub sprzedana) musi osiągnąć ten zysk na kWh. Pomiń, aby użyć bieżącego ustawienia."},
+        "min_total_profit": {"name": "Minimalny łączny zysk", "description": "Sprzedaż do sieci musi osiągnąć ten łączny zysk. Pomiń, aby użyć bieżącego ustawienia."},
         "min_sell_kwh": {"name": "Minimalna ilość do sprzedaży", "description": "Najmniejsza ilość sprzedawana jednorazowo. Pomiń, aby użyć bieżącego ustawienia."},
         "cheap_price_periods": {"name": "Tanie okresy cenowe", "description": "Tymczasowa wartość w scenariuszu. Pomiń, aby użyć bieżącego ustawienia."},
         "cheapest_price_rise_threshold": {"name": "Wzrost dla najniższej ceny", "description": "Tymczasowa wartość w scenariuszu. Pomiń, aby użyć bieżącego ustawienia."},

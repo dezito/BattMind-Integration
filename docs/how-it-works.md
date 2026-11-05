@@ -144,8 +144,9 @@ The overview shows what the energy in the battery has cost right now, split into
   would be pushed out is sold for more than the grid kWh costs (e.g. at negative buy prices).
 - **One thing per hour.** The battery never charges and discharges in the same hour. If an hour has both
   a charge and a sale, the charge wins.
-- **The profit requirements apply to everything.** **Min. profit per kWh** and **min. total profit**
-  apply to every charge, discharge and sale, and **min. kWh for export** to every sale.
+- **The profit requirements follow the energy out of the battery.** **Min. profit per kWh** applies to
+  every kWh discharged (used in the house or sold), so grid charging is only planned when that discharge
+  pays. **Min. total profit** and **min. kWh for export** apply to every sale to the grid.
 - **The horizon follows the plan.** With a big battery or a low consumption the energy lasts days, so the
   rules look until the battery is empty or full again – not only until midnight (unless
   [use midnight battery level](rules/selling.md#use-midnight-battery-level) is on).

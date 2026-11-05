@@ -589,8 +589,8 @@
         "round_trip_loss": {"name": "Samlet ladetab", "description": "Midlertidigt samlet ladetab i procent. Når det angives, erstatter det de konfigurerede virkningsgradskurver i denne simulering. Udelad feltet for at bruge den nuværende indstilling."},
         "wear_cost_per_kwh": {"name": "Batterislitage", "description": "Midlertidig slitageomkostning pr. afladet kWh. Udelad feltet for at bruge den nuværende indstilling."},
         "usage_reserve": {"name": "Reserve til huset", "description": "Midlertidig procentdel, der reserveres til huset og ikke sælges. Udelad feltet for at bruge den nuværende indstilling."},
-        "min_profit_per_kwh": {"name": "Min. fortjeneste pr. kWh", "description": "En planlagt ladning, afladning eller et salg skal nå denne fortjeneste pr. kWh. Udelad feltet for at bruge den nuværende indstilling."},
-        "min_total_profit": {"name": "Min. samlet fortjeneste", "description": "En ladetime eller et salg skal nå denne fortjeneste i alt. Udelad feltet for at bruge den nuværende indstilling."},
+        "min_profit_per_kwh": {"name": "Min. fortjeneste pr. kWh", "description": "Hver kWh ud af batteriet (brugt i huset eller solgt) skal nå denne fortjeneste pr. kWh. Udelad feltet for at bruge den nuværende indstilling."},
+        "min_total_profit": {"name": "Min. samlet fortjeneste", "description": "Et salg til nettet skal nå denne fortjeneste i alt. Udelad feltet for at bruge den nuværende indstilling."},
         "min_sell_kwh": {"name": "Min. mængde til salg", "description": "Mindste mængde, der sælges ad gangen. Udelad feltet for at bruge den nuværende indstilling."},
         "cheap_price_periods": {"name": "Billige prisperioder", "description": "Midlertidig værdi i scenariet. Udelad feltet for at bruge den nuværende indstilling."},
         "cheapest_price_rise_threshold": {"name": "Stigning for billigste pris", "description": "Midlertidig værdi i scenariet. Udelad feltet for at bruge den nuværende indstilling."},
@@ -713,10 +713,10 @@
         "name": "Stigning for billige prisperioder"
       },
       "min_profit_per_kwh": {
-        "name": "Min. profit per kWh (ladning / afladning)"
+        "name": "Min. profit per kWh (afladning)"
       },
       "min_total_profit": {
-        "name": "Min. total profit (ladning / afladning)"
+        "name": "Min. total profit (salg til nettet)"
       },
       "min_sell_kwh": {
         "name": "Min. overskydende kWh til salg"

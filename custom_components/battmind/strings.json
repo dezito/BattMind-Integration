@@ -589,8 +589,8 @@
         "round_trip_loss": {"name": "Round-trip loss", "description": "Temporary round-trip loss in percent. When set, it replaces the configured efficiency curves for this simulation. Leave out to use the current setting."},
         "wear_cost_per_kwh": {"name": "Wear cost", "description": "Temporary wear cost per discharged kWh. Leave out to use the current setting."},
         "usage_reserve": {"name": "Reserve for house use", "description": "Temporary percentage reserved for the house and not exported. Leave out to use the current setting."},
-        "min_profit_per_kwh": {"name": "Minimum profit per kWh", "description": "A planned charge, discharge or sale must reach this profit per kWh. Leave out to use the current setting."},
-        "min_total_profit": {"name": "Minimum total profit", "description": "A charging hour or a sale must reach this total profit. Leave out to use the current setting."},
+        "min_profit_per_kwh": {"name": "Minimum profit per kWh", "description": "Every kWh out of the battery (used in the house or sold) must reach this profit per kWh. Leave out to use the current setting."},
+        "min_total_profit": {"name": "Minimum total profit", "description": "A sale to the grid must reach this total profit. Leave out to use the current setting."},
         "min_sell_kwh": {"name": "Minimum amount to sell", "description": "Smallest amount sold at a time. Leave out to use the current setting."},
         "cheap_price_periods": {"name": "Cheap price periods", "description": "Temporary value in the scenario. Leave out to use the current setting."},
         "cheapest_price_rise_threshold": {"name": "Increase for cheapest price", "description": "Temporary value in the scenario. Leave out to use the current setting."},
@@ -713,10 +713,10 @@
         "name": "Increase for cheap periods"
       },
       "min_profit_per_kwh": {
-        "name": "Min. profit per kWh (charging / discharging)"
+        "name": "Min. profit per kWh (discharging)"
       },
       "min_total_profit": {
-        "name": "Min. total profit (charging / discharging)"
+        "name": "Min. total profit (sale to the grid)"
       },
       "min_sell_kwh": {
         "name": "Minimum excess kWh for export"
