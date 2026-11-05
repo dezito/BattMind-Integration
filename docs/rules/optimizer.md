@@ -35,8 +35,8 @@ and min. profit). Without that, the cheapest plan would always empty the battery
 The rules still run, also when the optimisation controls the battery:
 
 - **Every action is explained as a rule.** A charge followed by a sale is shown as *Buy to sell*, a charge
-  before the sun fills the battery as *Required before max level*, a held-back hour as *Prioritise by energy
-  cost* and so on – with the same emojis as the rules, and with the hour the energy is for.
+  before the sun fills the battery as *Required before max level*, an hour held back for a more expensive
+  hour as *Prioritise by energy cost*, one held back without such an hour as *Profit only* and so on – with the same emojis as the rules, and with the hour the energy is for.
 - **The rule switches decide what the optimisation may do.** If the rule an action corresponds to is
   switched off, that action is forbidden in that hour, and the period is optimised again.
 - **The rules are the fallback.** If the optimisation fails, the rule plan controls the battery.
@@ -50,7 +50,8 @@ Which switches allow which kind of action:
 | charge and sell the kWh again | Buy to sell | Buy to sell (off: the sale is forbidden, the charge may still be used in the house) |
 | sell energy from the battery | Maximise profit | Maximise profit, Sell excess kWh, Max. age of kWh |
 | sell before the sun fills the battery | Before the sun | Before the sun, or one of the three above |
-| hold the energy back for a more expensive hour | Prioritise by energy cost | Prioritise by energy cost, Profit only |
+| hold the energy back for a later, more expensive hour | Prioritise by energy cost | Prioritise by energy cost |
+| hold the energy back without a more expensive hour later (using it now doesn't pay, the energy is worth more kept) | Profit only | Profit only |
 | sell the solar surplus and charge later | Optimise solar charging | Optimise solar charging |
 
 Normal operation (`discharge_allowed`: the battery covers the house) is always allowed.

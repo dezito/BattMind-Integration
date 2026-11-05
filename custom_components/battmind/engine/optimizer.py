@@ -261,7 +261,10 @@ RULE_SWITCHES = {
     "grid_charge_to_sell": ("grid_charge_to_sell",),
     "most_profit": _SELL,
     "discharge_before_solar": ("discharge_before_solar", *_SELL),
-    "prioritize_discharge_hours_by_energy_cost": ("prioritize_discharge_hours_by_energy_cost", "only_discharge_on_profit"),
+    # held back for a later, more expensive hour / held back without one (using it now doesn't pay):
+    # each switch on its own, so switching one off always changes what the optimisation may do
+    "prioritize_discharge_hours_by_energy_cost": ("prioritize_discharge_hours_by_energy_cost",),
+    "only_discharge_on_profit": ("only_discharge_on_profit",),
     "optimize_solar_charging": ("optimize_solar_charging",),
 }
 
@@ -344,7 +347,9 @@ def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerC
                 (j for j in range(i + 1, count) if actions[j] in ("discharge_allowed", "force_discharge") and hours[j].buy > hour.buy and hours[j].consumption > 0.0),
                 None,
             )
-            explanation = {"rule": "prioritize_discharge_hours_by_energy_cost", "target": target}
+            # no later, more expensive use: the energy is held because using it now doesn't pay
+            rule = "prioritize_discharge_hours_by_energy_cost" if target is not None else "only_discharge_on_profit"
+            explanation = {"rule": rule, "target": target}
         elif actions[i] == "blocked_solar_charge":
             target = next((j for j in range(i + 1, count) if hours[j].solar > 0.0 and actions[j] != "blocked_solar_charge"), None)
             explanation = {"rule": "optimize_solar_charging", "target": target}

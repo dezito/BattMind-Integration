@@ -276,6 +276,13 @@ class FutureOptimizer:
                         "</details>"
                     )
                 }
+            elif rule == "only_discharge_on_profit":
+                # held back without a later, more expensive use: the energy is worth more kept
+                plan_day["blocked_discharge_timestamps"][timestamp] = (
+                    f"<details><summary>{emoji_parse({'only_discharge_on_profit': True})}{ctx.r('title.no_profit')}</summary>"
+                    f"{ctx.r('price_now')}: **{hour.buy:.2f} {ctx.valuta_kwh}**<br>{ctx.r('worth_more_later')}<br>{level_text}"
+                    "</details>"
+                )
             elif rule == "prioritize_discharge_hours_by_energy_cost":
                 later = (
                     f"{ctx.r('used_instead_at', time=when(target), price=f'{hours[target].buy:.2f} {ctx.valuta_kwh}')}<br>"

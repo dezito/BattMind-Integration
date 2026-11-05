@@ -289,7 +289,11 @@ Keep these invariants when touching any planner rule:
   the rule plan with the DP's actions; rules still run for comparison and are
   the fallback if the optimiser fails. `explain()` maps every optimised action
   to its matching rule; rule switches are permissions (`RULE_SWITCHES`,
-  `optimize_with_rules` forbids the action and re-optimises). The optimiser is
+  `optimize_with_rules` forbids the action and re-optimises). A held-back hour
+  with a later, more expensive use belongs only to
+  `prioritize_discharge_hours_by_energy_cost`, one without such an hour only to
+  `only_discharge_on_profit` (decided with the user: switching one discharge
+  switch off must change the plan on its own). The optimiser is
   always calculated.
 - Rule switches default on (except `use_midnight_battery_level`);
   `powerwall_max_hours_old` default 48.

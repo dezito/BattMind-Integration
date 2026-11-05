@@ -517,7 +517,8 @@ def test_min_total_profit_does_not_block_using_the_battery() -> None:
     """min_total_profit is for trades - an hour of house consumption earns less than 1.00 but must not be blocked."""
 
     def no_profit_blocks(min_total_profit: float) -> set:
-        engine, _ = planned(17, 90, {"only_discharge_on_profit": True, "min_total_profit": min_total_profit})
+        # the rule (the optimiser plans other charges with another min_total_profit)
+        engine, _ = planned(17, 90, {"optimizer_control": False, "only_discharge_on_profit": True, "min_total_profit": min_total_profit})
         return {
             ts for day in engine.plan if isinstance(day, int)
             for ts, reason in engine.plan[day]["blocked_discharge_timestamps"].items() if "Ingen fortjeneste" in reason
@@ -564,6 +565,47 @@ def test_optimizer_respects_switched_off_rules() -> None:
     assert not any(engine.plan[day]["blocked_solar_charge_timestamps"] for day in engine.plan if isinstance(day, int))
     # the negative prices are still used for the own consumption
     assert [ts for ts in charge_hours(engine) if ts.date() == DAY and ts.hour in NEGATIVE_HOURS]
+
+
+@pytest.mark.parametrize(
+    ("off", "held"),
+    [
+        ((), True),
+        (("only_discharge_on_profit",), True),
+        (("prioritize_discharge_hours_by_energy_cost",), False),
+        (("only_discharge_on_profit", "prioritize_discharge_hours_by_energy_cost"), False),
+    ],
+)
+def test_holding_for_a_more_expensive_hour_needs_only_its_own_switch(off: tuple, held: bool) -> None:
+    """The battery holds 1 kWh: the house uses it at 4.0 instead of 2.5. Switching "Prioritise by energy
+    cost" off forbids holding it, also while "Profit only" is on (before, either switch allowed it)."""
+    from custom_components.battmind.engine.optimizer import optimize_with_rules
+
+    cfg = OptimizerConfig(**{**CFG.__dict__, "min_total_profit": 100.0})  # no grid charging: only hold or use
+    hours = [OptimizerHour(0, 2.5, 0.0, 1.0, 0.0), OptimizerHour(1, 4.0, 0.0, 1.0, 0.0)]
+    result, explanations = optimize_with_rules(hours, 15.0, cfg, 0.0, lambda switch: switch not in off)
+    if held:
+        assert result.actions == ["force_solar_only_charging", "discharge_allowed"]
+        assert explanations[0] == {"rule": "prioritize_discharge_hours_by_energy_cost", "target": 1}
+    else:
+        assert result.actions[0] == "discharge_allowed"
+
+
+@pytest.mark.parametrize("profit_only", [True, False])
+def test_holding_without_a_more_expensive_hour_is_profit_only(profit_only: bool) -> None:
+    """Using the battery at 1.0 doesn't pay when a kept kWh is worth 3.0: "Profit only" holds it,
+    switched off the battery is used (also with "Prioritise by energy cost" on)."""
+    from custom_components.battmind.engine.optimizer import optimize_with_rules
+
+    cfg = OptimizerConfig(**{**CFG.__dict__, "min_total_profit": 100.0})  # no grid charging: only hold or use
+    hours = [OptimizerHour(0, 1.0, 0.0, 1.0, 0.0)]
+    off = () if profit_only else ("only_discharge_on_profit",)
+    result, explanations = optimize_with_rules(hours, 50.0, cfg, 3.0, lambda switch: switch not in off)
+    if profit_only:
+        assert result.actions == ["force_solar_only_charging"]
+        assert explanations[0] == {"rule": "only_discharge_on_profit", "target": None}
+    else:
+        assert result.actions == ["discharge_allowed"]
 
 
 def test_optimizer_actions_are_explained_as_rules() -> None:
