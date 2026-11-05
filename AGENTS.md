@@ -97,6 +97,11 @@ Read the relevant documentation before changing behavior. In particular:
   stored data, backups, and migration from the PyScript version. Changes to
   these formats or identifiers require a migration/compatibility path and
   documentation.
+- The integration supports Home Assistant from the `hacs.json` minimum
+  version up to the newest release. Use a fallback when a Home Assistant API
+  changes. For example, read stored restore states only through
+  `management.backup.async_get_stored_state`, because Home Assistant 2026.11
+  removed `RestoreStateData.last_states`.
 - Data from Home Assistant entities and external price integrations can be
   missing, stale, unavailable, malformed, or non-numeric. Handle these cases
   explicitly and consistently with the existing fail-safe behavior; do not
