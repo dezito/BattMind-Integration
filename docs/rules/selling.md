@@ -28,8 +28,8 @@ They apply to **every** charge, discharge and sale rule, and to the [whole perio
 
 | Setting | Default | Meaning |
 |---|---|---|
-| Min. profit per kWh | 0.00 kr | a charge, discharge or sale has to earn at least this per kWh after loss and wear. A sale always has to earn at least 0.01 more than using the energy |
-| Min. total profit | 0.00 kr | a charge hour or a sale has to earn at least this in total per hour (split over the hour's price periods) |
+| Min. profit per kWh | 0.00 kr | every kWh out of the battery (used in the house or sold) has to earn at least this per kWh after loss and wear; grid charging is only planned when that discharge pays. A sale always has to earn at least 0.01 more than using the energy |
+| Min. total profit | 0.00 kr | a sale to the grid has to earn at least this in total per hour (split over the hour's price periods). It does not apply to charging or to the house's own consumption |
 | Min. excess kWh for export | 0.2 kWh | the smallest amount sold per hour (split over the hour's price periods) |
 | Exclude selling hours | empty | hours where nothing is sold, e.g. `17,18,19` |
 | Reserve for the house (not sold) | 0% | BattMind stops forced export at this level; normal self-consumption may still use it |

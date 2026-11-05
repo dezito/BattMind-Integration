@@ -570,10 +570,10 @@
         "name": "Anstieg für günstige Zeiträume"
       },
       "min_profit_per_kwh": {
-        "name": "Min. Gewinn pro kWh (Laden / Entladen)"
+        "name": "Min. Gewinn pro kWh (Entladen)"
       },
       "min_total_profit": {
-        "name": "Min. Gesamtgewinn (Laden / Entladen)"
+        "name": "Min. Gesamtgewinn (Verkauf ins Netz)"
       },
       "min_sell_kwh": {
         "name": "Min. überschüssige kWh zum Verkauf"
@@ -728,8 +728,8 @@
         "round_trip_loss": {"name": "Gesamter Ladeverlust", "description": "Vorübergehender Gesamtladeverlust in Prozent. Wenn angegeben, ersetzt er in dieser Simulation die konfigurierten Wirkungsgradkurven. Weglassen, um die aktuelle Einstellung zu verwenden."},
         "wear_cost_per_kwh": {"name": "Verschleiß pro kWh", "description": "Vorübergehende Verschleißkosten pro entladener kWh. Weglassen, um die aktuelle Einstellung zu verwenden."},
         "usage_reserve": {"name": "Hausreserve", "description": "Vorübergehender Prozentsatz, der für das Haus reserviert und nicht verkauft wird. Weglassen, um die aktuelle Einstellung zu verwenden."},
-        "min_profit_per_kwh": {"name": "Mindestgewinn pro kWh", "description": "Ein geplantes Laden, Entladen oder Verkaufen muss diesen Gewinn pro kWh erreichen. Weglassen, um die aktuelle Einstellung zu verwenden."},
-        "min_total_profit": {"name": "Mindestgesamtgewinn", "description": "Eine Ladestunde oder ein Verkauf muss diesen Gesamtgewinn erreichen. Weglassen, um die aktuelle Einstellung zu verwenden."},
+        "min_profit_per_kwh": {"name": "Mindestgewinn pro kWh", "description": "Jede kWh aus der Batterie (im Haus verbraucht oder verkauft) muss diesen Gewinn pro kWh erreichen. Weglassen, um die aktuelle Einstellung zu verwenden."},
+        "min_total_profit": {"name": "Mindestgesamtgewinn", "description": "Ein Verkauf ins Netz muss diesen Gesamtgewinn erreichen. Weglassen, um die aktuelle Einstellung zu verwenden."},
         "min_sell_kwh": {"name": "Mindestverkaufsmenge", "description": "Kleinste Menge, die auf einmal verkauft wird. Weglassen, um die aktuelle Einstellung zu verwenden."},
         "cheap_price_periods": {"name": "Günstige Preiszeiträume", "description": "Vorübergehender Wert im Szenario. Weglassen, um die aktuelle Einstellung zu verwenden."},
         "cheapest_price_rise_threshold": {"name": "Anstieg für niedrigsten Preis", "description": "Vorübergehender Wert im Szenario. Weglassen, um die aktuelle Einstellung zu verwenden."},

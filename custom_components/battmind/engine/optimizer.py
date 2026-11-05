@@ -50,7 +50,7 @@ class OptimizerConfig:
     curve_fallback_efficiency: float | None = None
     min_profit_per_kwh: float = 0.0  # steers the choice only: a kWh out of the battery has to earn this much
     min_sell_kwh: float = 0.0
-    min_total_profit: float = 0.0  # steers the choice only: a charge hour / sale hour has to earn this much
+    min_total_profit: float = 0.0  # steers the choice only: a sale hour (to the grid) has to earn this much
     usage_reserve: float = 0.0  # % kept for the house; force discharge may not export below it
     step: float = 0.5  # % resolution of the battery level
     unsupported: frozenset = frozenset()  # actions the inverter can't run (never planned)
@@ -202,7 +202,7 @@ def optimize(hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfi
                     continue
                 # min_profit_per_kwh / min_total_profit only steer the choice, the reported costs are real money
                 total = cost + delivered * cfg.min_profit_per_kwh + value[index(new_level)]
-                if action in ("grid_charging", "force_discharge"):
+                if action == "force_discharge":
                     total += cfg.min_total_profit
                 if best_cost is None or total < best_cost - 1e-9:
                     best_cost, best_option = total, (action, limit)

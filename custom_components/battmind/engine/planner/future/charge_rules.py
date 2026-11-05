@@ -304,18 +304,19 @@ class FutureChargeRules:
         """Fill the battery when the buy price is so low that charging pays even if the kWh are never used.
 
         Solar first is soft here: the solar surplus pushed out is sold for more than the grid kWh cost.
+        min_profit_per_kwh is for discharging, so the charge itself only has to earn 0.01 per kWh.
         """
         total_cost, total_kwh = ctx.totals
         for timestamp, price in ctx.sorted_by_cheapest_price:
             kwh_profit = self.charge_kwh_profit(ctx, price, 0.0)
-            if kwh_profit < max(ctx.get_min_profit_per_kwh(), 0.01):
+            if kwh_profit < 0.01:
                 break
             what_day = days_between(ctx.current_hour, timestamp)
             if what_day != day or timestamp < ctx.current_hour:
                 continue
             hour_in_charge_hours, kwh_available = self.kwh_available_in_hour(ctx.charge_hours, ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, timestamp)
             kwh_available = round(min(kwh_available, self.grid_headroom_kwh(ctx, timestamp, price)), 1)
-            if kwh_available <= 0.0 or not self.is_profitable(ctx, kwh_profit, kwh_available):
+            if kwh_available <= 0.0:
                 continue
             _, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh, 
                 kwh_available, total_cost, total_kwh, timestamp, price, kwh_available, rules=["negative_price_planner"],
@@ -372,7 +373,7 @@ class FutureChargeRules:
                 _, kwh_available = self.kwh_available_in_hour(ctx.charge_hours, ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, buy_timestamp)
                 grid_kwh = round(min(kwh_available, self.room_until(ctx, buy_timestamp, hour_timestamp), slot_kwh / ctx.efficiency**2), 2)
                 delivered_kwh = grid_kwh * ctx.efficiency**2
-                if delivered_kwh < min_sell_kwh or not self.is_profitable(ctx, kwh_profit, delivered_kwh, periods_in_hour):
+                if delivered_kwh < min_sell_kwh or not self.is_profitable(ctx, kwh_profit, delivered_kwh, periods_in_hour, sale=True):
                     continue
                 charged_before = ctx.charge_hours.get(buy_timestamp, {}).get("kWh", 0.0)
                 _, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh, 

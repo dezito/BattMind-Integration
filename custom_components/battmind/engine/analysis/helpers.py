@@ -145,7 +145,7 @@ def hindsight_cost(rows: list[dict], start: float, end: float, low: float, high:
     discharging are limited per hour (AC kWh) and lose the efficiency at that hour's AC kWh
     (charge_efficiency / discharge_efficiency(kWh) like the optimiser's curves), wear is paid per
     kWh charged. Like the optimiser, min_profit_per_kwh (per kWh out of the battery) and
-    min_total_profit (per hour charging from the grid or selling) only steer the choice, and a
+    min_total_profit (per hour selling to the grid) only steer the choice, and a
     sale needs min_sell_kwh: the result is the real cost of the cheapest plan BattMind may make.
     """
     if high - low <= 0.01:
@@ -186,7 +186,7 @@ def hindsight_cost(rows: list[dict], start: float, end: float, low: float, high:
                 if j > i:
                     ac = ups[j - i]
                     real = grid_cost(load + ac, row["buy"], row["sell"]) + wear * ac
-                    penalty = min_total_profit if ac - max(-load, 0.0) > 0.01 else 0.0  # charged from the grid
+                    penalty = 0.0
                 elif j < i:
                     ac = downs[i - j]
                     sold = ac - max(load, 0.0)

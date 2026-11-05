@@ -39,7 +39,7 @@ class FutureDischargeRules:
             raw, loss_cost, battery_kwh_cost = self._get_predicted_battery_cost(ctx, day, hour)
             min_profit_per_kwh = ctx.get_min_profit_per_kwh()
             profit = price - battery_kwh_cost
-            # per kWh only: min_total_profit is for trades (a charge hour / a sale) - not using the
+            # per kWh only: min_total_profit is for sales to the grid - not using the
             # battery for the house earns nothing, so it must not block small hours
             if profit < min_profit_per_kwh:
                 _LOGGER.debug(
@@ -325,7 +325,7 @@ class FutureDischargeRules:
                 _LOGGER.debug("Discharge before solar: using %.2f kWh at %s (%.2f %s better than selling the solar)", kwh, timestamp, gain * kwh, ctx.valuta)
             else:
                 kwh = min(kwh, budget_kwh, sell_budget_kwh)
-                if kwh < self.number("min_sell_kwh") / periods_in_hour or not self.is_profitable(ctx, gain, kwh, periods_in_hour):
+                if kwh < self.number("min_sell_kwh") / periods_in_hour or not self.is_profitable(ctx, gain, kwh, periods_in_hour, sale=True):
                     continue
                 fixed_price_calc_text = (
                     f"{sell_price:.2f} - {ctx.grid_sell_prices.get(timestamp, 0.0):.2f} =" if not using_grid_sell_price else ""
