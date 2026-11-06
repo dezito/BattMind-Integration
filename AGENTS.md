@@ -183,6 +183,13 @@ private agent memory). Update or remove a note when it stops being true.
 
 - Keep the worker-thread design so calculations never block HA:
   single-thread executor, snapshot -> job result.
+- Database fail-safe lives in `management/storage.py` (same code in CJP): every
+  save goes through `BattMindStorage.async_save`, which first copies the valid
+  current file to `battmind_backups/storage/` (one copy a day, 3 kept; the
+  age comes from the newest copy's mtime, so restarts add none), and
+  `async_load` moves a corrupt file to `.corrupt.<time>` and restores the newest
+  valid copy. Tests: `tests/test_storage_failsafe.py`; `hass_storage` mocks the
+  Store, so they place the files on disk themselves.
 - `input_boolean.dezito_show_debug_button` in the generated dashboard is the
   user's own toggle for the debug-info badge. It is intentional; do not flag it.
 - README/docs audience: first-time installs, possibly migrating from PyScript. No release notes or "changed since" text about development versions.
