@@ -216,7 +216,8 @@ If **BattMind** does not show up in the HACS search, add it as a custom reposito
 
 ### Manual
 
-Copy `custom_components/battmind` to `config/custom_components/battmind` and restart Home Assistant.
+Download `battmind.zip` from the [latest release](https://github.com/dezito/BattMind-Integration/releases/latest),
+unpack it into `config/custom_components/battmind` and restart Home Assistant.
 
 ---
 
