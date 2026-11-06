@@ -107,6 +107,17 @@ If the inverter can't run the action at all (e.g. it can't block solar charging)
 Call `battmind.recalc_charging_history_today` (or the button on the dashboard) to recalculate it from the
 power values.
 
+## A database file was corrupt
+
+Before BattMind saves a database, it checks the current file in `/config/.storage/` and copies it to
+`/config/battmind_backups/storage/`. It makes one copy a day per database (a restart doesn't make an extra
+one) and keeps the newest 3. A damaged file is never copied, so it can't replace the good copies.
+
+If a database file is empty, isn't valid JSON or can't be read at startup (e.g. after a power cut), it is
+moved aside as `….corrupt.<time>` and the newest good copy is restored. The log then has an error naming
+both files. Data saved after that copy was made is lost, at most about a day. Without a good copy the database is treated as missing, as on a new install. You can then import
+a full backup (see [Backup](../README.md#backup-export-and-import-of-data)).
+
 ## Report a problem
 
 When BattMind does something wrong, create a debug file **as soon as possible** after it happened: it holds
