@@ -147,6 +147,7 @@ def test_analysis_sections_include_controls_for_their_graphs() -> None:
     assert section_entities(texts["dashboard.section_rules"]) == set()
     assert "switch.battmind_enhance_battery_efficiency" in section_entities(texts["dashboard.section_efficiency_curve"])
     assert "select.battmind_forecast_type" in section_entities(texts["dashboard.section_forecast"])
+    assert "switch.battmind_auto_forecast_type" in section_entities(texts["dashboard.section_forecast"])
     assert "switch.battmind_price_forecast_correction" in section_entities(texts["dashboard.section_price_forecast"])
 
 

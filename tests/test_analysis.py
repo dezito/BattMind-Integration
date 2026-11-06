@@ -500,6 +500,60 @@ def test_price_forecast_is_corrected_with_its_bias() -> None:
     assert engine.run_job(snap, engine.get_grid_prices).value[hour] == provider[hour]
 
 
+def _forecast_days(engine, count: int, errors: dict[str, float]) -> None:
+    """count closed days before DAY with 24 forecast hours of 0.5 kWh and the error per hour of each type."""
+    for back in range(1, count + 1):
+        engine.analysis_db["days"][(DAY - datetime.timedelta(days=back)).isoformat()] = {
+            "forecast": {"hours": 24, "use": 12.0, **{kind: [24 * error, 24 * error] for kind, error in errors.items()}},
+        }
+
+
+def test_forecast_type_is_chosen_automatically() -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(10, 5))
+    engine = started_engine(now, 50.0)
+    _forecast_days(engine, 7, {"ema": 0.2, "trend": 0.1, "average": 0.3})
+
+    # off (default): the selected type
+    assert engine.run_job(snapshot(now, 50.0), engine.get_forecast_type).value == "ema"
+    assert "forecast_auto" not in engine.analysis_db
+
+    # turned on: the planning uses the automatic type and publishes the analysis again, before the next hour end
+    result = engine.run_job(snapshot(now, 50.0, {"auto_forecast_type": True}), engine.charge_if_needed, True)
+    assert result.error is None, result.error
+    assert result.attributes["analysis"]["forecast"]["selected"] == "trend"
+    assert engine.forecast_type == "trend"
+
+    snap = snapshot(now, 50.0, {"auto_forecast_type": True, "forecast_type": "EMA (Exponential Moving Average)"})
+    assert engine.run_job(snap, engine.get_forecast_type).value == "trend"
+    assert engine.analysis_db["forecast_auto"] == "trend"
+    published = engine.run_job(snap, engine.hour_end, now.replace(minute=0)).attributes["analysis"]["forecast"]
+    assert (published["selected"], published["manual"], published["auto"], published["auto_waiting"]) == ("trend", "ema", True, False)
+    assert published["best"] == "trend"
+
+    # less than FORECAST_AUTO_MARGIN better: the choice stays, so near-equal types don't swap
+    _forecast_days(engine, 7, {"ema": 0.2, "trend": 0.1, "average": 0.097})
+    assert engine.run_job(snap, engine.get_forecast_type).value == "trend"
+    _forecast_days(engine, 7, {"ema": 0.2, "trend": 0.1, "average": 0.09})
+    assert engine.run_job(snap, engine.get_forecast_type).value == "average"
+
+    # off again: the select's type, and the next time it starts at the selected type again
+    assert engine.run_job(snapshot(now, 50.0), engine.get_forecast_type).value == "ema"
+    assert "forecast_auto" not in engine.analysis_db
+
+
+def test_automatic_forecast_type_waits_for_measurements() -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(10, 5))
+    engine = started_engine(now, 50.0)
+    _forecast_days(engine, 6, {"ema": 0.2, "trend": 0.1, "average": 0.3})
+    # today's open day does not count
+    engine.analysis_db["days"][DAY.isoformat()] = {"forecast": {"hours": 10, "use": 5.0, "ema": [2, 2], "trend": [1, 1], "average": [3, 3]}}
+    snap = snapshot(now, 50.0, {"auto_forecast_type": True, "forecast_type": "Average"})
+    assert engine.run_job(snap, engine.get_forecast_type).value == "average"
+    assert "forecast_auto" not in engine.analysis_db
+    published = engine.run_job(snap, engine.hour_end, now.replace(minute=0)).attributes["analysis"]["forecast"]
+    assert (published["selected"], published["manual"], published["auto_waiting"]) == ("average", "average", True)
+
+
 def test_published_loss_leaves_out_outliers_and_old_scores() -> None:
     engine = started_engine(datetime.datetime.combine(DAY, datetime.time(0, 5)), 50.0)
     engine.config["solar"]["powerwall_battery_size"] = 10.0

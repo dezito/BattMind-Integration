@@ -103,6 +103,10 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self.integration_offline_since: dict = {}
         self.overview_history: dict = {}
         self.forecast_type = "ema"
+        self.forecast_type_manual = "ema"
+        self.forecast_type_auto: str | None = None
+        # forecast_state() when the analysis was published (None: not yet)
+        self.published_forecast_state: tuple | None = None
         self.last_plan_hash: str | None = None
         self.last_overview = ""
         self.last_powerwall_action = ""
@@ -311,8 +315,17 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         return self.number("min_total_profit")
 
     def get_forecast_type(self) -> str:
+        """The consumption forecast type the plan uses: the selected one, or with the switch
+        auto_forecast_type the one that hit best lately (engine/analysis)."""
         value = str(self.setting("forecast_type") or "ema").split(" ")[0].lower()
-        self.forecast_type = value if value in ("average", "ema", "trend") else "ema"
+        self.forecast_type_manual = value if value in ("average", "ema", "trend") else "ema"
+        self.forecast_type_auto = None
+        if self.enabled("auto_forecast_type"):
+            self.forecast_type_auto = self.auto_forecast_type(self.forecast_type_manual)
+        elif self.analysis_db.pop("forecast_auto", None) is not None:
+            # off: the next time it is turned on, it starts at the selected type again
+            self.mark_dirty("analysis")
+        self.forecast_type = self.forecast_type_auto or self.forecast_type_manual
         return self.forecast_type
 
     def get_forecast_value(self, data: list | None = None) -> float:

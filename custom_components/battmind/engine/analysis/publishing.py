@@ -6,7 +6,7 @@ import logging
 
 from ...const import CHARGING_TYPES
 from ...utils.efficiency import learned_efficiency_curve, measured_efficiency_steps, parse_efficiency_curve
-from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_VERSION, _is_num, _num, loss_days, measured_loss
+from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_AUTO_MIN_DAYS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_VERSION, _is_num, _num, forecast_errors, loss_days, measured_loss
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -182,27 +182,15 @@ class AnalysisPublishing:
             row["savings_sale"] = round(sale_kinds.get(row["month"], {}).get("sale", 0.0), 2)
 
         # consumption forecast per type ----------------------------------------
-        def forecast_errors(selected: list[dict]) -> dict | None:
-            hours = sum(_num(day.get("forecast", {}).get("hours")) for day in selected)
-            use = sum(_num(day.get("forecast", {}).get("use")) for day in selected)
-            if not hours:
-                return None
-            # the measured consumption per hour, and per type what it forecast on average (measured + bias)
-            result = {"hours": int(hours), "actual": round(use / hours, 3)}
-            for kind in FORECAST_TYPES:
-                absolute = sum(_num((day.get("forecast", {}).get(kind) or [0, 0])[0]) for day in selected)
-                bias = sum(_num((day.get("forecast", {}).get(kind) or [0, 0])[1]) for day in selected)
-                result[kind] = {
-                    "mae": round(absolute / hours, 3),
-                    "bias": round(bias / hours, 3),
-                    "relative": round(absolute / use, 3) if use > 0 else None,
-                    "forecast": round((use + bias) / hours, 3),
-                }
-            return result
-
         forecast_30 = forecast_errors(last_30)
+        auto = bool(self.enabled("auto_forecast_type"))
         forecast = {
+            # the type the plan uses: with auto_forecast_type on the automatic choice, else the select's
             "selected": self.get_forecast_type(),
+            "manual": self.forecast_type_manual,
+            "auto": auto,
+            "auto_waiting": auto and not self.forecast_type_auto,
+            "auto_min_days": FORECAST_AUTO_MIN_DAYS,
             "last_7": forecast_errors(last_7),
             "last_30": forecast_30,
             "best": min(FORECAST_TYPES, key=lambda kind: forecast_30[kind]["mae"]) if forecast_30 else None,
@@ -212,6 +200,8 @@ class AnalysisPublishing:
                 if day.get("forecast", {}).get("hours")
             ],
         }
+
+        self.published_forecast_state = self.forecast_state()
 
         # plans against actual -------------------------------------------------
         plans = []

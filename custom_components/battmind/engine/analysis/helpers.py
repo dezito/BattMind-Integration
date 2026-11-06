@@ -48,6 +48,15 @@ LOSS_OUTLIER_MIN_DAYS = 10  # days with a measured loss needed before outliers a
 FORECAST_TYPES = ("ema", "trend", "average")
 
 
+FORECAST_AUTO_DAYS = 30  # days the automatic forecast type is judged over (switch auto_forecast_type)
+
+
+FORECAST_AUTO_MIN_DAYS = 7  # days with a recorded forecast needed before the type is chosen automatically
+
+
+FORECAST_AUTO_MARGIN = 0.05  # how much smaller another type's error must be before the automatic choice changes
+
+
 # rules that charge from the grid / that discharge (sell) the battery, see CHARGING_TYPES
 CHARGE_RULES = (
     "cheapest_hour_fill_planner", "most_expensive_planner", "needed_before_max_level_planner",
@@ -307,6 +316,47 @@ def summarize_day(rows: list[dict], soc_start: float | None, minimum: float) -> 
             "cost": round(sum(price * kwh for price, kwh in empty), 3),
         }
     return result
+
+
+def forecast_errors(selected: list[dict]) -> dict | None:
+    """The error of each consumption forecast type over the days (summarize_day's "forecast").
+
+    days: the days with a recorded forecast, hours/actual: their hours and the measured kWh per
+    hour; per type mae (kWh per hour), bias (> 0: too much), relative (mae / consumption) and
+    forecast (what it expected per hour on average). None without a recorded forecast.
+    """
+    forecasts = [day["forecast"] for day in selected if isinstance(day.get("forecast"), dict) and _num(day["forecast"].get("hours"))]
+    hours = sum(_num(forecast.get("hours")) for forecast in forecasts)
+    use = sum(_num(forecast.get("use")) for forecast in forecasts)
+    if not hours:
+        return None
+    result = {"days": len(forecasts), "hours": int(hours), "actual": round(use / hours, 3)}
+    for kind in FORECAST_TYPES:
+        absolute = sum(_num((forecast.get(kind) or [0, 0])[0]) for forecast in forecasts)
+        bias = sum(_num((forecast.get(kind) or [0, 0])[1]) for forecast in forecasts)
+        result[kind] = {
+            "mae": round(absolute / hours, 3),
+            "bias": round(bias / hours, 3),
+            "relative": round(absolute / use, 3) if use > 0 else None,
+            "forecast": round((use + bias) / hours, 3),
+        }
+    return result
+
+
+def auto_forecast_choice(errors: dict | None, current: str, min_count: int, count_key: str) -> str | None:
+    """The forecast type to use automatically: current, or another type whose error is
+    FORECAST_AUTO_MARGIN smaller (so near-equal types don't swap back and forth).
+
+    None while errors[count_key] (days or drives) is below min_count.
+    """
+    if not errors or _num(errors.get(count_key)) < min_count:
+        return None
+    if current not in FORECAST_TYPES:
+        current = "ema"
+    best = min(FORECAST_TYPES, key=lambda kind: errors[kind]["mae"])
+    if errors[best]["mae"] < errors[current]["mae"] * (1 - FORECAST_AUTO_MARGIN):
+        return best
+    return current
 
 
 def hourly_prices(prices: dict) -> dict[datetime.datetime, float]:
