@@ -33,7 +33,9 @@ consumers, default the last 15 days). The forecast for an hour is made from thos
 The forecast is then corrected by how the last 48 hours went: if the house used 10 % more than forecast,
 the forecast is raised 10 %. Hours of the day without history, and hours whose forecast is 0 W, are left
 out of the correction. The [analysis](dashboard-analysis.md#forecast-accuracy) shows which type
-would have been most accurate for your house.
+would have been most accurate for your house; with the switch *Choose the forecast type automatically* on,
+the plan uses that type by itself (after 7 days of measurements, switching only when another type has at
+least 5 % less error).
 
 At every start BattMind fills the days missing in the consumption history from Home Assistant's long-term
 statistics (as many days as the consumption history keeps). A new installation therefore plans with the

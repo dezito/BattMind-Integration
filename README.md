@@ -120,7 +120,7 @@ every rule explained with examples, [inverter setups](docs/inverters/huawei.md) 
   - economy per month: charged (grid/solar), discharged, charge price, value of a discharged kWh, spread and savings
   - charged and discharged per rule, cycles and wear
   - measured round trip loss against the configured loss, and self-sufficiency (solar, battery, grid)
-  - the error of each consumption forecast type against the actual consumption, and why another type is suggested when it is more accurate
+  - the error of each consumption forecast type against the actual consumption, and why another type is suggested when it is more accurate; optionally the most accurate type is chosen automatically
   - the price forecast against the real prices per day ahead: the error, and how often it found the cheapest and most expensive hours
   - a hindsight score per day, planned against what happened, days with an empty battery in the most expensive
     hours, and planned against measured solar surplus
@@ -249,7 +249,7 @@ The entity ids start with the prefix, here `battmind`.
 
 | Type | Entities |
 |---|---|
-| `switch` | Solar surplus charging, cheapest periods, fill up during cheapest period, most expensive periods, required before max level, discharge only at profit, prioritise discharging by energy cost, sell excess kWh, use midnight battery level, maximise profit, forced discharge of old kWh, optimise solar charging, negative prices, buy to sell, discharge before the sun, control the battery with the whole period optimisation, correct the price forecast |
+| `switch` | Solar surplus charging, cheapest periods, fill up during cheapest period, most expensive periods, required before max level, discharge only at profit, prioritise discharging by energy cost, sell excess kWh, use midnight battery level, maximise profit, forced discharge of old kWh, optimise solar charging, negative prices, buy to sell, discharge before the sun, control the battery with the whole period optimisation, correct the price forecast, choose the forecast type automatically |
 | `number` | Cheap price periods, increase for cheapest price / cheap periods, min. profit per kWh, min. total profit, min. kWh for export, max. hours for old kWh |
 | `select` | Forecast type (average, EMA or trend) |
 | `text` | Exclude selling hours (e.g. `17,18,19`) |

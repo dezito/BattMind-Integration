@@ -35,7 +35,7 @@ from ..energy.energy import derive_power_values
 from ...utils.power import unit_factor_to_w
 from .publishing import AnalysisPublishing
 from .recording import AnalysisRecording
-from .helpers import ANALYSIS_DAYS, ANALYSIS_BACKFILL_VERSION, PRICE_FORECAST_DAYS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_CORRECTION_MAX, _num, _is_num, _r, summarize_day
+from .helpers import ANALYSIS_DAYS, ANALYSIS_BACKFILL_VERSION, FORECAST_AUTO_DAYS, FORECAST_AUTO_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_CORRECTION_MAX, _num, _is_num, _r, auto_forecast_choice, forecast_errors, summarize_day
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,6 +68,32 @@ class Analysis(AnalysisRecording, AnalysisPublishing):
                 bias = sum(_num(entry.get("bias")) for entry in entries) / hours
                 corrections[lead] = round(min(max(-bias, -PRICE_CORRECTION_MAX), PRICE_CORRECTION_MAX), 3)
         return corrections
+
+    def auto_forecast_type(self, manual: str) -> str | None:
+        """The consumption forecast type that hit best the last FORECAST_AUTO_DAYS days (switch auto_forecast_type).
+
+        None while fewer than FORECAST_AUTO_MIN_DAYS closed days have a recorded forecast. The
+        choice starts at the selected (manual) type, moves only when another type's error is
+        FORECAST_AUTO_MARGIN smaller and is kept in analysis_db["forecast_auto"].
+        """
+        today = self.now().date()
+        first = (today - datetime.timedelta(days=FORECAST_AUTO_DAYS)).isoformat()
+        days = [day for date, day in self.analysis_db["days"].items() if first <= date < today.isoformat() and isinstance(day, dict)]
+        known = self.analysis_db.get("forecast_auto")
+        choice = auto_forecast_choice(forecast_errors(days), known or manual, FORECAST_AUTO_MIN_DAYS, "days")
+        if choice is not None and choice != known:
+            self.analysis_db["forecast_auto"] = choice
+            self.mark_dirty("analysis")
+        return choice
+
+    def forecast_state(self) -> tuple[bool, str]:
+        """The switch auto_forecast_type and the consumption forecast type in use."""
+        return bool(self.enabled("auto_forecast_type")), self.forecast_type
+
+    def republish_forecast_if_changed(self) -> None:
+        """The analysis shows the type in use: published again when the switch or the automatic choice changed."""
+        if self.published_forecast_state is not None and self.published_forecast_state != self.forecast_state():
+            self.publish_analysis()
 
     def analysis_backfilled(self) -> bool:
         return self.analysis_db.get("backfilled") == ANALYSIS_BACKFILL_VERSION

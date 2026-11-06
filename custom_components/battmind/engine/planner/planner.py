@@ -54,6 +54,7 @@ class Planner(WhatIf, Overview, ChargingHours, ChargingFlow, FutureCharging):
                 return None
 
         self.get_forecast_type()
+        self.republish_forecast_if_changed()
         self.current_battery_level_expenses()
         self.local_energy_prediction()
 

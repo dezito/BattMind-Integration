@@ -32,7 +32,7 @@ All rules, grouped, each group with a **Read more**:
 
 | Group | Contents |
 |---|---|
-| Control | [whole period optimisation](rules/optimizer.md), forecast type, [correct the price forecast](how-it-works.md#prices) |
+| Control | [whole period optimisation](rules/optimizer.md), forecast type, [choose the forecast type automatically](#forecast-accuracy), [correct the price forecast](how-it-works.md#prices) |
 | Profit requirements | [min. profit per kWh, min. total profit, min. kWh for export, excluded sell hours](rules/selling.md#profit-requirements) |
 | Charging from the grid | [cheapest periods, fill up, most expensive periods, required before max level, negative prices](rules/charging.md) |
 | Discharging | [profit only, prioritise by energy cost, before the sun, max. age of kWh](rules/discharging.md) |
@@ -177,7 +177,7 @@ Where the house's consumption came from per hour: first solar, then the battery,
 ### Forecast accuracy
 
 The average error per hour between the consumption the plan expected and the measured one, for each
-forecast type. ✅ marks the selected type, ⭐ the most accurate the last 30 days.
+forecast type. ✅ marks the type the plan uses, ⭐ the most accurate the last 30 days.
 
 | Column | Meaning |
 |---|---|
@@ -190,6 +190,15 @@ The error is counted hour by hour, so a type can hit the average and still miss 
 hours: the type closest to the actual average is not always ⭐. When another type is more accurate, a
 warning shows the numbers behind the suggestion: both types' error, how much smaller it is, and what
 each expected against the actual consumption. Choose the type under *Settings → Forecast type*.
+
+Which type is best can change over time (e.g. into winter). With **Choose the forecast type automatically**
+on (off by default; the switch is in this section and under *Settings → Control*), the plan uses the type
+with the smallest error the last 30 days instead:
+
+- it starts after 7 days of measurements; until then the selected type is used
+- it starts at the selected type and only switches when another type has at least 5 % less error, so it
+  does not swap back and forth between nearly equal types
+- an info line under the table shows the type in use, or how many days it is still waiting for
 
 <details>
 <summary>Screenshot</summary>

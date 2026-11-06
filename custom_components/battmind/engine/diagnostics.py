@@ -29,6 +29,8 @@ class Diagnostics:
                     "testing": self.testing,
                     "solar_configured": self.is_solar_configured(),
                     "forecast_type": self.forecast_type,
+                    "forecast_type_manual": self.forecast_type_manual,
+                    "forecast_type_auto": self.forecast_type_auto,
                     "error_count": self.error_count,
                     "last_plan_hash": self.last_plan_hash,
                     "history_footer_bytes": self.history_footer_bytes,

@@ -1715,6 +1715,9 @@ views:
               - entity: select.battmind_forecast_type
                 name:
                   type: entity
+              - entity: switch.battmind_auto_forecast_type
+                name:
+                  type: entity
             grid_options:
               columns: full
           - type: heading
@@ -2453,6 +2456,9 @@ views:
             state_color: true
             show_header_toggle: false
             entities:
+              - entity: switch.battmind_auto_forecast_type
+                name:
+                  type: entity
               - entity: select.battmind_forecast_type
                 name:
                   type: entity
@@ -2477,7 +2483,13 @@ views:
               {% for kind, label in labels.items() -%}
               | {{ '✅ ' if kind == f.selected }}{{ '⭐ ' if kind == f.best }}{{ label }} | {{ n(f.last_30[kind].forecast) }} | {{ n(f.last_7[kind].mae if f.last_7 else none) }} | {{ n(f.last_30[kind].mae) }} | {{ (f.last_30[kind].relative * 100) | round(0) | int ~ ' %' if f.last_30[kind].relative is number else '–' }} | {{ n(f.last_30[kind].bias) }} |
               {% endfor %}
-              {% if f.best and f.best != f.selected and f.selected in f.last_30 %}
+              {% if f.auto and f.auto_waiting %}
+              {% set msg %}@@forecast_auto_waiting@@{% endset %}
+              <ha-alert alert-type="info">{{ msg | replace('{days}', f.auto_min_days | string) | replace('{manual}', labels[f.manual]) }}</ha-alert>
+              {% elif f.auto %}
+              {% set msg %}@@forecast_auto_on@@{% endset %}
+              <ha-alert alert-type="info">{{ msg | replace('{selected}', labels[f.selected]) }}</ha-alert>
+              {% elif f.best and f.best != f.selected and f.selected in f.last_30 %}
               {% set best, selected = f.last_30[f.best], f.last_30[f.selected] %}
               {% set percent = ((1 - best.mae / selected.mae) * 100) | round(0) | int if selected.mae else 0 %}
               {% set msg %}@@forecast_better@@{% endset %}
