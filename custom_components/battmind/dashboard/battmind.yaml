@@ -1580,10 +1580,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: '{{ states.sensor.battmind_charging_history.attributes.history }}'
             grid_options:
               columns: full
@@ -1591,10 +1606,30 @@ views:
             cards:
               - type: markdown
                 card_mod:
-                  style: |
-                    ha-card {
-                      --markdown-table-border-color: transparent
-                    }
+                  style:
+                    .: |
+                      ha-card {
+                        --markdown-table-border-color: transparent
+                      }
+                    ha-markdown$: |
+                      table, th, td {
+                        border: none !important;
+                      }
+                      table {
+                        border-collapse: collapse;
+                      }
+                      table tbody tr:not(:only-child):nth-child(odd) td {
+                        background: rgba(127, 127, 127, 0.08);
+                      }
+                      td details details:not(:only-of-type):nth-of-type(odd) {
+                        background: rgba(127, 127, 127, 0.1);
+                        border-radius: 4px;
+                      }
+                      h4 {
+                        margin-top: 28px;
+                        padding-top: 14px;
+                        border-top: 1px solid var(--divider-color);
+                      }
                 content: '{{ states.sensor.battmind_overview.attributes.overview }}'
                 view_layout:
                   position: sidebar
@@ -1910,10 +1945,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: |-
               {% macro n(v, d=2) %}{{ v | round(d) if v is number else '–' }}{% endmacro %}
               {% set a = states.sensor.battmind_analysis.attributes %}
@@ -2038,10 +2088,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: |-
               {% macro n(v, d=2) %}{{ v | round(d) if v is number else '–' }}{% endmacro %}
               {% set rules = states.sensor.battmind_analysis.attributes.rules or [] %}
@@ -2081,10 +2146,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: |-
               {% macro n(v, d=2) %}{{ v | round(d) if v is number else '–' }}{% endmacro %}
               {% set a = states.sensor.battmind_analysis.attributes %}
@@ -2163,10 +2243,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: |-
               {% macro p(v) %}{{ (v * 100) | round(1) ~ ' %' if v is number else '–' }}{% endmacro %}
               {% set a = states.sensor.battmind_analysis.attributes %}
@@ -2339,10 +2434,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: |-
               {% set e = states.sensor.battmind_analysis.attributes.efficiency_curves or {} %}
               {% macro status(e, direction) -%}
@@ -2369,10 +2479,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: |-
               {% macro p(v) %}{{ (v * 100) | round(0) | int ~ ' %' if v is number else '–' }}{% endmacro %}
               {% set a = states.sensor.battmind_analysis.attributes %}
@@ -2466,10 +2591,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: |-
               {% macro n(v, d=2) %}{{ v | round(d) if v is number else '–' }}{% endmacro %}
               {% set f = states.sensor.battmind_analysis.attributes.forecast or {} %}
@@ -2564,10 +2704,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: |-
               {% macro n(v, d=2) %}{{ v | round(d) if v is number else '–' }}{% endmacro %}
               {% set a = states.sensor.battmind_analysis.attributes %}
@@ -2669,10 +2824,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: |-
               {% set a = states.sensor.battmind_analysis.attributes %}
               {% set e = a.expensive_30 or {} %}
@@ -2702,10 +2872,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: |-
               {% macro n(v, d=2) %}{{ v | round(d) if v is number else '–' }}{% endmacro %}
               {% set s = states.sensor.battmind_analysis.attributes.solar_forecast or {} %}
@@ -2809,10 +2994,25 @@ views:
               columns: full
           - type: markdown
             card_mod:
-              style: |
-                ha-card {
-                  --markdown-table-border-color: transparent
-                }
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
             content: |-
               {% macro n(v, d=2) %}{{ v | round(d) if v is number else '–' }}{% endmacro %}
               {% macro p(v) %}{{ (v * 100) | round(0) | int ~ ' %' if v is number else '–' }}{% endmacro %}

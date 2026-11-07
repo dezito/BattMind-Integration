@@ -11,7 +11,11 @@ Every few minutes (the **interval**, default 5 min) BattMind:
 3. sets `sensor.<prefix>_powerwall_action` to what the battery should do **right now**
 
 The plan covers **days to plan** (default 3: today and the next two days). It is shown on the dashboard
-with a reason for every hour.
+with a reason for every hour: first the key figures of the period (the gain, what the battery is charged from the grid and from solar,
+and what it sells) with the full bill one click away, then a section for each day with something planned,
+with the hours of the day as coloured squares (see [Emojis](emojis.md)), the kWh charged from the grid and sold from the battery that
+day, and a row for each stretch of hours with its reason and the battery level at its end. Today and
+tomorrow are shown; the later days are behind *Show all days*.
 
 Because the plan is recalculated from the new battery level every interval, a charge hour stops once its
 planned kWh are in the battery, and a charge planned for half an hour really is half an hour.

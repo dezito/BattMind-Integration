@@ -29,6 +29,41 @@ def _ev_hour(value, tz) -> datetime.datetime | None:
     return reset_time_to_hour(timestamp)
 
 
+_STRIP = {"charge": "🟩", "sell": "🟧", "solar": "🟨", "hold": "🟦", "normal": "⬜", "past": "⬛"}
+_STRIP_SOURCES = (  # later wins: what the hour does to the battery
+    ("blocked_discharge_timestamps", "hold"),
+    ("blocked_solar_charge_timestamps", "solar"),
+    ("force_discharge_timestamps", "sell"),
+    ("charging_sessions", "charge"),
+)
+
+
+def _naive(timestamp) -> datetime.datetime:
+    """A timestamp (datetime or ISO text) as a naive local datetime."""
+    if isinstance(timestamp, str):
+        timestamp = datetime.datetime.fromisoformat(timestamp)
+    return timestamp.replace(tzinfo=None)
+
+
+def _day_strip(data: dict, now: datetime.datetime) -> str:
+    """One square per hour of the day in two rows of 12 (what the plan does with the battery that hour)."""
+    kinds: dict[int, str] = {}
+    for source, kind in _STRIP_SOURCES:
+        for timestamp in data[source]:
+            kinds[_naive(timestamp).hour] = kind
+    start = _naive(data["start_of_day"])
+    cells = [
+        _STRIP["past"] if start + datetime.timedelta(hours=hour + 1) <= now else _STRIP[kinds.get(hour, "normal")]
+        for hour in range(24)
+    ]
+    return "<br>".join(f"**{first:02d}:00-{first + 11:02d}:59** {''.join(cells[first:first + 12])}" for first in (0, 12))
+
+
+def _day_kwh(data: dict, key: str, field: str) -> float:
+    """The kWh of a plan part of a day (missing or broken values count as 0)."""
+    return sum(_finite(value.get(field)) or 0.0 for value in data[key].values() if isinstance(value, dict))
+
+
 class Overview:
     """The overview markdown of the plan."""
 
@@ -52,15 +87,24 @@ class Overview:
                 _LOGGER.debug("  sell %s: %.2f kWh, profit %.2f (%s)", ts, data["kwh"], data["profit"], data["title"])
 
     def _plan_overview(self, overview: list[str], charging_plan: dict, days: list[int]) -> None:
-        """📅 The charge/discharge plan per day (hours with the same rule joined) + the totals of the plan."""
+        """📅 The charge/discharge plan: the result, then per day the hours of the day, the totals and the rows (hours with the same rule joined)."""
         t = self.t
+        prefix = "ui.cheap_grid_charge_hours"
         valuta = t("ui.common.valuta")
         valuta_kwh = t("ui.common.valuta_kwh")
         try:
             overview.append("<center>\n")
-            overview.append(f"## 📅 {t('ui.cheap_grid_charge_hours.plan_title')} ##")
-            any_rows = False
-            later: list[str] = []  # the days after tomorrow, behind a "read more"
+            overview.append(f"## 📅 {t(f'{prefix}.plan_title')} ##")
+            try:
+                overview.extend(self._plan_summary_lines(valuta, valuta_kwh))  # the result first, then the schedule
+            except Exception as err:  # noqa: BLE001 - the schedule is shown even without the key figures
+                _LOGGER.exception("Failed to create the key figures of the plan: %s", err)
+            now = self.now().replace(tzinfo=None)
+            shadow = self.optimizer_shadow or {}
+            level_key = "battery_level" if shadow.get("controls") else "rules_battery_level"  # the plan that controls the battery
+            levels = {_naive(hour["hour"]): hour.get(level_key) for hour in shadow.get("hours", []) if isinstance(hour, dict) and hour.get("hour")}
+            body: list[str] = []
+            later: list[str] = []  # the days after tomorrow, behind "show all days"
             for day in days:
                 data = charging_plan[day]
                 joined = {}
@@ -78,33 +122,40 @@ class Overview:
                 joined.update(data["charging_sessions"])
                 if not joined:
                     continue
-                any_rows = True
-                lines = overview if day <= 1 else later
+                lines = body if day <= 1 else later
                 weekday = t(f"ui.calendar.weekday_names.{day_of_week_text(data['start_of_day'])}")
-                lines.append(f"#### {weekday} {data['start_of_day'].strftime('%d/%m')}\n")
-                lines.append(f"| {t('ui.common.time')} | {t('ui.common.reason')} |")
-                lines.append("|:---|:---|")
+                day_name = f"{t(f'{prefix}.today' if day == 0 else f'{prefix}.tomorrow')} · " if day <= 1 else ""
+                bought = _day_kwh(data, "charging_sessions", "kWh")
+                sold = _day_kwh(data, "force_discharge_timestamps", "kwh")
+                lines.append(f"#### {day_name}{weekday} {data['start_of_day'].strftime('%d/%m')}\n")
+                lines.append(f"{_day_strip(data, now)}<br>📈 {bought:.1f} kWh · 📤 {sold:.1f} kWh\n")
+                lines.append(f"| {t('ui.common.time')} | {t(f'{prefix}.action')} | 🔋 |")
+                lines.append("|:---|:---|---:|")
                 rows = [
                     (timestamp, value["reason"] if isinstance(value, dict) and "reason" in value else value)
                     for timestamp, value in sorted(joined.items(), key=lambda kv: kv[0])
                 ]
                 for group in _group_hour_rules(rows):
                     first, last = group[0][0], group[-1][0]
-                    if len(group) == 1:
-                        end = joined.get(first, {}).get("period_end") if isinstance(joined.get(first), dict) else None
-                        time_text = f"{first.strftime('%H:%M')}-{end.strftime('%H:%M')}" if end else first.strftime("%H:%M")
-                        lines.append(f"| **{time_text}** | {group[0][1]} |")
-                    else:
-                        until = reset_time_to_hour(last).replace(minute=59).strftime("%H:%M")  # the last hour included
-                        lines.append(f"| **{first.strftime('%H:%M')}-{until}** | {_joined_reason(group)} |")
+                    end = joined.get(last, {}).get("period_end") if isinstance(joined.get(last), dict) else None
+                    if end is None:
+                        end = reset_time_to_hour(last) + datetime.timedelta(hours=1)  # every range ends when the next begins
+                    reason = group[0][1] if len(group) == 1 else _joined_reason(group)
+                    level = _finite(levels.get(reset_time_to_hour(last)))  # the level at the end of the row
+                    level_text = f"{level:.0f}%" if level is not None else "–"
+                    lines.append(f"| **{first.strftime('%H:%M')}-{end.strftime('%H:%M')}** | {reason} | {level_text} |")
                 lines.append("\n")
+            if body or later:
+                overview.append(
+                    "\n" + " · ".join(f"{_STRIP[kind]} {t(f'{prefix}.legend_{kind}')}" for kind in ("charge", "sell", "solar", "hold", "normal", "past")) + "\n"
+                )
+            overview.extend(body)
             if later:
-                overview.append(f"<details><summary><b>{t('ui.cheap_grid_charge_hours.show_all_days')}</b></summary>\n")
+                overview.append(f"<details><summary><b>{t(f'{prefix}.show_all_days')}</b></summary>\n")
                 overview.extend(later)
                 overview.append("</details>\n")
-            if not any_rows:
-                overview.append(f"**{t('ui.cheap_grid_charge_hours.no_upcoming_charging_planned')}**\n")
-            overview.extend(self._plan_summary_lines(valuta, valuta_kwh))
+            if not (body or later):
+                overview.append(f"**{t(f'{prefix}.no_upcoming_charging_planned')}**\n")
 
             # all prices offline, or hours the provider has no price for, filled from the price history
             if self.grid_price_cache.get("missing_hours"):
@@ -150,14 +201,21 @@ class Overview:
                 text += f" ({kwh:.1f} kWh)"
             return f"{text}<br>({note})" if note else text
 
-        def row(label: str, without_value, with_value, bold: bool = False, difference: float | None = None) -> str:
-            """(value, kWh, note) per column, None = not there (–); the difference is with minus without."""
+        def row(label: str, without_value, with_value, bold: bool = False, difference: float | None = None, credit: bool = False) -> str:
+            """(value, kWh, note) per column, None = not there (–); the difference is with minus without.
+
+            credit: money the period brings in (sales, energy left) is stored as a negative bill item; it is shown as a positive
+            amount that is taken off the bill, and the difference is of the shown amounts (more income is +).
+            """
+            if credit:
+                without_value = (-without_value[0], *without_value[1:]) if without_value else None
+                with_value = (-with_value[0], *with_value[1:]) if with_value else None
             if difference is None:
                 difference = (with_value[0] if with_value else 0.0) - (without_value[0] if without_value else 0.0)
             cells = [
                 money(*without_value) if without_value else "–",
                 money(*with_value) if with_value else "–",
-                f"{difference:+.2f}",
+                f"{difference:.2f}",
             ]
             if bold:
                 label, cells = f"**{label}**", [f"**{cell}**" for cell in cells]
@@ -172,18 +230,18 @@ class Overview:
         energy_without = (without["energy_value"], None, t(f"{prefix}.kept")) if abs(without["energy_value"]) >= 0.005 else None
         energy_with = (with_battery["energy_value"], None, t(f"{prefix}.left")) if abs(with_battery["energy_value"]) >= 0.005 else None
         return [
-            f"\n<details><summary><b>💰 {t(f'{prefix}.total')}: {profit:+.2f} {valuta} ({summary['profit_per_kwh']:.2f} {valuta_kwh})</b><br>"
+            f"\n<details><summary><b>💰 {t(f'{prefix}.total')}: {profit:.2f} {valuta} ({summary['profit_per_kwh']:.2f} {valuta_kwh})</b><br>"
             f"📈 {summary['charged_grid_kwh']:.1f} kWh · 📤 {with_battery['sold_kwh']:.1f} kWh · ☀️ {summary['charged_solar_kwh']:.1f} kWh</summary>\n",
             f"|  | {t(f'{prefix}.without')} | {t(f'{prefix}.with')} | {t(f'{prefix}.difference')} |",
             "|:---|---:|---:|---:|",
             row(f"💸 {t(f'{prefix}.paid')}", (without["paid"],), (with_battery["paid"],), bold=True),
             row(f"↳ 🏠 {t(f'{prefix}.to_house')}", (without["house_cost"], without["house_kwh"]), (with_battery["house_cost"], with_battery["house_kwh"])),
             row(f"↳ 📈 {t(f'{prefix}.to_battery')}", None, (with_battery["battery_cost"], with_battery["battery_kwh"])),
-            row(f"💵 {t(f'{prefix}.earned')}", (without["earned"],), (with_battery["earned"],), bold=True),
-            row(f"↳ ☀️ {t(f'{prefix}.solar_surplus')}", (without["solar_income"], without["solar_kwh"]), (with_battery["solar_income"], with_battery["solar_kwh"])),
-            row(f"↳ 📤 {t(f'{prefix}.from_battery')}", None, (with_battery["sold_income"], with_battery["sold_kwh"])),
+            row(f"💵 {t(f'{prefix}.earned')}", (without["earned"],), (with_battery["earned"],), bold=True, credit=True),
+            row(f"↳ ☀️ {t(f'{prefix}.solar_surplus')}", (without["solar_income"], without["solar_kwh"]), (with_battery["solar_income"], with_battery["solar_kwh"]), credit=True),
+            row(f"↳ 📤 {t(f'{prefix}.from_battery')}", None, (with_battery["sold_income"], with_battery["sold_kwh"]), credit=True),
             row(f"🛠️ {t(f'{prefix}.wear')}", None, (with_battery["wear"],)),
-            row(f"🔋 {t(f'{prefix}.energy')}", energy_without, energy_with),
+            row(f"🔋 {t(f'{prefix}.energy')}", energy_without, energy_with, credit=True),
             row(
                 f"= {t(f'{prefix}.bill')}",
                 (without["bill"],),
@@ -238,6 +296,10 @@ class Overview:
         t = self.t
         prefix = "ui.cheap_grid_charge_hours.plan_summary"
 
+        if all(car["kwh"] is not None and car["kwh"] <= 0.0 and not car["hours"] for car in cars):  # nothing to show, not even a bill
+            return ["", f"**🚗 {t(f'{prefix}.ev_title')}:** {t(f'{prefix}.ev_none')}"]
+        shown = [car for car in cars if car["kwh"] is None or car["kwh"] > 0.0 or car["hours"]]  # cars without charging add nothing
+
         def cells(hours: int, kwh: float, cost: float) -> list[str]:
             return [str(hours), f"{kwh:.1f}", f"{cost:.2f} {valuta}", f"{cost / kwh:.2f}" if kwh > 0.0 else "–"]
 
@@ -248,12 +310,12 @@ class Overview:
             f"| {t(f'{prefix}.ev_car')} | {t(f'{prefix}.ev_hours')} | kWh | {t('ui.common.price')} | {valuta_kwh} |",
             "|:---|---:|---:|---:|---:|",
         ]
-        for car in cars:
+        for car in shown:
             values = cells(car["hours"], car["kwh"], car["cost"]) if car["kwh"] is not None else ["–", "–", t(f"{prefix}.ev_unavailable"), "–"]
             lines.append(f"| {car['name']} | {' | '.join(values)} |")
         if all(car["kwh"] is not None for car in cars):  # not with a car missing: the totals would be too low
             total_cost = sum(car["cost"] for car in cars)
-            if len(cars) > 1:
+            if len(shown) > 1:
                 total = cells(sum(car["hours"] for car in cars), sum(car["kwh"] for car in cars), total_cost)
                 lines.append(f"| **{t(f'{prefix}.total')}** | {' | '.join(f'**{cell}**' for cell in total)} |")
             lines += ["", "|  |  |", "|:---|---:|", f"| **= {t(f'{prefix}.ev_bill')}** | **{bill + total_cost:.2f} {valuta}** |"]
@@ -299,7 +361,7 @@ class Overview:
                 overview.append("|  |  |")
                 overview.append("|:---|---:|")
                 overview.append(f"| **🔋 {t(f'{prefix}.current_battery_level')}** | **{percentage:.0f}% {kwh:.1f} kWh** |")
-                if solar_percentage > 0.0:
+                if self.is_solar_configured():  # also 0%: the share is part of what the battery energy cost
                     overview.append(f"| **☀️ {t(f'{prefix}.solar_share')}** | **{solar_percentage:.0f}% {solar_kwh:.1f} kWh** |")
                 overview.append(f"| **💰 {t(f'{prefix}.expense')}** | **{cost_with_loss:.2f} {valuta}**<br>(**{cost:.2f} {valuta}**) |")
                 overview.append(

@@ -87,8 +87,7 @@
       "time": "Tid",
       "price": "Pris",
       "total": "Ialt",
-      "expense": "Udgift",
-      "reason": "Årsag"
+      "expense": "Udgift"
     },
     "calendar": {
       "month_names": {
@@ -195,6 +194,15 @@
       "no_blocked_discharging_planned": "Ingen blokeret afladning planlagt",
       "plan_title": "Ladnings- og afladningsplan",
       "show_all_days": "Se alle dage",
+      "today": "I dag",
+      "tomorrow": "I morgen",
+      "action": "Handling",
+      "legend_charge": "Ladning",
+      "legend_sell": "Salg",
+      "legend_solar": "Sol blokeret",
+      "legend_hold": "Holder tilbage",
+      "legend_normal": "Normal drift",
+      "legend_past": "Forbi",
       "plan_summary": {
         "total": "I alt",
         "without": "Uden batteri",
@@ -227,9 +235,10 @@
         "ev_car": "Bil",
         "ev_hours": "Ladetimer",
         "ev_unavailable": "ikke tilgængelig",
+        "ev_none": "Ingen planlagt ladning",
         "ev_bill": "Elregning inkl. elbiler",
         "ev_note": "Elbilernes planlagte ladning fra nettet ifølge Cable Juice Planner (inkl. ladetab). Bilerne indgår ikke i batteriets plan; ladning med soloverskud er ikke medregnet.",
-        "note": "Positive tal er udgifter, negative er indtægter. Prognose for hele perioden."
+        "note": "Tjent på salg og strøm i batteriet trækkes fra regningen. Prognose for hele perioden."
       }
     },
     "charge_if_needed": {

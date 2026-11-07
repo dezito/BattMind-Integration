@@ -87,8 +87,7 @@
       "time": "Czas",
       "price": "Cena",
       "total": "Suma",
-      "expense": "Koszt",
-      "reason": "Powód"
+      "expense": "Koszt"
     },
     "calendar": {
       "month_names": {
@@ -195,6 +194,15 @@
       "no_blocked_discharging_planned": "Brak zaplanowanego zablokowanego rozładowania",
       "plan_title": "Plan ładowania/rozładowania",
       "show_all_days": "Pokaż wszystkie dni",
+      "today": "Dziś",
+      "tomorrow": "Jutro",
+      "action": "Akcja",
+      "legend_charge": "Ładowanie",
+      "legend_sell": "Sprzedaż",
+      "legend_solar": "Słońce zablokowane",
+      "legend_hold": "Wstrzymane",
+      "legend_normal": "Normalna praca",
+      "legend_past": "Minęło",
       "plan_summary": {
         "total": "Razem",
         "without": "Bez baterii",
@@ -227,9 +235,10 @@
         "ev_car": "Samochód",
         "ev_hours": "Godziny ładowania",
         "ev_unavailable": "niedostępne",
+        "ev_none": "Brak zaplanowanego ładowania",
         "ev_bill": "Rachunek za prąd z samochodami elektrycznymi",
         "ev_note": "Zaplanowane ładowanie samochodów z sieci według Cable Juice Planner (z uwzględnieniem strat ładowania). Samochody nie są częścią planu baterii; ładowanie nadwyżką słoneczną nie jest uwzględnione.",
-        "note": "Liczby dodatnie to koszty, ujemne to przychody. Prognoza dla całego okresu."
+        "note": "Przychody ze sprzedaży i energia w baterii są odejmowane od rachunku. Prognoza dla całego okresu."
       }
     },
     "charge_if_needed": {

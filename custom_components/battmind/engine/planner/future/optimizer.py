@@ -219,12 +219,12 @@ class FutureOptimizer:
                     target_text = ""
                 elif rule == "grid_charge_to_sell":
                     target_text = (
-                        f"{ctx.r('sold_at', time=when(target), price=f'{hours[target].sell:.2f} {ctx.valuta_kwh}')}<br>"
+                        f"{ctx.r('sold_at', time=when(target), price=f'{hours[target].sell:.2f} {ctx.valuta_kwh}')} · "
                         f"{ctx.r('profit_per_kwh')}: **{self.charge_kwh_profit(ctx, hour.buy, hours[target].sell):.2f} {ctx.valuta_kwh}**<br>"
                     )
                 else:
                     target_text = (
-                        f"{ctx.r('used_at', time=when(target), price=f'{hours[target].buy:.2f} {ctx.valuta_kwh}')}<br>"
+                        f"{ctx.r('used_at', time=when(target), price=f'{hours[target].buy:.2f} {ctx.valuta_kwh}')} · "
                         f"{ctx.r('profit_per_kwh')}: **{self.charge_kwh_profit(ctx, hour.buy, hours[target].buy):.2f} {ctx.valuta_kwh}**<br>"
                     )
                 new_charge_hours[timestamp] = session
@@ -263,7 +263,7 @@ class FutureOptimizer:
                         "profit": sold_kwh / count * price,
                         "reason": (
                             f"<details><summary>{emoji}{title}<br>({sold_kwh / count:.1f} kWh / {price:.2f} {ctx.valuta_kwh})</summary>"
-                            f"{ctx.r('sell_price')}: **{price:.2f} {ctx.valuta_kwh}**<br>{detail}{level_text}"
+                            f"{ctx.r('sell_price')}: **{price:.2f} {ctx.valuta_kwh}** · {detail}{level_text}"
                             "</details>"
                         ),
                     }
@@ -277,7 +277,7 @@ class FutureOptimizer:
                 plan_day["blocked_solar_charge_timestamps"][timestamp] = {
                     "reason": (
                         f"<details><summary>{emoji_parse({'blocked_solar_charge': True})}{ctx.r('title.blocked_solar')}{charged_at}</summary>"
-                        f"{ctx.r('solar_sold_for')}: **{hour.sell:.2f} {ctx.valuta_kwh}**<br>{later}{level_text}"
+                        f"{ctx.r('solar_sold_for')}: **{hour.sell:.2f} {ctx.valuta_kwh}**{' · ' + later if later else '<br>'}{level_text}"
                         "</details>"
                     )
                 }
@@ -285,7 +285,7 @@ class FutureOptimizer:
                 # held back without a later, more expensive use: the energy is worth more kept
                 plan_day["blocked_discharge_timestamps"][timestamp] = (
                     f"<details><summary>{emoji_parse({'only_discharge_on_profit': True})}{ctx.r('title.no_profit')}</summary>"
-                    f"{ctx.r('price_now')}: **{hour.buy:.2f} {ctx.valuta_kwh}**<br>{ctx.r('worth_more_later')}<br>{level_text}"
+                    f"{ctx.r('price_now')}: **{hour.buy:.2f} {ctx.valuta_kwh}** · {ctx.r('worth_more_later')}<br>{level_text}"
                     "</details>"
                 )
             elif rule == "prioritize_discharge_hours_by_energy_cost":
@@ -296,7 +296,7 @@ class FutureOptimizer:
                 title = ctx.r("title.most_expensive_prioritized") + (f" ({clock(target, timestamp)})" if target is not None else "")
                 plan_day["blocked_discharge_timestamps"][timestamp] = (
                     f"<details><summary>{emoji_parse({'prioritize_discharge_hours_by_energy_cost': True})}{title}</summary>"
-                    f"{ctx.r('price_now')}: **{hour.buy:.2f} {ctx.valuta_kwh}**<br>{later}{level_text}"
+                    f"{ctx.r('price_now')}: **{hour.buy:.2f} {ctx.valuta_kwh}** · {later}{level_text}"
                     "</details>"
                 )
 
