@@ -369,7 +369,7 @@ class History(HistoryStorage, HistoryQueries):
         ])
 
         month_keys = [k for k in total["charged_kwh"] if isinstance(k, datetime.datetime)]
-        for idx_m, month in enumerate(sorted(month_keys)):
+        for month in sorted(month_keys):
             ck = total["charged_kwh"][month]
             dk = total["discharged_kwh"][month]
             cc = total["charged_cost"][month]
@@ -378,13 +378,10 @@ class History(HistoryStorage, HistoryQueries):
             charge_str = f"<br>({_fmt(cc / ck, 2, '')})" if ck > 0 else ""
             discharge_str = f"<br>({_fmt(dc / dk, 2, '')})" if dk > 0 else ""
             savings_str = f"<br>({_fmt(sav / dk, 2, '')})" if dk > 0 else ""
-            bg_s = "<font color=grey>" if idx_m % 2 == 0 else ""
-            bg_e = "</font>" if idx_m % 2 == 0 else ""
             month_name = t(f"ui.calendar.month_names.{month.strftime('%B').lower()}")
             history.append(
-                f"| {bg_s}{month_name}<br>{month.strftime('%Y')}{bg_e} | "
-                f"{bg_s}{ck:.1f}{bg_e} | {bg_s}-{dk:.1f}{bg_e} | {bg_s}{ck - dk:.1f}{bg_e} | "
-                f"{bg_s}{cc:.2f}{charge_str}{bg_e} | {bg_s}{dc:.2f}{discharge_str}{bg_e} | {bg_s}{sav:.2f}{savings_str}{bg_e} |"
+                f"| {month_name}<br>{month.strftime('%Y')} | {ck:.1f} | -{dk:.1f} | {ck - dk:.1f} | "
+                f"{cc:.2f}{charge_str} | {dc:.2f}{discharge_str} | {sav:.2f}{savings_str} |"
             )
 
         history.append(
