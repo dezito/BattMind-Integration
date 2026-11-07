@@ -5,6 +5,7 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
 [![GitHub Release](https://img.shields.io/github/v/release/dezito/BattMind-Integration)](https://github.com/dezito/BattMind-Integration/releases)
 [![License](https://img.shields.io/github/license/dezito/BattMind-Integration)](LICENSE)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/dezito)
 
 Home battery optimisation that aims to save and earn as much money as possible from the battery.
 
@@ -351,6 +352,12 @@ See [FAQ and troubleshooting](docs/faq-troubleshooting.md). In short:
    `blueprints/automation/battmind/` and `battmind_<prefix>.log`.
 
 ---
+
+## Support
+
+BattMind is free and open source. If it saves you money or time, you can [buy me a coffee](https://buymeacoffee.com/dezito) to support further development. It is entirely optional: bug reports, feedback and stars on GitHub help just as much.
+
+<a href="https://buymeacoffee.com/dezito" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50"></a>
 
 ## License
 
