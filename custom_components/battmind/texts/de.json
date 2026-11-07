@@ -87,8 +87,7 @@
       "time": "Zeit",
       "price": "Preis",
       "total": "Gesamt",
-      "expense": "Kosten",
-      "reason": "Grund"
+      "expense": "Kosten"
     },
     "calendar": {
       "month_names": {
@@ -194,6 +193,16 @@
       "no_charging_sessions": "Keine Ladesitzungen geplant",
       "no_blocked_discharging_planned": "Keine blockierte Entladung geplant",
       "plan_title": "Lade-/Entladeplan",
+      "show_all_days": "Alle Tage anzeigen",
+      "today": "Heute",
+      "tomorrow": "Morgen",
+      "action": "Aktion",
+      "legend_charge": "Laden",
+      "legend_sell": "Verkauf",
+      "legend_solar": "Solar blockiert",
+      "legend_hold": "Zurückgehalten",
+      "legend_normal": "Normalbetrieb",
+      "legend_past": "Vorbei",
       "plan_summary": {
         "total": "Gesamt",
         "without": "Ohne Batterie",
@@ -226,9 +235,10 @@
         "ev_car": "Auto",
         "ev_hours": "Ladestunden",
         "ev_unavailable": "nicht verfügbar",
+        "ev_none": "Keine Ladung geplant",
         "ev_bill": "Stromrechnung inkl. Elektroautos",
         "ev_note": "Geplantes Laden der Elektroautos aus dem Netz laut Cable Juice Planner (inkl. Ladeverlust). Die Autos sind nicht Teil des Batterieplans; Laden mit Solarüberschuss ist nicht enthalten.",
-        "note": "Positive Zahlen sind Kosten, negative Einnahmen. Prognose für den ganzen Zeitraum."
+        "note": "Verkaufserlöse und die Energie in der Batterie werden von der Rechnung abgezogen. Prognose für den ganzen Zeitraum."
       }
     },
     "charge_if_needed": {

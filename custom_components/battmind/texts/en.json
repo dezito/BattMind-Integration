@@ -87,8 +87,7 @@
       "time": "Time",
       "price": "Price",
       "total": "Total",
-      "expense": "Cost",
-      "reason": "Reason"
+      "expense": "Cost"
     },
     "calendar": {
       "month_names": {
@@ -194,6 +193,16 @@
       "no_charging_sessions": "No charging sessions planned",
       "no_blocked_discharging_planned": "No blocked discharging planned",
       "plan_title": "Charge/discharge plan",
+      "show_all_days": "Show all days",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "action": "Action",
+      "legend_charge": "Charge",
+      "legend_sell": "Sell",
+      "legend_solar": "Solar blocked",
+      "legend_hold": "Held back",
+      "legend_normal": "Normal use",
+      "legend_past": "Past",
       "plan_summary": {
         "total": "Total",
         "without": "Without battery",
@@ -226,9 +235,10 @@
         "ev_car": "Car",
         "ev_hours": "Charging hours",
         "ev_unavailable": "not available",
+        "ev_none": "No charging planned",
         "ev_bill": "Electricity bill incl. electric cars",
         "ev_note": "The cars' planned charging from the grid according to Cable Juice Planner (incl. charging loss). The cars are not part of the battery plan; charging with solar surplus is not included.",
-        "note": "Positive numbers are costs, negative are income. Forecast for the whole period."
+        "note": "Income from sales and the energy in the battery are taken off the bill. Forecast for the whole period."
       }
     },
     "charge_if_needed": {

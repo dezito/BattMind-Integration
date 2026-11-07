@@ -737,9 +737,12 @@ def test_overview_has_the_plan_and_its_totals(optimizer_control: bool) -> None:
     assert "## 📅 Ladnings- og afladningsplan ##" in overview
     assert "Hour rules" not in overview and "📖" not in overview
     summary = engine.optimizer_shadow["summary_optimal" if optimizer_control else "summary_rules"]
-    assert f"💰 I alt: {summary['profit']:+.2f} kr ({summary['profit_per_kwh']:.2f} kr/kWh)" in overview
-    assert f"**{-summary['profit']:+.2f}** |" in overview  # the bill row's difference = the title
+    assert f"💰 I alt: {summary['profit']:.2f} kr ({summary['profit_per_kwh']:.2f} kr/kWh)" in overview
+    assert f"**{-summary['profit']:.2f}** |" in overview  # the bill row's difference = the title
     without, with_battery = summary["without"], summary["with"]
+    # income is shown as a positive amount that is taken off the bill, the difference is of the shown amounts
+    earned_without, earned_with = -without["earned"], -with_battery["earned"]
+    assert f"| **💵 Tjent på salg** | **{earned_without:.2f} kr** | **{earned_with:.2f} kr** | **{earned_with - earned_without:.2f}** |" in overview
     assert summary["profit"] == pytest.approx(without["bill"] - with_battery["bill"], abs=0.02)
     for column in (without, with_battery):
         # the items add up to the bill
@@ -747,6 +750,111 @@ def test_overview_has_the_plan_and_its_totals(optimizer_control: bool) -> None:
         assert column["house_cost"] + column["battery_cost"] == pytest.approx(column["paid"], abs=0.02)
         assert column["solar_income"] + column["sold_income"] == pytest.approx(column["earned"], abs=0.02)
     assert ("Optimering af hele perioden" if optimizer_control else "Reglerne") in overview
+
+
+def test_overview_layout_result_first_and_ranges_end_when_the_next_begins() -> None:
+    import re
+
+    engine, _ = planned(0, 30, {}, days=4)
+    overview = engine.last_overview
+    assert overview.index("<summary><b>💰 ") < overview.index("#### I dag · ")  # the result before the schedule
+    assert overview.index("#### I dag · ") < overview.index("#### I morgen · ")
+    assert not re.search(r"\| \*\*\d\d:\d\d-\d\d:59\*\* \|", overview)  # no "inclusive" ends in the rows
+    ranges = re.findall(r"\| \*\*(\d\d):(\d\d)-(\d\d):(\d\d)\*\*", overview)
+    assert ranges
+    for start_h, start_m, end_h, end_m in ranges:
+        start, end = int(start_h) * 60 + int(start_m), int(end_h) * 60 + int(end_m)
+        assert (end - start) % (24 * 60) > 0  # a range runs forward (23:00-00:00 wraps midnight)
+    assert re.search(r"\*\*(\d\d):00-\1:00\*\*", overview) is None
+    assert any(
+        (int(end_h) * 60 + int(end_m) - int(start_h) * 60 - int(start_m)) % (24 * 60) == 60 for start_h, start_m, end_h, end_m in ranges
+    )  # a single whole hour ends at the next hour, not at HH:59
+
+
+def test_overview_has_the_key_figures_hour_squares_and_levels() -> None:
+    import re
+
+    engine, _ = planned(0, 30, {}, solar=True, negative=True, days=4)
+    overview = engine.last_overview
+    summary = engine.optimizer_shadow["summary_optimal"]
+    assert f"<summary><b>💰 I alt: {summary['profit']:.2f} kr ({summary['profit_per_kwh']:.2f} kr/kWh)</b><br>" in overview  # the key figures, the bill behind them
+    assert f"📈 {summary['charged_grid_kwh']:.1f} kWh · 📤 {summary['with']['sold_kwh']:.1f} kWh · ☀️ {summary['charged_solar_kwh']:.1f} kWh</summary>" in overview
+    expenses = {"kwh": 5.0, "percentage": 50.0, "solar_percentage": 0.0, "unit": 1.0}
+    engine.config["solar"]["entity_ids"]["production_entity_id"] = "sensor.solar_production"  # solar installed
+    battery_costs = "\n".join(engine._build_overview(engine.plan, {}, expenses, {}))
+    assert "**☀️ Solcelle andel** | **0% 0.0 kWh**" in battery_costs  # also with 0% from solar
+    assert re.search(r"Sælges kl\. \*\*[^<]*\*\* · Fortjeneste pr\. kWh: \*\*[^<]*\*\*<br>", overview)  # the target and the profit on one line
+    assert "Salgspris: **" in overview and "<br>Fortjeneste pr. kWh" not in overview
+    legend = "🟩 Ladning · 🟧 Salg · 🟨 Sol blokeret · 🟦 Holder tilbage · ⬜ Normal drift · ⬛ Forbi"
+    assert overview.count(legend) == 1
+    strips = re.findall(r"\*\*00:00-11:59\*\* ([🟩🟧🟨🟦⬜⬛]{12})<br>\*\*12:00-23:59\*\* ([🟩🟧🟨🟦⬜⬛]{12})<br>📈 [\d.]+ kWh · 📤 [\d.]+ kWh", overview)
+    assert len(strips) == overview.count("\n#### ")  # a strip for each day shown (the later days too)
+    # the battery level at the end of each row, from the plan that controls the battery
+    rows = re.findall(r"\| \*\*\d\d:\d\d-\d\d:\d\d\*\*\ \| .* \| (\d+%|–) \|\n", overview)
+    assert rows and all(level != "–" for level in rows)
+    hours = {hour["hour"].replace(tzinfo=None): hour["battery_level"] for hour in engine.optimizer_shadow["hours"]}
+    first_row = re.search(r"\| \*\*00:00-(\d\d):00\*\* \| .* \| (\d+)% \|", overview)
+    assert first_row
+    last_hour = int(first_row.group(1)) - 1  # the row ends at the level after its last hour
+    assert int(first_row.group(2)) == round(hours[min(hours) + datetime.timedelta(hours=last_hour)])
+
+
+def test_day_strip_squares_follow_the_plan_and_the_clock() -> None:
+    from custom_components.battmind.engine.planner.overview import _day_strip
+
+    day = datetime.datetime.combine(DAY, datetime.time(0))
+
+    def at(hour: int, minute: int = 0) -> datetime.datetime:
+        return day + datetime.timedelta(hours=hour, minutes=minute)
+
+    data = {
+        "start_of_day": day,
+        "charging_sessions": {at(3): {}, at(5): {}},
+        "force_discharge_timestamps": {at(5, 30): {}, at(7, 45).isoformat(): {}},  # a sale in a charge hour: the charge wins
+        "blocked_solar_charge_timestamps": {at(9): {}},
+        "blocked_discharge_timestamps": {at(9): "x", at(10): "x"},  # held back in a solar block hour: the block wins
+    }
+    first, second = _day_strip(data, at(2, 10)).split("<br>")
+    assert first == "**00:00-11:59** ⬛⬛⬜🟩⬜🟩⬜🟧⬜🟨🟦⬜"  # 00 and 01 have passed, 02 is now
+    assert second == "**12:00-23:59** " + "⬜" * 12
+    assert _day_strip(data, at(23, 59)).count("⬛") == 23  # the last hour is not over yet
+    assert "⬛" not in _day_strip(data, day)
+
+
+def test_overview_with_the_rule_plan_shows_the_rule_levels() -> None:
+    import re
+
+    engine, _ = planned(0, 30, {"optimizer_control": False}, days=4)
+    overview = engine.last_overview
+    shadow = engine.optimizer_shadow
+    assert not shadow.get("controls", False)
+    levels = re.findall(r"\| (\d+%|–) \|\n", overview)
+    assert levels and "–" not in levels
+    first_row = re.search(r"\| \*\*00:00-(\d\d):00\*\* \| .* \| (\d+)% \|", overview)
+    hours = {hour["hour"]: hour["rules_battery_level"] for hour in shadow["hours"]}
+    assert first_row and int(first_row.group(2)) == round(hours[min(hours) + datetime.timedelta(hours=int(first_row.group(1)) - 1)])
+
+
+def test_overview_without_a_plan_or_summary_shows_no_key_figures() -> None:
+    engine, _ = planned(0, 30, {})
+    engine.optimizer_shadow = None
+    assert engine._plan_summary_lines("kr", "kr/kWh") == []
+    lines: list[str] = []
+    engine._plan_overview(lines, {}, [])
+    text = "\n".join(lines)
+    assert "Ingen" in text and "💰" not in text and "🟩" not in text
+
+
+def test_overview_folds_the_days_after_tomorrow_into_read_more() -> None:
+    engine, _ = planned(0, 30, {}, days=4)
+    overview = engine.last_overview
+    marker = "<details><summary><b>Se alle dage</b></summary>"
+    assert overview.count(marker) <= 1
+    if marker in overview:
+        before, folded = overview.split(marker, 1)
+        folded = folded.split("</details>\n", 1)[0] if "<details>" not in folded.split("</details>")[0] else folded
+        assert before.count("#### ") <= 2  # today + tomorrow stay visible
+        assert "#### " in folded
 
 
 def _planned_with_cars(ev_charging) -> tuple[BattMindEngine, dict]:
@@ -783,7 +891,16 @@ def test_overview_shows_the_planned_charging_of_the_cars() -> None:
     assert "| **I alt** | **4** | **20.0** | **38.00 kr** | **1.90** |" in overview
     assert f"| **= Elregning inkl. elbiler** | **{summary['with']['bill'] + 38.0:.2f} kr** |" in overview
     # inside the totals, before their note
-    assert overview.index("💰 I alt") < overview.index("🚗 Elbiler") < overview.index("Positive tal er udgifter")
+    assert overview.index("<summary><b>💰 ") < overview.index("🚗 Elbiler") < overview.index("trækkes fra regningen")
+
+
+def test_cars_without_planned_charging_are_one_line_without_a_bill() -> None:
+    def cars(_start: datetime.datetime, _end: datetime.datetime) -> list[dict]:
+        return [{"name": "Tesla", "charge_plan": []}, {"name": "Zoe", "charge_plan": []}]
+
+    overview = _planned_with_cars(cars)[0].last_overview
+    assert "**🚗 Elbiler i perioden:** Ingen planlagt ladning" in overview
+    assert "| Tesla |" not in overview and "| Zoe |" not in overview and "Elregning inkl. elbiler" not in overview
 
 
 def test_a_car_without_a_plan_is_not_counted_as_no_charging() -> None:
@@ -797,7 +914,7 @@ def test_a_car_without_a_plan_is_not_counted_as_no_charging() -> None:
     overview = _planned_with_cars(cars)[0].last_overview
     assert "| Tesla | – | – | ikke tilgængelig | – |" in overview
     assert "| Zoe | – | – | ikke tilgængelig | – |" in overview
-    assert "| Leaf | 0 | 0.0 | 0.00 kr | – |" in overview
+    assert "| Leaf |" not in overview  # a car without planned charging adds nothing
     # too low with cars missing
     assert "| **I alt** |" not in overview.split("🚗")[1] and "Elregning inkl. elbiler" not in overview
 

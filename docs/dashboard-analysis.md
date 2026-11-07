@@ -8,6 +8,8 @@ It needs these HACS frontend cards: [ApexCharts Card](https://github.com/RomRide
 [Mushroom](https://github.com/piitaya/lovelace-mushroom),
 [Config Template Card](https://github.com/iantrich/config-template-card) and
 [card-mod](https://github.com/thomasloven/lovelace-card-mod).
+With card-mod, tables on the overview and analysis pages have no visible row or column borders, and every other table row is slightly shaded, starting with the first
+row (not in a table with a single row), also inside a group of hours.
 
 ## Overview
 
@@ -17,7 +19,7 @@ It needs these HACS frontend cards: [ApexCharts Card](https://github.com/RomRide
 | **Electricity prices** | the buy price incl. taxes, the sell price, the price forecast and the solar forecast. The title shows 🔵 lowest, 🟢 average and 🟣 highest price. A warning with a restart button appears if the price integration is down |
 | **Current rule and action** | `sensor.<prefix>_current_charging_rule` and the action, incl. the battery's power right now |
 | **Charging history** | each charge and discharge with its rule, kWh and price, and totals per month |
-| **Overview** | the plan per day with a reason for each hour (click a row to see the numbers), the bill of the period without/with the battery (with [Cable Juice Planner](cookbook.md#together-with-cable-juice-planner-ev) also the cars' planned charging and the bill incl. the cars), and the solar forecast per day |
+| **Overview** | the key figures of the period, the plan per day (the hours of the day as squares, and a row per stretch of hours with its reason and the battery level; click a row to see the numbers), the full bill of the period (with the card_mod add-on installed, each day starts with a line) without/with the battery (with [Cable Juice Planner](cookbook.md#together-with-cable-juice-planner-ev) also the cars' planned charging and the bill incl. the cars), and the solar forecast per day |
 | **Status** | above the emoji explanation: the battery level and power, house consumption, solar production and kWh charged by solar, the current buy price and `sensor.<prefix>_analysis` (savings this month). Rows whose entity is not configured are left out |
 
 | Battery level forecast | Electricity prices |

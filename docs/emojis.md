@@ -8,8 +8,9 @@ emoji always means the same rule.
 | Where | What the emojis tell |
 |---|---|
 | `sensor.<prefix>_current_charging_rule` (dashboard → current rule) | the rule behind the action right now, e.g. *💸 Charging up to …*. A second line shows the battery's measured power, with the rules of the current hour and ⌛ (an average) |
-| The plan in the overview | every hour starts with the emoji of its rule – click the row to see the numbers behind it. 📦 joins neighbouring periods with the same rule |
-| The bill of the period (overview) | 📈 charged from the grid, 📤 sold, ☀️ solar, 💰 the saving, 🚗 the Cable Juice Planner cars' planned charging |
+| The plan in the overview | every row starts with the emoji of its rule – click the row to see the numbers behind it. 📦 joins neighbouring periods with the same rule. The last column (🔋) is the battery level at the end of the row's last hour |
+| The hours of a day (overview) | one square per hour, in two rows (00:00-11:59 and 12:00-23:59): 🟩 charging from the grid, 🟧 selling, 🟨 solar charging blocked, 🟦 discharge held back, ⬜ normal use (the battery covers the house, or solar fills it), ⬛ already passed |
+| The key figures and the bill of the period (overview) | 💰 the gain compared with no battery, then 📈 charged into the battery from the grid, 📤 sold from the battery and ☀️ charged into the battery from solar; click them to open the full bill; 🚗 the Cable Juice Planner cars' planned charging |
 | The solar forecast (overview) | ☀️ the surplus per day, 🌅/🌇 sunrise and sunset, 🌤️ when the sun would fill the battery |
 | The charging history | the rules that were active in each hour, and the column headers (📈 charged, 📉 discharged, ⚖️ balance, 💰 savings, ☀️ solar share) |
 | The analysis → *Per rule* | charged and discharged kWh per rule |
