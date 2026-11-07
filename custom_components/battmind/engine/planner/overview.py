@@ -60,6 +60,7 @@ class Overview:
             overview.append("<center>\n")
             overview.append(f"## 📅 {t('ui.cheap_grid_charge_hours.plan_title')} ##")
             any_rows = False
+            later: list[str] = []  # the days after tomorrow, behind a "read more"
             for day in days:
                 data = charging_plan[day]
                 joined = {}
@@ -78,10 +79,11 @@ class Overview:
                 if not joined:
                     continue
                 any_rows = True
+                lines = overview if day <= 1 else later
                 weekday = t(f"ui.calendar.weekday_names.{day_of_week_text(data['start_of_day'])}")
-                overview.append(f"#### {weekday} {data['start_of_day'].strftime('%d/%m')}\n")
-                overview.append(f"| {t('ui.common.time')} | {t('ui.common.reason')} |")
-                overview.append("|:---|:---|")
+                lines.append(f"#### {weekday} {data['start_of_day'].strftime('%d/%m')}\n")
+                lines.append(f"| {t('ui.common.time')} | {t('ui.common.reason')} |")
+                lines.append("|:---|:---|")
                 rows = [
                     (timestamp, value["reason"] if isinstance(value, dict) and "reason" in value else value)
                     for timestamp, value in sorted(joined.items(), key=lambda kv: kv[0])
@@ -91,11 +93,15 @@ class Overview:
                     if len(group) == 1:
                         end = joined.get(first, {}).get("period_end") if isinstance(joined.get(first), dict) else None
                         time_text = f"{first.strftime('%H:%M')}-{end.strftime('%H:%M')}" if end else first.strftime("%H:%M")
-                        overview.append(f"| **{time_text}** | {group[0][1]} |")
+                        lines.append(f"| **{time_text}** | {group[0][1]} |")
                     else:
                         until = reset_time_to_hour(last).replace(minute=59).strftime("%H:%M")  # the last hour included
-                        overview.append(f"| **{first.strftime('%H:%M')}-{until}** | {_joined_reason(group)} |")
-                overview.append("\n")
+                        lines.append(f"| **{first.strftime('%H:%M')}-{until}** | {_joined_reason(group)} |")
+                lines.append("\n")
+            if later:
+                overview.append(f"<details><summary><b>{t('ui.cheap_grid_charge_hours.show_all_days')}</b></summary>\n")
+                overview.extend(later)
+                overview.append("</details>\n")
             if not any_rows:
                 overview.append(f"**{t('ui.cheap_grid_charge_hours.no_upcoming_charging_planned')}**\n")
             overview.extend(self._plan_summary_lines(valuta, valuta_kwh))

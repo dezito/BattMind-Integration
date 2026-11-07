@@ -194,6 +194,7 @@
       "no_charging_sessions": "Немає запланованих сеансів заряджання",
       "no_blocked_discharging_planned": "Немає запланованого заблокованого розряджання",
       "plan_title": "План заряду/розряду",
+      "show_all_days": "Показати всі дні",
       "plan_summary": {
         "total": "Разом",
         "without": "Без батареї",

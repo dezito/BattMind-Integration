@@ -194,6 +194,7 @@
       "no_charging_sessions": "No charging sessions planned",
       "no_blocked_discharging_planned": "No blocked discharging planned",
       "plan_title": "Charge/discharge plan",
+      "show_all_days": "Show all days",
       "plan_summary": {
         "total": "Total",
         "without": "Without battery",

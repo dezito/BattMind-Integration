@@ -749,6 +749,18 @@ def test_overview_has_the_plan_and_its_totals(optimizer_control: bool) -> None:
     assert ("Optimering af hele perioden" if optimizer_control else "Reglerne") in overview
 
 
+def test_overview_folds_the_days_after_tomorrow_into_read_more() -> None:
+    engine, _ = planned(0, 30, {}, days=4)
+    overview = engine.last_overview
+    marker = "<details><summary><b>Se alle dage</b></summary>"
+    assert overview.count(marker) <= 1
+    if marker in overview:
+        before, folded = overview.split(marker, 1)
+        folded = folded.split("</details>\n", 1)[0] if "<details>" not in folded.split("</details>")[0] else folded
+        assert before.count("#### ") <= 2  # today + tomorrow stay visible
+        assert "#### " in folded
+
+
 def _planned_with_cars(ev_charging) -> tuple[BattMindEngine, dict]:
     """planned(), then planned again with the Cable Juice Planner cars (ev_charging(start, end) of the first plan)."""
     engine, _ = planned(0, 30, {})

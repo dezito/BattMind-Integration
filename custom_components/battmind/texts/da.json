@@ -194,6 +194,7 @@
       "no_charging_sessions": "Ingen ladninger planlagt",
       "no_blocked_discharging_planned": "Ingen blokeret afladning planlagt",
       "plan_title": "Ladnings- og afladningsplan",
+      "show_all_days": "Se alle dage",
       "plan_summary": {
         "total": "I alt",
         "without": "Uden batteri",

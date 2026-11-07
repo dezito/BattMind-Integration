@@ -194,6 +194,7 @@
       "no_charging_sessions": "Brak zaplanowanych sesji ładowania",
       "no_blocked_discharging_planned": "Brak zaplanowanego zablokowanego rozładowania",
       "plan_title": "Plan ładowania/rozładowania",
+      "show_all_days": "Pokaż wszystkie dni",
       "plan_summary": {
         "total": "Razem",
         "without": "Bez baterii",
