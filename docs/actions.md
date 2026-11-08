@@ -156,6 +156,6 @@ actions:
 | ↳ `battery_level_flow` | the forecast battery level per hour |
 | ↳ `charge_timestamps`, `force_discharge_timestamps`, `discharge_timestamps`, `blocked_solar_charge_timestamps`, `force_solar_only_charging_timestamps`, `force_powerwall_max_hours_old_discharge_timestamps` | the planned hours per action, for your own automations or charts |
 | ↳ `hour_cost_prediction_ema` / `_trend` / `_avg` | the forecast consumption per hour (and `sum_*` accumulated) |
-| ↳ `optimizer_shadow_summary` | totals of the [optimised plan, the rule plan and self consumption](rules/optimizer.md#comparing-the-two) |
+| ↳ `optimizer_shadow_summary` | totals of the [optimised plan, the rule plan and self consumption](rules/optimizer.md#comparing-the-two), and the profit requirements steering each of them (`requirements`, a steering figure, not money) |
 | `sensor.<prefix>_current_charging_rule` | why, as text. The attributes `worker_thread` and `calculation_seconds` show where and how fast the plan was calculated |
 | `sensor.<prefix>_battery_level_needed` | the battery level needed until the next charge (%), with the forecast in `battery_level_flow_prediction` |

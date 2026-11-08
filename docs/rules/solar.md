@@ -37,7 +37,8 @@ Blocking is a bet that the later sun fills the battery, so BattMind leaves room 
 high:
 
 - **Margin:** an hour is only blocked when the battery is still filled with **80 %** of the later solar
-  forecast the same day. The exception is an hour where the sold surplus earns more than a stored kWh
+  forecast the same day. Only the sun counts for this: a grid charge planned later the same day does not
+  refill the battery in the test. The exception is an hour where the sold surplus earns more than a stored kWh
   could ever save later (the sell price is above the highest later buy price after the charging loss):
   then there is nothing to bet on.
 - **Once an hour:** when the battery has been allowed to charge from solar in an hour (e.g. because the

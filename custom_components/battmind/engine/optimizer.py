@@ -347,6 +347,29 @@ def simulate(
     return result
 
 
+def requirement_cost(
+    hours: list[OptimizerHour],
+    start_level: float,
+    cfg: OptimizerConfig,
+    actions: list[str],
+    limits: list[float | None] | None = None,
+) -> float:
+    """What the profit requirements add to a plan in the optimisation's own figure (not money).
+
+    optimize() adds min_profit_per_kwh for every kWh out of the battery and min_total_profit for every hour
+    with a sale to the grid to the cost of an action, so that it only chooses actions that earn that much.
+    The reported totals are real money without it. The same formula for any plan makes them comparable.
+    """
+    level, total = start_level, 0.0
+    for index, (hour, action) in enumerate(zip(hours, actions)):
+        details: dict = {}
+        level, _, _, _ = step_hour(hour, level, action, cfg, limits[index] if limits else None, details)
+        total += details["delivered"] * cfg.min_profit_per_kwh
+        if details["sold"] > 0.01:
+            total += cfg.min_total_profit
+    return round(total, 2)
+
+
 # The rule an optimised action corresponds to -> the switches that allow it. An action whose
 # rule is switched off is forbidden in that hour and the period is optimised again.
 _USE = ("cheapest_hour_fill_planner", "most_expensive_planner", "needed_before_max_level_planner")

@@ -41,7 +41,8 @@ class BattMindNumber(BattMindEntity, NumberEntity, RestoreEntity):
             else None
         )
         initial = coordinator.entry.data.get("initial_settings", {})
-        self._default = float_or_none(initial.get(key))
+        # a value from an import or an older version is kept inside the limits of the entity
+        self._default = self._valid(initial.get(key))
         if self._default is None:
             self._default = float(info["default"])
 

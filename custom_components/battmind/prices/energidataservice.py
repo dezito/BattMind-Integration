@@ -62,10 +62,10 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
             prices.update(self._rows(attr.get("raw_tomorrow")))
         return dict(sorted(prices.items()))
 
-    def _forecast(self, entity_id: str) -> dict:
+    def _forecast(self, entity_id: str, sell: bool = False) -> dict:
         attr = self._attr(entity_id)
         return {
-            ts: p + self._forecast_adder(ts)
+            ts: p + self._forecast_adder(ts, sell)
             for ts, p in self._rows(attr.get("forecast"))
             if days_between(self.current_hour, ts) > 0
         }
@@ -80,7 +80,7 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
         return self._real(self.sell_entity_id)
 
     def _load_sell_forecast_prices(self):
-        return self._forecast(self.sell_entity_id)
+        return self._forecast(self.sell_entity_id, sell=True)
 
     def get_tariffs(self, timestamp):
         try:

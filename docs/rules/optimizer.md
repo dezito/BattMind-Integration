@@ -30,6 +30,13 @@ and sell prices per hour, the forecast consumption and solar surplus, and the
 The energy left in the battery at the end of the period is valued at the average buy price (after wear
 and min. profit). Without that, the cheapest plan would always empty the battery in the last hours.
 
+> [!NOTE]
+> Because the leftover energy has a value, the optimisation can charge for energy that is only used **after**
+> the period: on paper the charge pays through the value of the kWh left at the end. The
+> [profit requirements](selling.md#profit-requirements) steer the choices inside the period, but they
+> cannot prove that every kWh left at the end is later used with profit. The plan is recalculated at every
+> interval and the period moves on, so the energy is normally used in a later plan.
+
 ## How it relates to the rules
 
 The rules still run, also when the optimisation controls the battery:
@@ -71,7 +78,14 @@ battery**, item by item, for the plan that controls the battery:
 
 The attribute `optimizer_shadow_summary` on `sensor.<prefix>_powerwall_action` holds the totals of the
 optimised plan (`optimal`), the rule plan (`rules`) and plain self consumption (`self_consumption`), and
-`controls` tells whether the optimisation controls the battery.
+`controls` tells whether the optimisation controls the battery. These totals are real money.
+
+The [profit requirements](selling.md#profit-requirements) are not money in the bill, but they steer the
+optimisation: it adds *Min. profit per kWh* for every kWh out of the battery and *Min. total profit* for every
+hour with a sale to the cost of an action, so it only chooses actions that earn that much. A high requirement
+can therefore give an optimal plan that costs more than plain self consumption. The overview shows the
+requirements of the plan that controls the battery as **Profit requirements** (a steering figure, not money), and
+`requirements` in `optimizer_shadow_summary` holds the figure for all three plans, calculated the same way.
 
 ## When to turn it off
 

@@ -219,6 +219,7 @@
         "kept": "kept",
         "left": "left at the end",
         "bill": "Electricity bill for the period",
+        "requirements": "Profit requirements (steering figure, not money)",
         "delivers": "The battery delivers",
         "to_house_short": "to the house",
         "sold_short": "sold",

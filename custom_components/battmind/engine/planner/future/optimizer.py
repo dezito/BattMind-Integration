@@ -14,10 +14,12 @@ from ...optimizer import (
     enforce_max_age,
     optimize_per_day,
     optimize_with_rules,
+    requirement_cost,
     simulate,
 )
 from ....utils.formatting import emoji_parse
 from ....utils.helpers import average, days_between, float_or_none, reset_time_to_hour
+from .._helpers import _running_battery_price
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -170,6 +172,14 @@ class FutureOptimizer:
             "rules": round(rules.total, 2),
             "optimal": round(optimal.total, 2),
             "self_consumption": round(self_consumption.total, 2),
+            # the totals above are real money. The optimisation also adds the profit requirements (min. profit
+            # per kWh, min. total profit) to the cost of an action as a steering figure: not money, but the
+            # reason why an optimal plan can cost more than plain self consumption
+            "requirements": {
+                "optimal": requirement_cost(hours, start_level, optimizer_config, optimal.actions, optimal_limits),
+                "rules": requirement_cost(hours, start_level, optimizer_config, rule_actions, rule_limits),
+                "self_consumption": requirement_cost(hours, start_level, optimizer_config, ["discharge_allowed"] * len(hours)),
+            },
             "hours": [
                 {
                     "hour": hour.timestamp,
@@ -193,6 +203,29 @@ class FutureOptimizer:
             len(hours), optimal.total, rules.total, self_consumption.total,
         )
         return hours, optimal, explanations
+
+    def optimal_battery_steps(self, ctx, hours, optimal) -> list[tuple[float, float, float, float]]:
+        """The content of the battery per hour of the optimal plan, for the price of the energy in it.
+
+        (change of the content in kWh, grid kWh charged, grid price, solar price) per hour, the steps
+        _running_battery_price() takes (the rules use the same for the plan they are building).
+        """
+        steps = []
+        previous = ctx.get_battery_level()
+        for hour, level, grid_kwh in zip(hours, optimal.levels, optimal.grid_kwh):
+            steps.append((ctx.percentage_to_kwh(level - previous) / ctx.efficiency, grid_kwh, hour.buy, hour.sell))
+            previous = level
+        return steps
+
+    def optimal_battery_kwh_cost(self, ctx, steps, index: int) -> float:
+        """kWh price incl. loss and wear of the energy in the battery at the end of hour index of the optimal plan."""
+        unit = ctx.battery_expenses.get("unit")
+        if not isinstance(unit, (int, float)):
+            unit = self.get_powerwall_kwh_price()
+        minimum = ctx.config["solar"]["powerwall_battery_level_min"]
+        start_kwh = ctx.percentage_to_kwh(max(ctx.get_battery_level() - minimum, 0.0)) / ctx.efficiency
+        raw = _running_battery_price(start_kwh, unit, steps[: index + 1])
+        return raw + ctx.calc_battery_loss_cost(raw) + abs(ctx.config["solar"]["powerwall_wear_cost_per_kwh"])
 
     def old_energy_entry(self, ctx, buy: float, old: float, level_text: str = "") -> dict:
         """The plan entry of an hour that uses energy older than the max. age (old: % level)."""
@@ -272,8 +305,9 @@ class FutureOptimizer:
         }
         new_total_cost = new_total_kwh = 0.0
         old_energy = optimal.old or [0.0] * len(hours)  # % level older than max. age at the start of each hour
+        battery_steps = self.optimal_battery_steps(ctx, hours, optimal)
         rows = zip(hours, optimal.actions, optimal.levels, optimal.grid_kwh, optimal.sold_kwh, explanations, old_energy)
-        for hour, action, level, grid_kwh, sold_kwh, explanation, old in rows:
+        for index, (hour, action, level, grid_kwh, sold_kwh, explanation, old) in enumerate(rows):
             timestamp = hour.timestamp
             plan_day = new_plan[days_between(ctx.current_hour, timestamp)]
             rule = explanation["rule"] if explanation else None
@@ -328,12 +362,14 @@ class FutureOptimizer:
                 periods = periods or {timestamp: hour.sell}
                 period_kwh = abs(ctx.max_kwh_discharging) / len(periods)
                 count = min(len(periods), max(1, math.ceil(sold_kwh / period_kwh - 0.01)))
+                battery_kwh_cost = self.optimal_battery_kwh_cost(ctx, battery_steps, index)
                 for period, price in sorted(periods.items(), key=lambda kv: (kv[1], kv[0]), reverse=True)[:count]:
                     plan_day["force_discharge_timestamps"][period] = {
                         "title": title,
                         "emoji": emoji,
                         "kwh": sold_kwh / count,
-                        "profit": sold_kwh / count * price,
+                        # like the rules: what the sale earns after what the kWh cost in the battery (incl. loss and wear)
+                        "profit": sold_kwh / count * (price - battery_kwh_cost),
                         "reason": (
                             f"<details><summary>{emoji}{title}<br>({sold_kwh / count:.1f} kWh / {price:.2f} {ctx.valuta_kwh})</summary>"
                             f"{ctx.r('sell_price')}: **{price:.2f} {ctx.valuta_kwh}** · {detail}{level_text}"

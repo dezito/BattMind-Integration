@@ -7,6 +7,7 @@ import logging
 from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER
 from ..utils.helpers import day_of_week, days_between, minutes_between, reset_time_to_hour, start_of_day
 from ..prices import price_at
+from ..prices.base import sell_adder_sign
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,7 +107,7 @@ class Pricing:
         """Prices from the price history for the hours from now until the end of days that have none in prices.
 
         The forecast of the same hour and weekday, plus the same small daily adder as the
-        provider forecasts. Hours without any history are left out.
+        provider forecasts (a sale is worth less, see sell_adder_sign). Hours without any history are left out.
         """
         if not self.kwh_avg_prices_db:
             self.load_kwh_prices(None)
@@ -120,6 +121,8 @@ class Pricing:
             values = history.get(timestamp.hour, {}).get(day_of_week(timestamp), [])
             if timestamp not in priced_hours and values:
                 adder = days_between(current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER
+                if history_key == "history_sell":
+                    adder *= sell_adder_sign(self.config)
                 missing[timestamp] = round(self.get_forecast_value(values) + adder, 2)
             timestamp += datetime.timedelta(hours=1)
         return missing

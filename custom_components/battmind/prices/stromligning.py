@@ -65,7 +65,7 @@ class StromligningPriceProvider(BasePriceProvider):
             if isinstance(timestamp, datetime.datetime) and isinstance(price, (int, float)):
                 yield timestamp, price
 
-    def _add(self, prices: dict, entity_id: str, forecast: bool) -> None:
+    def _add(self, prices: dict, entity_id: str, forecast: bool, sell: bool = False) -> None:
         if not entity_id:
             return
         attr = self._attr(entity_id)
@@ -73,7 +73,7 @@ class StromligningPriceProvider(BasePriceProvider):
             raise ValueError(f"prices not in {entity_id} attributes")
         for timestamp, price in self._rows(attr["prices"]):
             if timestamp not in prices:
-                prices[timestamp] = price + self._forecast_adder(timestamp) if forecast else price
+                prices[timestamp] = price + self._forecast_adder(timestamp, sell) if forecast else price
 
     def _tomorrow_is_forecast(self, entity_id: str) -> bool | None:
         """None when the entity is missing, else whether its prices are forecasts."""
@@ -88,11 +88,11 @@ class StromligningPriceProvider(BasePriceProvider):
             self._add(prices, tomorrow_entity_id, forecast=False)
         return dict(sorted(prices.items()))
 
-    def _forecast(self, forecast_entity_id: str, tomorrow_entity_id: str) -> dict:
+    def _forecast(self, forecast_entity_id: str, tomorrow_entity_id: str, sell: bool = False) -> dict:
         prices: dict = {}
         if self._tomorrow_is_forecast(tomorrow_entity_id):
-            self._add(prices, tomorrow_entity_id, forecast=True)
-        self._add(prices, forecast_entity_id, forecast=True)
+            self._add(prices, tomorrow_entity_id, forecast=True, sell=sell)
+        self._add(prices, forecast_entity_id, forecast=True, sell=sell)
         return dict(sorted(prices.items()))
 
     def _load_buy_real_prices(self):
@@ -105,7 +105,7 @@ class StromligningPriceProvider(BasePriceProvider):
         return self._real(self.sell_current_price, self.sell_tomorrow_available)
 
     def _load_sell_forecast_prices(self):
-        return self._forecast(self.sell_forecasts, self.sell_tomorrow_available)
+        return self._forecast(self.sell_forecasts, self.sell_tomorrow_available, sell=True)
 
     def _state(self, entity_id: str) -> float:
         value = self.values.get(entity_id, 0.0) if self._has(entity_id) else 0.0

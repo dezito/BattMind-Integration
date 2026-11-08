@@ -168,7 +168,7 @@ what_if:
     powerwall_max_hours_old:
       selector:
         number:
-          min: 1
+          min: 12
           max: 72
           step: 1
           unit_of_measurement: h

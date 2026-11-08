@@ -21,6 +21,8 @@ Normal self-consumption may still use this reserve down to the battery's minimum
 **Numbers:** *Min. profit per kWh*, *Min. total profit*, *Minimum excess kWh for export* · **Text:** *Exclude selling hours*
 
 They apply to **every** charge, discharge and sale rule, and to the [whole period optimisation](optimizer.md).
+In the optimisation they steer the choice inside the period; the energy left in the battery at the end of
+the period is valued separately (see [Whole period optimisation](optimizer.md#what-it-does)).
 
 <p align="center">
   <img src="../../images/settings-profit-requirements.png" alt="The Profit requirements settings" width="380">
@@ -29,7 +31,7 @@ They apply to **every** charge, discharge and sale rule, and to the [whole perio
 | Setting | Default | Meaning |
 |---|---|---|
 | Min. profit per kWh | 0.00 kr | every kWh out of the battery (used in the house or sold) has to earn at least this per kWh after loss and wear; grid charging is only planned when that discharge pays. A sale always has to earn at least 0.01 more than using the energy |
-| Min. total profit | 0.00 kr | a sale to the grid has to earn at least this in total per hour (split over the hour's price periods). It does not apply to charging or to the house's own consumption |
+| Min. total profit | 0.00 kr | a sale to the grid has to earn at least this in total per hour (split over the hour's price periods): the sell price minus what the kWh cost in the battery (incl. loss and wear), the profit shown in the plan. It does not apply to charging or to the house's own consumption. Selling [old energy](discharging.md#-max-age-of-kwh) is compared with using it instead (its cost is already paid), and the [whole period optimisation](optimizer.md) uses it as a cost per hour with a sale |
 | Min. excess kWh for export | 0.2 kWh | the smallest amount sold per hour (split over the hour's price periods) |
 | Exclude selling hours | empty | hours where nothing is sold, e.g. `17,18,19` |
 | Reserve for the house (not sold) | 0% | BattMind stops forced export at this level; normal self-consumption may still use it |

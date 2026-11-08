@@ -8,7 +8,7 @@ from ...utils.formatting import emoji_parse
 from ...utils.helpers import reset_time_to_hour
 
 
-def _optimize_solar_blocking(hours, delta, available, prices, candidates, start_level, minimum, maximum, margin=1.0):
+def _optimize_solar_blocking(hours, delta, available, prices, candidates, start_level, minimum, maximum, margin=1.0, margin_delta=None):
     """Pick the hours where solar charging is blocked (the surplus is sold instead).
 
     The battery has to end at least as high as without blocking and may not run
@@ -17,16 +17,20 @@ def _optimize_solar_blocking(hours, delta, available, prices, candidates, start_
     hours: ordered hours of the day, delta: {hour: % change without solar},
     available: {hour: % solar surplus}, prices: {hour: sell price per kWh},
     margin: the same has to hold when only this part of the solar surplus comes.
+    margin_delta: delta of that margin test (None: delta). Blocking is a bet that the later SOLAR fills
+    the battery, so a grid charge after the first blocked hour is left out of it.
     Returns (blocked hours, {hour: [level before, change]}, {hour: % charged from solar},
     {hour: % charged from solar without blocking}).
     """
     eps = 0.000001
+    if margin_delta is None:
+        margin_delta = delta
 
-    def simulate(blocked, scale=1.0):
+    def simulate(blocked, scale=1.0, change=delta):
         level, flow, charged, shortage = start_level, {}, {}, 0.0
         for h in hours:
             before = level
-            level += delta.get(h, 0.0)
+            level += change.get(h, 0.0)
             solar = 0.0 if h in blocked else available.get(h, 0.0) * scale
             charged[h] = max(min(solar, maximum - level), 0.0)
             level = min(level + charged[h], maximum)
@@ -37,14 +41,14 @@ def _optimize_solar_blocking(hours, delta, available, prices, candidates, start_
         return flow, charged, level, shortage
 
     original_flow, original_charged, target_level, target_shortage = simulate(set())
-    _, _, margin_level, margin_shortage = simulate(set(), margin)
+    _, _, margin_level, margin_shortage = simulate(set(), margin, margin_delta)
 
     def evaluate(blocked):
         flow, charged, level, shortage = simulate(blocked)
         if level < target_level - eps or shortage > target_shortage + eps:
             return None
         if margin < 1.0:
-            _, _, level, shortage = simulate(blocked, margin)
+            _, _, level, shortage = simulate(blocked, margin, margin_delta)
             if level < margin_level - eps or shortage > margin_shortage + eps:
                 return None
         return sum(charged[h] * prices.get(h, 0.0) for h in charged), flow, charged

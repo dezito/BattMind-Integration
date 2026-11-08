@@ -90,7 +90,8 @@ NUMBER_SETTINGS: dict[str, dict[str, Any]] = {
         "default": 0.0,
     },
     "powerwall_max_hours_old": {
-        "min": 1,
+        # a shorter limit makes no sense: energy is not "old" after a few hours (decided with the user 2026-11-08)
+        "min": 12,
         "max": CHARGING_HISTORY_COMBINE_AFTER,
         "step": 1,
         "mode": "box",
