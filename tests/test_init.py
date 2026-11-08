@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+import voluptuous as vol
 import yaml
 from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntryState
@@ -18,7 +19,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
-from custom_components.battmind import _async_run_after_home_assistant_started, _what_if_notification
+from custom_components.battmind import WHAT_IF_SCHEMA, _async_run_after_home_assistant_started, _what_if_notification
 from custom_components.battmind.const import (
     DOMAIN,
     NUMBER_SETTINGS,
@@ -35,6 +36,15 @@ from custom_components.battmind.engine import BattMindEngine, JobResult
 from custom_components.battmind.prices import create_price_provider
 
 from .conftest import CONSUMPTION, PREFIX, async_advance, async_unload_and_join, set_source_states
+
+
+def test_what_if_battery_size_accepts_zero_and_rejects_negative() -> None:
+    assert WHAT_IF_SCHEMA({"battery_size": 0})["battery_size"] == 0
+    with pytest.raises(vol.Invalid):
+        WHAT_IF_SCHEMA({"battery_size": -0.1})
+    component = Path(__file__).parents[1] / "custom_components" / "battmind"
+    fields = yaml.safe_load((component / "services.yaml").read_text(encoding="utf-8"))["what_if"]["fields"]
+    assert fields["battery_size"]["selector"]["number"]["min"] == 0
 
 
 def test_what_if_new_service_fields_have_entity_names_and_descriptions() -> None:
