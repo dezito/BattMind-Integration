@@ -76,5 +76,31 @@ Energy that has been in the battery longer than this is used even without profit
 in every hour from then. This keeps old, expensive energy from blocking the battery forever – e.g. when it
 was charged before a drop in prices.
 
-If selling the old energy in the most expensive sell periods pays more than using it (by the
-[profit requirements](selling.md#profit-requirements)), it is sold instead.
+BattMind follows the age of every kWh in the battery:
+
+- **Energy already in the battery** gets its age from the charging history. The oldest kWh leave first, so
+  only the part of the energy that is older than the limit counts as old. The what-if simulator does the same
+  when it replays past days.
+- **Energy the plan charges** is new when it goes in and becomes old after the set hours.
+- **Energy of unknown age** (no charging history for it) is never treated as old.
+
+Old energy is never held back. In an hour where the house uses power and old energy is in the battery, the
+battery is used – instead of keeping the energy for a later, more expensive hour, or because using it
+doesn't pay.
+
+Old energy is not sold by force. It is sold only when selling it in the most expensive sell periods pays more
+than using it, under the normal [profit requirements](selling.md#profit-requirements). Such a sale is shown
+as 🕰️ *Selling old energy*. Selling needs an inverter that can force discharge to the grid (see
+[Actions](../actions.md#when-the-inverter-cant-run-an-action)).
+
+The hours that use old energy are listed in the attribute `force_powerwall_max_hours_old_discharge_timestamps`
+of `sensor.<prefix>_powerwall_action`. Switching the switch off removes the limit; the other discharge rules
+then decide as usual.
+
+The plan only looks as far as its horizon (days to plan). Energy charged near the end of that horizon can
+become older than the limit after the plan ends, and the plan can't see that.
+
+**Example:** the limit is 48 h. On Monday at 02:00 the battery is charged with 4 kWh from the grid at
+0.80 kr/kWh. On Wednesday at 07:00 the house uses 1 kWh while the price is 0.85 kr/kWh. Using that kWh costs
+0.99 kr, so it doesn't pay, and *Profit only* would hold it back. But the energy is older than 48 h, so the
+battery covers the house at 07:00 instead.

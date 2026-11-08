@@ -5,17 +5,19 @@ import datetime
 import logging
 import math
 from collections import defaultdict
+from dataclasses import replace
 
 from ...optimizer import (
     OptimizerConfig,
     OptimizerHour,
     breakdown,
+    enforce_max_age,
     optimize_per_day,
     optimize_with_rules,
     simulate,
 )
 from ....utils.formatting import emoji_parse
-from ....utils.helpers import average, days_between, reset_time_to_hour
+from ....utils.helpers import average, days_between, float_or_none, reset_time_to_hour
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,6 +52,30 @@ class FutureOptimizer:
             usage_reserve=self.number("usage_reserve"),
             unsupported=self.unsupported_actions(),
         )
+
+    def age_limits(self, ctx, start_level: float) -> dict:
+        """The OptimizerConfig fields for max. age of kWh (powerwall_max_hours_old), {} with the rule switched off.
+
+        The charging history is walked from the newest charge back until it fills the battery level (as
+        current_battery_level_expenses() does): those charges are the energy in the battery now, the same
+        in the what-if replay of a past day. What the history can't place has an unknown age and is never
+        treated as old. The charges of the plan itself are added by the optimiser.
+        """
+        if not self.enabled("force_powerwall_max_hours_old_discharge"):
+            return {}
+        remaining = start_level
+        charged_before = []
+        for key in sorted((key for key in ctx.battery_expenses if isinstance(key, datetime.datetime)), reverse=True):
+            entry = ctx.battery_expenses[key]
+            # the history counts the kWh charged from the grid/sun, the battery level what got into the battery
+            percentage = (float_or_none(entry.get("percentage") if isinstance(entry, dict) else None) or 0.0) * ctx.efficiency
+            taken = min(max(percentage, 0.0), max(remaining, 0.0))
+            if taken > 0.0:
+                charged_before.append((reset_time_to_hour(key), taken))
+            remaining -= taken
+        # the unusable minimum is the oldest energy, so only what is left above it can be in the way
+        unknown = max(remaining - ctx.config["solar"]["powerwall_battery_level_min"], 0.0)
+        return {"max_age_hours": float(self.number("powerwall_max_hours_old")), "charged_before": tuple(charged_before), "unaged": unknown}
 
     def shadow_plan(self, ctx, days):
         """Whole horizon optimisation next to the rules (compared in the overview).
@@ -109,11 +135,22 @@ class FutureOptimizer:
         if not hours:
             return None
         wear = abs(ctx.config["solar"]["powerwall_wear_cost_per_kwh"])
-        optimizer_config = self.optimizer_config(ctx.max_kwh_charging, ctx.max_kwh_discharging, ctx.efficiency)
+        start_level = ctx.get_battery_level()
+        optimizer_config = replace(
+            self.optimizer_config(ctx.max_kwh_charging, ctx.max_kwh_discharging, ctx.efficiency), **self.age_limits(ctx, start_level)
+        )
+        # the rules don't know the age of the energy they charge themselves: they may not hold it back either
+        # (the optimiser enforces it in its own plan)
+        self.rule_old_energy = {}
+        if optimizer_config.max_age_hours is not None:
+            fixed, rule_limits, old_levels = enforce_max_age(hours, start_level, optimizer_config, rule_actions, rule_limits)
+            self.rule_old_energy = {
+                hour.timestamp: (old, hour.buy) for hour, before, after, old in zip(hours, rule_actions, fixed, old_levels) if before != after
+            }
+            rule_actions = fixed
         # a kWh left in the battery at the end saves the average buy price later (after wear and
         # the min. profit, else buying just to hold the energy at the end would pay)
         end_value = ctx.efficiency * max(average([hour.buy for hour in hours]) - wear - ctx.get_min_profit_per_kwh(), 0.0)
-        start_level = ctx.get_battery_level()
         optimal, explanations = self.shadow_optimize(hours, start_level, optimizer_config, end_value)
         rules = simulate(hours, start_level, optimizer_config, rule_actions, end_value, rule_limits)
         self_consumption = simulate(hours, start_level, optimizer_config, ["discharge_allowed"] * len(hours), end_value)
@@ -157,6 +194,40 @@ class FutureOptimizer:
         )
         return hours, optimal, explanations
 
+    def old_energy_entry(self, ctx, buy: float, old: float, level_text: str = "") -> dict:
+        """The plan entry of an hour that uses energy older than the max. age (old: % level)."""
+        battery_cost = ctx.battery_expenses.get("unit_with_loss_and_wear")
+        known = isinstance(battery_cost, (int, float))
+        profit = buy - battery_cost if known else 0.0
+        profit_text = f" ({profit:.2f})" if known else ""
+        cost_text = f"**{ctx.r('battery_cost_total')}**: **{battery_cost:.2f} {ctx.valuta_kwh}**<br>" if known else ""
+        return {
+            "kwh": ctx.percentage_to_kwh(old) * ctx.efficiency,
+            "profit": profit,
+            "reason": (
+                f"<details><summary>{emoji_parse({'force_powerwall_max_hours_old_discharge': True})}{ctx.r('title.old_energy_used')}{profit_text}</summary>"
+                f"{cost_text}{ctx.r('grid_buy_price')}: **{buy:.2f} {ctx.valuta_kwh}**<br>{level_text}"
+                "</details>"
+            ),
+        }
+
+    def apply_max_age_to_rules(self, ctx) -> bool:
+        """The rules control the battery: hours that held back old energy use the battery instead (shadow_plan found them).
+
+        Returns True when the plan changed.
+        """
+        changed = False
+        for timestamp, (old, buy) in sorted((getattr(self, "rule_old_energy", None) or {}).items()):
+            plan_day = ctx.charging_plan.get(days_between(ctx.current_hour, timestamp))
+            if plan_day is None:
+                continue
+            plan_day["blocked_discharge_timestamps"].pop(timestamp, None)
+            if timestamp not in plan_day["discharge_timestamps"]:
+                plan_day["discharge_timestamps"].append(timestamp)
+            plan_day["force_powerwall_max_hours_old_discharge_timestamps"][timestamp] = self.old_energy_entry(ctx, buy, old)
+            changed = True
+        return changed
+
     def apply_optimizer_plan(self, ctx, days, hours, optimal, explanations):
         """The optimiser controls the battery: its action per hour replaces the rule based plan.
 
@@ -176,6 +247,7 @@ class FutureOptimizer:
             "grid_charge_to_sell": ctx.r("title.sell_bought_cheap"),
             "discharge_before_solar": ctx.r("title.sell_before_solar"),
             "most_profit": ctx.r("title.sell_instead_of_use"),
+            "force_powerwall_max_hours_old_discharge": ctx.r("title.old_energy_sold"),
         }
 
         def when(index):
@@ -199,8 +271,9 @@ class FutureOptimizer:
             for day in days
         }
         new_total_cost = new_total_kwh = 0.0
-        rows = zip(hours, optimal.actions, optimal.levels, optimal.grid_kwh, optimal.sold_kwh, explanations)
-        for hour, action, level, grid_kwh, sold_kwh, explanation in rows:
+        old_energy = optimal.old or [0.0] * len(hours)  # % level older than max. age at the start of each hour
+        rows = zip(hours, optimal.actions, optimal.levels, optimal.grid_kwh, optimal.sold_kwh, explanations, old_energy)
+        for hour, action, level, grid_kwh, sold_kwh, explanation, old in rows:
             timestamp = hour.timestamp
             plan_day = new_plan[days_between(ctx.current_hour, timestamp)]
             rule = explanation["rule"] if explanation else None
@@ -299,6 +372,9 @@ class FutureOptimizer:
                     f"{ctx.r('price_now')}: **{hour.buy:.2f} {ctx.valuta_kwh}** · {later}{level_text}"
                     "</details>"
                 )
+            if old > 0.0 and action == "discharge_allowed":
+                # like the rule: the battery is used in the hours where it holds energy older than the max. age
+                plan_day["force_powerwall_max_hours_old_discharge_timestamps"][timestamp] = self.old_energy_entry(ctx, hour.buy, old, level_text)
 
         ctx.charge_hours.clear()
         ctx.charge_hours.update(new_charge_hours)

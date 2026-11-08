@@ -83,8 +83,8 @@ in kWh, and battery levels and round-trip loss are percentages.
 | Solar | **optimize_solar_charging** |
 
 Setting **round_trip_loss** temporarily replaces the configured or measured efficiency curves (as if
-**enhance_battery_efficiency** were off). The rule thresholds (cheap price periods, rise thresholds,
-maximum kWh age) only change the result when the rules control the battery. The notification shows
+**enhance_battery_efficiency** were off). The rule thresholds (cheap price periods, rise thresholds) only
+change the result when the rules control the battery. The maximum kWh age works with both controllers. The notification shows
 the current value beside the scenario value for each setting you changed.
 
 ## Reading the response

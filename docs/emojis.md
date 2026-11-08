@@ -49,7 +49,7 @@ In testing mode (setup → *Advanced*), the current rule is wrapped in 🧪, so 
 | ⏳ | Saved for the most expensive hours | [Prioritise by energy cost](rules/discharging.md#-prioritise-by-energy-cost) |
 | 🤑 | Sold instead of used (pays more) | [Maximise profit](rules/selling.md#-maximise-profit) |
 | 📤 | Selling excess kWh | [Sell excess kWh](rules/selling.md#-sell-excess-kwh) |
-| 🕰️ | Old energy used or sold | [Max. age of kWh](rules/discharging.md#-max-age-of-kwh) |
+| 🕰️ | Old energy used, or sold (*Selling old energy*) | [Max. age of kWh](rules/discharging.md#-max-age-of-kwh) |
 | 🛒 | Forced discharge – selling to the grid in the most expensive hours | |
 
 ## Status

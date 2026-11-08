@@ -211,7 +211,7 @@ Every interval, the action for the current hour is chosen in this order:
 |---|---|---|
 | 1 | the hour is a planned charge hour | `grid_charging` |
 | 2 | the current 15-minute period is a planned sale | `force_discharge` |
-| 3 | the battery may discharge in this hour (also old energy, see [max. age of kWh](rules/discharging.md#-max-age-of-kwh)) | `discharge_allowed` |
+| 3 | the battery may discharge in this hour (also when it uses old energy, see [max. age of kWh](rules/discharging.md#-max-age-of-kwh)) | `discharge_allowed` |
 | 4 | solar charging is blocked in this hour | `blocked_solar_charge` |
 | 5 | none of the above: the energy is saved for later | `force_solar_only_charging` |
 

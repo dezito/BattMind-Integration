@@ -337,6 +337,16 @@ Keep these invariants when touching any planner rule:
   A new rule that needs an action must be added to `ACTION_SWITCHES`.
 - Rule switches default on (except `use_midnight_battery_level`);
   `powerwall_max_hours_old` default 48.
+- With `force_powerwall_max_hours_old_discharge` on, the plan never holds
+  (`force_solar_only_charging` with consumption) energy older than
+  `powerwall_max_hours_old`, with the optimiser or the rules in control. Age is
+  FIFO: the history (`battery_expenses`, walked newest first up to the battery
+  level in `FutureOptimizer.age_limits()`, so the what-if replay gets it too),
+  then the kWh the plan charges (fresh when charged). Unknown-age energy is never
+  old. The optimiser enforces it exactly in `optimize()`'s forward pass and gives
+  the DP `OptimizerHour.old_above`; the rule plan is fixed by `enforce_max_age()`
+  in `shadow_plan()` and `apply_max_age_to_rules()` (the optimiser off). Sales are
+  not restricted by it.
 - The shadow plan simulates rule hours with the planned kWh and respects
   `exclude_sell_hours`.
 - Partial charge hours are real: the battery level is in `plan_inputs_hash`,
