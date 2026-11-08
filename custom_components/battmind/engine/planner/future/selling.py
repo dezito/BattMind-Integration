@@ -101,6 +101,8 @@ class FutureSelling:
                 continue
             if timestamp in ctx.charging_plan[what_day]["force_discharge_timestamps"] or hour_in(timestamp, ctx.charging_plan[what_day]["charging_sessions"]):
                 continue
+            if self.sale_blocked_by_hold(ctx, ctx.charging_plan[what_day], timestamp):
+                continue
             flow = ctx.charging_plan[what_day]["battery_level_flow"][hour]
             raw, loss_cost, battery_kwh_cost = self._get_predicted_battery_cost(ctx, what_day, hour)
             if price - battery_kwh_cost < min_profit_per_kwh:
@@ -231,6 +233,8 @@ class FutureSelling:
                     continue
 
                 if hour_in(timestamp, ctx.charging_plan[what_day]["charging_sessions"]):
+                    continue
+                if self.sale_blocked_by_hold(ctx, ctx.charging_plan[what_day], timestamp):
                     continue
                 battery_level = ctx.charging_plan[what_day]["battery_level_flow"].get(timestamp.hour)
                 if not battery_level:
