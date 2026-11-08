@@ -140,34 +140,58 @@ class FutureDischargeRules:
             key for key in ctx.battery_expenses_keys
             if reset_time_to_hour(key) + datetime.timedelta(hours=max_hours_old) <= ctx.charging_plan[day]["end_of_day"]
         ]
-        if not old_keys:
-            return ctx.battery_expenses_keys
-        old_from = max(min(reset_time_to_hour(key) + datetime.timedelta(hours=max_hours_old) for key in old_keys), from_timestamp)
-        old_kwh_total = sum(ctx.battery_expenses[key]["kWh"] for key in old_keys)
-        old_price = sum(ctx.battery_expenses[key]["price"] * ctx.battery_expenses[key]["kWh"] for key in old_keys) / old_kwh_total if old_kwh_total > 0.0 else 0.0
-        old_flow = ctx.charging_plan[day]["battery_level_flow"].get(old_from.hour)
-        old_kwh = min(old_kwh_total, ctx.percentage_to_kwh(max((old_flow or [minimum])[0] - minimum, 0.0)) * ctx.efficiency)
+        state = ctx.old_energy
+        if not old_keys and not state["parcels"] and not ctx.battery_expenses_keys:
+            return ctx.battery_expenses_keys  # no energy of known age is in the battery
+        if old_keys:
+            old_from = max(min(reset_time_to_hour(key) + datetime.timedelta(hours=max_hours_old) for key in old_keys), from_timestamp)
+            old_kwh_total = sum(ctx.battery_expenses[key]["kWh"] for key in old_keys)
+            old_price = sum(ctx.battery_expenses[key]["price"] * ctx.battery_expenses[key]["kWh"] for key in old_keys) / old_kwh_total if old_kwh_total > 0.0 else 0.0
+            old_flow = ctx.charging_plan[day]["battery_level_flow"].get(old_from.hour)
+            old_kwh = min(old_kwh_total, ctx.percentage_to_kwh(max((old_flow or [minimum])[0] - minimum, 0.0)) * ctx.efficiency)
+            state["price"] = old_price
+        else:
+            # no energy turns old today, but old energy of an earlier day may still be in the battery
+            old_from, old_kwh_total, old_kwh, old_price = from_timestamp, 0.0, 0.0, state["price"]
         battery_loss_cost = ctx.calc_battery_loss_cost(old_price)
         battery_kwh_cost = old_price + battery_loss_cost + abs(ctx.config["solar"]["powerwall_wear_cost_per_kwh"])
 
-        # use it: allow discharging in every hour from when the energy is too old
+        # use it: allow discharging in every hour where old energy is in the battery. The oldest kWh leave first, so the
+        # old energy of an hour is what has become older than the limit by then, minus everything the battery has
+        # delivered since the plan starts (energy the plan charges gets old later, and fresh energy isn't old)
+        data = ctx.charging_plan[day]
+        scale = min(old_kwh / old_kwh_total, 1.0) if old_kwh_total > 0.0 else 0.0
+        state["parcels"].extend(
+            (reset_time_to_hour(key) + datetime.timedelta(hours=max_hours_old), ctx.battery_expenses[key]["kWh"] * scale)
+            for key in old_keys
+        )
         usage_prices = []
-        for hour in range(old_from.hour, 24):
-            loop_hour = ctx.charging_plan[day]["start_of_day"].replace(hour=hour)
-            if hour_in(loop_hour, ctx.charging_plan[day]["charging_sessions"]):
+        for hour in range(from_timestamp.hour, 24):
+            loop_hour = data["start_of_day"].replace(hour=hour)
+            prediction = data["hour_cost_prediction"][ctx.forecast_type].get(hour)
+            solar = self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, loop_hour) > 0.0
+            house = prediction["kwh"] if prediction and not solar else 0.0  # the sun covers the house in a solar hour
+            if hour_in(loop_hour, data["charging_sessions"]):
+                continue  # charging: the battery doesn't discharge
+            if hour_in(loop_hour, data["force_discharge_timestamps"]):
+                state["delivered"] += house + sum(sale["kwh"] for timestamp, sale in data["force_discharge_timestamps"].items() if timestamp.hour == hour)
                 continue
-            if hour_in(loop_hour, ctx.charging_plan[day]["force_discharge_timestamps"]):
+            old_left = sum(kwh for since, kwh in state["parcels"] if since <= loop_hour) - state["delivered"]
+            if old_left <= 0.01:
+                if loop_hour in data["discharge_timestamps"]:
+                    state["delivered"] += house  # fresh energy is used by the normal rules: it is no business of this one
                 continue
             price = ctx.grid_prices.get(loop_hour, old_price)
             usage_prices.append(price)
-            ctx.charging_plan[day]["blocked_discharge_timestamps"].pop(loop_hour, None)
-            if loop_hour in ctx.charging_plan[day]["discharge_timestamps"]:
+            data["blocked_discharge_timestamps"].pop(loop_hour, None)
+            state["delivered"] += house
+            if loop_hour in data["discharge_timestamps"]:
                 continue
             _LOGGER.debug("Old energy: allowing discharge at %s (energy older than %s hours)", loop_hour, max_hours_old)
             ctx.charging_plan[day]["discharge_timestamps"].append(loop_hour)
             profit = price - old_price
             ctx.charging_plan[day]["force_powerwall_max_hours_old_discharge_timestamps"][loop_hour] = {
-                "kwh": old_kwh,
+                "kwh": min(old_left, house) if house > 0.0 else old_left,
                 "profit": profit,
                 "reason": (
                     f"<details><summary>{emoji_parse({'force_powerwall_max_hours_old_discharge': True})}{ctx.r('title.old_energy_used')} ({profit:.2f})</summary>"

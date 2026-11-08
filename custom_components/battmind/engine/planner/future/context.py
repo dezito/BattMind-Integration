@@ -1,7 +1,7 @@
 """The values the future-charging rules share."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -35,6 +35,9 @@ class FutureContext:
     totals: Any  # [total_cost, total_kwh], updated in place by the rules
     valuta: Any
     valuta_kwh: Any
+    # the max. age rule from day to day: the (becomes old at, kWh) of the old energy, what the battery has delivered since
+    # the plan starts (the oldest kWh leave first) and the price of the old energy
+    old_energy: dict = field(default_factory=lambda: {"parcels": [], "delivered": 0.0, "price": 0.0})
 
     def r(self, key: str, **fmt) -> str:
         """Planner explanation text (ui.reason.<key> of texts/<language>.json)."""
