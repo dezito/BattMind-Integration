@@ -5,7 +5,7 @@ import datetime
 import logging
 
 from ....utils.formatting import emoji_parse
-from ....utils.helpers import average, hour_in, reset_time_to_hour
+from ....utils.helpers import average, days_between, hour_in, reset_time_to_hour
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -267,49 +267,101 @@ class FutureDischargeRules:
         start = data["start_of_day"]
         wear = abs(ctx.config["solar"]["powerwall_wear_cost_per_kwh"])
         hours = [hour for hour in range(ctx.now.hour if day == 0 else 0, 24) if data["battery_level_flow"].get(hour)]
-        solar_hours = [hour for hour in hours if self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, start.replace(hour=hour)) > 0.0]
-        if not solar_hours:
+        if not hours:
             return
 
+        # Hours on this day since the battery was last full or grid charged. The window ends
+        # when solar fills the battery, not when solar production starts. A refill can be on
+        # the next day, but must be no more than 24 hours after the candidate hour.
+        window = []
+        scan_timestamp = start.replace(hour=hours[0])
+        scan_end = start.replace(hour=hours[-1]) + datetime.timedelta(hours=24)
+        refill_at = None
+        while scan_timestamp <= scan_end:
+            what_day = days_between(ctx.current_hour, scan_timestamp)
+            scan_data = ctx.charging_plan.get(what_day)
+            flow = scan_data["battery_level_flow"].get(scan_timestamp.hour) if scan_data else None
+            if flow:
+                grid_charged = hour_in(scan_timestamp, scan_data["charging_sessions"])
+                full = sum(flow) >= maximum - 0.01
+                solar = self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, scan_timestamp)
+                if grid_charged:
+                    window = []
+                elif full:
+                    if solar > 0.0:
+                        refill_at = scan_timestamp
+                        break
+                    window = []
+                elif what_day == day:
+                    window.append(scan_timestamp.hour)
+            scan_timestamp += datetime.timedelta(hours=1)
+
+        if refill_at is None:
+            return
+        window = [
+            hour
+            for hour in window
+            if refill_at - start.replace(hour=hour) <= datetime.timedelta(hours=24)
+        ]
+        if not window:
+            return
         # solar surplus pushed out of the full battery (battery %) and what it is sold for
         pushed_out, pushed_out_value = 0.0, 0.0
-        for hour in solar_hours:
-            timestamp = start.replace(hour=hour)
-            if hour_in(timestamp, data["blocked_solar_charge_timestamps"]) or hour_in(timestamp, data["force_discharge_timestamps"]):
-                continue
-            flow = data["battery_level_flow"][hour]
-            stored = ctx.kwh_to_percentage(self.solar_kwh_in_hour(ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, timestamp)) * ctx.efficiency
-            grid = sum(session.get("battery_level", 0.0) for ts, session in data["charging_sessions"].items() if ts.hour == hour)
-            pushed = max(stored + grid - (sum(flow) - flow[0]), 0.0) if sum(flow) >= maximum - 0.01 else 0.0
-            pushed_out += pushed
-            pushed_out_value += pushed * self.sell_price_in_hour(ctx, timestamp)
+        timestamp = refill_at
+        refill_deadline = start.replace(hour=window[0]) + datetime.timedelta(hours=24)
+        while timestamp <= refill_deadline:
+            what_day = days_between(ctx.current_hour, timestamp)
+            scan_data = ctx.charging_plan.get(what_day)
+            flow = scan_data["battery_level_flow"].get(timestamp.hour) if scan_data else None
+            if scan_data and hour_in(timestamp, scan_data["charging_sessions"]):
+                break
+            solar = self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, timestamp) if scan_data else 0.0
+            solar_unavailable = not scan_data or hour_in(timestamp, scan_data["blocked_solar_charge_timestamps"]) or hour_in(timestamp, scan_data["force_discharge_timestamps"])
+            if timestamp > refill_at and (solar <= 0.0 or solar_unavailable):
+                break
+            if (
+                flow
+                and solar > 0.0
+                and not solar_unavailable
+            ):
+                stored = ctx.kwh_to_percentage(
+                    self.solar_kwh_in_hour(ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, timestamp)
+                ) * ctx.efficiency
+                previous_timestamp = timestamp - datetime.timedelta(hours=1)
+                previous_day = ctx.charging_plan.get(days_between(ctx.current_hour, previous_timestamp))
+                previous_flow = previous_day["battery_level_flow"].get(previous_timestamp.hour) if previous_day else None
+                level_before = sum(previous_flow) if previous_flow else flow[0]
+                room = max(maximum - level_before, 0.0)
+                pushed = max(stored - room, 0.0) if sum(flow) >= maximum - 0.01 else 0.0
+                pushed_out += pushed
+                pushed_out_value += pushed * self.sell_price_in_hour(ctx, timestamp)
+            timestamp += datetime.timedelta(hours=1)
         if pushed_out <= 0.01:
             return
         solar_sell_price = pushed_out_value / pushed_out
         # 1 kWh out of the battery takes 1/efficiency, refilling that takes 1/efficiencyÂ² of solar
         refill_cost = solar_sell_price / ctx.efficiency**2 + wear
 
-        # the hours before the sun since the battery was last full or grid charged
-        window = []
-        for hour in hours:
-            if hour >= solar_hours[0]:
-                break
-            timestamp = start.replace(hour=hour)
-            flow = data["battery_level_flow"][hour]
-            if hour_in(timestamp, data["charging_sessions"]) or sum(flow) >= maximum - 0.01:
-                window = []
-                continue
-            window.append(hour)
-        if not window:
+        # A sale before a next-day refill must leave enough energy for the whole night too,
+        # not only for the remaining hours of the sale day.
+        levels_until_refill = []
+        timestamp = start.replace(hour=window[0])
+        while timestamp < refill_at:
+            what_day = days_between(ctx.current_hour, timestamp)
+            scan_data = ctx.charging_plan.get(what_day)
+            flow = scan_data["battery_level_flow"].get(timestamp.hour) if scan_data else None
+            if flow:
+                levels_until_refill.append(sum(flow))
+            timestamp += datetime.timedelta(hours=1)
+        if not levels_until_refill:
             return
-        budget_kwh = min(
-            ctx.percentage_to_kwh(pushed_out),
-            min(ctx.percentage_to_kwh(max(sum(data["battery_level_flow"][hour]) - minimum, 0.0)) for hour in window),
-        ) * ctx.efficiency
+
+        lowest_level = min(levels_until_refill)
+        budget_kwh = min(ctx.percentage_to_kwh(pushed_out), ctx.percentage_to_kwh(max(lowest_level - minimum, 0.0))) * ctx.efficiency
         usage_minimum = max(minimum, self.number("usage_reserve"))
         sell_budget_kwh = min(
             ctx.percentage_to_kwh(pushed_out),
-            min(ctx.percentage_to_kwh(max(sum(data["battery_level_flow"][hour]) - usage_minimum, 0.0)) for hour in window),
+            ctx.percentage_to_kwh(max(lowest_level - usage_minimum, 0.0)),
         ) * ctx.efficiency
 
         candidates = []
@@ -317,7 +369,13 @@ class FutureDischargeRules:
             timestamp = start.replace(hour=hour)
             prediction = data["hour_cost_prediction"][ctx.forecast_type].get(hour)
             price = ctx.grid_prices.get(timestamp)
-            if timestamp not in data["discharge_timestamps"] and prediction and prediction["kwh"] > 0.0 and price is not None:
+            if (
+                timestamp not in data["discharge_timestamps"]
+                and prediction
+                and prediction["kwh"] > 0.0
+                and price is not None
+                and self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, timestamp) <= 0.0
+            ):
                 candidates.append((price, timestamp, "use", prediction["kwh"], 1))
         exclude_hours = self.get_exclude_sell_hours()
         sell_prices, sell_price, using_grid_sell_price = self.sell_prices_for_window(ctx, 
@@ -332,10 +390,12 @@ class FutureDischargeRules:
                 slot_kwh -= data["hour_cost_prediction"][ctx.forecast_type].get(timestamp.hour, {}).get("kwh", 0.0) / periods_in_hour
             candidates.append((price, timestamp, "sell", slot_kwh, periods_in_hour))
 
+        solar_lost_hours = set()
         for price, timestamp, kind, kwh, periods_in_hour in sorted(candidates, key=lambda item: (item[0], item[1]), reverse=True):
             gain = price - refill_cost
             if budget_kwh <= 0.01 or gain < max(ctx.get_min_profit_per_kwh(), 0.01):
                 break
+            budget_used = kwh
             if kind == "use":
                 # discharge_allowed covers the whole hour, so the budget has to cover all of it
                 if kwh > budget_kwh or not self.is_profitable(ctx, gain, kwh):
@@ -344,7 +404,18 @@ class FutureDischargeRules:
                 data.setdefault("discharge_before_solar_timestamps", {})[timestamp] = gain * kwh
                 _LOGGER.debug("Discharge before solar: using %.2f kWh at %s (%.2f %s better than selling the solar)", kwh, timestamp, gain * kwh, ctx.valuta)
             else:
-                kwh = min(kwh, budget_kwh, sell_budget_kwh)
+                sale_hour = reset_time_to_hour(timestamp)
+                lost_solar_kwh = 0.0
+                if (
+                    sale_hour not in solar_lost_hours
+                    and self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, timestamp) > 0.0
+                ):
+                    flow = data["battery_level_flow"].get(timestamp.hour)
+                    if flow:
+                        solar_gain = max(sum(flow) - flow[0], 0.0)
+                        lost_solar_kwh = ctx.percentage_to_kwh(solar_gain) * ctx.efficiency
+                kwh = min(kwh, max(budget_kwh - lost_solar_kwh, 0.0), max(sell_budget_kwh - lost_solar_kwh, 0.0))
+                budget_used = kwh
                 if kwh < self.number("min_sell_kwh") / periods_in_hour or not self.is_profitable(ctx, gain, kwh, periods_in_hour, sale=True):
                     continue
                 fixed_price_calc_text = (
@@ -366,5 +437,7 @@ class FutureDischargeRules:
                         "</details>"
                     ),
                 }
-            budget_kwh -= kwh
-            sell_budget_kwh = max(sell_budget_kwh - kwh, 0.0)
+                solar_lost_hours.add(sale_hour)
+                budget_used += lost_solar_kwh
+            budget_kwh -= budget_used
+            sell_budget_kwh = max(sell_budget_kwh - budget_used, 0.0)
