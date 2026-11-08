@@ -149,6 +149,27 @@ def test_negative_prices_fill_the_battery() -> None:
     assert max(sum(engine.plan[0]["battery_level_flow"][hour]) for hour in (1, 2, 3)) == pytest.approx(100.0, abs=1.0)
 
 
+def _charge_tags_at_3(price_at_3: float, wear: float, rules_on: list[str]) -> list[list[str]]:
+    """Rules that tag the charge hours of the optimiser's plan (optimiser on, prices 1.0 except `price_at_3` at 03:00)."""
+    settings = {key: False for key in RULES_BESIDES_MOST_PROFIT} | {"optimizer_control": True, "most_profit": False} | {rule: True for rule in rules_on}
+    engine, _ = planned(
+        0, 20, settings, days=1, price_fn=lambda ts: price_at_3 if ts.hour == 3 and ts.date() == DAY else 1.0,
+        options={"powerwall_charge_discharge_loss": 0.0, "powerwall_wear_cost_per_kwh": wear},
+    )
+    return [[key for key in engine.charge_hours[ts] if key in RULES_BESIDES_MOST_PROFIT] for ts in charge_hours(engine)]
+
+
+def test_a_charge_at_a_price_that_does_not_pay_without_use_is_not_a_negative_price_charge() -> None:
+    """Negative prices only pays when price + loss + wear is below -0.01 (the rule's own limit). -0.10 with 0.50 wear
+    costs +0.40 per kWh out of the battery: it is a charge for use, not a negative price."""
+    # allowed by Cheapest periods: it is shown as that
+    assert _charge_tags_at_3(-0.10, 0.50, ["negative_price_planner", "cheapest_hour_fill_planner"]) == [["cheapest_hour_fill_planner"]]
+    # only Negative prices on: nothing is charged (it used to be charged and shown as a negative price)
+    assert _charge_tags_at_3(-0.10, 0.50, ["negative_price_planner"]) == []
+    # -1.0 with 0.10 wear pays on its own: still a negative price charge
+    assert _charge_tags_at_3(-1.0, 0.10, ["negative_price_planner"]) == [["negative_price_planner"]]
+
+
 def test_grid_charge_to_sell_buys_cheap_and_sells_expensive() -> None:
     engine, _ = planned(0, 5, {**OFF, "grid_charge_to_sell": True})
     bought = [ts for ts in charge_hours(engine) if engine.charge_hours[ts].get("grid_charge_to_sell")]

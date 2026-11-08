@@ -27,6 +27,9 @@ SOLAR_BLOCK_MARGIN = 0.8
 # stretch of similar hours needs one round per hour (25 were seen); 40 leaves room, a plan that still isn't settled
 # isn't used (the rules control the battery).
 MAX_ROUNDS = 40
+# Negative prices: a grid kWh must earn at least this much after the charging loss and the wear, even if it is never
+# used (charge_kwh_profit(price, 0) >= 0.01 in the rule)
+NEGATIVE_PRICE_MARGIN = -0.01
 
 
 @dataclass
@@ -433,7 +436,8 @@ def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerC
                 target = max(sales, key=lambda j: (hours[j].sell, -j))
                 # buying to sell switched off: the sale goes, the charge may still be used for the house
                 explanation = {"rule": "grid_charge_to_sell", "target": target, "forbid": (target, "force_discharge")}
-            elif hour.buy <= 0.0:
+            elif hour.buy / cfg.efficiency**2 + cfg.wear <= NEGATIVE_PRICE_MARGIN:
+                # as the rule: a kWh pays even if it is never used (price incl. the charging loss, plus wear, below -0.01)
                 explanation = {"rule": "negative_price_planner", "target": None}
             elif solar_full is not None:
                 before = [j for j in uses if j < solar_full]
