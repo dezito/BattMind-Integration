@@ -353,6 +353,9 @@ Keep these invariants when touching any planner rule:
     `Pricing._database_prices`). A forecast buy price is raised.
   - The 80 % margin of `optimize_solar_charging` (`margin_delta` of `_optimize_solar_blocking`) counts only the sun:
     a grid charge after the first blockable hour does not refill the battery in that test.
+  - `usage_reserve` holds for every selling rule, incl. `grid_charge_to_sell`: it is skipped for a sale hour whose
+    planned end level (without the pair) is under max(level_min, reserve), because charge and sale cancel each
+    other. Stricter than the optimiser, which may export part of a charge above the reserve.
   - The `profit` of a sale in the optimised plan is after the cost of the kWh in the battery (incl. loss and wear),
     like the rules' (`optimal_battery_kwh_cost()`: the running average price over the optimal plan's own charges),
     not the sell revenue.

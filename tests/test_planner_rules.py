@@ -149,6 +149,28 @@ def test_discharge_before_solar_when_the_solar_export_costs_money() -> None:
     assert before_solar and all(ts.date() == DAY and ts.hour < 9 for ts in before_solar)
 
 
+@pytest.mark.parametrize("reserve", [20.0, 50.0])
+def test_buy_to_sell_does_not_export_below_the_reserve_for_the_house(reserve: float) -> None:
+    """Reserve for the house: no rule plans an export below it, also not the one that buys the kWh to sell."""
+    only_buy_to_sell = {key: False for key in RULES_BESIDES_MOST_PROFIT} | {"optimizer_control": False, "most_profit": False, "grid_charge_to_sell": True}
+    free, _ = planned(7, 50, {**only_buy_to_sell, "usage_reserve": 0.0})
+    assert [sale for sale in sales(free).values() if sale["emoji"] == BUY_TO_SELL], "without a reserve the scenario sells"
+    engine, _ = planned(7, 50, {**only_buy_to_sell, "usage_reserve": reserve})
+    for timestamp, sale in sales(engine).items():
+        if sale["emoji"] == BUY_TO_SELL:
+            level_after = sum(engine.plan[(timestamp.date() - DAY).days]["battery_level_flow"][timestamp.hour])
+            assert level_after >= reserve - 1.0, f"{timestamp:%d %H}h ends at {level_after:.1f}% under the reserve {reserve}%"
+
+
+@pytest.mark.parametrize("optimizer_control", [False, True])
+@pytest.mark.parametrize("level", [5, 100])
+def test_nothing_is_sold_with_a_reserve_of_100_percent(optimizer_control: bool, level: float) -> None:
+    """With every rule on and the whole battery reserved for the house, no plan exports anything."""
+    for price_fn in (None, negative_midday_price):
+        engine, _ = planned(7, level, {"optimizer_control": optimizer_control, "usage_reserve": 100.0}, solar=True, price_fn=price_fn)
+        assert sales(engine) == {}
+
+
 def inverted_price(ts: datetime.datetime) -> float:
     """Dear at night, cheap in the day, dearest in the evening."""
     return round(2.5 - (1.5 if 17 <= ts.hour <= 20 else 0.6 if 7 <= ts.hour <= 16 else 0.0) + ts.hour / 100, 3)
