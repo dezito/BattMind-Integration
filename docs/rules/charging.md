@@ -106,6 +106,8 @@ expensive down, BattMind pairs it with the cheapest earlier buy hour:
 - `sell price − (buy price + loss + wear) ≥ min. profit per kWh` (at least 0.01)
 - at least **min. kWh for export** is sold, and the sale earns at least **min. total profit**
 - the kWh fit in the battery until the sale, and the sell hour has no solar surplus and isn't excluded
+- in an hour where the battery was held back (no reserve for the house), the house takes its share of the
+  discharge rate, so the sale shown in the plan is only the rest of the rate
 
 **Example:** buy at 0.50, sell at 1.50 kr/kWh. A kWh costs 0.50 × 1.11 + 0.10 = 0.66 kr out of the battery
 and earns 1.50 kr: 0.84 kr profit per kWh.

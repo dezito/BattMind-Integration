@@ -221,6 +221,8 @@ class FutureDischargeRules:
                 continue
             if hour_in(timestamp, ctx.charging_plan[day]["charging_sessions"]):
                 continue
+            if self.sale_blocked_by_hold(ctx, ctx.charging_plan[day], timestamp):
+                continue  # held back for another rule (the hours with old energy were released above)
             flow = ctx.charging_plan[day]["battery_level_flow"].get(timestamp.hour)
             if not flow:
                 continue
@@ -382,7 +384,7 @@ class FutureDischargeRules:
             max(start.replace(hour=window[0]), ctx.current_sell_price_timestamp), start.replace(hour=window[-1]) + datetime.timedelta(hours=1)
         )
         for timestamp, price in sell_prices.items():
-            if timestamp.hour in exclude_hours or timestamp in data["force_discharge_timestamps"]:
+            if timestamp.hour in exclude_hours or timestamp in data["force_discharge_timestamps"] or self.sale_blocked_by_hold(ctx, data, timestamp):
                 continue
             periods_in_hour = self.price_provider.sell_periods_in_hour(timestamp)
             slot_kwh = abs(ctx.max_kwh_discharging) / periods_in_hour

@@ -82,8 +82,9 @@ class FutureCharging(FutureSupport, FutureChargeRules, FutureDischargeRules, Fut
                         )
                     self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now)
 
-        # A sale hour is a discharge hour (the battery covers the house first). A rule that sells in an hour that
-        # Profit only, Prioritise or Maximise profit held back before wins: the hold's reason and levels would be stale.
+        # A sale hour is a discharge hour (the battery covers the house first). Without a reserve for the house a rule
+        # that sells in an hour that Profit only, Prioritise or Maximise profit held back before wins: the hold's reason
+        # and levels would be stale. With a reserve the sale rules leave held hours alone (sale_blocked_by_hold()).
         for day in days:
             for timestamp in list(charging_plan[day]["force_discharge_timestamps"]):
                 self.allow_discharge(ctx, timestamp)

@@ -362,13 +362,19 @@ class FutureChargeRules:
                 continue
             if hour_in(sell_timestamp, data["charging_sessions"]) or self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, sell_timestamp) > 0.0:
                 continue
+            if self.sale_blocked_by_hold(ctx, data, sell_timestamp):
+                continue
             periods_in_hour = self.price_provider.sell_periods_in_hour(sell_timestamp)
             min_sell_kwh = self.number("min_sell_kwh") / periods_in_hour
             slot_kwh = abs(ctx.max_kwh_discharging) / periods_in_hour
+            house_kwh = data["hour_cost_prediction"][ctx.forecast_type].get(hour_timestamp.hour, {}).get("kwh", 0.0) / periods_in_hour
             if hour_timestamp in data["discharge_timestamps"]:
                 # the house uses the same discharge rate
-                slot_kwh -= data["hour_cost_prediction"][ctx.forecast_type].get(hour_timestamp.hour, {}).get("kwh", 0.0) / periods_in_hour
-            if slot_kwh < min_sell_kwh:
+                slot_kwh -= house_kwh
+            # A held hour (no reserve) becomes a discharge hour after the rules: the house takes its share of the rate
+            # then, so only the rest is exported. The pair is sized as before; the sale shows what is exported.
+            export_limit = max(slot_kwh - house_kwh, 0.0) if hour_in(hour_timestamp, data["blocked_discharge_timestamps"]) else slot_kwh
+            if slot_kwh < min_sell_kwh or export_limit < min_sell_kwh:
                 continue
             # The charge and the sale move the same kWh, so the battery ends the hour at the level it is planned to
             # have without them: that level has to be above the reserve, else the sale exports from the reserve
@@ -385,7 +391,7 @@ class FutureChargeRules:
                     continue
                 _, kwh_available = self.kwh_available_in_hour(ctx.charge_hours, ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, buy_timestamp)
                 grid_kwh = _floor_kwh(min(kwh_available, self.room_until(ctx, buy_timestamp, hour_timestamp), slot_kwh / ctx.efficiency**2))
-                delivered_kwh = grid_kwh * ctx.efficiency**2
+                delivered_kwh = min(grid_kwh * ctx.efficiency**2, export_limit)
                 if delivered_kwh < min_sell_kwh or not self.is_profitable(ctx, kwh_profit, delivered_kwh, periods_in_hour, sale=True):
                     continue
                 charged_before = ctx.charge_hours.get(buy_timestamp, {}).get("kWh", 0.0)
@@ -395,7 +401,7 @@ class FutureChargeRules:
                 ctx.totals[:] = total_cost, total_kwh
                 if not battery_level_added:
                     continue
-                delivered_kwh = (ctx.charge_hours[buy_timestamp]["kWh"] - charged_before) * ctx.efficiency**2
+                delivered_kwh = min((ctx.charge_hours[buy_timestamp]["kWh"] - charged_before) * ctx.efficiency**2, export_limit)
                 ctx.charging_plan[buy_day]["total_cost"] += cost_added
                 fixed_price_calc_text = (
                     f"{sell_price:.2f} - {ctx.grid_sell_prices.get(sell_timestamp, 0.0):.2f} =" if not using_grid_sell_price else ""

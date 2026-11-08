@@ -122,6 +122,16 @@ class FutureSupport:
         if not hour_in(timestamp, data["discharge_timestamps"]):
             data["discharge_timestamps"].append(reset_time_to_hour(timestamp))
 
+    def sale_blocked_by_hold(self, ctx, data, timestamp):
+        """With a reserve for the house a sale rule leaves an hour alone that holds the battery back.
+
+        The level forecast has no house use in a held hour, and a sale there would make the hour a discharge hour
+        afterwards (the house uses the battery): the battery would end under the reserve. Without a reserve the sale
+        wins over the hold (its energy is worth more than saving it). The reserve counts above the minimum level, like
+        everywhere else (max(level_min, reserve))."""
+        reserve = self.number("usage_reserve") > ctx.config["solar"]["powerwall_battery_level_min"]
+        return reserve and hour_in(timestamp, data["blocked_discharge_timestamps"])
+
     def uncovered_kwh(self, ctx, day, hour):
         """Grid kWh to charge (incl. loss) for the consumption the battery/solar doesn't cover in the current plan."""
         minimum = ctx.config["solar"]["powerwall_battery_level_min"]

@@ -181,6 +181,46 @@ def test_a_sale_hour_is_not_also_held_back() -> None:
     assert sale_hours, "the scenario sells"
 
 
+def test_with_a_reserve_no_selling_rule_sells_in_a_held_hour() -> None:
+    """With a reserve for the house the selling rules leave the hours alone that Profit only / Prioritise hold back:
+    the sale would make them discharge hours afterwards and the battery would end under the reserve (rule plan; duck
+    prices, 5 kWh, 90 % start level, 50 % reserve)."""
+    def duck(ts: datetime.datetime) -> float:
+        return 0.2 if 10 <= ts.hour <= 15 else (2.2 if 6 <= ts.hour <= 9 or 17 <= ts.hour <= 21 else 0.9)
+
+    engine, _ = planned(
+        7, 90, {"optimizer_control": False, "usage_reserve": 50, "min_profit_per_kwh": 0.0, "prioritize_discharge_hours_by_energy_cost": True, "only_discharge_on_profit": True,
+                "grid_charge_to_sell": True, "most_profit": True, "sell_excess_kwh_available": True},
+        price_fn=duck, days=3, options={"powerwall_battery_size": 5.0, "powerwall_charge_discharge_loss": 0.0, "powerwall_wear_cost_per_kwh": 0.0},
+    )
+    sold = 0
+    for day in (key for key in engine.plan if isinstance(key, int)):
+        for timestamp in engine.plan[day]["force_discharge_timestamps"]:
+            sold += 1
+            assert sum(engine.plan[day]["battery_level_flow"][timestamp.hour]) >= 50 - 0.5, (day, timestamp.hour)
+    assert sold, "the scenario sells"
+
+
+def test_buy_to_sell_in_a_held_hour_shows_only_what_is_exported() -> None:
+    """A held hour (Prioritise) becomes a discharge hour after the rules, and the house takes its share of the discharge
+    rate: the sale in the plan is what is left of the rate, not the whole rate (no reserve; prices change every hour)."""
+    engine, _ = planned(
+        0, 30, {"optimizer_control": False, "usage_reserve": 0, "min_profit_per_kwh": 0.0, "prioritize_discharge_hours_by_energy_cost": True, "only_discharge_on_profit": False,
+                "grid_charge_to_sell": True, "most_profit": False, "sell_excess_kwh_available": False},
+        price_fn=lambda ts: 0.3 if ts.hour % 2 == 0 else 2.2, days=2,
+        options={"powerwall_battery_size": 10.0, "powerwall_charge_discharge_loss": 0.0, "powerwall_wear_cost_per_kwh": 0.3, "powerwall_discharging_power": 800},
+    )
+    rate = abs(engine.max_kwh_discharging)
+    checked = 0
+    for day in (key for key in engine.plan if isinstance(key, int)):
+        plan = engine.plan[day]
+        for timestamp, sale in plan["force_discharge_timestamps"].items():
+            house = plan["hour_cost_prediction"][engine.forecast_type].get(timestamp.hour, {}).get("kwh", 0.0)
+            assert sale["kwh"] <= rate - house + 0.011, (day, timestamp.hour, sale["kwh"], house)
+            checked += 1
+    assert checked, "the scenario sells"
+
+
 MAXIMISE_PROFIT_PRICES = {
     "peaks": lambda ts: 1.0 + (0.8 if ts.hour in (8, 12, 18) else 0.0) + 0.05 * ts.hour,
     "duck": lambda ts: 0.2 if 10 <= ts.hour <= 15 else (2.2 if 6 <= ts.hour <= 9 or 17 <= ts.hour <= 21 else 0.9),
