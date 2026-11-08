@@ -1,6 +1,7 @@
 """Battery level, charging loss and efficiency."""
 from __future__ import annotations
 
+import datetime
 import logging
 import math
 
@@ -8,6 +9,9 @@ from ..utils.efficiency import EfficiencyCurve, efficiency_at_power, learned_eff
 from ..utils.helpers import float_or_none
 
 _LOGGER = logging.getLogger(__name__)
+
+# How long ago a battery level sensor may have stopped giving numbers for its last recorded number to still be used
+BATTERY_LEVEL_MAX_AGE = datetime.timedelta(hours=2)
 
 
 class Battery:
@@ -19,9 +23,9 @@ class Battery:
         if value is not None and not math.isfinite(value):
             value = None  # "nan" and "inf" are not a battery level: handled like an unavailable sensor
         if value is None and self._wc is not None:
-            value = self._wc.last_numeric(entity_id)
+            value = self._wc.last_numeric(entity_id, self.now() - BATTERY_LEVEL_MAX_AGE)
         if value is None:
-            _LOGGER.warning("Cant get the battery level from %s, using 100", entity_id)
+            _LOGGER.warning("Cant get the battery level from %s (no number for the last %s minutes), using 100", entity_id, int(BATTERY_LEVEL_MAX_AGE.total_seconds() // 60))
             return 100.0
         return value
 

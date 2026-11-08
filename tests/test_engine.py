@@ -180,6 +180,51 @@ def test_last_numeric_skips_values_that_are_not_finite() -> None:
     assert cache.last_numeric("sensor.level") is None
 
 
+def test_last_numeric_is_only_used_while_the_sensor_was_lost_recently() -> None:
+    import zoneinfo
+
+    from custom_components.battmind.utils.power import WindowCalculator
+
+    tz = zoneinfo.ZoneInfo("Europe/Copenhagen")
+    at = lambda hour, minute=0: datetime.datetime(2026, 1, 5, hour, minute, tzinfo=tz).timestamp()  # noqa: E731
+    cache = WindowCalculator({"sensor.level": [(at(8), 60.0), (at(9, 30), None)]}, {}, {}, tz)
+    naive = lambda hour, minute=0: datetime.datetime(2026, 1, 5, hour, minute)  # noqa: E731
+    assert cache.last_numeric("sensor.level", naive(9, 0)) == 60.0  # lost at 09:30: after the limit
+    assert cache.last_numeric("sensor.level", naive(10, 0)) is None  # lost before the limit
+    assert cache.last_numeric("sensor.level") == 60.0  # no limit
+    # a level that never changed has an old row and nothing after it: the row is all there is
+    cache.buffers = {"sensor.level": [(at(1), 100.0)]}
+    assert cache.last_numeric("sensor.level", naive(0, 30)) == 100.0
+    assert cache.last_numeric("sensor.level", naive(2, 0)) is None
+
+
+def test_battery_level_falls_back_to_the_last_number_only_when_it_is_recent() -> None:
+    """Level sensor unavailable: the last recorded number if the sensor was lost within the last 2 hours, else 100."""
+    import zoneinfo
+
+    from custom_components.battmind.engine.battery import Battery
+    from custom_components.battmind.utils.power import WindowCalculator
+
+    tz = zoneinfo.ZoneInfo("Europe/Copenhagen")
+    now = datetime.datetime(2026, 1, 5, 12, 0)
+    at = lambda hour, minute=0: datetime.datetime(2026, 1, 5, hour, minute, tzinfo=tz).timestamp()  # noqa: E731
+
+    class Stub(Battery):
+        def __init__(self, rows) -> None:
+            self.config = {"home": {"entity_ids": {"powerwall_battery_level_entity_id": "sensor.level"}}}
+            self._wc = WindowCalculator({"sensor.level": rows}, {}, {}, tz)
+
+        def entity_state(self, entity_id):
+            return "unavailable"
+
+        def now(self):
+            return now
+
+    assert Stub([(at(10, 30), 42.0), (at(10, 45), None)]).get_battery_level() == 42.0  # lost 1 h 15 min ago
+    assert Stub([(at(8, 0), 42.0), (at(9, 30), None)]).get_battery_level() == 100.0  # lost 2.5 hours ago
+    assert Stub([]).get_battery_level() == 100.0
+
+
 @pytest.mark.parametrize("state", [None, "unknown", "unavailable", "not-a-number", "nan", "inf"])
 def test_unavailable_battery_temperature_stops_battery(state: str | None) -> None:
     now = datetime.datetime.combine(DAY, datetime.time(10, 30))

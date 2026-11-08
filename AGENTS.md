@@ -371,8 +371,10 @@ Keep these invariants when touching any planner rule:
   - The rule path of Max. age (`force_powerwall_max_hours_old_discharge()`) marks an hour only while old energy is
     left: old kWh of an hour = what has become older than the limit by then (`ctx.old_energy["parcels"]`) minus what
     the battery has delivered since the plan starts (`ctx.old_energy["delivered"]`, the oldest kWh leave first, house
-    use only in hours without solar surplus). It carries from day to day. Unknown-age energy is not tracked (it leaves
-    first in the optimiser's FIFO, so the rule's count is on the safe side).
+    use only in hours without solar surplus). It carries from day to day. Unknown-age energy is not tracked by the rule's
+    count. In the age model it is never old and counts as fresh, so it is used up last: the old kWh of the history leave
+    first (`_unaged_left()` in `optimizer.py`). Do not "fix" this to a true FIFO where unknown-age energy leaves first:
+    that would put the old energy behind it and force the whole battery out before the rule reaches it.
   - A sale hour is a discharge hour: after all rules `future_charging()` calls `allow_discharge()` for every hour in
     `force_discharge_timestamps`, which drops a hold (Profit only / Prioritise / Maximise profit) in that hour and lists
     it in `discharge_timestamps`. `allow_discharge()` works on the hour of the timestamp (15 min price periods): a charge
@@ -380,8 +382,10 @@ Keep these invariants when touching any planner rule:
   - `explain()` labels a charge *Negative prices* only when buy / efficiency² + wear <= -0.01 (the rule's own limit,
     `NEGATIVE_PRICE_MARGIN`), not for every price <= 0: that label decides which switches allow the charge.
   - A battery level of NaN/infinity (state "nan"/"inf", also in the recorded buffer) is handled like an unavailable
-    sensor in `get_battery_level()`: last recorded number, else 100 % with a warning (the existing fail-safe; it used to
-    stop the job with an OverflowError). The battery temperature already stops the battery for NaN/inf.
+    sensor in `get_battery_level()`: the last recorded number if the sensor stopped giving numbers less than
+    `BATTERY_LEVEL_MAX_AGE` (2 hours) ago (measured from the first row after that number, so a level that never
+    changed still counts), else 100 % with a warning (the existing fail-safe; it used to stop the job with an
+    OverflowError). The battery temperature already stops the battery for NaN/inf.
   - The planned-hours attributes never announce an unsupported action: with `force_solar_only_charging` unsupported its
     list is empty and the leftover hours are in `discharge_timestamps` (what `supported_action()` runs instead).
   - An hour that gets a charge session loses its hold (`add_charging_session_to_day()`): Profit only / Prioritise hold

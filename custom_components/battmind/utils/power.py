@@ -139,10 +139,19 @@ class WindowCalculator:
             return error_state
         return sum(values) / len(values)
 
-    def last_numeric(self, entity_id: str):
+    def last_numeric(self, entity_id: str, not_lost_before: datetime.datetime | None = None):
+        """The last finite number recorded for the entity.
+
+        not_lost_before: the number only counts if the sensor stopped giving numbers at or after this time (the next
+        row after it, e.g. "unavailable"). A level that never changed has an old row but is still the level."""
         rows = self.buffers.get(entity_id) or []
-        for _, value in reversed(rows):
+        for index in range(len(rows) - 1, -1, -1):
+            ts, value = rows[index]
             if isinstance(value, (int, float)) and math.isfinite(value):
+                if not_lost_before is not None:
+                    lost_ts = rows[index + 1][0] if index + 1 < len(rows) else ts
+                    if lost_ts < self._ts(not_lost_before):
+                        return None
                 return value
         return None
 
