@@ -223,11 +223,13 @@
       "user": {
         "data": {
           "entity_prefix": "Prefiks encji",
-          "language": "Język"
+          "language": "Język",
+          "dashboard_icon": "Ikona w pasku bocznym"
         },
         "data_description": {
           "entity_prefix": "np. battmind, battmind_ha lub garage_battery",
-          "language": "Język nazw encji, przeglądu, historii ładowania, reguły ładowania i powiadomień."
+          "language": "Język nazw encji, przeglądu, historii ładowania, reguły ładowania i powiadomień.",
+          "dashboard_icon": "Ikona panelu na pasku bocznym, np. mdi:home-battery. Zostaw puste, aby użyć ikony domyślnej."
         },
         "description": "BattMind planuje, kiedy bateria domowa ma ładować się z sieci, rozładowywać lub sprzedawać, na podstawie cen, zużycia i prognozy słonecznej. Plan jest publikowany jako czujniki, których używasz we własnych automatyzacjach.\n\n**Prefiks encji** jest używany w każdym identyfikatorze encji, np. `sensor.PREFIX_powerwall_action`. Użyj innego prefiksu dla każdej instancji (i innego niż wersja PyScript, jeśli działają obie). Nie można go później zmienić.",
         "title": "Dodaj BattMind"
@@ -239,6 +241,7 @@
     "error": {
       "invalid_prefix": "Użyj 1-50 małych liter, cyfr lub podkreśleń, zaczynając od litery.",
       "min_above_max": "Poziom minimalny musi być niższy niż maksymalny.",
+      "invalid_icon": "Użyj nazwy ikony, np. mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
       "no_price_provider": "Wybierz co najmniej jednego dostawcę cen.",
       "prefix_entities_exist": "Encje z tym prefiksem już istnieją (np. z wersji PyScript). Wybierz inny prefiks, aby uruchomić obie jednocześnie.",
@@ -472,10 +475,12 @@
       },
       "general": {
         "data": {
-          "language": "Język"
+          "language": "Język",
+          "dashboard_icon": "Ikona w pasku bocznym"
         },
         "data_description": {
-          "language": "Język nazw encji, przeglądu, historii ładowania, reguły ładowania i powiadomień."
+          "language": "Język nazw encji, przeglądu, historii ładowania, reguły ładowania i powiadomień.",
+          "dashboard_icon": "Ikona panelu na pasku bocznym, np. mdi:home-battery. Zostaw puste, aby użyć ikony domyślnej."
         },
         "title": "Ogólne"
       },
@@ -495,6 +500,7 @@
     "error": {
       "invalid_prefix": "Użyj 1-50 małych liter, cyfr lub podkreśleń, zaczynając od litery.",
       "min_above_max": "Poziom minimalny musi być niższy niż maksymalny.",
+      "invalid_icon": "Użyj nazwy ikony, np. mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
       "no_price_provider": "Wybierz co najmniej jednego dostawcę cen.",
       "prefix_entities_exist": "Encje z tym prefiksem już istnieją (np. z wersji PyScript). Wybierz inny prefiks, aby uruchomić obie jednocześnie.",

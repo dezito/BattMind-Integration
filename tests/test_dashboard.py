@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 import yaml
 
+from homeassistant.components.lovelace.const import LOVELACE_DATA
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -473,3 +474,25 @@ def test_unsupported_action_hides_its_rules_on_the_settings_view(action: str) ->
         assert "Charging from the grid" not in headings
     else:
         assert headings == all_headings
+
+
+async def test_sidebar_icon_follows_the_dashboard_icon_option(hass: HomeAssistant, mock_entry: MockConfigEntry, tmp_path) -> None:
+    hass.config.config_dir = str(tmp_path)
+    set_source_states(hass)
+    entry = MockConfigEntry(domain=mock_entry.domain, title=mock_entry.title, data=dict(mock_entry.data), options={**MOCK_OPTIONS, "dashboard": True})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    # no choice yet: the default icon
+    assert hass.data["frontend_panels"][f"{PREFIX}-dashboard"].sidebar_icon == "mdi:home-battery"
+
+    hass.config_entries.async_update_entry(entry, options={**entry.options, "dashboard_icon": "mdi:solar-power"})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.data["frontend_panels"][f"{PREFIX}-dashboard"].sidebar_icon == "mdi:solar-power"
+    assert hass.data[LOVELACE_DATA].dashboards[f"{PREFIX}-dashboard"].config["icon"] == "mdi:solar-power"
+
+    # a stored value that is not an icon name falls back to the default instead of breaking the sidebar
+    hass.config_entries.async_update_entry(entry, options={**entry.options, "dashboard_icon": "not an icon"})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.data["frontend_panels"][f"{PREFIX}-dashboard"].sidebar_icon == "mdi:home-battery"
+    await async_unload_and_join(hass, entry)

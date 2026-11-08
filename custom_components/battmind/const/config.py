@@ -1,9 +1,21 @@
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from typing import Any
 
 from ..utils.helpers import get_dict_value_with_path, set_dict_value_with_path
+
+# Sidebar icon of the generated dashboard: "<set>:<name>", e.g. mdi:home-battery
+DEFAULT_DASHBOARD_ICON = "mdi:home-battery"
+DASHBOARD_ICON_RE = re.compile(r"^[a-z0-9_-]+:[a-z0-9_-]+$")
+
+
+def dashboard_icon(value: Any) -> str:
+    """The sidebar icon to use: value when it is a valid icon name, otherwise the default."""
+    icon = value.strip() if isinstance(value, str) else ""
+    return icon if DASHBOARD_ICON_RE.match(icon) else DEFAULT_DASHBOARD_ICON
+
 
 # Same nested layout as <prefix>_config.yaml in the PyScript version, so the ported
 # algorithm reads CONFIG["solar"]["powerwall_battery_size"] etc. unchanged. Values that
@@ -21,6 +33,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "days_to_predict": 3,
     # show the generated BattMind dashboard in the sidebar
     "dashboard": True,
+    # sidebar icon of the dashboard (mdi:... or another icon set known to the frontend)
+    "dashboard_icon": DEFAULT_DASHBOARD_ICON,
     "forecast": {
         "entity_ids": {
             "hourly_service_entity_id": "",
@@ -143,12 +157,13 @@ OPTION_PATHS: dict[str, str] = {
     "enable_diagnostic_file_log": "enable_diagnostic_file_log",
     "days_to_predict": "days_to_predict",
     "dashboard": "dashboard",
+    "dashboard_icon": "dashboard_icon",
     "testing_mode": "testing_mode",
 }
 
 # Config/options flow pages: step id -> option keys shown on that page
 FLOW_STEPS: dict[str, list[str]] = {
-    "general": ["language"],
+    "general": ["language", "dashboard_icon"],
     "battery_entities": [
         "powerwall_battery_level_entity_id",
         "powerwall_watt_flow_entity_id",

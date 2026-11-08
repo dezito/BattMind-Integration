@@ -2,7 +2,8 @@
 
 With **Dashboard in the sidebar** on (default), each BattMind instance gets its own dashboard, e.g.
 `/battmind-dashboard`. It is built on every startup from your setup: cards for price providers and a solar
-forecast you don't use are removed.
+forecast you don't use are removed. You choose the **Sidebar icon** of each instance when you add it (default
+`mdi:home-battery`) and can change it under **Configure → General**.
 
 It needs these HACS frontend cards: [ApexCharts Card](https://github.com/RomRider/apexcharts-card),
 [Mushroom](https://github.com/piitaya/lovelace-mushroom),
