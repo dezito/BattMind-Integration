@@ -98,7 +98,9 @@ class ReplayInputs:
             prediction["total_sell"][hour.timestamp.hour] = sell.get(hour.timestamp, 0.0)
         self.cheap_grid_charge_hours(force_recalculate=True)
         plans = self.shadow_plan_actions or {}
-        plan = plans.get("optimal" if self.enabled("optimizer_control") else "rules") or {}
+        # as in the live plan: an optimal plan that didn't settle on the rule switches doesn't control the battery
+        optimal_controls = self.enabled("optimizer_control") and (self.optimizer_shadow or {}).get("converged", True)
+        plan = plans.get("optimal" if optimal_controls else "rules") or {}
         return [plan.get(hour.timestamp, FALLBACK_ACTION) for hour in window[:execute]]
 
     def replay_optimizer_config(self) -> OptimizerConfig:

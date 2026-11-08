@@ -317,7 +317,12 @@ Keep these invariants when touching any planner rule:
   the rule plan with the DP's actions; rules still run for comparison and are
   the fallback if the optimiser fails. `explain()` maps every optimised action
   to its matching rule; rule switches are permissions (`RULE_SWITCHES`,
-  `optimize_with_rules` forbids the action and re-optimises). A held-back hour
+  `optimize_with_rules` forbids the action and re-optimises, up to `MAX_ROUNDS` = 40
+  rounds: a forbidden action moves to the next best hour, so a long stretch needs
+  one round per hour, 25 were seen. A plan that is not `converged` after the rounds
+  still has actions of switched off rules: `shadow_plan()` then returns None, the
+  rules control the battery and `optimizer_shadow["converged"]` is False. Never use
+  a result of `optimize_with_rules` without checking `converged`). A held-back hour
   with a later, more expensive use belongs only to
   `prioritize_discharge_hours_by_energy_cost`, one without such an hour only to
   `only_discharge_on_profit` (decided with the user: switching one discharge

@@ -8,7 +8,7 @@ from copy import deepcopy
 
 import pytest
 
-from custom_components.battmind.const import build_config
+from custom_components.battmind.const import CHARGING_TYPES, build_config
 from custom_components.battmind.engine import BattMindEngine, Snapshot
 from custom_components.battmind.engine.optimizer import (
     RULE_SWITCHES,
@@ -228,6 +228,39 @@ def test_shadow_plan_covers_days_to_predict_and_beats_the_rules(days: int) -> No
     assert shadow["optimal"] <= shadow["self_consumption"] + 0.01
     summary = result.attributes["powerwall_action"]["optimizer_shadow_summary"]
     assert summary["optimal"] == shadow["optimal"]
+
+
+def negative_midday_price(ts: datetime.datetime) -> float:
+    """The default price shape with negative prices at night and at noon, every day."""
+    if ts.hour in NEGATIVE_HOURS:
+        return -0.4
+    return 1.0 + (1.5 if 17 <= ts.hour <= 20 else 0.6 if 7 <= ts.hour <= 16 else 0.0) + ts.hour / 100
+
+
+BUY_TO_SELL = CHARGING_TYPES["grid_charge_to_sell"]["emoji"]
+
+
+def test_optimiser_follows_a_rule_switch_that_needs_many_rounds() -> None:
+    """Forbidding a sale moves it to the next best hour, which is forbidden in the next round: with negative prices
+    every day it takes more than 6 rounds before no sale is left that belongs to Buy to sell (the limit used to be 6)."""
+    engine, _ = planned(18, 50, {"optimizer_control": True, "grid_charge_to_sell": False}, price_fn=negative_midday_price, days=3)
+    assert engine.optimizer_shadow["controls"] and engine.optimizer_shadow["converged"]
+    assert [ts for ts, sale in sales(engine).items() if sale["emoji"] == BUY_TO_SELL] == []
+    # the switch on: the same plan does use Buy to sell (the check above is not trivial)
+    on, _ = planned(18, 50, {"optimizer_control": True, "grid_charge_to_sell": True}, price_fn=negative_midday_price, days=3)
+    assert [ts for ts, sale in sales(on).items() if sale["emoji"] == BUY_TO_SELL]
+
+
+def test_rules_control_the_battery_when_the_optimiser_does_not_settle(monkeypatch) -> None:
+    """A plan that still has actions of switched off rules after the last round is not used: the rules take over."""
+    from custom_components.battmind.engine import optimizer as optimizer_module
+
+    monkeypatch.setattr(optimizer_module.optimize_with_rules, "__defaults__", (1,))
+    engine, result = planned(18, 50, {"optimizer_control": True, "grid_charge_to_sell": False}, price_fn=negative_midday_price, days=3)
+    shadow = engine.optimizer_shadow
+    assert shadow["converged"] is False and not shadow.get("controls")
+    assert result.attributes["powerwall_action"]["optimizer_shadow_summary"]["converged"] is False
+    assert result.states["powerwall_action"]  # a valid plan from the rules
 
 
 @pytest.mark.parametrize("hour", [0, 12])

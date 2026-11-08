@@ -172,6 +172,8 @@ class FutureOptimizer:
             "rules": round(rules.total, 2),
             "optimal": round(optimal.total, 2),
             "self_consumption": round(self_consumption.total, 2),
+            # False: the optimal plan still has actions of switched off rules, so the rules control the battery
+            "converged": optimal.converged,
             # the totals above are real money. The optimisation also adds the profit requirements (min. profit
             # per kWh, min. total profit) to the cost of an action as a steering figure: not money, but the
             # reason why an optimal plan can cost more than plain self consumption
@@ -202,6 +204,13 @@ class FutureOptimizer:
             "Whole period optimisation over %s hours: optimal %.2f, rules %.2f, self consumption %.2f",
             len(hours), optimal.total, rules.total, self_consumption.total,
         )
+        if not optimal.converged:
+            # the plan still has actions of rules that are switched off: it may be compared, but not control the battery
+            _LOGGER.warning(
+                "Whole period optimisation didn't settle on a plan that follows the rule switches within its rounds, "
+                "the rules control the battery"
+            )
+            return None
         return hours, optimal, explanations
 
     def optimal_battery_steps(self, ctx, hours, optimal) -> list[tuple[float, float, float, float]]:
