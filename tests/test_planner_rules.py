@@ -181,6 +181,33 @@ def test_a_sale_hour_is_not_also_held_back() -> None:
     assert sale_hours, "the scenario sells"
 
 
+MAXIMISE_PROFIT_PRICES = {
+    "peaks": lambda ts: 1.0 + (0.8 if ts.hour in (8, 12, 18) else 0.0) + 0.05 * ts.hour,
+    "duck": lambda ts: 0.2 if 10 <= ts.hour <= 15 else (2.2 if 6 <= ts.hour <= 9 or 17 <= ts.hour <= 21 else 0.9),
+}
+
+
+@pytest.mark.parametrize(("prices", "level", "reserve"), [("peaks", 80, 50), ("peaks", 55, 30), ("duck", 55, 50)])
+def test_maximise_profit_does_not_sell_below_the_usage_reserve(prices: str, level: int, reserve: int) -> None:
+    """Maximise profit counts the kWh the house has already used under the reserve: a sale hour doesn't end under it,
+    and a sale that would is dropped, not made after the last attempt to shrink it (rule plan; 10 kWh, no loss, only
+    Maximise profit sells)."""
+    engine, _ = planned(
+        7, level, {
+            "optimizer_control": False, "most_profit": True, "usage_reserve": reserve, "min_profit_per_kwh": 0.0, "prioritize_discharge_hours_by_energy_cost": False,
+            "discharge_before_solar": False, "sell_excess_kwh_available": False, "grid_charge_to_sell": False, "force_powerwall_max_hours_old_discharge": False,
+        },
+        price_fn=MAXIMISE_PROFIT_PRICES[prices], days=3,
+        options={"powerwall_battery_size": 10.0, "powerwall_charge_discharge_loss": 0.0, "powerwall_wear_cost_per_kwh": 0.2},
+    )
+    sold = 0
+    for day in (key for key in engine.plan if isinstance(key, int)):
+        for timestamp in engine.plan[day]["force_discharge_timestamps"]:
+            sold += 1
+            assert sum(engine.plan[day]["battery_level_flow"][timestamp.hour]) >= reserve - 0.5, (day, timestamp.hour)
+    assert sold, "Maximise profit sells in the scenario"
+
+
 def test_allow_discharge_works_on_the_hour_with_15_minute_prices() -> None:
     """The timestamp of a charge or a sale can be a quarter of the hour: the hour decides (a charge in 10:30 stops the
     hour 10 from being allowed; a hold in 11:00 is dropped for a sale at 11:15, and the hour is listed once)."""
