@@ -30,7 +30,8 @@ from custom_components.battmind.const import (
     WHAT_IF_SWITCHES,
     WHAT_IF_TEXTS,
 )
-from custom_components.battmind.engine import JobResult
+from custom_components.battmind.coordinator import BattMindCoordinator
+from custom_components.battmind.engine import BattMindEngine, JobResult
 from custom_components.battmind.prices import create_price_provider
 
 from .conftest import CONSUMPTION, PREFIX, async_advance, async_unload_and_join, set_source_states
@@ -648,6 +649,53 @@ async def test_switch_triggers_replanning(hass: HomeAssistant, loaded_entry) -> 
     await hass.async_block_till_done(wait_background_tasks=True)
     assert coordinator._settings_debounce is None
     assert coordinator.last_job["job"] == "charge_if_needed"
+
+
+def _startup_notification(hass: HomeAssistant, coordinator):
+    return hass.data["persistent_notification"].get(f"{coordinator.prefix}_startup_notification")
+
+
+async def test_successful_startup_leaves_no_notification(hass: HomeAssistant, mock_entry) -> None:
+    """The start only goes to the log, and a notice of an earlier failed start is dismissed."""
+    set_source_states(hass)
+    persistent_notification.async_create(hass, "old error", title="old", notification_id=f"{mock_entry.data['entity_prefix']}_startup_notification")
+    mock_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    coordinator = mock_entry.runtime_data
+    assert coordinator.started
+    assert _startup_notification(hass, coordinator) is None
+    await async_unload_and_join(hass, mock_entry)
+
+
+async def test_failed_startup_keeps_a_notification(hass: HomeAssistant, mock_entry) -> None:
+    set_source_states(hass)
+    mock_entry.add_to_hass(hass)
+    with patch.object(BattMindCoordinator, "_async_setup_buffers", side_effect=RuntimeError("boom")):
+        assert await hass.config_entries.async_setup(mock_entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+    coordinator = mock_entry.runtime_data
+    assert not coordinator.started
+    notification = _startup_notification(hass, coordinator)
+    assert notification is not None
+    assert "boom" in notification["message"]
+    assert notification["title"].startswith("⛔")
+    await async_unload_and_join(hass, mock_entry)
+
+
+async def test_engine_error_in_the_startup_job_keeps_a_notification(hass: HomeAssistant, mock_entry) -> None:
+    """run_job catches an exception of the startup job: that is not a successful start."""
+    set_source_states(hass)
+    persistent_notification.async_create(hass, "old", title="old", notification_id=f"{mock_entry.data['entity_prefix']}_startup_notification")
+    mock_entry.add_to_hass(hass)
+    with patch.object(BattMindEngine, "startup", side_effect=RuntimeError("engine boom")):
+        assert await hass.config_entries.async_setup(mock_entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+    notification = _startup_notification(hass, mock_entry.runtime_data)
+    assert notification is not None
+    assert "engine boom" in notification["message"]
+    assert notification["title"].startswith("⛔")
+    await async_unload_and_join(hass, mock_entry)
 
 
 async def test_unload(hass: HomeAssistant, loaded_entry) -> None:
