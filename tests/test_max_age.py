@@ -254,6 +254,26 @@ def test_rule_plan_uses_energy_that_becomes_old_on_the_next_day() -> None:
     assert not [ts for ts in tomorrow["blocked_discharge_timestamps"] if ts >= old_from and ts < old_from.replace(hour=22)]
 
 
+def test_optimiser_settles_when_the_age_limits_flip_between_two_plans() -> None:
+    """Morning at 06:30 with 40 %, 50 % charged 5 days ago and 5 % 12 h ago, dear evenings: the charges of one plan give
+    age limits that make the other plan, and back. It is a cycle, not a plan that still has a forbidden action, so the
+    optimisation keeps controlling the battery."""
+    now = datetime.datetime.combine(DAY, datetime.time(6, 30))
+
+    def spread(ts: datetime.datetime) -> float:
+        return 0.3 if ts.hour < 6 else (4.0 if 17 <= ts.hour <= 20 else 1.5)
+
+    engine = BattMindEngine(build_config({**OPTIONS, "energidataservice_sell_entity_id": "sensor.sell", "days_to_predict": 1, "powerwall_charge_discharge_loss": 0.0}), "test", TEXTS)
+    assert engine.run_job(realistic_snapshot(now, 40, price_fn=spread), engine.startup, {"power_values": _power_values_db()}).error is None
+    for ago, pct, price in ((129, 50, 0.72), (12, 5, 0.92)):
+        engine.charging_history_db[now.replace(minute=0) - datetime.timedelta(hours=ago)] = {
+            "charged": {"percentage": float(pct), "kWh": pct / 10, "kWh_from_grid": pct / 10, "kWh_from_local_energy": 0.0, "cost": pct / 10 * price, "price": price}
+        }
+    result = engine.run_job(realistic_snapshot(now, 40, {"optimizer_control": True}, price_fn=spread), engine.charge_if_needed, True)
+    assert result.error is None, result.error
+    assert engine.optimizer_shadow["converged"] is True and engine.optimizer_shadow["controls"] is True
+
+
 def test_max_age_of_kwh_has_a_minimum_of_12_hours() -> None:
     from custom_components.battmind.const import NUMBER_SETTINGS
 
