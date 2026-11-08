@@ -23,6 +23,10 @@ FRACTIONS = (0.25, 0.5, 0.75, 1.0)
 # battery is still filled with this part of the later solar forecast, so a forecast that is a bit
 # too high doesn't stop and start the blocking every few minutes.
 SOLAR_BLOCK_MARGIN = 0.8
+# Rounds of optimize_with_rules(): each forbids the actions of rules that are switched off and optimises again. A long
+# stretch of similar hours needs one round per hour (25 were seen); 40 leaves room, a plan that still isn't settled
+# isn't used (the rules control the battery).
+MAX_ROUNDS = 40
 
 
 @dataclass
@@ -79,6 +83,8 @@ class OptimizerResult:
     old: list[float] = field(default_factory=list)  # % level older than max_age_hours at the start of each hour
     held_old: int = 0  # hours where holding old energy was replaced by using it
     unaged_end: float | None = None  # % level of unknown age left at the end (None: not tracked)
+    # False: optimize_with_rules() used up its rounds and the plan still has an action whose rule is switched off
+    converged: bool = True
 
 
 def step_hour(
@@ -483,18 +489,24 @@ def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerC
 
 
 def optimize_with_rules(
-    hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfig, end_value_per_kwh: float, enabled, rounds: int = 6
+    hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfig, end_value_per_kwh: float, enabled, rounds: int = MAX_ROUNDS
 ) -> tuple[OptimizerResult, list[dict | None]]:
     """optimize(), but actions whose rule is switched off (enabled(switch) is False) are forbidden in that hour.
 
     With cfg.max_age_hours energy older than that is not held back. optimize() already makes sure of it
     for the plan it returns; when it had to change the plan, the plan is made again with the age limits
     of the charges in this plan, so the table knows where the old energy is.
+
+    Forbidding an hour usually moves the action to the next best hour, which is forbidden in the next round,
+    so a long stretch of similar hours needs many rounds (up to 25 were seen). The result is only a plan that
+    follows the switches when a round found nothing more to forbid: result.converged says so. Without it
+    (rounds used up) the caller must not use the plan to control the battery.
     """
     for hour in hours:
         hour.forbidden = set()
         hour.old_above = None
     result, explanations = None, []
+    converged = False
     for _ in range(rounds):
         result = optimize(hours, start_level, cfg, end_value_per_kwh)
         explanations = explain(hours, result, cfg)
@@ -513,7 +525,9 @@ def optimize_with_rules(
                     hour.old_above = limit
                 changed = True
         if not changed:
+            converged = True
             break
+    result.converged = converged
     return result, explanations
 
 
@@ -607,6 +621,7 @@ def optimize_per_day(
             getattr(merged, name).extend(getattr(result, name))
         merged.held_old += result.held_old
         merged.unaged_end = result.unaged_end
+        merged.converged = merged.converged and result.converged
         for explanation in day_explanations:
             if explanation is not None:
                 explanation = dict(explanation)

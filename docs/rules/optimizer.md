@@ -45,8 +45,12 @@ The rules still run, also when the optimisation controls the battery:
   before the sun fills the battery as *Required before max level*, an hour held back for a more expensive
   hour as *Prioritise by energy cost*, one held back without such an hour as *Profit only* and so on – with the same emojis as the rules, and with the hour the energy is for.
 - **The rule switches decide what the optimisation may do.** If the rule an action corresponds to is
-  switched off, that action is forbidden in that hour, and the period is optimised again.
-- **The rules are the fallback.** If the optimisation fails, the rule plan controls the battery.
+  switched off, that action is forbidden in that hour, and the period is optimised again. A forbidden action
+  often moves to the next best hour, which is forbidden in the next round, so this can take many rounds (up
+  to 40).
+- **The rules are the fallback.** If the optimisation fails, or has not settled on a plan that follows the
+  switches after its rounds, the rule plan controls the battery. `converged` in `optimizer_shadow_summary` is
+  `false` then.
 
 Which switches allow which kind of action:
 
