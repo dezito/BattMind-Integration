@@ -232,26 +232,93 @@ def test_old_energy_in_the_battery_is_used_at_once() -> None:
     assert hours[first_hour] == "force_solar_only_charging"
 
 
+def _history_engine(now: datetime.datetime, level: float, size: float, parcels: tuple, price=None, sun: list | None = None, days: int = 2):
+    """An engine planned at `now` with `level` % in a `size` kWh battery; parcels: (hours ago, % of the battery) charged."""
+    engine = BattMindEngine(
+        build_config({**OPTIONS, "energidataservice_sell_entity_id": "sensor.sell", "days_to_predict": days, "powerwall_battery_size": size, "powerwall_charge_discharge_loss": 0.0}),
+        "test", TEXTS,
+    )
+    assert engine.run_job(realistic_snapshot(now, level, price_fn=price), engine.startup, {"power_values": _power_values_db()}).error is None
+    if sun is not None:
+        engine.solar_prediction_db = {day: {"total": list(sun), "total_sell": [0.5] * 24} for day in range(9)}
+    for ago, pct in parcels:
+        kwh = size * pct / 100
+        engine.charging_history_db[now.replace(minute=0) - datetime.timedelta(hours=ago)] = {
+            "charged": {"percentage": float(pct), "kWh": kwh, "kWh_from_grid": kwh, "kWh_from_local_energy": 0.0, "cost": kwh * 0.8, "price": 0.8}
+        }
+    return engine
+
+
+def _old_energy_at_marked_hours(engine: BattMindEngine, now: datetime.datetime, level: float, size: float, parcels: tuple, limit: int) -> dict:
+    """Independent FIFO over the levels of the plan: {marked hour: kWh older than the limit in the battery then}.
+
+    The battery empties first in, first out: energy of unknown age (what the history can't place) is the oldest and
+    never old, then the charged parcels, then what the plan charges itself."""
+    placed = sorted(((now.replace(minute=0) - datetime.timedelta(hours=ago), size * pct / 100) for ago, pct in parcels), reverse=True)
+    stack, room = [], size * level / 100  # newest parcels first until the battery is full
+    for charged_at, kwh in placed:
+        taken = min(kwh, room)
+        if taken > 0.001:
+            stack.append([charged_at, taken])
+            room -= taken
+    stack.reverse()
+    if room > 0.001:
+        stack.insert(0, [None, room])
+    marked, previous = {}, level
+    for day in sorted(key for key in engine.plan if isinstance(key, int)):
+        plan = engine.plan[day]
+        for hour in sorted(plan["battery_level_flow"]):
+            timestamp = plan["start_of_day"].replace(hour=hour)
+            if timestamp in plan["force_powerwall_max_hours_old_discharge_timestamps"]:
+                marked[timestamp] = sum(kwh for charged_at, kwh in stack if charged_at is not None and charged_at + datetime.timedelta(hours=limit) <= timestamp)
+            end = sum(plan["battery_level_flow"][hour])
+            change = (end - previous) * size / 100
+            previous = end
+            if change > 0.001:
+                stack.append([timestamp, change])
+                continue
+            used = -change
+            while used > 0.001 and stack:
+                taken = min(used, stack[0][1])
+                stack[0][1] -= taken
+                used -= taken
+                if stack[0][1] <= 0.001:
+                    stack.pop(0)
+    return marked
+
+
 def test_rule_plan_uses_energy_that_becomes_old_on_the_next_day() -> None:
     """The rule plan (optimiser off) checks the max. age on every planned day, also with a limit of 12 h.
 
-    Planned at 20:30 with 80 %: 30 % charged 60 h ago, 30 % charged 2 h ago (it is 12 h old at 06:30 tomorrow) and
-    the rest of unknown age. Profit only holds the battery in the day hours tomorrow, but old energy is never held."""
+    Planned at 20:30 with 80 % of 30 kWh: 30 % charged 60 h ago, 30 % 2 h ago (12 h old at 06:00 tomorrow), the rest of
+    unknown age. Profit only holds the battery in hours tomorrow, but old energy is never held back."""
     now = datetime.datetime.combine(DAY, datetime.time(20, 30))
-    engine = BattMindEngine(build_config({**OPTIONS, "energidataservice_sell_entity_id": "sensor.sell"}), "test", TEXTS)
-    assert engine.run_job(realistic_snapshot(now, 80), engine.startup, {"power_values": _power_values_db()}).error is None
-    for ago, price in ((60, 0.2), (2, 0.6)):
-        engine.charging_history_db[now.replace(minute=0) - datetime.timedelta(hours=ago)] = {
-            "charged": {"percentage": 30.0, "kWh": 3.0, "kWh_from_grid": 3.0, "kWh_from_local_energy": 0.0, "cost": 3.0 * price, "price": price}
-        }
+    parcels = ((60, 30), (2, 30))
+    engine = _history_engine(now, 80, 30.0, parcels)
     settings = {"optimizer_control": False, "force_powerwall_max_hours_old_discharge": True, "powerwall_max_hours_old": 12, "only_discharge_on_profit": True}
     result = engine.run_job(realistic_snapshot(now, 80, settings), engine.charge_if_needed, True)
     assert result.error is None, result.error
-    tomorrow = engine.plan[1]
+    marked = _old_energy_at_marked_hours(engine, now, 80, 30.0, parcels, 12)
     old_from = now.replace(minute=0) - datetime.timedelta(hours=2) + datetime.timedelta(hours=12)
-    day_hours = [ts for ts in tomorrow["force_powerwall_max_hours_old_discharge_timestamps"] if ts >= old_from]
-    assert day_hours, "the energy that turns 12 h old tomorrow is used"
-    assert not [ts for ts in tomorrow["blocked_discharge_timestamps"] if ts >= old_from and ts < old_from.replace(hour=22)]
+    assert [ts for ts in marked if ts >= old_from], "the energy that turns 12 h old tomorrow is used"
+    assert all(old_kwh > 0.05 for old_kwh in marked.values()), {ts.strftime("%d %H"): round(kwh, 2) for ts, kwh in marked.items()}
+
+
+def test_old_energy_is_only_marked_in_hours_where_old_energy_is_left() -> None:
+    """The oldest kWh leave first. 100 % of a 3 kWh battery at 00:30: 20 % charged 121 h ago (old), 50 % 31.5 h ago (old
+    from 17:00) and 30 % 10.2 h ago. After the old 20 % are used at 02:00 the plan must not mark hours as "old energy
+    used" (that lifts holds on fresh energy) until the 50 % turn old at 17:00 - an independent FIFO of the plan decides."""
+    def price(ts: datetime.datetime) -> float:
+        return -2.0 if 11 <= ts.hour <= 14 else 1.0 + (1.5 if 17 <= ts.hour <= 20 else 0.6 if 7 <= ts.hour <= 16 else 0.0) + ts.hour / 100
+
+    now = datetime.datetime.combine(DAY, datetime.time(0, 30))
+    parcels = ((10.2, 30), (121.0, 20), (169.6, 10), (31.5, 50))  # the 10 % of 169.6 h doesn't fit in the battery
+    engine = _history_engine(now, 100, 3.0, parcels, price=price, sun=[0.0] * 6 + [4.0] * 4 + [0.0] * 14)
+    settings = {"optimizer_control": False, "force_powerwall_max_hours_old_discharge": True, "powerwall_max_hours_old": 48}
+    assert engine.run_job(realistic_snapshot(now, 100, settings, price_fn=price), engine.charge_if_needed, True).error is None
+    marked = _old_energy_at_marked_hours(engine, now, 100, 3.0, parcels, 48)
+    assert marked, "the old energy is used"
+    assert all(old_kwh > 0.05 for old_kwh in marked.values()), {ts.strftime("%d %H"): round(kwh, 2) for ts, kwh in marked.items()}
 
 
 def test_optimiser_settles_when_the_age_limits_flip_between_two_plans() -> None:

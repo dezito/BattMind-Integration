@@ -368,6 +368,13 @@ Keep these invariants when touching any planner rule:
   - `optimize_with_rules()` accepts a plan when the max-age limits come back to a set it has seen (they can flip between
     two plans for ever): every plan keeps the max. age exactly, only forbidden actions of switched off rules make it
     "not converged". Do not count a limit cycle as not converged: that sends users with a charging history to the rules.
+  - The rule path of Max. age (`force_powerwall_max_hours_old_discharge()`) marks an hour only while old energy is
+    left: old kWh of an hour = what has become older than the limit by then (`ctx.old_energy["parcels"]`) minus what
+    the battery has delivered since the plan starts (`ctx.old_energy["delivered"]`, the oldest kWh leave first, house
+    use only in hours without solar surplus). It carries from day to day. Unknown-age energy is not tracked (it leaves
+    first in the optimiser's FIFO, so the rule's count is on the safe side).
+  - The planned-hours attributes never announce an unsupported action: with `force_solar_only_charging` unsupported its
+    list is empty and the leftover hours are in `discharge_timestamps` (what `supported_action()` runs instead).
   - An hour that gets a charge session loses its hold (`add_charging_session_to_day()`): Profit only / Prioritise hold
     hours before the charge rules plan their charges.
   - `discharge_before_solar` means before the sun has filled the battery (decided with the user): the optimiser's

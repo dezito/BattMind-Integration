@@ -78,8 +78,8 @@ kWh, even though the night charge cost more.
 (default 48 h, from 12 to 72 h)
 
 Energy that has been in the battery longer than this is used even without profit: discharging is allowed
-in every hour from then. This keeps old, expensive energy from blocking the battery forever – e.g. when it
-was charged before a drop in prices.
+in every hour where old energy is left in the battery. This keeps old, expensive energy from blocking the
+battery forever – e.g. when it was charged before a drop in prices.
 
 BattMind follows the age of every kWh in the battery:
 
@@ -91,7 +91,8 @@ BattMind follows the age of every kWh in the battery:
 
 Old energy is never held back. In an hour where the house uses power and old energy is in the battery, the
 battery is used – instead of keeping the energy for a later, more expensive hour, or because using it
-doesn't pay.
+doesn't pay. Once the old energy is used up, the other rules decide again: energy charged after that is new
+and can be held back for a more expensive hour.
 
 Old energy is not sold by force. It is sold only when selling it in the most expensive sell periods pays more
 than using it, under the normal [profit requirements](selling.md#profit-requirements). Such a sale is shown
