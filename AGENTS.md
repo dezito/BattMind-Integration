@@ -365,6 +365,11 @@ Keep these invariants when touching any planner rule:
     skip such rows, tariffs that are NaN/inf give a NaN sell price (not zero tariffs, which would be a too high
     sell price) and `CombinedPriceProvider._combine()` drops every non-finite price, so the hour is filled from
     the price history or has none. An unavailable tariff is still 0.
+  - `optimize_with_rules()` accepts a plan when the max-age limits come back to a set it has seen (they can flip between
+    two plans for ever): every plan keeps the max. age exactly, only forbidden actions of switched off rules make it
+    "not converged". Do not count a limit cycle as not converged: that sends users with a charging history to the rules.
+  - An hour that gets a charge session loses its hold (`add_charging_session_to_day()`): Profit only / Prioritise hold
+    hours before the charge rules plan their charges.
   - `discharge_before_solar` means before the sun has filled the battery (decided with the user): the optimiser's
     `explain()` labels a sale 🌄 whenever the sun fills the battery to max later (≤ 24 h, no charge between), also in
     an hour after sunrise. The rule path (`discharge_before_solar()` in `discharge_rules.py`) only looks at the hours

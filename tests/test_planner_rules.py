@@ -373,6 +373,30 @@ def test_a_price_that_is_not_a_number_does_not_reach_the_plan(bad: float, optimi
     assert datetime.datetime.combine(DAY + datetime.timedelta(days=1), datetime.time(14)) not in engine.price_provider.get_buy_prices()
 
 
+def spread_price(ts: datetime.datetime) -> float:
+    """Cheap at night, dear in the evening, in between a middle price."""
+    return 0.3 if ts.hour < 6 else (4.0 if 17 <= ts.hour <= 20 else 1.5)
+
+
+def test_an_hour_that_charges_the_battery_is_not_also_held_back() -> None:
+    """Profit only / Prioritise by energy cost hold discharging back before the charge hours are planned: an hour that
+    gets a charge loses its hold (its reason and level would be stale)."""
+    now = datetime.datetime.combine(DAY, datetime.time(2, 30))
+    engine = BattMindEngine(build_config({**OPTIONS, "energidataservice_sell_entity_id": "sensor.sell", "days_to_predict": 1, "powerwall_charge_discharge_loss": 0.0}), "test", TEXTS)
+    assert engine.run_job(realistic_snapshot(now, 40, price_fn=spread_price), engine.startup, {"power_values": _power_values_db()}).error is None
+    for ago, pct, price in ((129, 50, 0.72), (12, 5, 0.92)):
+        engine.charging_history_db[now.replace(minute=0) - datetime.timedelta(hours=ago)] = {
+            "charged": {"percentage": float(pct), "kWh": pct / 10, "kWh_from_grid": pct / 10, "kWh_from_local_energy": 0.0, "cost": pct / 10 * price, "price": price}
+        }
+    settings = {"optimizer_control": False, "only_discharge_on_profit": True, "prioritize_discharge_hours_by_energy_cost": True}
+    result = engine.run_job(realistic_snapshot(now, 40, settings, price_fn=spread_price), engine.charge_if_needed, True)
+    assert result.error is None, result.error
+    day = engine.plan[0]
+    held, charged = {ts.hour for ts in day["blocked_discharge_timestamps"]}, {ts.hour for ts in day["charging_sessions"]}
+    assert charged, "the scenario charges"
+    assert not held & charged
+
+
 @pytest.mark.parametrize("hour", [0, 12])
 def test_profit_of_an_optimised_sale_is_after_what_the_kwh_cost_in_the_battery(hour: int) -> None:
     """The plan shows what a sale earns: sell price minus the cost of the kWh in the battery (not the revenue).

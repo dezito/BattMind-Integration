@@ -15,6 +15,11 @@ class FutureSupport:
         ctx.charging_plan[what_day]["charging_sessions"][timestamp]["reason"] = reason
         if hour_in(timestamp, ctx.charging_plan[what_day]["discharge_timestamps"]) and timestamp in ctx.charging_plan[what_day]["discharge_timestamps"]:
             ctx.charging_plan[what_day]["discharge_timestamps"].remove(timestamp)
+        # an hour that charges the battery doesn't also hold discharging back (Profit only / Prioritise by energy cost
+        # held it before the charge was planned): the hold's reason and levels would be stale
+        held = ctx.charging_plan[what_day]["blocked_discharge_timestamps"]
+        for held_timestamp in [item for item in held if item.hour == timestamp.hour]:
+            del held[held_timestamp]
 
     def add_charging_to_days(self, ctx, timestamp):
         days = days_between(ctx.now, timestamp)

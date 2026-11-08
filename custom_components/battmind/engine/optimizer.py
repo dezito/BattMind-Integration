@@ -507,6 +507,7 @@ def optimize_with_rules(
         hour.old_above = None
     result, explanations = None, []
     converged = False
+    seen_limits = {tuple(hour.old_above for hour in hours)}
     for _ in range(rounds):
         result = optimize(hours, start_level, cfg, end_value_per_kwh)
         explanations = explain(hours, result, cfg)
@@ -521,9 +522,14 @@ def optimize_with_rules(
         if cfg.max_age_hours is not None and (result.held_old or any(hour.old_above is not None for hour in hours)):
             limits = old_energy_limits(hours, cfg, result.charged, start_level, result.levels)
             if limits != [hour.old_above for hour in hours]:
-                for hour, limit in zip(hours, limits):
-                    hour.old_above = limit
-                changed = True
+                # The limits can flip between two plans for ever (the charges of one plan give the limits of the other).
+                # A limit set seen before is a cycle: stop there. Every plan keeps the max. age exactly (optimize()
+                # enforces it in its forward pass), the limits only tell the table where the old energy is.
+                if tuple(limits) not in seen_limits:
+                    seen_limits.add(tuple(limits))
+                    for hour, limit in zip(hours, limits):
+                        hour.old_above = limit
+                    changed = True
         if not changed:
             converged = True
             break
