@@ -373,6 +373,8 @@ Keep these invariants when touching any planner rule:
     the battery has delivered since the plan starts (`ctx.old_energy["delivered"]`, the oldest kWh leave first, house
     use only in hours without solar surplus). It carries from day to day. Unknown-age energy is not tracked (it leaves
     first in the optimiser's FIFO, so the rule's count is on the safe side).
+  - The planned-hours attributes never announce an unsupported action: with `force_solar_only_charging` unsupported its
+    list is empty and the leftover hours are in `discharge_timestamps` (what `supported_action()` runs instead).
   - An hour that gets a charge session loses its hold (`add_charging_session_to_day()`): Profit only / Prioritise hold
     hours before the charge rules plan their charges.
   - `discharge_before_solar` means before the sun has filled the battery (decided with the user): the optimiser's

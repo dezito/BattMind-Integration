@@ -373,6 +373,30 @@ def test_a_price_that_is_not_a_number_does_not_reach_the_plan(bad: float, optimi
     assert datetime.datetime.combine(DAY + datetime.timedelta(days=1), datetime.time(14)) not in engine.price_provider.get_buy_prices()
 
 
+UNSUPPORTED_ATTRIBUTES = {
+    "grid_charging": "charge_timestamps",
+    "force_discharge": "force_discharge_timestamps",
+    "force_solar_only_charging": "force_solar_only_charging_timestamps",
+    "blocked_solar_charge": "blocked_solar_charge_timestamps",
+}
+
+
+@pytest.mark.parametrize("optimizer_control", [False, True])
+@pytest.mark.parametrize("action", sorted(UNSUPPORTED_ATTRIBUTES))
+def test_an_unsupported_action_is_not_announced_for_any_hour(action: str, optimizer_control: bool) -> None:
+    """BattMind never plans an action the inverter can't run: the hours of the plan are listed under the actions that
+    run, for dashboards and automations (the hours without another action run discharge_allowed instead of
+    force_solar_only_charging)."""
+    engine, result = planned(3, 30, {"optimizer_control": optimizer_control}, solar=True, options={"unsupported_actions": [action]})
+    attributes = result.attributes["powerwall_action"]
+    assert attributes[UNSUPPORTED_ATTRIBUTES[action]] == []
+    assert result.states["powerwall_action"] != action
+    # every planned hour is listed under an action that runs (the hours without one run discharge_allowed)
+    running = ["discharge_timestamps", *(attribute for name, attribute in UNSUPPORTED_ATTRIBUTES.items() if name != action)]
+    announced = set().union(*(set(attributes[name]) for name in running))
+    assert {row["hour"] for row in attributes["battery_level_flow"]} <= announced
+
+
 def spread_price(ts: datetime.datetime) -> float:
     """Cheap at night, dear in the evening, in between a middle price."""
     return 0.3 if ts.hour < 6 else (4.0 if 17 <= ts.hour <= 20 else 1.5)

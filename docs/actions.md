@@ -40,7 +40,9 @@ rules use (the cheap price periods with `grid_charging`), and a section left wit
 with its *Read more*. A dashboard you have edited in the UI is not changed: press *Reset dashboard* to get
 the generated one. The what-if simulator uses the same limits. If an unsupported action is somehow still due,
 BattMind runs `force_solar_only_charging` instead of `grid_charging` or `blocked_solar_charge` (if the
-inverter supports it), and `discharge_allowed` otherwise.
+inverter supports it), and `discharge_allowed` otherwise. The planned hours in the attributes follow it: with
+`force_solar_only_charging` unsupported, `force_solar_only_charging_timestamps` is empty and the hours that
+would have been in it are in `discharge_timestamps`.
 
 Leave the blueprint's field for an unsupported action empty.
 

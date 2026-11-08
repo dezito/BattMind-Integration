@@ -275,7 +275,14 @@ class Planner(WhatIf, Overview, ChargingHours, ChargingFlow, FutureCharging):
                 timestamps[attribute].update(charging_plan[day][plan_key])
             planned_hours += [charging_plan[day]["start_of_day"].replace(hour=hour) for hour in charging_plan[day]["battery_level_flow"]]
         with_action = set().union(*timestamps.values())
-        timestamps["force_solar_only_charging_timestamps"] = {ts for ts in planned_hours if ts not in with_action}
+        without_action = {ts for ts in planned_hours if ts not in with_action}
+        if self.supported_action("force_solar_only_charging") == "force_solar_only_charging":
+            timestamps["force_solar_only_charging_timestamps"] = without_action
+        else:
+            # the inverter can't run it, so BattMind runs what it runs instead (discharge_allowed): the hours are
+            # listed there, and the unsupported action is never announced to the automations
+            timestamps["force_solar_only_charging_timestamps"] = set()
+            timestamps["discharge_timestamps"] |= without_action
         for attribute, values in timestamps.items():
             self.set_attr("powerwall_action", attribute, sorted(values))
 
