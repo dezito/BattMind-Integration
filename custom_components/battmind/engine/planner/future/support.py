@@ -110,13 +110,17 @@ class FutureSupport:
         return not sale or kwh_profit * kwh >= self.get_min_total_profit() / periods_in_hour
 
     def allow_discharge(self, ctx, timestamp):
-        """The battery is charged for this hour, so it has to be allowed to discharge in it."""
+        """The battery has to be allowed to discharge in this hour (the charged kWh are used in it, or it sells).
+
+        With 15 min prices the timestamp can be a period of the hour: the hour is what counts."""
         data = ctx.charging_plan.get(days_between(ctx.current_hour, timestamp))
-        if data is None or timestamp in data["charging_sessions"]:
+        if data is None or hour_in(timestamp, data["charging_sessions"]):
             return
-        data["blocked_discharge_timestamps"].pop(timestamp, None)
-        if timestamp not in data["discharge_timestamps"]:
-            data["discharge_timestamps"].append(timestamp)
+        held = data["blocked_discharge_timestamps"]
+        for held_timestamp in [item for item in held if item.hour == timestamp.hour]:
+            del held[held_timestamp]
+        if not hour_in(timestamp, data["discharge_timestamps"]):
+            data["discharge_timestamps"].append(reset_time_to_hour(timestamp))
 
     def uncovered_kwh(self, ctx, day, hour):
         """Grid kWh to charge (incl. loss) for the consumption the battery/solar doesn't cover in the current plan."""

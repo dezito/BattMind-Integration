@@ -373,6 +373,10 @@ Keep these invariants when touching any planner rule:
     the battery has delivered since the plan starts (`ctx.old_energy["delivered"]`, the oldest kWh leave first, house
     use only in hours without solar surplus). It carries from day to day. Unknown-age energy is not tracked (it leaves
     first in the optimiser's FIFO, so the rule's count is on the safe side).
+  - A sale hour is a discharge hour: after all rules `future_charging()` calls `allow_discharge()` for every hour in
+    `force_discharge_timestamps`, which drops a hold (Profit only / Prioritise / Maximise profit) in that hour and lists
+    it in `discharge_timestamps`. `allow_discharge()` works on the hour of the timestamp (15 min price periods): a charge
+    session in any period of the hour keeps it from changing anything.
   - `explain()` labels a charge *Negative prices* only when buy / efficiency² + wear <= -0.01 (the rule's own limit,
     `NEGATIVE_PRICE_MARGIN`), not for every price <= 0: that label decides which switches allow the charge.
   - A battery level of NaN/infinity (state "nan"/"inf", also in the recorded buffer) is handled like an unavailable

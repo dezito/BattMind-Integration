@@ -82,6 +82,12 @@ class FutureCharging(FutureSupport, FutureChargeRules, FutureDischargeRules, Fut
                         )
                     self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now)
 
+        # A sale hour is a discharge hour (the battery covers the house first). A rule that sells in an hour that
+        # Profit only, Prioritise or Maximise profit held back before wins: the hold's reason and levels would be stale.
+        for day in days:
+            for timestamp in list(charging_plan[day]["force_discharge_timestamps"]):
+                self.allow_discharge(ctx, timestamp)
+
         if self.enabled("optimize_solar_charging"):
             for day in days:
                 self.optimize_solar_charging(ctx, day)

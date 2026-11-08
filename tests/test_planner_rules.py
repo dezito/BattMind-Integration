@@ -159,6 +159,51 @@ def _charge_tags_at_3(price_at_3: float, wear: float, rules_on: list[str]) -> li
     return [[key for key in engine.charge_hours[ts] if key in RULES_BESIDES_MOST_PROFIT] for ts in charge_hours(engine)]
 
 
+def test_a_sale_hour_is_not_also_held_back() -> None:
+    """A sale hour is a discharge hour: when a selling rule sells in an hour that Profit only / Prioritise / Maximise
+    profit held back, the hold is dropped (rule plan; duck prices, 0.50 wear, 30 % loss, 5 kWh)."""
+    def duck(ts: datetime.datetime) -> float:
+        return 0.2 if 10 <= ts.hour <= 15 else (2.2 if 6 <= ts.hour <= 9 or 17 <= ts.hour <= 21 else 0.9)
+
+    engine, _ = planned(
+        12, 30, {"optimizer_control": False}, solar=True, price_fn=duck,
+        options={"powerwall_wear_cost_per_kwh": 0.5, "powerwall_charge_discharge_loss": 0.3, "powerwall_battery_size": 5.0},
+    )
+    sale_hours = 0
+    for day in (key for key in engine.plan if isinstance(key, int)):
+        plan = engine.plan[day]
+        sold = {timestamp.hour for timestamp in plan["force_discharge_timestamps"]}
+        sale_hours += len(sold)
+        assert not sold & {timestamp.hour for timestamp in plan["blocked_discharge_timestamps"]}
+        assert {timestamp.hour for timestamp in plan["discharge_timestamps"]} >= sold  # the battery covers the house in it
+    assert sale_hours, "the scenario sells"
+
+
+def test_allow_discharge_works_on_the_hour_with_15_minute_prices() -> None:
+    """The timestamp of a charge or a sale can be a quarter of the hour: the hour decides (a charge in 10:30 stops the
+    hour 10 from being allowed; a hold in 11:00 is dropped for a sale at 11:15, and the hour is listed once)."""
+    from types import SimpleNamespace
+
+    from custom_components.battmind.engine.planner.future.support import FutureSupport
+
+    start = datetime.datetime.combine(DAY, datetime.time(0))
+    data = {
+        "charging_sessions": {start.replace(hour=10, minute=30): {}},
+        "discharge_timestamps": [],
+        "blocked_discharge_timestamps": {start.replace(hour=10): "hold", start.replace(hour=11): "hold"},
+    }
+    ctx = SimpleNamespace(charging_plan={0: data}, current_hour=start)
+    support = FutureSupport()
+
+    support.allow_discharge(ctx, start.replace(hour=10, minute=15))  # charged in this hour: nothing changes
+    assert data["discharge_timestamps"] == [] and start.replace(hour=10) in data["blocked_discharge_timestamps"]
+
+    support.allow_discharge(ctx, start.replace(hour=11, minute=15))
+    support.allow_discharge(ctx, start.replace(hour=11, minute=45))
+    assert data["discharge_timestamps"] == [start.replace(hour=11)]
+    assert list(data["blocked_discharge_timestamps"]) == [start.replace(hour=10)]
+
+
 def test_a_charge_at_a_price_that_does_not_pay_without_use_is_not_a_negative_price_charge() -> None:
     """Negative prices only pays when price + loss + wear is below -0.01 (the rule's own limit). -0.10 with 0.50 wear
     costs +0.40 per kWh out of the battery: it is a charge for use, not a negative price."""
