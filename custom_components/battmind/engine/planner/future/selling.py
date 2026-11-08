@@ -270,8 +270,8 @@ class FutureSelling:
                 )
 
                 excess_kwh_available -= excess_current
-                if timestamp in ctx.charging_plan[day]["discharge_timestamps"]:
-                    ctx.charging_plan[day]["discharge_timestamps"].remove(timestamp)
+                if timestamp in ctx.charging_plan[what_day]["discharge_timestamps"]:
+                    ctx.charging_plan[what_day]["discharge_timestamps"].remove(timestamp)
 
                 other_day = (
                     f"<br><center>**({ctx.charging_plan[day]['start_of_day'].date().strftime('%d/%m')})**</center>"

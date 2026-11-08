@@ -379,6 +379,11 @@ Keep these invariants when touching any planner rule:
     `force_discharge_timestamps`, which drops a hold (Profit only / Prioritise / Maximise profit) in that hour and lists
     it in `discharge_timestamps`. `allow_discharge()` works on the hour of the timestamp (15 min price periods): a charge
     session in any period of the hour keeps it from changing anything.
+  - With a reserve for the house (`usage_reserve` above the minimum level) the sale rules leave hours alone that another
+    rule holds back (`sale_blocked_by_hold()` in `support.py`): the level forecast has no house use in a held hour, so a
+    sale there ended under the reserve once the hold was dropped. Without a reserve the sale wins over the hold (the
+    rule above). In a held hour `grid_charge_to_sell` shows only the exported part of the rate (rate minus house use)
+    as the sale; the pair itself is sized as before.
   - `explain()` labels a charge *Negative prices* only when buy / efficiency² + wear <= -0.01 (the rule's own limit,
     `NEGATIVE_PRICE_MARGIN`), not for every price <= 0: that label decides which switches allow the charge.
   - A battery level of NaN/infinity (state "nan"/"inf", also in the recorded buffer) is handled like an unavailable
