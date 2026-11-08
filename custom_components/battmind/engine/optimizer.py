@@ -188,7 +188,8 @@ def _fresh(timestamp, cfg: OptimizerConfig, charges, unaged: float) -> float:
 
 
 def _unaged_left(unaged: float, level: float, cfg: OptimizerConfig) -> float:
-    """The energy of unknown age is the oldest, so it leaves first: no more of it than the usable energy in the battery."""
+    """The energy of unknown age is never old, so it counts as fresh and is used up last: the energy above it (the
+    old kWh of the history) leaves first. It is capped by the usable energy in the battery."""
     return min(unaged, max(level - cfg.level_min, 0.0))
 
 

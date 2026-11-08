@@ -136,7 +136,7 @@ def test_result_reports_old_energy() -> None:
 
 
 def test_unknown_age_energy_stops_covering_for_later_charges() -> None:
-    """The energy of unknown age leaves first: once the battery is used up and charged again, what is
+    """The energy of unknown age is used up with the rest of the battery: once it is empty and charged again, what is
     held back for 12 h is old like any other (no history = the whole start level has an unknown age)."""
     hours = [OptimizerHour(at(0), 5.0, 0.0, 4.5, 0.0), OptimizerHour(at(1), 0.1, 0.0, 0.3, 0.0)]
     hours += [OptimizerHour(at(hour), 1.5, 0.0, 0.3, 0.0) for hour in range(2, 30)]
