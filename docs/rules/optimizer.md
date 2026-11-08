@@ -57,7 +57,7 @@ Which switches allow which kind of action:
 | The optimisation wants to … | Shown as | Allowed when one of these is on |
 |---|---|---|
 | charge from the grid for later use | Cheapest periods, Most expensive periods or Required before max level | Cheapest periods, Most expensive periods, Required before max level |
-| charge at a price ≤ 0 | Negative prices | Negative prices, or one of the three above |
+| charge at a price that pays without use (price incl. loss, plus wear, below −0.01) | Negative prices | Negative prices, or one of the three above (a low price that doesn't pay without use is a charge for use) |
 | charge and sell the kWh again | Buy to sell | Buy to sell (off: the sale is forbidden, the charge may still be used in the house) |
 | sell energy from the battery | Maximise profit | Maximise profit, Sell excess kWh, Max. age of kWh |
 | sell before the sun fills the battery | Before the sun | Before the sun, or one of the three above |
