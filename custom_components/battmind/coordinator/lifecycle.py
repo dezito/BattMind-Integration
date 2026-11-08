@@ -138,6 +138,7 @@ class CoordinatorLifecycle:
         await asyncio.sleep(0)
         t = self.t
         log_lines: list[str] = []
+        job_error: BaseException | None = None
         _LOGGER.info("BattMind %s starting, calculations run in thread battmind_%s_worker_0", self.prefix, self.prefix)
         try:
             await self._async_validate_entities()
@@ -164,6 +165,11 @@ class CoordinatorLifecycle:
 
             result = await self.async_run_job("startup", databases, include_prices=True)
             info = result.value or {}
+            if result.error:
+                # run_job caught it: the start is not a success even though nothing was raised here
+                job_error = result.error
+                _LOGGER.error("BattMind startup job failed: %s %s", job_error, type(job_error))
+                log_lines.append(f"⛔Error during startup: {job_error}")
             solar = t("ui.startup.configuration.configured") if info.get("solar_configured") else t("ui.startup.configuration.not_configured")
             powerwall = t("ui.startup.configuration.configured") if info.get("powerwall_configured") else t("ui.startup.configuration.not_configured")
             log_lines[:0] = [
@@ -198,16 +204,27 @@ class CoordinatorLifecycle:
             _LOGGER.exception("Error during BattMind startup")
             log_lines.append(f"⛔Error during startup: {err}")
             self.set_charging_rule(f"⛔{t('ui.init.script_stopped')}.\n{t('ui.init.check_log')}:\n{err}")
+            self._startup_failed_notification(log_lines)
+        else:
+            if job_error:
+                self.set_charging_rule(f"⛔{t('ui.init.script_stopped')}.\n{t('ui.init.check_log')}:\n{job_error}")
+                self._startup_failed_notification(log_lines)
+            else:
+                # a successful start only goes to the log
+                persistent_notification.async_dismiss(self.hass, f"{self.prefix}_startup_notification")
         finally:
             for line in log_lines:
                 if line.strip("-# "):
                     _LOGGER.info(line.lstrip("#* ").replace("**", ""))
-            persistent_notification.async_create(
-                self.hass,
-                "\n".join(log_lines),
-                title=f"📟BattMind ({self.prefix}) started",
-                notification_id=f"{self.prefix}_startup_notification",
-            )
+
+    def _startup_failed_notification(self, log_lines: list[str]) -> None:
+        """A failed start stays visible until the next start (a successful one only goes to the log)."""
+        persistent_notification.async_create(
+            self.hass,
+            "\n".join(log_lines),
+            title=f"⛔BattMind ({self.prefix}) {self.t('ui.init.script_stopped')}",
+            notification_id=f"{self.prefix}_startup_notification",
+        )
 
     async def _async_validate_entities(self) -> None:
         t = self.t
