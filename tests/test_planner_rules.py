@@ -115,7 +115,7 @@ def realistic_snapshot(
 
 
 def planned(
-    hour: int, battery_level: float, settings: dict, solar: bool | list = False, negative: bool = False, days: int | None = None, price_fn=None,
+    hour: int, battery_level: float, settings: dict, solar: bool | list | dict = False, negative: bool = False, days: int | None = None, price_fn=None,
     options: dict | None = None, quarters: bool = False,
 ) -> tuple[BattMindEngine, object]:
     now = datetime.datetime.combine(DAY, datetime.time(hour, 30))
@@ -127,9 +127,11 @@ def planned(
         realistic_snapshot(now, battery_level, negative=negative, price_fn=price_fn, quarters=quarters), engine.startup, {"power_values": _power_values_db()}
     ).error is None
     if solar:
-        # solar=True: the default surplus, or a list with the surplus (kWh) per hour of every day
-        surplus = SOLAR_SURPLUS if solar is True else solar
-        engine.solar_prediction_db = {day: {"total": surplus, "total_sell": [0.5] * 24} for day in range(9)}
+        # solar=True: default surplus; list: every day; dict: explicit surplus by plan day
+        surplus_by_day = solar if isinstance(solar, dict) else {day: SOLAR_SURPLUS if solar is True else solar for day in range(9)}
+        engine.solar_prediction_db = {
+            day: {"total": surplus, "total_sell": [0.5] * 24} for day, surplus in surplus_by_day.items()
+        }
     result = engine.run_job(
         realistic_snapshot(now, battery_level, settings, negative=negative, price_fn=price_fn, quarters=quarters), engine.charge_if_needed, True
     )
@@ -228,7 +230,133 @@ def test_discharge_before_solar_when_the_solar_export_costs_money() -> None:
     """Solar surplus sold at -0.9 at noon: empty the battery in the morning so the sun has room."""
     engine, _ = planned(4, 95, {**OFF, "discharge_before_solar": True}, solar=True, negative=True)
     before_solar = [ts for ts, sale in sales(engine).items() if sale["title"] == "Sælger før solen fylder batteriet"]
-    assert before_solar and all(ts.date() == DAY and ts.hour < 9 for ts in before_solar)
+    assert {ts.hour for ts in before_solar if ts.date() == DAY} == {9}
+
+
+def test_discharge_before_solar_can_sell_after_sunrise_before_solar_refills_battery() -> None:
+    """A 09:00 sale loses that hour's solar; later solar must refill it without crossing the 50 % reserve."""
+    solar = [0.0] * 9 + [2.0, 5.0] + [0.0] * 13
+
+    engine, _ = planned(
+        9,
+        60,
+        {**_only("discharge_before_solar"), "usage_reserve": 50.0},
+        solar=solar,
+        price_fn=lambda ts: 4.0 if ts.date() == DAY and ts.hour == 9 else 1.0,
+        options={
+            "powerwall_battery_size": 10.0,
+            "powerwall_charge_discharge_loss": 0.0,
+            "powerwall_wear_cost_per_kwh": 0.0,
+        },
+    )
+
+    before_solar = sales(engine)
+    assert {ts.hour for ts in before_solar if ts.date() == DAY} == {9}
+    assert next(iter(before_solar.values()))["kwh"] == pytest.approx(1.0)
+    assert sum(engine.plan[0]["battery_level_flow"][9]) >= 50.0
+    assert sum(engine.plan[0]["battery_level_flow"][10]) == pytest.approx(100.0)
+
+
+def test_discharge_before_solar_keeps_reserve_until_next_day_refill() -> None:
+    """A sale tonight must not spend energy needed to stay above the reserve until tomorrow's solar refill."""
+    solar = [0.0] * 8 + [5.0, 5.0] + [0.0] * 14
+
+    engine, _ = planned(
+        20,
+        100,
+        {**_only("discharge_before_solar"), "usage_reserve": 50.0},
+        solar=solar,
+        days=2,
+        price_fn=lambda ts: 4.0 if ts.date() == DAY and ts.hour == 21 else 1.0,
+        options={
+            "powerwall_battery_size": 15.0,
+            "powerwall_charge_discharge_loss": 0.0,
+            "powerwall_wear_cost_per_kwh": 0.0,
+        },
+    )
+
+    assert not [ts for ts in sales(engine) if ts.date() == DAY]
+    levels_before_refill = [sum(engine.plan[0]["battery_level_flow"][hour]) for hour in range(20, 24)]
+    levels_before_refill += [sum(engine.plan[1]["battery_level_flow"][hour]) for hour in range(8)]
+    assert min(levels_before_refill) == pytest.approx(45.0)
+    assert max(sum(engine.plan[1]["battery_level_flow"][hour]) for hour in (8, 9)) == pytest.approx(100.0)
+
+
+def test_discharge_before_solar_does_not_use_a_later_separate_solar_block() -> None:
+    """Solar after a night without surplus cannot refill a sale attributed to today's full battery."""
+    solar = [0.0] * 8 + [20.0, 2.0, 6.0] + [0.0] * 13
+
+    engine, _ = planned(
+        9,
+        60,
+        _only("discharge_before_solar"),
+        solar=solar,
+        days=2,
+        price_fn=lambda ts: 4.0 if ts.date() == DAY and ts.hour == 9 else 1.0,
+        options={
+            "powerwall_battery_size": 20.0,
+            "powerwall_charging_power_limit": 20000.0,
+            "powerwall_charge_discharge_loss": 0.0,
+            "powerwall_wear_cost_per_kwh": 0.0,
+        },
+    )
+
+    assert sum(engine.plan[0]["battery_level_flow"][10]) == pytest.approx(100.0)
+    assert not [ts for ts in sales(engine) if ts.date() == DAY]
+
+
+def test_discharge_before_solar_stops_at_an_intermediate_grid_charge_with_quarter_prices() -> None:
+    """A grid charge at 10:00 separates the valuable 09:00 sale from the 11:00 solar refill."""
+    solar = [0.0] * 11 + [5.0, 5.0] + [0.0] * 11
+
+    def price(timestamp: datetime.datetime) -> float:
+        return 4.0 if timestamp.date() == DAY and timestamp.hour == 9 else -1.0 if timestamp.hour == 10 else 1.0
+
+    engine, _ = planned(
+        9,
+        60,
+        {**_only("discharge_before_solar"), "negative_price_planner": True},
+        solar=solar,
+        price_fn=price,
+        quarters=True,
+        options={
+            "powerwall_battery_size": 10.0,
+            "powerwall_charge_discharge_loss": 0.0,
+            "powerwall_wear_cost_per_kwh": 0.0,
+        },
+    )
+
+    assert any(timestamp.date() == DAY and timestamp.hour == 10 for timestamp in charge_hours(engine))
+    assert not [timestamp for timestamp in sales(engine) if timestamp.date() == DAY and timestamp.hour == 9]
+
+
+@pytest.mark.parametrize(("refill_hour", "expected_sale"), [(9, True), (10, False)])
+def test_discharge_before_solar_uses_exact_24_hour_limit_with_quarter_prices(refill_hour: int, expected_sale: bool) -> None:
+    """A solar refill exactly 24 hours later is allowed; 25 hours later is not."""
+    zero = [0.0] * 24
+    next_day = zero.copy()
+    next_day[refill_hour] = 50.0
+    next_day[refill_hour + 1] = 50.0
+    solar_by_day = {day: next_day if day == 1 else zero.copy() for day in range(9)}
+
+    engine, _ = planned(
+        9,
+        100,
+        _only("discharge_before_solar"),
+        solar=solar_by_day,
+        days=2,
+        price_fn=lambda ts: 4.0 if ts.date() == DAY and ts.hour == 9 else 1.0,
+        quarters=True,
+        options={
+            "powerwall_battery_size": 100.0,
+            "powerwall_charging_power_limit": 50000.0,
+            "powerwall_charge_discharge_loss": 0.0,
+            "powerwall_wear_cost_per_kwh": 0.0,
+        },
+    )
+
+    sold_at_nine = any(timestamp.date() == DAY and timestamp.hour == 9 for timestamp in sales(engine))
+    assert sold_at_nine is expected_sale
 
 
 def _kwh_per_hour(engine: BattMindEngine) -> dict:

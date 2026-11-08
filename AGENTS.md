@@ -388,8 +388,12 @@ Keep these invariants when touching any planner rule:
     hours before the charge rules plan their charges.
   - `discharge_before_solar` means before the sun has filled the battery (decided with the user): the optimiser's
     `explain()` labels a sale 🌄 whenever the sun fills the battery to max later (≤ 24 h, no charge between), also in
-    an hour after sunrise. The rule path (`discharge_before_solar()` in `discharge_rules.py`) only looks at the hours
-    before the first sun hour, which is narrower.
+    an hour after sunrise. The rule path (`discharge_before_solar()` in `discharge_rules.py`) uses the same definition:
+    it scans into the next planned day when needed and only accepts a solar refill within 24 hours with no grid charge
+    in between. It budgets only future solar that would otherwise be pushed out in the same continuous solar block,
+    before the 24-hour limit or the next grid charge; a later separate solar period does not count. It does not count
+    house use in a solar-surplus hour as a benefit. A sale in a solar hour disables
+    solar charging in that hour; the remaining later solar must still be enough to refill the sold energy.
   - The `profit` of a sale in the optimised plan is after the cost of the kWh in the battery (incl. loss and wear),
     like the rules' (`optimal_battery_kwh_cost()`: the running average price over the optimal plan's own charges),
     not the sell revenue.

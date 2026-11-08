@@ -57,14 +57,19 @@ that only has to beat the solar sell price:
 
 `refill cost = solar sell price ÷ efficiency² + wear`
 
-The rule allows discharging in blocked hours before the sun, and sells in the most expensive periods before
+The rule allows discharging in blocked hours before solar has filled the battery, and sells in the most
+expensive periods before
 it, as long as `price − refill cost ≥ min. profit per kWh`. It never empties more than the solar surplus
-that would be pushed out.
+that would be pushed out after the candidate hour in the same continuous solar block, and before the
+24-hour limit or the next grid charge. A later separate solar period does not count.
 
-With the [whole period optimisation](optimizer.md) the sale can also be in an hour after sunrise, as long as
+With both the rule planner and the [whole period optimisation](optimizer.md), the sale can be after sunrise if
 the sun fills the battery to max later (within 24 hours) and nothing is charged from the grid in between: the
 kWh sold is then refilled by solar that would otherwise be sold. It is shown as 🌄 *Sells before the sun fills the
 battery*.
+
+Selling in a solar hour stops solar charging in that hour, so enough later solar must still be available to
+refill it. House consumption is not counted as a benefit in hours where solar surplus already covers it.
 
 **Example:** the sun fills the battery at 11:00 and 6 kWh surplus are sold at 0.40 kr/kWh. Refill costs
 0.40 ÷ 0.9 + 0.10 = 0.54 kr/kWh. At 07:00 the price is 1.60 kr/kWh: using the battery earns 1.06 kr per
