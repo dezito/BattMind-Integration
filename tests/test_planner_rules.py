@@ -201,22 +201,26 @@ def test_with_a_reserve_no_selling_rule_sells_in_a_held_hour() -> None:
     assert sold, "the scenario sells"
 
 
-def test_buy_to_sell_in_a_held_hour_shows_only_what_is_exported() -> None:
+@pytest.mark.parametrize("quarters", [False, True])
+def test_buy_to_sell_in_a_held_hour_shows_only_what_is_exported(quarters: bool) -> None:
     """A held hour (Prioritise) becomes a discharge hour after the rules, and the house takes its share of the discharge
     rate: the sale in the plan is what is left of the rate, not the whole rate (no reserve; prices change every hour)."""
     engine, _ = planned(
         0, 30, {"optimizer_control": False, "usage_reserve": 0, "min_profit_per_kwh": 0.0, "prioritize_discharge_hours_by_energy_cost": True, "only_discharge_on_profit": False,
                 "grid_charge_to_sell": True, "most_profit": False, "sell_excess_kwh_available": False},
-        price_fn=lambda ts: 0.3 if ts.hour % 2 == 0 else 2.2, days=2,
+        price_fn=lambda ts: 0.3 if ts.hour % 2 == 0 else 2.2, days=2, quarters=quarters,
         options={"powerwall_battery_size": 10.0, "powerwall_charge_discharge_loss": 0.0, "powerwall_wear_cost_per_kwh": 0.3, "powerwall_discharging_power": 800},
     )
     rate = abs(engine.max_kwh_discharging)
     checked = 0
     for day in (key for key in engine.plan if isinstance(key, int)):
         plan = engine.plan[day]
+        per_hour = {}
         for timestamp, sale in plan["force_discharge_timestamps"].items():
-            house = plan["hour_cost_prediction"][engine.forecast_type].get(timestamp.hour, {}).get("kwh", 0.0)
-            assert sale["kwh"] <= rate - house + 0.011, (day, timestamp.hour, sale["kwh"], house)
+            per_hour[timestamp.hour] = per_hour.get(timestamp.hour, 0.0) + sale["kwh"]
+        for hour, kwh in per_hour.items():
+            house = plan["hour_cost_prediction"][engine.forecast_type].get(hour, {}).get("kwh", 0.0)
+            assert kwh <= rate - house + 0.011, (day, hour, kwh, house)
             checked += 1
     assert checked, "the scenario sells"
 
@@ -271,6 +275,29 @@ def test_allow_discharge_works_on_the_hour_with_15_minute_prices() -> None:
     support.allow_discharge(ctx, start.replace(hour=11, minute=45))
     assert data["discharge_timestamps"] == [start.replace(hour=11)]
     assert list(data["blocked_discharge_timestamps"]) == [start.replace(hour=10)]
+
+
+@pytest.mark.parametrize(("reserve", "minimum", "held", "blocked"), [
+    (50.0, 10.0, True, True),    # a reserve above the minimum level: a held hour is left alone
+    (50.0, 10.0, False, False),  # not held
+    (0.0, 10.0, True, False),    # no reserve: the sale wins over the hold
+    (10.0, 10.0, True, False),   # a reserve at the minimum level is the same limit as none
+])
+def test_sale_blocked_by_hold_only_with_a_reserve_above_the_minimum_level(reserve: float, minimum: float, held: bool, blocked: bool) -> None:
+    """Every selling rule asks this (Maximise profit, Sell excess, Buy to sell, Before the sun, Max. age); a price period
+    of the hour (11:15) counts for the hold of the hour (11:00)."""
+    from types import SimpleNamespace
+
+    from custom_components.battmind.engine.planner.future.support import FutureSupport
+
+    class Support(FutureSupport):
+        def number(self, key):
+            return reserve
+
+    hour = datetime.datetime.combine(DAY, datetime.time(11))
+    data = {"blocked_discharge_timestamps": {hour: "hold"} if held else {}}
+    ctx = SimpleNamespace(config={"solar": {"powerwall_battery_level_min": minimum}})
+    assert Support().sale_blocked_by_hold(ctx, data, hour + datetime.timedelta(minutes=15)) is blocked
 
 
 def test_a_charge_at_a_price_that_does_not_pay_without_use_is_not_a_negative_price_charge() -> None:
