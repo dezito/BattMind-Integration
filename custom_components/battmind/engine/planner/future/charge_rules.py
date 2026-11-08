@@ -3,11 +3,17 @@ from __future__ import annotations
 
 import datetime
 import logging
+import math
 
 from ....utils.formatting import emoji_parse
 from ....utils.helpers import days_between, hour_in, in_between, reset_time_to_hour, reverse_list, round_up
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _floor_kwh(value: float) -> float:
+    """kWh rounded DOWN to 0.01: an amount rounded up could be more than the capacity it was calculated from."""
+    return math.floor(value * 100 + 1e-9) / 100
 
 
 class FutureChargeRules:
@@ -193,7 +199,7 @@ class FutureChargeRules:
                     continue
 
                 headroom_kwh = self.grid_headroom_kwh(ctx, timestamp, price)
-                kwh_available = round(min(headroom_kwh, kwh_available), 1)
+                kwh_available = _floor_kwh(min(headroom_kwh, kwh_available))
                 if kwh_available <= 0.0:
                     continue
                 kwh_needed = min(sorted_kwh_needed, kwh_available)
@@ -274,7 +280,7 @@ class FutureChargeRules:
                 what_day = days_between(ctx.current_hour, timestamp)
                 if what_day < day - 1 or what_day not in ctx.charging_plan:
                     continue
-                kwh_available = round(min(kwh_available, self.grid_headroom_kwh(ctx, timestamp, price)), 1)
+                kwh_available = _floor_kwh(min(kwh_available, self.grid_headroom_kwh(ctx, timestamp, price)))
                 if kwh_available <= 0.0 or not self.is_profitable(ctx, kwh_profit, min(kwh_needed, kwh_available)):
                     continue
 
@@ -315,7 +321,7 @@ class FutureChargeRules:
             if what_day != day or timestamp < ctx.current_hour:
                 continue
             hour_in_charge_hours, kwh_available = self.kwh_available_in_hour(ctx.charge_hours, ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, timestamp)
-            kwh_available = round(min(kwh_available, self.grid_headroom_kwh(ctx, timestamp, price)), 1)
+            kwh_available = _floor_kwh(min(kwh_available, self.grid_headroom_kwh(ctx, timestamp, price)))
             if kwh_available <= 0.0:
                 continue
             _, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh, 
@@ -378,7 +384,7 @@ class FutureChargeRules:
                 if buy_timestamp < ctx.current_hour or buy_timestamp >= hour_timestamp or buy_day not in ctx.charging_plan:
                     continue
                 _, kwh_available = self.kwh_available_in_hour(ctx.charge_hours, ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, buy_timestamp)
-                grid_kwh = round(min(kwh_available, self.room_until(ctx, buy_timestamp, hour_timestamp), slot_kwh / ctx.efficiency**2), 2)
+                grid_kwh = _floor_kwh(min(kwh_available, self.room_until(ctx, buy_timestamp, hour_timestamp), slot_kwh / ctx.efficiency**2))
                 delivered_kwh = grid_kwh * ctx.efficiency**2
                 if delivered_kwh < min_sell_kwh or not self.is_profitable(ctx, kwh_profit, delivered_kwh, periods_in_hour, sale=True):
                     continue

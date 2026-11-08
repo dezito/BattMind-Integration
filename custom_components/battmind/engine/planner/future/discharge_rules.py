@@ -255,7 +255,7 @@ class FutureDischargeRules:
                 continue
             flow = data["battery_level_flow"][hour]
             stored = ctx.kwh_to_percentage(self.solar_kwh_in_hour(ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, timestamp)) * ctx.efficiency
-            grid = data["charging_sessions"].get(timestamp, {}).get("battery_level", 0.0)
+            grid = sum(session.get("battery_level", 0.0) for ts, session in data["charging_sessions"].items() if ts.hour == hour)
             pushed = max(stored + grid - (sum(flow) - flow[0]), 0.0) if sum(flow) >= maximum - 0.01 else 0.0
             pushed_out += pushed
             pushed_out_value += pushed * self.sell_price_in_hour(ctx, timestamp)
