@@ -387,7 +387,11 @@ def test_fixed_solar_sell_price_values_every_sale_in_the_plan() -> None:
     values = {row["hour"]: row["sell"] for row in fixed.optimizer_shadow["hours"]}
     assert values.keys() == raw.keys()
     for hour, price in raw.items():
-        assert values[hour] == pytest.approx(1.0 - price, abs=0.011)
+        # forecast days (from day 2 in this snapshot) get 1/30 per day ahead that makes a sale worth less: it is
+        # subtracted from the hourly sell price, but added with a fixed price (a sale is worth fixed - hourly price)
+        days = (hour.date() - DAY).days
+        adder = days / 30 if days >= 2 else 0.0
+        assert values[hour] == pytest.approx(1.0 - price - 2 * adder, abs=0.016)
     assert min(values.values()) < 0.0  # the evening sell price is above the fixed price
 
 

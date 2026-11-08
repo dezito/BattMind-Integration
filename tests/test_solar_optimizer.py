@@ -6,10 +6,10 @@ from custom_components.battmind.engine.planner._helpers import _optimize_solar_b
 HOURS = list(range(6, 24))
 
 
-def run(start_level, solar, prices, delta=None, minimum=10.0, maximum=100.0, margin=1.0):
+def run(start_level, solar, prices, delta=None, minimum=10.0, maximum=100.0, margin=1.0, margin_delta=None):
     available = {h: pct for h, pct in solar.items() if pct > 0}
     return _optimize_solar_blocking(
-        HOURS, delta or {}, available, prices, list(available), start_level, minimum, maximum, margin
+        HOURS, delta or {}, available, prices, list(available), start_level, minimum, maximum, margin, margin_delta
     )
 
 
@@ -80,4 +80,18 @@ def test_margin_blocks_only_when_less_sun_still_fills_the_battery() -> None:
     plenty = {h: 20.0 for h in range(8, 16)}
     blocked, flow, _, _ = run(50.0, plenty, prices, margin=0.8)
     assert {8, 9} <= blocked
+    assert end_level(flow) == 100.0
+
+
+def test_margin_does_not_count_a_later_grid_charge_as_refill() -> None:
+    """Blocking is a bet on the later SOLAR (docs/rules/solar.md): a grid charge at 18:00 is no margin for it."""
+    solar = {8: 10.0, 9: 10.0, 10: 10.0}
+    prices = {8: 1.0, 9: 0.5, 10: 0.4}
+    grid_charge = {18: 60.0}  # % level added by a planned grid charge, fills the battery in any case
+    # the grid charge refills the battery whatever the sun does: the margin test passes with it
+    assert 8 in run(30.0, solar, prices, delta=grid_charge, margin=0.8)[0]
+    # without it in the margin test the sun alone has to keep up with 80 % of the forecast, which it cannot
+    only_sun = {h: 0.0 for h in HOURS}
+    blocked, flow, _, _ = run(30.0, solar, prices, delta=grid_charge, margin=0.8, margin_delta=only_sun)
+    assert blocked == set()
     assert end_level(flow) == 100.0

@@ -336,7 +336,25 @@ Keep these invariants when touching any planner rule:
   with only its *Read more*.
   A new rule that needs an action must be added to `ACTION_SWITCHES`.
 - Rule switches default on (except `use_midnight_battery_level`);
-  `powerwall_max_hours_old` default 48.
+  `powerwall_max_hours_old` default 48, from 12 to 72 h (a shorter limit makes no sense; the number entity
+  clamps old stored/imported values on restore). The max-age rule checks every planned day: its `old_keys`
+  filter is exact per day, so there is no "days old" skip.
+- Decided with the user 2026-11-08:
+  - `most_profit` checks `min_total_profit` against the profit shown in the plan (sell price − battery kWh cost
+    incl. loss and wear), like `sell_excess` and Buy to sell. The max-age sale (`force_powerwall_max_hours_old_discharge`)
+    still compares with using the energy (the cost of old energy is sunk): do not "fix" that to the shown profit.
+  - The forecast adder (`PRICE_ADDER_DAY_BETWEEN_DIVIDER`) makes a forecast sale worth less: it is subtracted from a
+    forecast SELL price, and added with a fixed solar sell price (`sell_adder_sign()` in `prices/base.py`, also in
+    `Pricing._database_prices`). A forecast buy price is raised.
+  - The 80 % margin of `optimize_solar_charging` (`margin_delta` of `_optimize_solar_blocking`) counts only the sun:
+    a grid charge after the first blockable hour does not refill the battery in that test.
+  - The `profit` of a sale in the optimised plan is after the cost of the kWh in the battery (incl. loss and wear),
+    like the rules' (`optimal_battery_kwh_cost()`: the running average price over the optimal plan's own charges),
+    not the sell revenue.
+  - The end value of the energy left in the battery lets the optimisation charge for use after the period; this is
+    documented in `docs/rules/optimizer.md`, not changed. `optimizer_shadow["requirements"]` holds the profit
+    requirements (steering figure, not money) of the optimal plan, the rules and self consumption, calculated the
+    same way by `requirement_cost()`; the overview shows the one of the plan that controls the battery.
 - With `force_powerwall_max_hours_old_discharge` on, the plan never holds
   (`force_solar_only_charging` with consumption) energy older than
   `powerwall_max_hours_old`, with the optimiser or the rules in control. Age is

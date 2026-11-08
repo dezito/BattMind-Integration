@@ -227,6 +227,10 @@ class Overview:
             f"{start.strftime('%d/%m %H:%M')} - {end.replace(minute=59).strftime('%d/%m %H:%M')} ({days:.1f} {t(f'{prefix}.days')})"
             if start and end else "-"
         )
+        requirements = (shadow.get("requirements") or {}).get("optimal" if controls else "rules", 0.0)
+        requirements_line = (
+            [f"| **🎯 {t(f'{prefix}.requirements')}** | {requirements:.2f} {valuta} |"] if requirements >= 0.005 else []
+        )
         energy_without = (without["energy_value"], None, t(f"{prefix}.kept")) if abs(without["energy_value"]) >= 0.005 else None
         energy_with = (with_battery["energy_value"], None, t(f"{prefix}.left")) if abs(with_battery["energy_value"]) >= 0.005 else None
         return [
@@ -259,6 +263,7 @@ class Overview:
             f"| **🔋 {t(f'{prefix}.end_level')}** | {summary['end_level']:.0f}% |",
             f"| **📆 {t(f'{prefix}.period')}** | {period} |",
             f"| **🧠 {t(f'{prefix}.controlled_by')}** | {t(f'{prefix}.optimizer') if controls else t(f'{prefix}.rules')} |",
+            *requirements_line,
             *self._ev_charging_lines(start, end, with_battery["bill"], valuta, valuta_kwh),
             f"\n*{t(f'{prefix}.note')}*",
             "</details>\n",

@@ -118,6 +118,36 @@ def test_raw_energi_data_service_sell_price_gets_the_selling_costs_from_the_buy_
     assert _eds_provider(True).sell_real_prices[timestamp] == pytest.approx(round(2.5 - 1.324 - 0.03 - 0.054 - 0.09, 2))
 
 
+@pytest.mark.parametrize(("production_price", "sign"), [(-1.0, -1.0), (1.0, 1.0)], ids=["hourly sell price", "fixed solar sell price"])
+def test_forecast_adder_makes_a_forecast_buy_dearer_and_a_forecast_sale_worth_less(production_price: float, sign: float) -> None:
+    """A forecast price gets 1/30 per day ahead to prefer known prices: buying costs more, selling earns less.
+
+    A sold kWh is worth the sell price, or with a fixed solar sell price fixed - the sell price, so there the
+    sell price has to go up."""
+    provider = create_price_provider(build_config({
+        **default_options(),
+        "energidataservice_buy_entity_id": "sensor.eds_buy",
+        "energidataservice_sell_entity_id": "sensor.eds_sell",
+        "sell_fee": 0.0,
+        "production_price": production_price,
+    }))
+    forecast = [{"hour": datetime.datetime.combine(TOMORROW, datetime.time(hour)).isoformat() + "+01:00", "price": 2.0} for hour in range(24)]
+    entity = {"raw_today": [], "tomorrow_valid": False, "forecast": forecast}
+    provider.update_prices(
+        {"attributes": {"sensor.eds_buy": entity, "sensor.eds_sell": entity}, "values": {}},
+        datetime.datetime.combine(TODAY, datetime.time(16, 40)),
+    )
+    tomorrow = datetime.datetime.combine(TOMORROW, datetime.time(8))
+    adder = 1 / 30
+    assert provider.get_buy_forecast_prices()[tomorrow] == pytest.approx(2.0 + adder, abs=0.006)
+    assert provider.get_sell_forecast_prices()[tomorrow] == pytest.approx(2.0 + sign * adder, abs=0.006)
+    sale_value = (lambda price: price) if production_price == -1.0 else (lambda price: production_price - price)
+    assert sale_value(provider.get_sell_forecast_prices()[tomorrow]) < sale_value(2.0)
+    # without the adder (the recorded forecast) both are the plain forecast
+    assert provider.get_buy_forecast_prices(adder=False)[tomorrow] == pytest.approx(2.0, abs=0.006)
+    assert provider.get_sell_forecast_prices(adder=False)[tomorrow] == pytest.approx(2.0, abs=0.006)
+
+
 class _State:
     def __init__(self, state: str, attributes: dict | None = None) -> None:
         self.state = state

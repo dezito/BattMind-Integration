@@ -9,7 +9,9 @@ These rules decide when the battery charges from the grid. All of them:
   will use, unless that solar is sold for more than the grid kWh costs
 
 With the [whole period optimisation](optimizer.md) on, the switches decide which kinds of charging the
-optimisation may use.
+optimisation may use. The optimisation also values the energy left in the battery at the end of the period,
+so it can charge for energy that is only used after the period (see
+[Whole period optimisation](optimizer.md#what-it-does)).
 
 The examples below use 10 % loss and 0.10 kr/kWh wear: a grid kWh at price *p* costs `p × 1.11 + 0.10` out
 of the battery.

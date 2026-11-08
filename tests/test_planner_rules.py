@@ -78,10 +78,18 @@ def test_what_if_uses_nearest_historical_eds_tariff_and_live_sell_formula() -> N
     assert calculate_sell_price(0.8, nearest[0], 0.03) == pytest.approx(-0.33)
 
 
-def realistic_snapshot(now: datetime.datetime, battery_level: float, settings: dict | None = None, negative: bool = False) -> Snapshot:
-    """Sell price = buy - 0.9; negative: buy -0.4 (sell -0.9) in NEGATIVE_HOURS today."""
+def realistic_snapshot(
+    now: datetime.datetime, battery_level: float, settings: dict | None = None, negative: bool = False, price_fn=None
+) -> Snapshot:
+    """Sell price = buy - 0.9; negative: buy -0.4 (sell -0.9) in NEGATIVE_HOURS today.
+
+    price_fn(hour timestamp) -> buy price replaces the default price shape of every known day."""
     snap = snapshot(now, battery_level, settings)
     buy = snap.price_data["attributes"]["sensor.price"]
+    if price_fn is not None:
+        for rows in (buy["raw_today"], buy["raw_tomorrow"], buy["forecast"]):
+            for row in rows:
+                row["price"] = price_fn(datetime.datetime.fromisoformat(row["hour"]))
     if negative:
         for row in buy["raw_today"]:
             if datetime.datetime.fromisoformat(row["hour"]).hour in NEGATIVE_HOURS:
@@ -94,16 +102,21 @@ def realistic_snapshot(now: datetime.datetime, battery_level: float, settings: d
     return snap
 
 
-def planned(hour: int, battery_level: float, settings: dict, solar: bool = False, negative: bool = False, days: int | None = None) -> tuple[BattMindEngine, object]:
+def planned(
+    hour: int, battery_level: float, settings: dict, solar: bool | list = False, negative: bool = False, days: int | None = None, price_fn=None,
+    options: dict | None = None,
+) -> tuple[BattMindEngine, object]:
     now = datetime.datetime.combine(DAY, datetime.time(hour, 30))
-    options = {**OPTIONS, "energidataservice_sell_entity_id": "sensor.sell"}
+    options = {**OPTIONS, "energidataservice_sell_entity_id": "sensor.sell", **(options or {})}
     if days:
         options["days_to_predict"] = days
     engine = BattMindEngine(build_config(options), "test", TEXTS)
-    assert engine.run_job(realistic_snapshot(now, battery_level, negative=negative), engine.startup, {"power_values": _power_values_db()}).error is None
+    assert engine.run_job(realistic_snapshot(now, battery_level, negative=negative, price_fn=price_fn), engine.startup, {"power_values": _power_values_db()}).error is None
     if solar:
-        engine.solar_prediction_db = {day: {"total": SOLAR_SURPLUS, "total_sell": [0.5] * 24} for day in range(9)}
-    result = engine.run_job(realistic_snapshot(now, battery_level, settings, negative=negative), engine.charge_if_needed, True)
+        # solar=True: the default surplus, or a list with the surplus (kWh) per hour of every day
+        surplus = SOLAR_SURPLUS if solar is True else solar
+        engine.solar_prediction_db = {day: {"total": surplus, "total_sell": [0.5] * 24} for day in range(9)}
+    result = engine.run_job(realistic_snapshot(now, battery_level, settings, negative=negative, price_fn=price_fn), engine.charge_if_needed, True)
     assert result.error is None, result.error
     assert not [message for message, title, _ in result.notifications if "error" in title.lower()]
     return engine, result
@@ -136,6 +149,59 @@ def test_discharge_before_solar_when_the_solar_export_costs_money() -> None:
     assert before_solar and all(ts.date() == DAY and ts.hour < 9 for ts in before_solar)
 
 
+def inverted_price(ts: datetime.datetime) -> float:
+    """Dear at night, cheap in the day, dearest in the evening."""
+    return round(2.5 - (1.5 if 17 <= ts.hour <= 20 else 0.6 if 7 <= ts.hour <= 16 else 0.0) + ts.hour / 100, 3)
+
+
+def test_solar_blocking_does_not_rely_on_a_later_grid_charge_to_refill_the_battery() -> None:
+    """Planned at 12:30 with 80 % in a 3 kWh battery, 0.5 kWh of sun per hour until 14:00 and a grid charge in the evening.
+
+    Blocking 13:00 sells the sun, and the evening grid charge would fill the battery again: a bet on the grid, not on
+    the later sun (docs/rules/solar.md), so the 80 % margin does not allow it."""
+    sun = [0.0] * 10 + [0.5] * 4 + [0.0] * 10
+    settings = {"optimizer_control": False, "discharge_before_solar": False, "optimize_solar_charging": True, "solar_charging": True}
+    engine, _ = planned(
+        12, 80, settings, solar=sun, price_fn=inverted_price,
+        options={"powerwall_battery_size": 3.0, "powerwall_charge_discharge_loss": 0.0, "sell_fee": 0.2},
+    )
+    assert [ts for ts in charge_hours(engine) if ts.date() == DAY and ts.hour > 14], "the scenario charges from the grid in the evening"
+    assert not [ts for day in engine.plan if isinstance(day, int) for ts in engine.plan[day]["blocked_solar_charge_timestamps"]]
+
+
+RULES_BESIDES_MOST_PROFIT = (
+    "cheapest_hour_fill_planner", "cheapest_hour_fill_up", "most_expensive_planner", "needed_before_max_level_planner",
+    "only_discharge_on_profit", "prioritize_discharge_hours_by_energy_cost", "sell_excess_kwh_available",
+    "negative_price_planner", "grid_charge_to_sell", "discharge_before_solar", "force_powerwall_max_hours_old_discharge",
+    "optimize_solar_charging", "use_midnight_battery_level",
+)
+DUCK_BATTERY = {
+    "powerwall_battery_level_min": 20.0, "powerwall_battery_level_max": 80.0, "powerwall_charging_power_limit": 1000.0,
+    "powerwall_discharging_power": 1000.0, "powerwall_wear_cost_per_kwh": 0.5, "sell_fee": 0.2,
+}
+
+
+def duck_price(ts: datetime.datetime) -> float:
+    """Cheap in the middle of the day, dear in the morning and evening."""
+    return 0.2 if 10 <= ts.hour <= 15 else 2.2 if 6 <= ts.hour <= 9 or 17 <= ts.hour <= 21 else 0.9
+
+
+@pytest.mark.parametrize("min_total_profit", [0.5, 2.0])
+def test_most_profit_sale_earns_the_min_total_profit_shown_in_the_plan(min_total_profit: float) -> None:
+    """The profit of a sale is the sell price minus what the kWh cost in the battery (incl. loss and wear).
+
+    With a high wear the battery kWh costs more than the house would pay for it, so the gain compared with using the
+    energy (what was checked before) is bigger than the profit shown, and a sale of 0.04 kr passed 0.50 kr."""
+    only_most_profit = {key: False for key in RULES_BESIDES_MOST_PROFIT} | {"optimizer_control": False, "most_profit": True}
+
+    def most_profit_sales(minimum: float) -> list[dict]:
+        engine, _ = planned(14, 100, {**only_most_profit, "min_total_profit": minimum}, price_fn=duck_price, options=DUCK_BATTERY)
+        return [sale for sale in sales(engine).values() if sale["emoji"] == "🤑"]
+
+    assert most_profit_sales(0.0), "without the limit the scenario sells"
+    assert all(sale["profit"] >= min_total_profit - 0.011 for sale in most_profit_sales(min_total_profit))
+
+
 @pytest.mark.parametrize("optimizer_control", [False, True])
 @pytest.mark.parametrize("negative", [False, True])
 def test_never_charge_and_sell_in_the_same_hour(negative: bool, optimizer_control: bool) -> None:
@@ -162,6 +228,38 @@ def test_shadow_plan_covers_days_to_predict_and_beats_the_rules(days: int) -> No
     assert shadow["optimal"] <= shadow["self_consumption"] + 0.01
     summary = result.attributes["powerwall_action"]["optimizer_shadow_summary"]
     assert summary["optimal"] == shadow["optimal"]
+
+
+@pytest.mark.parametrize("hour", [0, 12])
+def test_profit_of_an_optimised_sale_is_after_what_the_kwh_cost_in_the_battery(hour: int) -> None:
+    """The plan shows what a sale earns: sell price minus the cost of the kWh in the battery (not the revenue).
+
+    The default wear is 0.10 kr/kWh, so the profit per kWh is at least that much less than the sell price."""
+    engine, _ = planned(hour, 5, {"optimizer_control": True, "grid_charge_to_sell": True, "most_profit": True}, solar=True)
+    sell = {row["hour"]: row["sell"] for row in engine.optimizer_shadow["hours"]}
+    sold = list(sales(engine).items())
+    assert sold, "the scenario has to sell"
+    for timestamp, sale in sold:
+        revenue = sale["kwh"] * sell[timestamp.replace(minute=0)]
+        assert sale["profit"] <= revenue - sale["kwh"] * 0.10 + 0.01
+
+
+def test_profit_requirements_are_shown_as_a_steering_figure_for_every_plan() -> None:
+    """The optimisation adds the profit requirements to the cost of its actions (not money): they are reported next
+    to the real totals, calculated the same way for the optimal plan, the rules and plain self consumption."""
+    zero_engine, _ = planned(3, 30, {"optimizer_control": True}, solar=True)
+    assert zero_engine.optimizer_shadow["requirements"] == {"optimal": 0.0, "rules": 0.0, "self_consumption": 0.0}
+
+    engine, result = planned(3, 30, {"optimizer_control": True, "min_profit_per_kwh": 0.5, "min_total_profit": 1.0}, solar=True)
+    requirements = engine.optimizer_shadow["requirements"]
+    assert set(requirements) == {"optimal", "rules", "self_consumption"}
+    # self consumption delivers the battery's kWh to the house: 0.50 per kWh out, no sales
+    assert requirements["self_consumption"] > 0.0
+    assert requirements["optimal"] > 0.0 and requirements["rules"] > 0.0
+    assert result.attributes["powerwall_action"]["optimizer_shadow_summary"]["requirements"] == requirements
+    overview = result.attributes["overview"]["overview"]
+    assert f"{requirements['optimal']:.2f}" in overview.split("🎯", 1)[1].splitlines()[0]
+    assert "🎯" not in zero_engine.last_overview
 
 
 def test_what_if_simulator_does_not_change_the_active_plan() -> None:

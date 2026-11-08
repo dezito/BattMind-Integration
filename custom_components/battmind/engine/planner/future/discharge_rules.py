@@ -133,10 +133,6 @@ class FutureDischargeRules:
         min_profit_per_kwh / min_total_profit, at least min_sell_kwh), it is sold instead.
         """
         max_hours_old = self.number("powerwall_max_hours_old")
-        max_days_old = max(int(round(max_hours_old / 24)), 0)
-        if day > max_days_old:
-            _LOGGER.debug("Old energy: day %s exceeds the max age (%s days), skipping", day, max_days_old)
-            return ctx.battery_expenses_keys
         minimum = ctx.config["solar"]["powerwall_battery_level_min"]
         usage_minimum = max(minimum, self.number("usage_reserve"))
         from_timestamp = ctx.charging_plan[day]["start_of_day"].replace(hour=ctx.current_hour.hour if day == 0 else 0)

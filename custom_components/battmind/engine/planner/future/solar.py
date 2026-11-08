@@ -63,8 +63,17 @@ class FutureSolar:
         if not candidates:
             return
 
+        # The 80 % margin is a bet on the later SOLAR filling the battery (docs/rules/solar.md): a grid charge
+        # after the first hour that can be blocked doesn't count as refill in that test
+        first_block = min(candidates)
+        grid_hours = {
+            ts.hour for ts, session in data.get("charging_sessions", {}).items()
+            if ts.date() == start.date() and ts.hour > first_block and (session.get("battery_level") or 0.0) > 0.0
+        }
+        margin_delta = {h: 0.0 if h in grid_hours else delta[h] for h in hours}
         blocked_hours, flow, charged, original_charged = _optimize_solar_blocking(
-            hours, delta, available, prices, candidates, float(original[hours[0]][0]), minimum, maximum, SOLAR_BLOCK_MARGIN
+            hours, delta, available, prices, candidates, float(original[hours[0]][0]), minimum, maximum, SOLAR_BLOCK_MARGIN,
+            margin_delta=margin_delta,
         )
         if not blocked_hours:
             return

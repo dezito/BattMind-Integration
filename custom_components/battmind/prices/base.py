@@ -51,6 +51,16 @@ def calculate_sell_price(
     )
 
 
+def sell_adder_sign(config: dict) -> float:
+    """+1 or -1: how the forecast adder moves a SELL price so that a sale is worth less.
+
+    A sold kWh is worth the hourly sell price, so a forecast sell price gets the adder subtracted (-1). With a
+    fixed solar sell price (production_price != -1) it is worth fixed price minus the hourly price, so the
+    hourly price has to be raised (+1) to make the sale worth less.
+    """
+    return 1.0 if config["solar"]["production_price"] != -1.0 else -1.0
+
+
 def _naive(timestamp):
     return timestamp.replace(tzinfo=None) if isinstance(timestamp, datetime.datetime) else timestamp
 
@@ -86,6 +96,7 @@ class BasePriceProvider:
         prices_config = config["prices"]
         self.entity_ids: dict[str, str] = dict(prices_config["entity_ids"])
         self.sell_fee = abs(prices_config.get("sell_fee", 0.0))
+        self.sell_adder_sign = sell_adder_sign(config)
         self.attributes: dict[str, dict] = {}
         self.values: dict[str, float] = {}
         self.current_hour = reset_time_to_hour(datetime.datetime.now())
@@ -114,9 +125,12 @@ class BasePriceProvider:
     def _has(self, entity_id: str) -> bool:
         return bool(entity_id) and entity_id in self.attributes
 
-    def _forecast_adder(self, timestamp: datetime.datetime) -> float:
-        """Forecast prices get a small penalty per day ahead to prefer known prices."""
-        return days_between(self.current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER
+    def _forecast_adder(self, timestamp: datetime.datetime, sell: bool = False) -> float:
+        """Forecast prices get a small penalty per day ahead to prefer known prices.
+
+        A forecast buy price is dearer, and a sale at a forecast sell price is worth less (sell_adder_sign)."""
+        adder = days_between(self.current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER
+        return adder * self.sell_adder_sign if sell else adder
 
     def calculate_sell_price(self, timestamp: datetime.datetime, price: float) -> float:
         tariff = self.get_tariffs(timestamp)
@@ -175,6 +189,7 @@ class CombinedPriceProvider:
         prices_config = config["prices"]
         self.entity_ids: dict[str, str] = dict(prices_config["entity_ids"])
         self.refund = abs(prices_config.get("refund", 0.0))
+        self.sell_adder_sign = sell_adder_sign(config)
         self.current_hour = reset_time_to_hour(datetime.datetime.now())
         self.buy_prices: dict = {}
         self.sell_prices: dict = {}
@@ -266,14 +281,15 @@ class CombinedPriceProvider:
     def get_buy_forecast_prices(self, adder: bool = True) -> dict:
         """The forecast buy prices; adder=False without the penalty per day ahead the providers
         add to prefer known prices."""
-        return self._forecast(self.buy_prices, self.buy_price_sources, adder)
+        return self._forecast(self.buy_prices, self.buy_price_sources, adder, 1.0)
 
     def get_sell_forecast_prices(self, adder: bool = True) -> dict:
-        return self._forecast(self.sell_prices, self.sell_price_sources, adder)
+        """The forecast sell prices; adder=False without the penalty (which makes a sale worth less)."""
+        return self._forecast(self.sell_prices, self.sell_price_sources, adder, self.sell_adder_sign)
 
-    def _forecast(self, prices: dict, sources: dict, adder: bool) -> dict:
+    def _forecast(self, prices: dict, sources: dict, adder: bool, sign: float) -> dict:
         return {
-            timestamp: price if adder else price - days_between(self.current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER
+            timestamp: price if adder else price - sign * days_between(self.current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER
             for timestamp, price in prices.items()
             if str(sources.get(timestamp, "")).endswith(":forecast")
         }

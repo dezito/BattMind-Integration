@@ -70,7 +70,7 @@ kWh, even though the night charge cost more.
 ## 🕰️ Max. age of kWh
 
 **Switch:** *Forced discharge: Max. kWh age in hours* · **Number:** *Max. age of kWh in home battery*
-(default 48 h)
+(default 48 h, from 12 to 72 h)
 
 Energy that has been in the battery longer than this is used even without profit: discharging is allowed
 in every hour from then. This keeps old, expensive energy from blocking the battery forever – e.g. when it

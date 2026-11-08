@@ -232,6 +232,35 @@ def test_old_energy_in_the_battery_is_used_at_once() -> None:
     assert hours[first_hour] == "force_solar_only_charging"
 
 
+def test_rule_plan_uses_energy_that_becomes_old_on_the_next_day() -> None:
+    """The rule plan (optimiser off) checks the max. age on every planned day, also with a limit of 12 h.
+
+    Planned at 20:30 with 80 %: 30 % charged 60 h ago, 30 % charged 2 h ago (it is 12 h old at 06:30 tomorrow) and
+    the rest of unknown age. Profit only holds the battery in the day hours tomorrow, but old energy is never held."""
+    now = datetime.datetime.combine(DAY, datetime.time(20, 30))
+    engine = BattMindEngine(build_config({**OPTIONS, "energidataservice_sell_entity_id": "sensor.sell"}), "test", TEXTS)
+    assert engine.run_job(realistic_snapshot(now, 80), engine.startup, {"power_values": _power_values_db()}).error is None
+    for ago, price in ((60, 0.2), (2, 0.6)):
+        engine.charging_history_db[now.replace(minute=0) - datetime.timedelta(hours=ago)] = {
+            "charged": {"percentage": 30.0, "kWh": 3.0, "kWh_from_grid": 3.0, "kWh_from_local_energy": 0.0, "cost": 3.0 * price, "price": price}
+        }
+    settings = {"optimizer_control": False, "force_powerwall_max_hours_old_discharge": True, "powerwall_max_hours_old": 12, "only_discharge_on_profit": True}
+    result = engine.run_job(realistic_snapshot(now, 80, settings), engine.charge_if_needed, True)
+    assert result.error is None, result.error
+    tomorrow = engine.plan[1]
+    old_from = now.replace(minute=0) - datetime.timedelta(hours=2) + datetime.timedelta(hours=12)
+    day_hours = [ts for ts in tomorrow["force_powerwall_max_hours_old_discharge_timestamps"] if ts >= old_from]
+    assert day_hours, "the energy that turns 12 h old tomorrow is used"
+    assert not [ts for ts in tomorrow["blocked_discharge_timestamps"] if ts >= old_from and ts < old_from.replace(hour=22)]
+
+
+def test_max_age_of_kwh_has_a_minimum_of_12_hours() -> None:
+    from custom_components.battmind.const import NUMBER_SETTINGS
+
+    assert NUMBER_SETTINGS["powerwall_max_hours_old"]["min"] == 12
+    assert NUMBER_SETTINGS["powerwall_max_hours_old"]["default"] >= 12
+
+
 def test_result_lists_the_planned_grid_charges() -> None:
     hours = _forward_hours()
     result = optimize(hours, 5.0, cfg_with(max_age_hours=12.0), 0.0)

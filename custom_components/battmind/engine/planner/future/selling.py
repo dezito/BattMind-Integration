@@ -121,7 +121,10 @@ class FutureSelling:
                     break
             kwh = sum(take for _, take in taken)
             gain = sum((price - item[0]) * take for item, take in taken)
-            if kwh < min_sell_kwh or gain < self.get_min_total_profit() / periods_in_hour:
+            # the profit shown in the plan (sell price - what the kWh cost in the battery) has to reach
+            # min_total_profit, not only the gain compared with using the energy
+            grid_sell_profit = (price - battery_kwh_cost) * kwh
+            if kwh < min_sell_kwh or grid_sell_profit < self.get_min_total_profit() / periods_in_hour:
                 continue
 
             usage_text = ""
@@ -143,7 +146,6 @@ class FutureSelling:
                     )
             usage = [item for item in usage if item[2] > 0.01]
 
-            grid_sell_profit = (price - battery_kwh_cost) * kwh
             _LOGGER.debug("Most profit: selling %.2f kWh at %s (%.2f more than using it)", kwh, timestamp, gain)
             fixed_price_calc_text = (
                 f"{sell_price:.2f} - {ctx.grid_sell_prices.get(timestamp, 0.0):.2f} =" if not using_grid_sell_price else ""

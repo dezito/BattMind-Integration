@@ -168,3 +168,41 @@ async def test_options_flow_export_and_import(hass: HomeAssistant, config_dir: P
     await _settle(hass)
     await hass.async_add_executor_job(old_coordinator._executor.shutdown, True)
     assert hass.states.get(NUMBER).state == exported != "5.0"
+
+
+MAX_AGE = f"number.{PREFIX}_powerwall_max_hours_old"
+
+
+@pytest.mark.parametrize(("stored", "expected"), [("6", 12.0), ("1", 12.0), ("24", 24.0), ("100", 72.0)])
+async def test_stored_max_age_is_kept_inside_the_limits_of_the_entity(hass: HomeAssistant, mock_entry, stored: str, expected: float) -> None:
+    """A value stored by an older version (the minimum was 1 h, now 12 h) is raised to the minimum on restore."""
+    from .conftest import set_source_states
+
+    mock_restore_cache(hass, [State(MAX_AGE, stored)])
+    set_source_states(hass)
+    mock_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_entry.entry_id)
+    await _settle(hass)
+    assert float(hass.states.get(MAX_AGE).state) == expected
+    await async_unload_and_join(hass, mock_entry)
+
+
+async def test_imported_max_age_is_kept_inside_the_limits_of_the_entity(hass: HomeAssistant) -> None:
+    """The first value of a new entry (e.g. imported from the PyScript version) is raised to the minimum of 12 h too."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.battmind.const import default_options
+    from .conftest import MOCK_OPTIONS, set_source_states
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title=f"BattMind ({PREFIX})",
+        data={CONF_ENTITY_PREFIX: PREFIX, "legacy_prefix": None, "initial_settings": {"powerwall_max_hours_old": 6}},
+        options=dict(MOCK_OPTIONS),
+    )
+    set_source_states(hass)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await _settle(hass)
+    assert float(hass.states.get(MAX_AGE).state) == 12.0
+    await async_unload_and_join(hass, entry)
