@@ -52,14 +52,19 @@ house uses 1 kWh per hour. The four evening hours get the 4 kWh, and the morning
 **Switch:** *Discharging: Before the sun*
 
 On days where the sun fills the battery to max and the surplus is sold, every kWh emptied before the sun
-is refilled with solar that would otherwise be sold. So a kWh used or sold before the sun only has to beat
-the solar sell price:
+has filled the battery is refilled with solar that would otherwise be sold. So a kWh used or sold before
+that only has to beat the solar sell price:
 
 `refill cost = solar sell price ÷ efficiency² + wear`
 
 The rule allows discharging in blocked hours before the sun, and sells in the most expensive periods before
 it, as long as `price − refill cost ≥ min. profit per kWh`. It never empties more than the solar surplus
 that would be pushed out.
+
+With the [whole period optimisation](optimizer.md) the sale can also be in an hour after sunrise, as long as
+the sun fills the battery to max later (within 24 hours) and nothing is charged from the grid in between: the
+kWh sold is then refilled by solar that would otherwise be sold. It is shown as 🌄 *Sells before the sun fills the
+battery*.
 
 **Example:** the sun fills the battery at 11:00 and 6 kWh surplus are sold at 0.40 kr/kWh. Refill costs
 0.40 ÷ 0.9 + 0.10 = 0.54 kr/kWh. At 07:00 the price is 1.60 kr/kWh: using the battery earns 1.06 kr per

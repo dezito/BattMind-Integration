@@ -365,6 +365,10 @@ Keep these invariants when touching any planner rule:
     skip such rows, tariffs that are NaN/inf give a NaN sell price (not zero tariffs, which would be a too high
     sell price) and `CombinedPriceProvider._combine()` drops every non-finite price, so the hour is filled from
     the price history or has none. An unavailable tariff is still 0.
+  - `discharge_before_solar` means before the sun has filled the battery (decided with the user): the optimiser's
+    `explain()` labels a sale 🌄 whenever the sun fills the battery to max later (≤ 24 h, no charge between), also in
+    an hour after sunrise. The rule path (`discharge_before_solar()` in `discharge_rules.py`) only looks at the hours
+    before the first sun hour, which is narrower.
   - The `profit` of a sale in the optimised plan is after the cost of the kWh in the battery (incl. loss and wear),
     like the rules' (`optimal_battery_kwh_cost()`: the running average price over the optimal plan's own charges),
     not the sell revenue.
