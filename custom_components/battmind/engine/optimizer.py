@@ -98,6 +98,10 @@ def step_hour(
     limit: max kWh from the grid when grid charging / max kWh sold when force discharging
     (None = the full rate). details (optional) gets the kWh flows of the hour.
     """
+    if cfg.battery_size == 0:
+        if details is not None:
+            details.update(solar_in=0.0, house=0.0, sold=0.0, grid=0.0, delivered=0.0)
+        return 0.0, hour.consumption * hour.buy - hour.solar * hour.sell, 0.0, 0.0
     to_kwh = cfg.battery_size / 100.0
     room = max(cfg.level_max - level, 0.0) * to_kwh  # kWh battery side
     available = max(level - cfg.level_min, 0.0) * to_kwh

@@ -168,6 +168,18 @@ def replay_history(
         return result.value
 
     cfg = run(hours[0].timestamp, start_level, engine.replay_optimizer_config)
+    if cfg.battery_size == 0:
+        summaries = []
+        months: dict[str, dict[str, float]] = {}
+        for segment in _segments(hours):
+            summaries.append(breakdown(segment, 0.0, cfg, [FALLBACK_ACTION[0]] * len(segment), 0.0))
+            for hour in segment:
+                month = months.setdefault(hour.timestamp.strftime("%Y-%m"), {"hours": 0, "profit": 0.0, "bill": 0.0})
+                month["hours"] += 1
+                month["bill"] += hour.consumption * hour.buy - hour.solar * hour.sell
+        if progress is not None:
+            progress(len(hours))
+        return {"config": cfg, "summaries": summaries, "months": months}
     if not cfg.level_min <= start_level <= cfg.level_max:
         raise ValueError("Starting level must be between minimum and maximum level")
     # a kWh left in the battery saves the average buy price later (after wear and the min. profit)

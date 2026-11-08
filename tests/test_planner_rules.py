@@ -1572,6 +1572,60 @@ def _what_if_data(engine: BattMindEngine, days: int = 2) -> dict:
 
 
 @pytest.mark.parametrize("optimizer_control", [True, False])
+def test_what_if_zero_battery_is_no_storage(optimizer_control: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    settings = {"optimizer_control": optimizer_control}
+    engine, _ = planned(3, 40, settings, solar=True)
+    live = deepcopy((engine.plan, engine.charge_hours, engine.optimizer_shadow, engine.shadow_plan_actions))
+    data = _what_if_data(engine)
+    for series in data["stats"].values():
+        del series[5]
+    reports = []
+    monkeypatch.setattr(what_if_module, "PROGRESS_INTERVAL", 0.0)
+    result = engine.run_job(
+        realistic_snapshot(now, 40, settings),
+        engine.what_if,
+        data,
+        {"battery_size": 0, "starting_level": 40, "wear_cost_per_kwh": 0.5},
+        progress=reports.append,
+    )
+
+    assert result.error is None, result.error
+    simulation = result.value
+    scenario = simulation["scenario"]
+    assert simulation["assumptions"]["battery_size"] == 0
+    assert simulation["assumptions"]["starting_level"] == scenario["end_level"] == 0
+    assert scenario["with"] == scenario["without"]
+    assert scenario["with"]["house_kwh"] > 0
+    assert scenario["with"]["solar_kwh"] > 0
+    assert scenario["with"]["solar_income"] < 0
+    assert scenario["profit"] == scenario["profit_per_kwh"] == 0
+    assert scenario["charged_grid_kwh"] == scenario["charged_solar_kwh"] == scenario["delivered_house_kwh"] == 0
+    assert scenario["with"]["sold_kwh"] == scenario["with"]["wear"] == scenario["with"]["energy_value"] == 0
+    assert sum(month["hours"] for month in scenario["months"].values()) == 47
+    assert sum(month["bill"] for month in scenario["months"].values()) == pytest.approx(scenario["with"]["bill"], abs=0.02)
+    assert sum(month["profit"] for month in scenario["months"].values()) == 0
+    assert simulation["difference"]["profit"] == pytest.approx(-simulation["current"]["profit"])
+    assert simulation["difference"]["bill"] == pytest.approx(
+        scenario["with"]["bill"] - simulation["current"]["with"]["bill"], abs=0.01
+    )
+    assert reports[-1]["percent"] == 100
+    assert (engine.plan, engine.charge_hours, engine.optimizer_shadow, engine.shadow_plan_actions) == live
+
+
+@pytest.mark.parametrize("action", ["grid_charging", "force_discharge", "discharge_allowed"])
+@pytest.mark.parametrize("sell,expected", [(1.0, 4.0), (-1.0, 8.0)])
+def test_what_if_zero_battery_hour_uses_actual_prices(action: str, sell: float, expected: float) -> None:
+    cfg = deepcopy(CFG)
+    cfg.battery_size = 0.0
+    details = {}
+    result = step_hour(OptimizerHour(0, 3.0, sell, 2.0, 2.0), 50.0, action, cfg, details=details)
+
+    assert result == (0.0, expected, 0.0, 0.0)
+    assert details == {"solar_in": 0.0, "house": 0.0, "sold": 0.0, "grid": 0.0, "delivered": 0.0}
+
+
+@pytest.mark.parametrize("optimizer_control", [True, False])
 def test_what_if_replays_the_planner_without_touching_the_live_engine(optimizer_control: bool) -> None:
     now = datetime.datetime.combine(DAY, datetime.time(3, 30))
     settings = {"optimizer_control": optimizer_control}

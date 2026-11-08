@@ -72,6 +72,11 @@ Example action:
 
 All fields are optional; a field you leave out uses the current setting. Power is in W, battery capacity
 in kWh, and battery levels and round-trip loss are percentages.
+Set **battery_size** to **0** to compare against a home without a battery. The scenario buys its
+consumption and sells its solar surplus at the historical prices, without battery flows, wear or stored
+energy value. Its reported starting and ending battery levels are 0%; battery levels have no physical
+meaning without a battery. An explicitly supplied starting level is still validated against both
+configurations, as in other simulations.
 
 | Group | Fields |
 |---|---|

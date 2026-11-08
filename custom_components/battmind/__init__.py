@@ -309,7 +309,7 @@ WHAT_IF_SCHEMA = vol.Schema(
     {
         vol.Optional("config_entry_id"): cv.string,
         vol.Optional("history_days", default=365): vol.All(vol.Coerce(int), vol.Range(min=1, max=365)),
-        vol.Optional("battery_size"): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=1000)),
+        vol.Optional("battery_size"): vol.All(vol.Coerce(float), vol.Range(min=0, max=1000)),
         vol.Optional("minimum_level"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
         vol.Optional("maximum_level"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
         vol.Optional("starting_level"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),

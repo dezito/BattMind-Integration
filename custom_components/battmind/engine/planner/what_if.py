@@ -373,6 +373,8 @@ class WhatIf:
                 raise ValueError("Starting level must be between minimum and maximum level")
             starts.append(start)
         current_start_level, start_level = starts
+        if scenario_config["solar"]["powerwall_battery_size"] == 0:
+            start_level = 0.0
 
         unchanged = (scenario_config, scenario_settings, start_level) == (current_config, current_settings, current_start_level)
         steps = 1 if unchanged else 2
