@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import bisect
 import datetime
+import math
 from typing import Iterable
 
 NUM_POINTS = 100
@@ -141,7 +142,7 @@ class WindowCalculator:
     def last_numeric(self, entity_id: str):
         rows = self.buffers.get(entity_id) or []
         for _, value in reversed(rows):
-            if value is not None:
+            if isinstance(value, (int, float)) and math.isfinite(value):
                 return value
         return None
 

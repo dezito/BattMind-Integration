@@ -16,6 +16,8 @@ class Battery:
     def get_battery_level(self) -> float:
         entity_id = self.config["home"]["entity_ids"]["powerwall_battery_level_entity_id"]
         value = float_or_none(self.entity_state(entity_id))
+        if value is not None and not math.isfinite(value):
+            value = None  # "nan" and "inf" are not a battery level: handled like an unavailable sensor
         if value is None and self._wc is not None:
             value = self._wc.last_numeric(entity_id)
         if value is None:
