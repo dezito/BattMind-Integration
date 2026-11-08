@@ -37,6 +37,7 @@ class FutureSelling:
         # kWh the battery can deliver at the end of each hour, the hours it is full and
         # the hours it covers (cheapest first)
         window, deliverable, full_before, usage = [], {}, {}, []
+        below_reserve = {}  # kWh an hour ends under the reserve (negative): the house used the battery down below it
         full_count = 0
         loop_timestamp = reset_time_to_hour(from_timestamp)
         while loop_timestamp <= lowest_timestamp:
@@ -45,12 +46,14 @@ class FutureSelling:
             if flow:
                 window.append(loop_timestamp)
                 deliverable[loop_timestamp] = ctx.percentage_to_kwh(max(sum(flow) - minimum, 0.0)) * ctx.efficiency
+                below_reserve[loop_timestamp] = ctx.percentage_to_kwh(min(sum(flow) - minimum, 0.0)) * ctx.efficiency
                 full_before[loop_timestamp] = full_count
                 prediction = data["hour_cost_prediction"][ctx.forecast_type].get(loop_timestamp.hour)
                 grid_price = ctx.grid_prices.get(loop_timestamp)
                 if (
                     prediction is not None and grid_price is not None
                     and loop_timestamp in data["discharge_timestamps"] and self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, loop_timestamp) <= 0.0
+                    and not hour_in(loop_timestamp, data["force_discharge_timestamps"])  # an hour that sells isn't freed for another sale
                 ):
                     kwh = min(prediction["kwh"], ctx.percentage_to_kwh(max(flow[0] - minimum, 0.0)) * ctx.efficiency)
                     if kwh > 0.01:
@@ -75,6 +78,12 @@ class FutureSelling:
             """kWh the battery lacks in any later hour when kwh is sold at hour_timestamp."""
             planned = changes + [(hour_timestamp, -kwh)] + [(item[1], take) for item, take in freed]
             worst = 0.0
+            # The sale hour itself may not end under the reserve for the house. Freed usage earlier gives the sale hour
+            # the kWh back that the sale takes, so a sale in an hour the house has already used under the reserve ends
+            # exactly there: deliverable (never negative) doesn't see it
+            deficit = below_reserve.get(hour_timestamp, 0.0)
+            if deficit < 0.0:
+                worst = max(worst, -(deficit + sum(change for change_ts, change in planned if change_ts <= hour_timestamp)))
             for ts in window:
                 if ts < hour_timestamp:
                     continue
@@ -119,6 +128,8 @@ class FutureSelling:
                 if slot_kwh < min_sell_kwh:
                     taken = []
                     break
+            else:
+                taken = []  # still short after the last try: the sale would leave the battery under the reserve or short later
             kwh = sum(take for _, take in taken)
             gain = sum((price - item[0]) * take for item, take in taken)
             # the profit shown in the plan (sell price - what the kWh cost in the battery) has to reach

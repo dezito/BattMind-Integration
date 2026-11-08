@@ -60,6 +60,7 @@ energy would be replaced by solar or by a charge anyway). A sale has to:
 - cover what the energy in the battery cost (incl. loss and wear)
 - sell at least **min. kWh for export** and earn **min. total profit**
 - never leave the battery short in a later hour
+- never end the sale hour under the **reserve for the house** (kWh the house has already used under it count)
 
 **Example:** at 18:00 the sell price is 2.10 kr/kWh. The battery would otherwise cover the house at 22:00,
 where the buy price is 1.30 kr/kWh. Selling 1 kWh at 18:00 and buying it at 22:00 earns 0.80 kr.
