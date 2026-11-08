@@ -93,12 +93,18 @@ class FutureCharging(FutureSupport, FutureChargeRules, FutureDischargeRules, Fut
         # always calculated: it controls the battery, or it is compared with the rules
         self.optimizer_shadow = None
         self.shadow_plan_actions = None
+        self.rule_old_energy = {}
         try:
             result = self.shadow_plan(ctx, days)
             if self.enabled("optimizer_control") and result is not None:
                 total_cost, total_kwh = self.apply_optimizer_plan(ctx, days, *result)
                 totals[:] = total_cost, total_kwh
                 self.optimizer_shadow["controls"] = True
+                self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now, final_recalc=True)
+                for day in days:
+                    self.discharge_amount(ctx, day)
+            elif self.apply_max_age_to_rules(ctx):
+                # the rules control the battery: they may not hold back energy older than the max. age either
                 self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now, final_recalc=True)
                 for day in days:
                     self.discharge_amount(ctx, day)

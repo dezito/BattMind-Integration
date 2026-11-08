@@ -8,11 +8,13 @@ rules; the rule based plan is simulated with the same model, so the totals can b
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import datetime
+from dataclasses import dataclass, field, replace
 
 from ..utils.efficiency import EfficiencyCurve, efficiency_at_power
 
-ACTIONS = ("discharge_allowed", "force_solar_only_charging", "grid_charging", "force_discharge", "blocked_solar_charge")
+HOLD = "force_solar_only_charging"  # the house buys from the grid while the battery keeps its energy
+ACTIONS =("discharge_allowed", "force_solar_only_charging", "grid_charging", "force_discharge", "blocked_solar_charge")
 # charge_if_needed() replans every cron interval from the new battery level, so a charge hour
 # stops when its planned kWh are in the battery, and force discharge runs per sell period
 # (15 min): grid charging and selling can be a part of the hour
@@ -34,6 +36,7 @@ class OptimizerHour:
     fraction: float = 1.0  # part of the hour left (the current hour); scales the charge/discharge rate
     forbidden: set = field(default_factory=set)  # actions not allowed (their rule switch is off)
     block_allowed: bool = True  # False: solar charging may not be blocked (it was released earlier in the hour)
+    old_above: float | None = None  # % level above which the energy is older than max_age_hours (set between the rounds)
 
 
 @dataclass
@@ -54,6 +57,13 @@ class OptimizerConfig:
     usage_reserve: float = 0.0  # % kept for the house; force discharge may not export below it
     step: float = 0.5  # % resolution of the battery level
     unsupported: frozenset = frozenset()  # actions the inverter can't run (never planned)
+    # Energy older than this is not held back (powerwall_max_hours_old, None = no limit). The battery
+    # empties first in, first out: what is in it at the start of an hour is the latest charges, so the
+    # old energy is the usable level minus the % charged within the max age (and minus the part of
+    # unknown age, which is never old).
+    max_age_hours: float | None = None
+    charged_before: tuple = ()  # ((hour, % level added), ...) charged before the first hour (the charging history)
+    unaged: float = 0.0  # % level of unknown age
 
 
 @dataclass
@@ -65,6 +75,10 @@ class OptimizerResult:
     costs: list[float] = field(default_factory=list)  # currency per hour (negative = earned)
     total: float = 0.0  # currency incl. the value of the energy left at the end
     end_value: float = 0.0
+    charged: list = field(default_factory=list)  # ((hour, % level added), ...) the plan's own charges
+    old: list[float] = field(default_factory=list)  # % level older than max_age_hours at the start of each hour
+    held_old: int = 0  # hours where holding old energy was replaced by using it
+    unaged_end: float | None = None  # % level of unknown age left at the end (None: not tracked)
 
 
 def step_hour(
@@ -150,9 +164,79 @@ def _later(hours: list[OptimizerHour], cfg: OptimizerConfig) -> list[_Later]:
     return later
 
 
+def _fresh(timestamp, cfg: OptimizerConfig, charges, unaged: float) -> float:
+    """% level that is not older than cfg.max_age_hours at timestamp: the energy of unknown age and what was charged since.
+
+    The history also counts a charge of the hour itself (it is just in); the plan's own charge of an hour is
+    in the battery from the next hour.
+    """
+    since = timestamp - datetime.timedelta(hours=cfg.max_age_hours)
+    return (
+        unaged
+        + sum(pct for charged_at, pct in cfg.charged_before if since < charged_at <= timestamp)
+        + sum(pct for charged_at, pct in charges if since < charged_at < timestamp)
+    )
+
+
+def _unaged_left(unaged: float, level: float, cfg: OptimizerConfig) -> float:
+    """The energy of unknown age is the oldest, so it leaves first: no more of it than the usable energy in the battery."""
+    return min(unaged, max(level - cfg.level_min, 0.0))
+
+
+def old_energy(hour: OptimizerHour, level: float, cfg: OptimizerConfig, charges, unaged: float = 0.0) -> float:
+    """% level older than the max age at the start of the hour (0 when there is none or at most one step).
+
+    unaged: the % of energy of unknown age still in the battery (cfg.unaged, less what has left since).
+    """
+    if cfg.max_age_hours is None:
+        return 0.0
+    old = level - cfg.level_min - _fresh(hour.timestamp, cfg, charges, unaged)
+    return old if old > cfg.step else 0.0
+
+
+def old_energy_limits(hours: list[OptimizerHour], cfg: OptimizerConfig, charges, start_level: float, levels: list[float]) -> list[float | None]:
+    """OptimizerHour.old_above of every hour for a plan with these charges and levels (None: the energy can't be old)."""
+    limits: list[float | None] = []
+    unaged = cfg.unaged
+    for index, hour in enumerate(hours):
+        unaged = _unaged_left(unaged, levels[index - 1] if index else start_level, cfg)
+        above = cfg.level_min + _fresh(hour.timestamp, cfg, charges, unaged)
+        limits.append(None if above + cfg.step >= cfg.level_max else round(above, 3))
+    return limits
+
+
+def enforce_max_age(
+    hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfig, actions: list[str], limits: list[float | None]
+) -> tuple[list[str], list[float | None], list[float]]:
+    """A given plan (e.g. the rules') without holding back energy older than cfg.max_age_hours.
+
+    Walks the plan hour by hour; an hour that holds (house consumption, the battery keeps its energy)
+    while old energy is in the battery uses the battery instead. Returns the actions, the kWh limits
+    and the % level that was older than the max age at the start of each hour.
+    """
+    actions, limits = list(actions), list(limits)
+    old_levels: list[float] = []
+    charges: list = []
+    level, unaged = start_level, cfg.unaged
+    for index, hour in enumerate(hours):
+        unaged = _unaged_left(unaged, level, cfg)
+        old = old_energy(hour, level, cfg, charges, unaged)
+        if old > 0.0 and actions[index] == HOLD and hour.consumption > 0.0:
+            actions[index], limits[index] = "discharge_allowed", None
+        previous = level
+        level = step_hour(hour, level, actions[index], cfg, limits[index])[0]
+        unaged = _unaged_left(unaged, level, cfg)
+        if level > previous + 1e-6:
+            charges.append((hour.timestamp, level - previous))
+        old_levels.append(round(old, 2))
+    return actions, limits, old_levels
+
+
 def _allowed(hour: OptimizerHour, level: float, action: str, cfg: OptimizerConfig, delivered: float, later: _Later | None = None) -> bool:
     if action in hour.forbidden or action in cfg.unsupported:
         return False
+    if action == HOLD and hour.consumption > 0.0 and hour.old_above is not None and level > hour.old_above + cfg.step:
+        return False  # old energy is used, not held back
     if action == "force_discharge":
         return hour.can_sell and delivered - min(delivered, hour.consumption) >= max(cfg.min_sell_kwh, 0.01)
     if action == "grid_charging":
@@ -211,10 +295,23 @@ def optimize(hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfi
         value, choice = new_value, [new_choice, *choice]
 
     result = OptimizerResult()
-    level = start_level
+    level, unaged = start_level, cfg.unaged
     for hour, hour_choice in zip(hours, choice):
         action, limit = hour_choice[index(level)]
+        # the age of the energy follows from this plan's own charges, so it is checked on the way: old
+        # energy is never held back (the table above only knows the limits of the previous round)
+        unaged = _unaged_left(unaged, level, cfg)
+        old = old_energy(hour, level, cfg, result.charged, unaged)
+        if old > 0.0 and action == HOLD and hour.consumption > 0.0:
+            action, limit = "discharge_allowed", None
+            result.held_old += 1
+        previous = level
         level, cost, delivered, grid_kwh = step_hour(hour, level, action, cfg, limit)
+        unaged = _unaged_left(unaged, level, cfg)
+        result.unaged_end = unaged
+        if level > previous + 1e-6:
+            result.charged.append((hour.timestamp, level - previous))
+        result.old.append(round(old, 2))
         result.actions.append(action)
         result.grid_kwh.append(round(grid_kwh, 2))
         result.sold_kwh.append(round(delivered - min(delivered, hour.consumption), 2) if action == "force_discharge" else 0.0)
@@ -267,6 +364,8 @@ RULE_SWITCHES = {
     "prioritize_discharge_hours_by_energy_cost": ("prioritize_discharge_hours_by_energy_cost",),
     "only_discharge_on_profit": ("only_discharge_on_profit",),
     "optimize_solar_charging": ("optimize_solar_charging",),
+    # a sale while old energy leaves the battery first (only planned with max_age_hours, i.e. with this switch on)
+    "force_powerwall_max_hours_old_discharge": ("force_powerwall_max_hours_old_discharge",),
 }
 
 
@@ -341,6 +440,8 @@ def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerC
                 explanation = {"rule": "grid_charge_to_sell", "target": recharge, "kind": "recharged"}
             elif refill is not None:
                 explanation = {"rule": "discharge_before_solar", "target": refill}
+            elif i < len(result.old) and result.old[i] > 0.0:
+                explanation = {"rule": "force_powerwall_max_hours_old_discharge", "target": None}
             else:
                 explanation = {"rule": "most_profit", "target": None}
         elif actions[i] == "force_solar_only_charging" and hour.consumption > 0.0 and (levels[i - 1] if i else levels[i]) > empty:
@@ -361,9 +462,15 @@ def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerC
 def optimize_with_rules(
     hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfig, end_value_per_kwh: float, enabled, rounds: int = 6
 ) -> tuple[OptimizerResult, list[dict | None]]:
-    """optimize(), but actions whose rule is switched off (enabled(switch) is False) are forbidden in that hour."""
+    """optimize(), but actions whose rule is switched off (enabled(switch) is False) are forbidden in that hour.
+
+    With cfg.max_age_hours energy older than that is not held back. optimize() already makes sure of it
+    for the plan it returns; when it had to change the plan, the plan is made again with the age limits
+    of the charges in this plan, so the table knows where the old energy is.
+    """
     for hour in hours:
         hour.forbidden = set()
+        hour.old_above = None
     result, explanations = None, []
     for _ in range(rounds):
         result = optimize(hours, start_level, cfg, end_value_per_kwh)
@@ -375,6 +482,13 @@ def optimize_with_rules(
                 if forbid_action not in hours[forbid_index].forbidden:
                     hours[forbid_index].forbidden.add(forbid_action)
                     changed = True
+        # the limits follow the charges of the latest plan: also drop limits this plan has no old energy for
+        if cfg.max_age_hours is not None and (result.held_old or any(hour.old_above is not None for hour in hours)):
+            limits = old_energy_limits(hours, cfg, result.charged, start_level, result.levels)
+            if limits != [hour.old_above for hour in hours]:
+                for hour, limit in zip(hours, limits):
+                    hour.old_above = limit
+                changed = True
         if not changed:
             break
     return result, explanations
@@ -460,9 +574,16 @@ def optimize_per_day(
         days.setdefault(hour.timestamp.date(), []).append(hour)
     for day_hours in days.values():
         offset = len(merged.actions)
-        result, day_explanations = optimize_with_rules(day_hours, level, cfg, end_value_per_kwh, enabled)
-        for name in ("actions", "levels", "costs", "grid_kwh", "sold_kwh"):
+        # what the earlier days charged is part of the age of the energy
+        day_cfg = cfg
+        if cfg.max_age_hours is not None:
+            unaged = cfg.unaged if merged.unaged_end is None else merged.unaged_end
+            day_cfg = replace(cfg, charged_before=(*cfg.charged_before, *merged.charged), unaged=unaged)
+        result, day_explanations = optimize_with_rules(day_hours, level, day_cfg, end_value_per_kwh, enabled)
+        for name in ("actions", "levels", "costs", "grid_kwh", "sold_kwh", "charged", "old"):
             getattr(merged, name).extend(getattr(result, name))
+        merged.held_old += result.held_old
+        merged.unaged_end = result.unaged_end
         for explanation in day_explanations:
             if explanation is not None:
                 explanation = dict(explanation)

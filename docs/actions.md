@@ -30,7 +30,7 @@ used. BattMind then never plans an unsupported action, neither with the
 | Unsupported action | Rules that count as off |
 |---|---|
 | `grid_charging` | cheapest periods (and fill up), most expensive periods, required before max level, negative prices, buy to sell |
-| `force_discharge` | maximise profit, sell excess kWh, before the sun, buy to sell. *Max. kWh age* still uses old energy, but doesn't sell it |
+| `force_discharge` | maximise profit, sell excess kWh, before the sun, buy to sell. *Max. kWh age* still uses old energy, but can't sell it (selling needs force discharge) |
 | `force_solar_only_charging` | profit only, prioritise by energy cost, maximise profit. These hold energy for a later hour, which needs a battery that can stop discharging |
 | `blocked_solar_charge` | optimise solar charging |
 
