@@ -11,11 +11,11 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
 from ..management.backup import BACKUP_DIR, async_load_backup, backup_dir, list_backups
-from ..const import CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX, DOMAIN, SENSOR_KEYS, default_options, normalize_language
+from ..const import CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX, DOMAIN, SENSOR_KEYS, dashboard_icon, default_options, normalize_language
 from ..management.storage import find_legacy_sources, load_legacy_config
 from .pages import BattMindFlowPages
 from .options import BattMindOptionsFlow
-from .schema import CONFIG_FLOW_STEPS, IMPORT_NONE, PREFIX_RE, SELECTORS, options_from_legacy, providers_from_options
+from .schema import CONFIG_FLOW_STEPS, normalize_input, validate_step, IMPORT_NONE, PREFIX_RE, SELECTORS, options_from_legacy, providers_from_options
 
 
 class BattMindConfigFlow(BattMindFlowPages, ConfigFlow, domain=DOMAIN):
@@ -58,7 +58,10 @@ class BattMindConfigFlow(BattMindFlowPages, ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             prefix = user_input[CONF_ENTITY_PREFIX].strip().lower()
             used = {entry.data.get(CONF_ENTITY_PREFIX) for entry in self._async_current_entries()}
-            if not PREFIX_RE.match(prefix):
+            icon = normalize_input(["dashboard_icon"], user_input)
+            if errors := validate_step("user", icon):
+                pass
+            elif not PREFIX_RE.match(prefix):
                 errors[CONF_ENTITY_PREFIX] = "invalid_prefix"
             elif prefix in used:
                 errors[CONF_ENTITY_PREFIX] = "prefix_in_use"
@@ -67,6 +70,7 @@ class BattMindConfigFlow(BattMindFlowPages, ConfigFlow, domain=DOMAIN):
             else:
                 self._prefix = prefix
                 self._options["language"] = user_input.get("language", self._options["language"])
+                self._options["dashboard_icon"] = icon["dashboard_icon"]
                 self._queue = list(CONFIG_FLOW_STEPS)
                 self._backups = await self.hass.async_add_executor_job(list_backups, backup_dir(self.hass))
                 if self._backups:
@@ -78,6 +82,7 @@ class BattMindConfigFlow(BattMindFlowPages, ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_ENTITY_PREFIX, default=DEFAULT_ENTITY_PREFIX): selector.TextSelector(),
                 vol.Required("language", default=language): SELECTORS["language"],
+                vol.Optional("dashboard_icon", description={"suggested_value": dashboard_icon(None)}): SELECTORS["dashboard_icon"],
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
@@ -96,8 +101,8 @@ class BattMindConfigFlow(BattMindFlowPages, ConfigFlow, domain=DOMAIN):
                 return await self._async_legacy_or_next()
             backup = await async_load_backup(self.hass, name)
             self._restore_backup = name
-            language = self._options["language"]
-            self._options = {**default_options(), **(backup.get("options") or {}), "language": language}
+            language, icon = self._options["language"], self._options["dashboard_icon"]
+            self._options = {**default_options(), **(backup.get("options") or {}), "language": language, "dashboard_icon": icon}
             self._providers = providers_from_options(self._options)
             return await self._async_next()
 
@@ -127,11 +132,12 @@ class BattMindConfigFlow(BattMindFlowPages, ConfigFlow, domain=DOMAIN):
             source = user_input.get("import_source", IMPORT_NONE)
             if source in self._legacy_sources:
                 self._legacy_prefix = source
-                language = self._options["language"]
+                language, icon = self._options["language"], self._options["dashboard_icon"]
                 legacy = await self.hass.async_add_executor_job(load_legacy_config, self.hass.config.config_dir, source)
                 if legacy:
                     self._options, self._initial_settings = options_from_legacy(legacy)
                     self._options["language"] = language
+                    self._options["dashboard_icon"] = icon
                     self._providers = providers_from_options(self._options)
                 # PyScript used the dashboard input_number, the yaml value was only its initial value
                 if (state := self.hass.states.get(f"input_number.{source}_solar_sell_fixed_price")) is not None:

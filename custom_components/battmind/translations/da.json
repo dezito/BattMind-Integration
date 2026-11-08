@@ -6,11 +6,13 @@
         "description": "BattMind planlægger hvornår husbatteriet skal lade fra nettet, aflade eller sælge, ud fra priser, forbrug og solprognose. Planen udstilles som sensorer, du bruger i dine egne automationer.\n\n**Entity-prefix** bruges i alle entity id’er, f.eks. `sensor.PREFIX_powerwall_action`. Brug et forskelligt prefix til hver instans (og et andet prefix end PyScript-versionen, hvis begge kører). Det kan ikke ændres bagefter.",
         "data": {
           "entity_prefix": "Entity-prefix",
-          "language": "Sprog"
+          "language": "Sprog",
+          "dashboard_icon": "Ikon i sidepanelet"
         },
         "data_description": {
           "entity_prefix": "f.eks. battmind, battmind_ha eller garage_batteri",
-          "language": "Sprog i entitetsnavne, oversigten, ladehistorikken, ladereglen og notifikationer."
+          "language": "Sprog i entitetsnavne, oversigten, ladehistorikken, ladereglen og notifikationer.",
+          "dashboard_icon": "Ikonet for dashboardet i sidepanelet, f.eks. mdi:home-battery. Lad feltet være tomt for standardikonet."
         }
       },
       "import_legacy": {
@@ -238,6 +240,7 @@
       "prefix_in_use": "Dette prefix bruges allerede af en anden BattMind-instans.",
       "prefix_entities_exist": "Der findes allerede entiteter med dette prefix (f.eks. fra PyScript-versionen). Vælg et andet prefix for at køre begge samtidig.",
       "min_above_max": "Minimum niveau skal være lavere end maksimum niveau.",
+      "invalid_icon": "Brug et ikonnavn som mdi:home-battery.",
       "invalid_efficiency_curve": "Brug et objekt, der knytter effekt over 0 W til en virkningsgrad over 0 og hoejst 100 procent.",
       "no_price_provider": "Vælg mindst én prisleverandør.",
       "production_required": "En solprognose kræver en solproduktions-sensor."
@@ -271,10 +274,12 @@
       "general": {
         "title": "Generelt",
         "data": {
-          "language": "Sprog"
+          "language": "Sprog",
+          "dashboard_icon": "Ikon i sidepanelet"
         },
         "data_description": {
-          "language": "Sprog i entitetsnavne, oversigten, ladehistorikken, ladereglen og notifikationer."
+          "language": "Sprog i entitetsnavne, oversigten, ladehistorikken, ladereglen og notifikationer.",
+          "dashboard_icon": "Ikonet for dashboardet i sidepanelet, f.eks. mdi:home-battery. Lad feltet være tomt for standardikonet."
         }
       },
       "battery_entities": {
@@ -492,6 +497,7 @@
       "prefix_in_use": "Dette prefix bruges allerede af en anden BattMind-instans.",
       "prefix_entities_exist": "Der findes allerede entiteter med dette prefix (f.eks. fra PyScript-versionen). Vælg et andet prefix for at køre begge samtidig.",
       "min_above_max": "Minimum niveau skal være lavere end maksimum niveau.",
+      "invalid_icon": "Brug et ikonnavn som mdi:home-battery.",
       "invalid_efficiency_curve": "Brug et objekt, der knytter effekt over 0 W til en virkningsgrad over 0 og hoejst 100 procent.",
       "no_price_provider": "Vælg mindst én prisleverandør.",
       "production_required": "En solprognose kræver en solproduktions-sensor."

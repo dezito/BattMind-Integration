@@ -223,11 +223,13 @@
       "user": {
         "data": {
           "entity_prefix": "Entitäts-Präfix",
-          "language": "Sprache"
+          "language": "Sprache",
+          "dashboard_icon": "Symbol in der Seitenleiste"
         },
         "data_description": {
           "entity_prefix": "z. B. battmind, battmind_ha oder garage_battery",
-          "language": "Sprache der Entitätsnamen, der Übersicht, des Ladeverlaufs, der Laderegel und der Benachrichtigungen."
+          "language": "Sprache der Entitätsnamen, der Übersicht, des Ladeverlaufs, der Laderegel und der Benachrichtigungen.",
+          "dashboard_icon": "Symbol des Dashboards in der Seitenleiste, z. B. mdi:home-battery. Leer lassen für das Standardsymbol."
         },
         "description": "BattMind plant, wann der Hausakku aus dem Netz laden, entladen oder verkaufen soll, anhand von Preisen, Verbrauch und Solarprognose. Der Plan wird als Sensoren veröffentlicht, die du in eigenen Automationen nutzt.\n\n**Entitäts-Präfix** wird in jeder Entity-ID genutzt, z. B. `sensor.PREFIX_powerwall_action`. Nutze für jede Instanz ein anderes Präfix (und ein anderes als die PyScript-Version, wenn beide laufen). Es kann später nicht geändert werden.",
         "title": "BattMind hinzufügen"
@@ -239,6 +241,7 @@
     "error": {
       "invalid_prefix": "Verwende 1-50 Kleinbuchstaben, Ziffern oder Unterstriche, beginnend mit einem Buchstaben.",
       "min_above_max": "Der minimale Stand muss niedriger als der maximale sein.",
+      "invalid_icon": "Verwende einen Symbolnamen wie mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
       "no_price_provider": "Wähle mindestens einen Preisanbieter.",
       "prefix_entities_exist": "Es gibt bereits Entitäten mit diesem Präfix (z. B. aus der PyScript-Version). Wähle ein anderes Präfix, um beide gleichzeitig zu betreiben.",
@@ -472,10 +475,12 @@
       },
       "general": {
         "data": {
-          "language": "Sprache"
+          "language": "Sprache",
+          "dashboard_icon": "Symbol in der Seitenleiste"
         },
         "data_description": {
-          "language": "Sprache der Entitätsnamen, der Übersicht, des Ladeverlaufs, der Laderegel und der Benachrichtigungen."
+          "language": "Sprache der Entitätsnamen, der Übersicht, des Ladeverlaufs, der Laderegel und der Benachrichtigungen.",
+          "dashboard_icon": "Symbol des Dashboards in der Seitenleiste, z. B. mdi:home-battery. Leer lassen für das Standardsymbol."
         },
         "title": "Allgemein"
       },
@@ -495,6 +500,7 @@
     "error": {
       "invalid_prefix": "Verwende 1-50 Kleinbuchstaben, Ziffern oder Unterstriche, beginnend mit einem Buchstaben.",
       "min_above_max": "Der minimale Stand muss niedriger als der maximale sein.",
+      "invalid_icon": "Verwende einen Symbolnamen wie mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
       "no_price_provider": "Wähle mindestens einen Preisanbieter.",
       "prefix_entities_exist": "Es gibt bereits Entitäten mit diesem Präfix (z. B. aus der PyScript-Version). Wähle ein anderes Präfix, um beide gleichzeitig zu betreiben.",

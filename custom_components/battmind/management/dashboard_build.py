@@ -32,13 +32,12 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.json import cached_json_fragment, json_fragment
 from homeassistant.helpers.storage import Store
 
-from ..const import DOMAIN, normalize_language, unsupported_actions, unsupported_switches
+from ..const import DOMAIN, dashboard_icon, normalize_language, unsupported_actions, unsupported_switches
 from ..utils.formatting import load_texts
 
 _LOGGER = logging.getLogger(__name__)
 
 TEMPLATE = Path(__file__).parent.parent / "dashboard" / "battmind.yaml"
-ICON = "mdi:home-battery"
 
 _OWN_ENTITY = re.compile(r"\b(sensor|binary_sensor|switch|number|select|text|button)\.battmind_")
 _PLACEHOLDER = re.compile(r"@@(\w+)@@")
@@ -317,10 +316,11 @@ async def async_setup_dashboard(hass: HomeAssistant, entry: ConfigEntry, config:
     store = custom_store(hass, entry.entry_id)
     stored = await store.async_load()
     title = "BattMind" if prefix == "battmind" else f"BattMind ({prefix})"
+    icon = dashboard_icon(config.get("dashboard_icon"))
     battmind_dashboard = BattMindDashboard(
         hass,
         url_path,
-        {"mode": MODE_STORAGE, "filename": str(path), "title": title, "icon": ICON, "show_in_sidebar": True, "require_admin": False},
+        {"mode": MODE_STORAGE, "filename": str(path), "title": title, "icon": icon, "show_in_sidebar": True, "require_admin": False},
         store,
         stored["config"] if stored else None,
     )
@@ -330,7 +330,7 @@ async def async_setup_dashboard(hass: HomeAssistant, entry: ConfigEntry, config:
         "lovelace",
         frontend_url_path=url_path,
         sidebar_title=title,
-        sidebar_icon=ICON,
+        sidebar_icon=icon,
         require_admin=False,
         config={"mode": MODE_STORAGE},
         update=existing is not None,

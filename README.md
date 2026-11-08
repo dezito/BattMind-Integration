@@ -279,7 +279,7 @@ Large attributes (markdown, plans) are not stored in the recorder database.
 ## Dashboard
 
 With **Dashboard in the sidebar** enabled (default), each instance gets its own dashboard,
-e.g. `/battmind-dashboard`, with three views:
+e.g. `/battmind-dashboard`, with three views. You choose its sidebar icon when adding the instance, and can change it under **Configure → General**:
 
 - **Overview:** the battery level forecast with the planned charging and discharging, the electricity
   prices with sell price and solar forecast, the current rule and action, a status with battery, consumption, solar, price and savings, the charging history and the overview

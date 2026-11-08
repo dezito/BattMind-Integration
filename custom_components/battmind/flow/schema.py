@@ -8,7 +8,18 @@ import voluptuous as vol
 
 from homeassistant.helpers import selector
 
-from ..const import CONTROLLABLE_ACTIONS, ENTITY_OPTION_KEYS, LANGUAGES, OPTION_PATHS, currency_symbol, default_options, normalize_language
+from ..const import (
+    CONTROLLABLE_ACTIONS,
+    DASHBOARD_ICON_RE,
+    DEFAULT_DASHBOARD_ICON,
+    ENTITY_OPTION_KEYS,
+    LANGUAGES,
+    OPTION_PATHS,
+    currency_symbol,
+    dashboard_icon,
+    default_options,
+    normalize_language,
+)
 from ..utils.helpers import get_dict_value_with_path
 from ..utils.efficiency import parse_efficiency_curve
 
@@ -132,6 +143,7 @@ SELECTORS: dict[str, Any] = {
     ),
     "days_to_predict": _number(1, 7, 1, "d"),
     "dashboard": BOOLEAN,
+    "dashboard_icon": selector.IconSelector(selector.IconSelectorConfig(placeholder=DEFAULT_DASHBOARD_ICON)),
     "enable_diagnostic_file_log": BOOLEAN,
     "testing_mode": BOOLEAN,
     "power_values_db_data_to_save": _number(1, 100, 1, "d"),
@@ -210,6 +222,9 @@ def build_schema(keys: list[str], values: dict[str, Any], currency: str | None =
             schema[vol.Required(key, default=value)] = field
         elif field is OBJECT:
             schema[vol.Optional(key, default=value or {})] = field
+        elif key == "dashboard_icon":
+            # no default: a cleared field is left out by the frontend, and a default would bring back the old icon
+            schema[vol.Optional(key, description={"suggested_value": value or dashboard_icon(None)})] = field
         else:
             schema[vol.Optional(key, default=bool(value))] = field
     return vol.Schema(schema)
@@ -228,6 +243,9 @@ def normalize_input(keys: list[str], user_input: dict[str, Any]) -> dict[str, An
             result[key] = [action for action in CONTROLLABLE_ACTIONS if action in (value or [])]
         elif key in INT_KEYS:
             result[key] = int(float(value))
+        elif key == "dashboard_icon":
+            # a cleared field means the default icon; an invalid name is kept so validate_step can reject it
+            result[key] = str(value or "").strip() or dashboard_icon(None)
         elif SELECTORS[key] is BOOLEAN:
             result[key] = bool(value)
         elif isinstance(value, (int, float)):
@@ -249,6 +267,8 @@ def validate_step(step: str, values: dict[str, Any]) -> dict[str, str]:
                 parse_efficiency_curve(values.get(key))
             except ValueError:
                 errors[key] = "invalid_efficiency_curve"
+    if "dashboard_icon" in values and not DASHBOARD_ICON_RE.match(values["dashboard_icon"]):
+        errors["dashboard_icon"] = "invalid_icon"
     if step == "solar" and values.get("forecast_entity_id") and not values.get("production_entity_id"):
         errors["production_entity_id"] = "production_required"
     return errors

@@ -6,11 +6,13 @@
         "description": "BattMind plans when the home battery should charge from the grid, discharge or sell, based on prices, consumption and solar forecast. The plan is published as sensors you use in your own automations.\n\n**Entity prefix** is used in every entity id, e.g. `sensor.PREFIX_powerwall_action`. Use a different prefix for each instance (and another prefix than the PyScript version if both run). It cannot be changed later.",
         "data": {
           "entity_prefix": "Entity prefix",
-          "language": "Language"
+          "language": "Language",
+          "dashboard_icon": "Sidebar icon"
         },
         "data_description": {
           "entity_prefix": "e.g. battmind, battmind_ha or garage_battery",
-          "language": "Language used for entity names, the overview, charging history, charging rule and notifications."
+          "language": "Language used for entity names, the overview, charging history, charging rule and notifications.",
+          "dashboard_icon": "Icon of the dashboard in the sidebar, e.g. mdi:home-battery. Leave empty for the default icon."
         }
       },
       "import_legacy": {
@@ -238,6 +240,7 @@
       "prefix_in_use": "This prefix is already used by another BattMind entry.",
       "prefix_entities_exist": "Entities with this prefix already exist (e.g. from the PyScript version). Choose another prefix to run both at the same time.",
       "min_above_max": "The minimum level must be lower than the maximum level.",
+      "invalid_icon": "Use an icon name like mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
       "no_price_provider": "Choose at least one price provider.",
       "production_required": "A solar forecast requires a solar production sensor."
@@ -271,10 +274,12 @@
       "general": {
         "title": "General",
         "data": {
-          "language": "Language"
+          "language": "Language",
+          "dashboard_icon": "Sidebar icon"
         },
         "data_description": {
-          "language": "Language used for entity names, the overview, charging history, charging rule and notifications."
+          "language": "Language used for entity names, the overview, charging history, charging rule and notifications.",
+          "dashboard_icon": "Icon of the dashboard in the sidebar, e.g. mdi:home-battery. Leave empty for the default icon."
         }
       },
       "battery_entities": {
@@ -492,6 +497,7 @@
       "prefix_in_use": "This prefix is already used by another BattMind entry.",
       "prefix_entities_exist": "Entities with this prefix already exist (e.g. from the PyScript version). Choose another prefix to run both at the same time.",
       "min_above_max": "The minimum level must be lower than the maximum level.",
+      "invalid_icon": "Use an icon name like mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
       "no_price_provider": "Choose at least one price provider.",
       "production_required": "A solar forecast requires a solar production sensor."

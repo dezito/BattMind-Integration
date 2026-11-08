@@ -52,6 +52,10 @@ The language is used for the entity names, the dashboard, the charging rule and 
 changed later under **Configure → General**; the entry reloads and the entity names follow (names you
 renamed yourself are kept).
 
+The optional **sidebar icon** is the icon of the dashboard in the sidebar (default `mdi:home-battery`). Pick another
+one, e.g. `mdi:solar-power`, to tell several instances apart. It can be changed under **Configure → General**;
+leave the field empty for the default icon.
+
 ### Home battery – sensors
 
 - **Battery power:** BattMind expects **positive while discharging, negative while charging**. If your

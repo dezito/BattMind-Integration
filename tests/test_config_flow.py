@@ -30,11 +30,11 @@ BATTERY_SPECS = {
 }
 
 
-async def _start(hass: HomeAssistant, prefix: str = "bmflow"):
+async def _start(hass: HomeAssistant, prefix: str = "bmflow", **extra):
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
-    return await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_ENTITY_PREFIX: prefix, "language": "da"})
+    return await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_ENTITY_PREFIX: prefix, "language": "da", **extra})
 
 
 async def _configure(hass: HomeAssistant, result, step_id: str, user_input: dict):
@@ -43,8 +43,8 @@ async def _configure(hass: HomeAssistant, result, step_id: str, user_input: dict
     return await hass.config_entries.flow.async_configure(result["flow_id"], user_input)
 
 
-async def _to_price_provider(hass: HomeAssistant):
-    result = await _start(hass)
+async def _to_price_provider(hass: HomeAssistant, **extra):
+    result = await _start(hass, **extra)
     result = await _configure(
         hass, result, "battery_entities",
         {"powerwall_battery_level_entity_id": BATTERY_LEVEL, "powerwall_watt_flow_entity_id": BATTERY_FLOW, "invert_powerwall_watt_flow_entity_id": True},
@@ -55,7 +55,7 @@ async def _to_price_provider(hass: HomeAssistant):
 
 
 async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
-    result = await _to_price_provider(hass)
+    result = await _to_price_provider(hass, dashboard_icon="mdi:solar-power")
     result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     result = await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.03})
@@ -85,6 +85,7 @@ async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
     assert options["cron_interval"] == 5  # the dropdown value is stored as int
     assert options["stromligning_buy_current_price"] == ""  # provider not chosen
     assert options["hourly_service_entity_id"] == ""
+    assert options["dashboard_icon"] == "mdi:solar-power"
 
 
 async def test_stromligning_pages(hass: HomeAssistant) -> None:
@@ -246,3 +247,40 @@ async def test_options_flow_switches_off_the_rules_of_an_unsupported_action(hass
     most_profit = hass.states.get(f"switch.{prefix}_most_profit")
     assert most_profit.attributes["unsupported_action"] == "force_discharge"
     assert "unsupported_action" not in hass.states.get(f"switch.{prefix}_cheapest_hour_fill_planner").attributes
+
+
+async def test_options_flow_dashboard_icon(hass: HomeAssistant, loaded_entry) -> None:
+    async def open_general():
+        result = await hass.config_entries.options.async_init(loaded_entry.entry_id)
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "menu_general"})
+        assert result["step_id"] == "general"
+        return result
+
+    result = await open_general()
+    assert form_defaults(result)["dashboard_icon"] == "mdi:home-battery"
+
+    # not an icon name: rejected, the page is shown again
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {**form_defaults(result), "dashboard_icon": "battery"})
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"dashboard_icon": "invalid_icon"}
+
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {**form_defaults(result), "dashboard_icon": " mdi:solar-power "})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert loaded_entry.options["dashboard_icon"] == "mdi:solar-power"
+
+    # a cleared field is left out by the frontend (an empty string also counts): both mean the default icon
+    result = await open_general()
+    assert form_defaults(result)["dashboard_icon"] == "mdi:solar-power"
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {k: v for k, v in form_defaults(result).items() if k != "dashboard_icon"})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert loaded_entry.options["dashboard_icon"] == "mdi:home-battery"
+
+
+async def test_config_flow_rejects_an_invalid_dashboard_icon(hass: HomeAssistant) -> None:
+    result = await _start(hass, dashboard_icon="battery")
+    assert result["step_id"] == "user"
+    assert result["errors"] == {"dashboard_icon": "invalid_icon"}
+    # the icon is optional: left out it is the default one
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_ENTITY_PREFIX: "bmflow", "language": "da"})
+    assert result["step_id"] == "battery_entities"
