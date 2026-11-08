@@ -361,6 +361,10 @@ Keep these invariants when touching any planner rule:
     (`charge_periods_in_hour()`), so the periods of an hour together stay within the hour. The level forecast
     (`charging_flow.py`) and the Before the sun rule add up every charge session of the hour, not only the one
     that starts on the hour.
+  - A price that is not a finite number (`is_number()` in `prices/base.py`) never reaches the plan: the providers
+    skip such rows, tariffs that are NaN/inf give a NaN sell price (not zero tariffs, which would be a too high
+    sell price) and `CombinedPriceProvider._combine()` drops every non-finite price, so the hour is filled from
+    the price history or has none. An unavailable tariff is still 0.
   - The `profit` of a sale in the optimised plan is after the cost of the kWh in the battery (incl. loss and wear),
     like the rules' (`optimal_battery_kwh_cost()`: the running average price over the optimal plan's own charges),
     not the sell revenue.

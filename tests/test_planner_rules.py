@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import math
 import re
 import sys
 from copy import deepcopy
@@ -340,6 +341,36 @@ def test_rules_control_the_battery_when_the_optimiser_does_not_settle(monkeypatc
     assert shadow["converged"] is False and not shadow.get("controls")
     assert result.attributes["powerwall_action"]["optimizer_shadow_summary"]["converged"] is False
     assert result.states["powerwall_action"]  # a valid plan from the rules
+
+
+def _not_finite(value, depth: int = 0) -> list:
+    """Paths of NaN / infinity in nested dicts, lists and tuples."""
+    found: list = []
+    if depth > 8:
+        return found
+    if isinstance(value, float) and not math.isfinite(value):
+        found.append(value)
+    elif isinstance(value, dict):
+        for item in value.values():
+            found += _not_finite(item, depth + 1)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            found += _not_finite(item, depth + 1)
+    return found
+
+
+@pytest.mark.parametrize("optimizer_control", [False, True])
+@pytest.mark.parametrize("bad", [float("nan"), float("inf")], ids=["nan", "inf"])
+def test_a_price_that_is_not_a_number_does_not_reach_the_plan(bad: float, optimizer_control: bool) -> None:
+    """One broken hour price used to make the totals NaN (or a sale in an hour that earns infinity)."""
+
+    def price(ts: datetime.datetime) -> float:
+        return bad if (ts.date() - DAY).days == 1 and ts.hour == 14 else negative_midday_price(ts)
+
+    engine, result = planned(3, 30, {"optimizer_control": optimizer_control}, solar=True, price_fn=price)
+    assert _not_finite(result.attributes) == [] and _not_finite(engine.plan) == [] and _not_finite(engine.optimizer_shadow) == []
+    assert all(math.isfinite(value) for value in engine.price_provider.get_buy_prices().values())
+    assert datetime.datetime.combine(DAY + datetime.timedelta(days=1), datetime.time(14)) not in engine.price_provider.get_buy_prices()
 
 
 @pytest.mark.parametrize("hour", [0, 12])
