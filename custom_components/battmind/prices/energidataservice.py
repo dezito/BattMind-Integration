@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import datetime
 import logging
+import math
 
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 
 from ..utils.helpers import days_between, to_datetime
-from .base import BasePriceProvider, GetState, _ZERO_TARIFFS, _naive
+from .base import BasePriceProvider, GetState, _ZERO_TARIFFS, _naive, is_number
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
             # selling still costs Energinet's net and system tariff: from the buy sensor
             buy_state = get_state(source["buy_entity_id"])
             sell_costs = eds_sell_costs(buy_state.attributes if buy_state else None)
-            if sell_costs:
+            if sell_costs and all(is_number(value) for value in sell_costs.values()):
                 source["sell_costs"] = sell_costs
         return source
 
@@ -52,7 +53,7 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
         for raw in rows or []:
             timestamp = _naive(to_datetime(raw["hour"] if "hour" in raw else raw["time"]))
             price = raw["price"]
-            if isinstance(timestamp, datetime.datetime) and isinstance(price, (int, float)):
+            if isinstance(timestamp, datetime.datetime) and is_number(price):
                 yield timestamp, price
 
     def _real(self, entity_id: str) -> dict:
@@ -88,13 +89,19 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
             if not tariffs:
                 return dict(_ZERO_TARIFFS)
             additional = tariffs["additional_tariffs"]
-            return {
+            result = {
                 "transmissions_nettarif": additional["transmissions_nettarif"],
                 "systemtarif": additional["systemtarif"],
                 "elafgift": additional["elafgift"],
                 "tariffs": tariffs["tariffs"][str(timestamp.hour)],
                 "surcharge": 0.0,
             }
+            if not all(is_number(value) for value in result.values()):
+                # broken tariffs are not "no tariffs": NaN gives a sell price that is dropped (the hour gets the
+                # price from the history or none), never a sell price that is too high
+                _LOGGER.warning("Energi Data Service tariffs for %s are not finite numbers", timestamp)
+                return dict.fromkeys(_ZERO_TARIFFS, math.nan)
+            return result
         except (KeyError, TypeError, ValueError) as err:
             _LOGGER.debug("No Energi Data Service tariffs for %s: %s", timestamp, err)
             return dict(_ZERO_TARIFFS)
@@ -111,9 +118,11 @@ def eds_sell_costs(attributes: dict | None) -> dict[str, float] | None:
     """Energinet's net and system tariff from an Energi Data Service tariffs attribute, else None."""
     try:
         additional = (attributes or {})["tariffs"]["additional_tariffs"]
-        return {
+        costs = {
             "transmissions_nettarif": float(additional["transmissions_nettarif"]),
             "systemtarif": float(additional["systemtarif"]),
         }
     except (KeyError, TypeError, ValueError):
         return None
+    # NaN or infinity: the selling costs are broken, not missing - the sell price is dropped (see get_tariffs)
+    return costs if all(is_number(value) for value in costs.values()) else dict.fromkeys(costs, math.nan)

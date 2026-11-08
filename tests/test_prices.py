@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import datetime
+import math
 
 import pytest
 
 from custom_components.battmind.const import build_config, default_options
-from custom_components.battmind.prices import create_price_provider
-from custom_components.battmind.prices.base import calculate_sell_price
+from custom_components.battmind.prices import CombinedPriceProvider, create_price_provider
+from custom_components.battmind.prices.base import calculate_sell_price, is_number
 from custom_components.battmind.prices.energidataservice import EnergiDataServicePriceProvider
 from custom_components.battmind.prices.stromligning import StromligningPriceProvider
 
@@ -36,7 +37,8 @@ def _sell_with_tariffs(day: datetime.date):
     return lambda hour: SPOT[day] + DISTRIBUTION[hour] + sum(FLAT_TARIFFS.values())
 
 
-def _provider() -> StromligningPriceProvider:
+def _stromligning(tariff_overrides: dict | None = None) -> tuple[dict, dict]:
+    """(config, price data) of Strømligning with every tariff sensor; tariff_overrides replaces tariff states."""
     config = build_config({
         **default_options(),
         "stromligning_buy_current_price": "sensor.buy",
@@ -49,21 +51,24 @@ def _provider() -> StromligningPriceProvider:
         "stromligning_sell_surcharge": "sensor.sell_surcharge",
         "sell_fee": 0.03,
     })
-    provider = StromligningPriceProvider(config)
-    provider.update(
-        {
-            "attributes": {
-                "sensor.buy": {"prices": _rows(TODAY, lambda hour: 4.0)},
-                "sensor.sell": {"prices": _rows(TODAY, _sell_with_tariffs(TODAY))},
-                "binary_sensor.sell_tomorrow": {"forecast_data": False, "prices": _rows(TOMORROW, _sell_with_tariffs(TOMORROW))},
-                # like the real sensor: only today's distribution tariffs
-                "sensor.sell_distribution": {"prices": _rows(TODAY, DISTRIBUTION.get)},
-                **{entity_id: {} for entity_id in FLAT_TARIFFS},
-            },
-            "values": dict(FLAT_TARIFFS),
+    data = {
+        "attributes": {
+            "sensor.buy": {"prices": _rows(TODAY, lambda hour: 4.0)},
+            "sensor.sell": {"prices": _rows(TODAY, _sell_with_tariffs(TODAY))},
+            "binary_sensor.sell_tomorrow": {"forecast_data": False, "prices": _rows(TOMORROW, _sell_with_tariffs(TOMORROW))},
+            # like the real sensor: only today's distribution tariffs
+            "sensor.sell_distribution": {"prices": _rows(TODAY, DISTRIBUTION.get)},
+            **{entity_id: {} for entity_id in FLAT_TARIFFS},
         },
-        datetime.datetime.combine(TODAY, datetime.time(16, 40)),
-    )
+        "values": {**FLAT_TARIFFS, **(tariff_overrides or {})},
+    }
+    return config, data
+
+
+def _provider() -> StromligningPriceProvider:
+    config, data = _stromligning()
+    provider = StromligningPriceProvider(config)
+    provider.update(data, datetime.datetime.combine(TODAY, datetime.time(16, 40)))
     return provider
 
 
@@ -146,6 +151,72 @@ def test_forecast_adder_makes_a_forecast_buy_dearer_and_a_forecast_sale_worth_le
     # without the adder (the recorded forecast) both are the plain forecast
     assert provider.get_buy_forecast_prices(adder=False)[tomorrow] == pytest.approx(2.0, abs=0.006)
     assert provider.get_sell_forecast_prices(adder=False)[tomorrow] == pytest.approx(2.0, abs=0.006)
+
+
+NOT_FINITE = [float("nan"), float("inf"), float("-inf")]
+NOT_FINITE_IDS = ["nan", "inf", "-inf"]
+NOW = datetime.datetime.combine(TODAY, datetime.time(16, 40))
+
+
+def _eds_combined(buy: dict, sell: dict):
+    provider = create_price_provider(build_config({
+        **default_options(),
+        "energidataservice_buy_entity_id": "sensor.eds_buy",
+        "energidataservice_sell_entity_id": "sensor.eds_sell",
+        "sell_fee": 0.03,
+    }))
+    provider.update_prices({"attributes": {"sensor.eds_buy": buy, "sensor.eds_sell": sell}, "values": {}}, NOW)
+    return provider
+
+
+def _eds_today(bad_hour: int | None = None, bad=None) -> list[dict]:
+    rows = [{"hour": datetime.datetime.combine(TODAY, datetime.time(hour)).isoformat() + "+01:00", "price": 2.5} for hour in range(24)]
+    if bad_hour is not None:
+        rows[bad_hour]["price"] = bad
+    return rows
+
+
+@pytest.mark.parametrize("bad", NOT_FINITE, ids=NOT_FINITE_IDS)
+@pytest.mark.parametrize("broken", ["buy", "sell"])
+def test_a_price_that_is_not_a_finite_number_is_dropped(broken: str, bad: float) -> None:
+    """NaN or infinity as a price would make every total of the plan NaN: the hour has no price instead."""
+    good, wrong = {"raw_today": _eds_today(), "tomorrow_valid": False}, {"raw_today": _eds_today(14, bad), "tomorrow_valid": False}
+    provider = _eds_combined(wrong if broken == "buy" else good, wrong if broken == "sell" else good)
+    prices = provider.get_buy_prices() if broken == "buy" else provider.get_sell_prices()
+    assert datetime.datetime.combine(TODAY, datetime.time(14)) not in prices
+    assert len(prices) == 23 and all(math.isfinite(price) for price in prices.values())
+
+
+@pytest.mark.parametrize("bad", NOT_FINITE, ids=NOT_FINITE_IDS)
+def test_tariffs_that_are_not_finite_numbers_drop_the_sell_prices_instead_of_zero_tariffs(bad: float) -> None:
+    """Broken tariffs are not "no tariffs": a sell price without them would be too high, so it is dropped."""
+    broken = {"additional_tariffs": {"transmissions_nettarif": bad, "systemtarif": 0.09, "elafgift": 0.01}, "tariffs": {str(h): 0.39 for h in range(24)}}
+    plain = {"raw_today": _eds_today(), "tomorrow_valid": False}
+    # tariffs in the sell sensor
+    provider = _eds_combined(plain, {**plain, "tariffs": broken})
+    assert provider.get_sell_prices() == {} and len(provider.get_buy_prices()) == 24
+    # a raw sell sensor takes the selling costs from the buy sensor's tariffs
+    provider = _eds_combined({**plain, "tariffs": broken}, plain)
+    assert provider.get_sell_prices() == {} and len(provider.get_buy_prices()) == 24
+
+
+@pytest.mark.parametrize("bad", NOT_FINITE, ids=NOT_FINITE_IDS)
+def test_stromligning_tariff_that_is_not_a_finite_number_drops_the_sell_prices(bad: float) -> None:
+    config, data = _stromligning({"sensor.sell_nettariff": bad})
+    provider = CombinedPriceProvider(config, [StromligningPriceProvider(config)])
+    provider.update_prices(data, NOW)
+    assert provider.get_sell_prices() == {} and provider.get_buy_prices()
+    # an unavailable tariff is 0 as before
+    config, data = _stromligning()
+    del data["values"]["sensor.sell_nettariff"]
+    provider = CombinedPriceProvider(config, [StromligningPriceProvider(config)])
+    provider.update_prices(data, NOW)
+    assert provider.get_sell_prices()
+
+
+def test_is_number_accepts_only_finite_numbers() -> None:
+    assert is_number(1) and is_number(-0.5) and is_number(0.0)
+    assert not any(is_number(value) for value in (None, "1.0", True, float("nan"), float("inf"), float("-inf")))
 
 
 class _State:

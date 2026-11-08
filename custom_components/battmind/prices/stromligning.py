@@ -5,7 +5,7 @@ import datetime
 import logging
 
 from ..utils.helpers import to_datetime
-from .base import BasePriceProvider, GetState, _naive, price_at
+from .base import BasePriceProvider, GetState, _naive, is_number, price_at
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class StromligningPriceProvider(BasePriceProvider):
         for raw in rows or []:
             timestamp = _naive(to_datetime(raw.get("start")))
             price = raw.get("price")
-            if isinstance(timestamp, datetime.datetime) and isinstance(price, (int, float)):
+            if isinstance(timestamp, datetime.datetime) and is_number(price):
                 yield timestamp, price
 
     def _add(self, prices: dict, entity_id: str, forecast: bool, sell: bool = False) -> None:
@@ -109,7 +109,8 @@ class StromligningPriceProvider(BasePriceProvider):
 
     def _state(self, entity_id: str) -> float:
         value = self.values.get(entity_id, 0.0) if self._has(entity_id) else 0.0
-        return value if isinstance(value, (int, float)) else 0.0
+        # a missing tariff is 0 as before; NaN or infinity is kept on purpose: the sell price is then dropped (CombinedPriceProvider)
+        return value if isinstance(value, (int, float)) and not isinstance(value, bool) else 0.0
 
     def _distribution(self, timestamp: datetime.datetime) -> float:
         found = price_at(self._distribution_prices, timestamp)

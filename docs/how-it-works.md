@@ -83,6 +83,10 @@ In an hour with solar surplus the sun covers the house, so the battery isn't pla
 Buy and sell prices per hour (or per 15 minutes) from Energi Data Service and/or Strømligning, incl.
 tariffs, refund and sell fee.
 
+A price that is not a usable number (text, NaN or infinity) is ignored, and so is a sell price whose tariffs are
+not usable numbers: the hour gets its price from the price history, or none, and is never planned with an
+invented price.
+
 **Forecast prices** (e.g. Carnot) get a small adder of 0.033 kr per day ahead, so the plan prefers known
 prices: a forecast buy price is raised and a forecast sell price is lowered, so buying and selling look a
 little worse than at a known price. (With a fixed solar sell price a sale is worth the fixed price minus the

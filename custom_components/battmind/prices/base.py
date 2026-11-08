@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import math
 from collections.abc import Callable, Mapping
 from typing import Any
 
@@ -49,6 +50,11 @@ def calculate_sell_price(
         - costs.get("systemtarif", 0.0),
         2,
     )
+
+
+def is_number(value) -> bool:
+    """A usable price or tariff: a finite number (not None, text, a bool, NaN or infinity)."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
 def sell_adder_sign(config: dict) -> float:
@@ -220,6 +226,7 @@ class CombinedPriceProvider:
             attributes[entity_id] = dict(state.attributes)
             if entity_id in tariff_entities:
                 value = float_or_none(state.state)
+                # unavailable: 0 as before. NaN or infinity stays: it gives a sell price that is dropped, not a too high one
                 values[entity_id] = value if value is not None else 0.0
         return {"attributes": attributes, "values": values}
 
@@ -252,16 +259,25 @@ class CombinedPriceProvider:
         prices: dict = {}
         real: dict = {}
         sources: dict = {}
+        unusable = 0
         for provider in self.providers:
             for timestamp, price in getattr(provider, f"{kind}_real_prices").items():
-                if timestamp not in prices:
+                if not is_number(price):
+                    # e.g. NaN from a broken tariff: no price is better than one that makes the plan NaN. The hour is
+                    # filled from the price history (or the next provider), never invented
+                    unusable += 1
+                elif timestamp not in prices:
                     prices[timestamp] = real[timestamp] = round(price, 2)
                     sources[timestamp] = f"{provider.source_name}:real"
         for provider in self.providers:
             for timestamp, price in getattr(provider, f"{kind}_forecast_prices").items():
-                if timestamp not in prices:
+                if not is_number(price):
+                    unusable += 1
+                elif timestamp not in prices:
                     prices[timestamp] = round(price, 2)
                     sources[timestamp] = f"{provider.source_name}:forecast"
+        if unusable:
+            _LOGGER.warning("Ignoring %s %s prices that are not a finite number", unusable, kind)
         return dict(sorted(prices.items())), dict(sorted(real.items())), dict(sorted(sources.items()))
 
     def get_buy_prices(self) -> dict:
