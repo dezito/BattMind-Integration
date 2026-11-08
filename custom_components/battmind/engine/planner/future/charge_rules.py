@@ -344,6 +344,8 @@ class FutureChargeRules:
         total_cost, total_kwh = ctx.totals
         min_gain = max(ctx.get_min_profit_per_kwh(), 0.01)
         exclude_hours = self.get_exclude_sell_hours()
+        # the reserve for the house: nothing is planned to be exported below it (as in the other sell rules)
+        usage_minimum = max(ctx.config["solar"]["powerwall_battery_level_min"], self.number("usage_reserve"))
         sell_prices, sell_price, using_grid_sell_price = self.sell_prices_for_window(ctx, 
             max(ctx.charging_plan[day]["start_of_day"], ctx.current_sell_price_timestamp), ctx.charging_plan[day]["end_of_day"]
         )
@@ -361,6 +363,11 @@ class FutureChargeRules:
                 # the house uses the same discharge rate
                 slot_kwh -= data["hour_cost_prediction"][ctx.forecast_type].get(hour_timestamp.hour, {}).get("kwh", 0.0) / periods_in_hour
             if slot_kwh < min_sell_kwh:
+                continue
+            # The charge and the sale move the same kWh, so the battery ends the hour at the level it is planned to
+            # have without them: that level has to be above the reserve, else the sale exports from the reserve
+            sell_flow = data["battery_level_flow"].get(sell_timestamp.hour)
+            if not sell_flow or sum(sell_flow) < usage_minimum - 0.01:
                 continue
 
             for buy_timestamp, buy_price in ctx.sorted_by_cheapest_price:

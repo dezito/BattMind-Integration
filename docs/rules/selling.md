@@ -16,7 +16,9 @@ See also [Buy to sell](charging.md#-buy-to-sell) (charge only to sell) and [Befo
 ## Profit requirements
 
 **Reserve for the house (not sold)** is a separate battery level that BattMind does not plan to export below.
-Normal self-consumption may still use this reserve down to the battery's minimum level.
+Normal self-consumption may still use this reserve down to the battery's minimum level. It holds for every rule
+that sells: [Buy to sell](charging.md#-buy-to-sell) is not planned for a sale in an hour where the battery is
+expected to be under the reserve, and with 100 % nothing is sold from the battery.
 
 **Numbers:** *Min. profit per kWh*, *Min. total profit*, *Minimum excess kWh for export* · **Text:** *Exclude selling hours*
 
