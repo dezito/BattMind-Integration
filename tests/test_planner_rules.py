@@ -79,11 +79,12 @@ def test_what_if_uses_nearest_historical_eds_tariff_and_live_sell_formula() -> N
 
 
 def realistic_snapshot(
-    now: datetime.datetime, battery_level: float, settings: dict | None = None, negative: bool = False, price_fn=None
+    now: datetime.datetime, battery_level: float, settings: dict | None = None, negative: bool = False, price_fn=None, quarters: bool = False
 ) -> Snapshot:
     """Sell price = buy - 0.9; negative: buy -0.4 (sell -0.9) in NEGATIVE_HOURS today.
 
-    price_fn(hour timestamp) -> buy price replaces the default price shape of every known day."""
+    price_fn(hour timestamp) -> buy price replaces the default price shape of every known day.
+    quarters: every hour is four price periods of 15 minutes with the price of the hour."""
     snap = snapshot(now, battery_level, settings)
     buy = snap.price_data["attributes"]["sensor.price"]
     if price_fn is not None:
@@ -99,24 +100,38 @@ def realistic_snapshot(
         for key, rows in buy.items()
     }
     snap.entity_states["sensor.sell"] = "0.3"
+    if quarters:
+        for entity in ("sensor.price", "sensor.sell"):
+            attributes = snap.price_data["attributes"][entity]
+            for key, rows in list(attributes.items()):
+                if isinstance(rows, list) and rows and "hour" in rows[0]:
+                    attributes[key] = [
+                        {**row, "hour": (datetime.datetime.fromisoformat(row["hour"]) + datetime.timedelta(minutes=15 * quarter)).isoformat()}
+                        for row in rows
+                        for quarter in range(4)
+                    ]
     return snap
 
 
 def planned(
     hour: int, battery_level: float, settings: dict, solar: bool | list = False, negative: bool = False, days: int | None = None, price_fn=None,
-    options: dict | None = None,
+    options: dict | None = None, quarters: bool = False,
 ) -> tuple[BattMindEngine, object]:
     now = datetime.datetime.combine(DAY, datetime.time(hour, 30))
     options = {**OPTIONS, "energidataservice_sell_entity_id": "sensor.sell", **(options or {})}
     if days:
         options["days_to_predict"] = days
     engine = BattMindEngine(build_config(options), "test", TEXTS)
-    assert engine.run_job(realistic_snapshot(now, battery_level, negative=negative, price_fn=price_fn), engine.startup, {"power_values": _power_values_db()}).error is None
+    assert engine.run_job(
+        realistic_snapshot(now, battery_level, negative=negative, price_fn=price_fn, quarters=quarters), engine.startup, {"power_values": _power_values_db()}
+    ).error is None
     if solar:
         # solar=True: the default surplus, or a list with the surplus (kWh) per hour of every day
         surplus = SOLAR_SURPLUS if solar is True else solar
         engine.solar_prediction_db = {day: {"total": surplus, "total_sell": [0.5] * 24} for day in range(9)}
-    result = engine.run_job(realistic_snapshot(now, battery_level, settings, negative=negative, price_fn=price_fn), engine.charge_if_needed, True)
+    result = engine.run_job(
+        realistic_snapshot(now, battery_level, settings, negative=negative, price_fn=price_fn, quarters=quarters), engine.charge_if_needed, True
+    )
     assert result.error is None, result.error
     assert not [message for message, title, _ in result.notifications if "error" in title.lower()]
     return engine, result
@@ -147,6 +162,48 @@ def test_discharge_before_solar_when_the_solar_export_costs_money() -> None:
     engine, _ = planned(4, 95, {**OFF, "discharge_before_solar": True}, solar=True, negative=True)
     before_solar = [ts for ts, sale in sales(engine).items() if sale["title"] == "Sælger før solen fylder batteriet"]
     assert before_solar and all(ts.date() == DAY and ts.hour < 9 for ts in before_solar)
+
+
+def _kwh_per_hour(engine: BattMindEngine) -> dict:
+    """Planned grid kWh per clock hour (the periods of an hour together)."""
+    per_hour: dict = {}
+    for timestamp in charge_hours(engine):
+        hour = timestamp.replace(minute=0)
+        per_hour[hour] = per_hour.get(hour, 0.0) + engine.charge_hours[timestamp]["kWh"]
+    return per_hour
+
+
+def _only(rule: str) -> dict:
+    return {key: False for key in RULES_BESIDES_MOST_PROFIT} | {"optimizer_control": False, "most_profit": False, rule: True}
+
+
+@pytest.mark.parametrize("limit_watt", [2500.0, 3300.0])
+def test_planned_charging_never_exceeds_the_charge_power(limit_watt: float) -> None:
+    """The kWh left in an hour was rounded to 0.1 kWh, which rounds up (2.51 kWh in an hour at 2.5 kW)."""
+    engine, _ = planned(0, 5, _only("most_expensive_planner"), options={"powerwall_charging_power_limit": limit_watt})
+    per_hour = _kwh_per_hour(engine)
+    assert per_hour
+    assert max(per_hour.values()) <= limit_watt / 1000 + 1e-9
+
+
+@pytest.mark.parametrize("rule", ["most_expensive_planner", "cheapest_hour_fill_planner", "grid_charge_to_sell"])
+def test_planned_charging_with_15_minute_prices_stays_within_the_charge_power(rule: str) -> None:
+    """Each price period takes its share of the charge power: the four periods of an hour together plan at most
+    what the hour takes (a period used to be given what was left of the hour: up to 2.5 times the charge power)."""
+    engine, _ = planned(3, 5, _only(rule), options={"powerwall_charging_power_limit": 1000.0}, quarters=True)
+    per_hour = _kwh_per_hour(engine)
+    assert per_hour and max(per_hour.values()) <= 1.0 + 1e-9
+    assert all(engine.charge_hours[timestamp]["kWh"] <= 0.25 + 1e-9 for timestamp in charge_hours(engine))
+
+
+def test_battery_level_forecast_counts_every_charge_period_of_the_hour() -> None:
+    """With 15 minute prices the hour has up to four charge periods: the forecast level adds all of them."""
+    engine, _ = planned(3, 5, _only("most_expensive_planner"), options={"powerwall_charging_power_limit": 1000.0}, quarters=True)
+    day = engine.plan[0]
+    hour = min(timestamp.hour for timestamp in day["charging_sessions"] if timestamp.hour > 3)
+    sessions = [session["battery_level"] for timestamp, session in day["charging_sessions"].items() if timestamp.hour == hour]
+    assert len(sessions) >= 2
+    assert day["battery_level_flow"][hour][-1] == pytest.approx(sum(sessions), abs=0.06)
 
 
 @pytest.mark.parametrize("reserve", [20.0, 50.0])

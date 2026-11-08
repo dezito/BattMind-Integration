@@ -356,6 +356,11 @@ Keep these invariants when touching any planner rule:
   - `usage_reserve` holds for every selling rule, incl. `grid_charge_to_sell`: it is skipped for a sale hour whose
     planned end level (without the pair) is under max(level_min, reserve), because charge and sale cancel each
     other. Stricter than the optimiser, which may export part of a charge above the reserve.
+  - Planned grid charging never exceeds the charge power: kWh left in an hour are rounded DOWN (`_floor_kwh()` in
+    `charge_rules.py`, 0.01 kWh), and with 15 min prices each price period takes `max_kwh_charging / periods`
+    (`charge_periods_in_hour()`), so the periods of an hour together stay within the hour. The level forecast
+    (`charging_flow.py`) and the Before the sun rule add up every charge session of the hour, not only the one
+    that starts on the hour.
   - The `profit` of a sale in the optimised plan is after the cost of the kWh in the battery (incl. loss and wear),
     like the rules' (`optimal_battery_kwh_cost()`: the running average price over the optimal plan's own charges),
     not the sell revenue.

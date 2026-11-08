@@ -43,6 +43,9 @@ class _KnownPrices:
     def sell_periods_in_hour(self, timestamp: datetime.datetime) -> int:
         return 1
 
+    def buy_periods_in_hour(self, timestamp: datetime.datetime) -> int:
+        return 1
+
     def current_price_timestamp(self, timestamp: datetime.datetime, sell_prices: bool = False):
         return reset_time_to_hour(timestamp)
 

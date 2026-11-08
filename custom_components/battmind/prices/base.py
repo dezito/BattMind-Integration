@@ -322,7 +322,8 @@ class CombinedPriceProvider:
         return ", ".join(self.buy_price_entity_ids())
 
     def buy_periods_in_hour(self, timestamp: datetime.datetime) -> int:
-        return periods_in_hour(self.buy_real_prices, timestamp)
+        """Number of buy price periods in the hour (4 with 15 min prices), also for forecast days."""
+        return periods_in_hour(self.buy_prices, timestamp)
 
     def sell_periods_in_hour(self, timestamp: datetime.datetime) -> int:
         return periods_in_hour(self.sell_real_prices, timestamp)

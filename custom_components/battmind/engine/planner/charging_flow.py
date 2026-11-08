@@ -54,7 +54,11 @@ class ChargingFlow:
             charging_plan[day]["battery_level_flow_without_solar"][hour].append(min(max(battery_level_without_solar, min_level), max_level))
 
             timestamp = start_of_day(now) + datetime.timedelta(days=day, hours=hour)
-            grid_added = charging_plan[day]["charging_sessions"].get(timestamp, {}).get("battery_level", 0.0)
+            # with 15 min prices the hour has a charge session per price period
+            grid_added = sum(
+                session.get("battery_level", 0.0) for session_timestamp, session in charging_plan[day]["charging_sessions"].items()
+                if session_timestamp.hour == timestamp.hour
+            )
             solar_added = 0.0
             solar_surplus = 0.0
 

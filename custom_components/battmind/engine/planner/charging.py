@@ -28,14 +28,21 @@ class ChargingHours:
             return 0.0
         return min(self.solar_surplus_in_hour(charging_plan, current_hour, timestamp), max_kwh_charging)
 
+    def charge_periods_in_hour(self, timestamp) -> int:
+        """Price periods in the hour of timestamp (4 with 15 min prices): each takes its share of the charge power."""
+        return max(self.price_provider.buy_periods_in_hour(timestamp), 1) if self.price_provider else 1
+
     def kwh_available_in_hour(self, charge_hours, charging_plan, current_hour, max_kwh_charging, hour):
-        """Grid charging capacity left in the hour - solar surplus charges first."""
+        """Grid charging capacity left in the price period starting at hour - solar surplus charges first.
+
+        A period of 15 minutes takes a quarter of what the hour takes at the charge power, so the periods of
+        an hour together never plan more than the charge power allows."""
         hour_in_charge_hours = False
         kwh_available = max_kwh_charging
         try:
-            kwh = max_kwh_charging
-            kwh -= kwh * (hour.minute / 60)
-            kwh_available = max(kwh - self.solar_kwh_in_hour(charging_plan, current_hour, max_kwh_charging, hour), 0.0)
+            periods = self.charge_periods_in_hour(hour)
+            kwh = max_kwh_charging / periods
+            kwh_available = max(kwh - self.solar_kwh_in_hour(charging_plan, current_hour, max_kwh_charging, hour) / periods, 0.0)
             data = charging_plan.get(days_between(current_hour, hour))
             if data is not None and hour_in(hour, data["force_discharge_timestamps"]) and hour not in charge_hours:
                 # selling in this hour - the battery can't charge at the same time
@@ -66,11 +73,11 @@ class ChargingHours:
         battery_level_added = False
         cost = 0.0
         try:
-            kwh = max_kwh_charging
-            min_charging_kwh = max(min(min_charging_kwh_cron, min_charging_kwh_ev), 0.2)
+            periods = self.charge_periods_in_hour(hour)  # 4 with 15 min prices: a period takes its share of the hour
+            kwh = max_kwh_charging / periods
+            min_charging_kwh = max(min(min_charging_kwh_cron, min_charging_kwh_ev), 0.2) / periods
             price = float(price)
             kwh_needed = float(kwh_needed)
-            kwh -= kwh * (hour.minute / 60)
 
             if battery_level:
                 battery_level_diff = round(
