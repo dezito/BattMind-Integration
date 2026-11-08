@@ -156,7 +156,31 @@ def test_battery_temperature_safety(temperature: float, unit: str, expected_acti
         assert result.states["powerwall_action"] == expected_action
 
 
-@pytest.mark.parametrize("state", [None, "unknown", "unavailable", "not-a-number"])
+@pytest.mark.parametrize("state", ["nan", "inf", "-inf"])
+def test_battery_level_that_is_not_a_number_is_handled_like_an_unavailable_sensor(state: str) -> None:
+    """A level of "nan" or "inf" used to stop the whole job (OverflowError rounding it): it is no battery level."""
+    now = datetime.datetime.combine(DAY, datetime.time(10, 30))
+    results = {}
+    for level in (state, "unavailable"):
+        engine = started_engine(now, 50)
+        result = engine.run_job(snapshot(now, level), engine.charge_if_needed, True)
+        assert result.error is None, result.error
+        assert result.states["powerwall_action"] in POWERWALL_ACTION_STATES
+        results[level] = result.states["powerwall_action"]
+    assert results[state] == results["unavailable"]
+
+
+def test_last_numeric_skips_values_that_are_not_finite() -> None:
+    from custom_components.battmind.utils.power import WindowCalculator
+
+    cache = WindowCalculator.__new__(WindowCalculator)
+    cache.buffers = {"sensor.level": [(1, 40.0), (2, float("nan")), (3, float("inf")), (4, None)]}
+    assert cache.last_numeric("sensor.level") == 40.0
+    cache.buffers = {"sensor.level": [(1, float("nan"))]}
+    assert cache.last_numeric("sensor.level") is None
+
+
+@pytest.mark.parametrize("state", [None, "unknown", "unavailable", "not-a-number", "nan", "inf"])
 def test_unavailable_battery_temperature_stops_battery(state: str | None) -> None:
     now = datetime.datetime.combine(DAY, datetime.time(10, 30))
     options = {**OPTIONS, "battery_temperature_entity_id": "sensor.battery_temperature",

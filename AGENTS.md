@@ -373,6 +373,9 @@ Keep these invariants when touching any planner rule:
     the battery has delivered since the plan starts (`ctx.old_energy["delivered"]`, the oldest kWh leave first, house
     use only in hours without solar surplus). It carries from day to day. Unknown-age energy is not tracked (it leaves
     first in the optimiser's FIFO, so the rule's count is on the safe side).
+  - A battery level of NaN/infinity (state "nan"/"inf", also in the recorded buffer) is handled like an unavailable
+    sensor in `get_battery_level()`: last recorded number, else 100 % with a warning (the existing fail-safe; it used to
+    stop the job with an OverflowError). The battery temperature already stops the battery for NaN/inf.
   - The planned-hours attributes never announce an unsupported action: with `force_solar_only_charging` unsupported its
     list is empty and the leftover hours are in `discharge_timestamps` (what `supported_action()` runs instead).
   - An hour that gets a charge session loses its hold (`add_charging_session_to_day()`): Profit only / Prioritise hold
