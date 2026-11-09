@@ -19,7 +19,12 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
-from custom_components.battmind import WHAT_IF_SCHEMA, _async_run_after_home_assistant_started, _what_if_notification
+from custom_components.battmind import (
+    WHAT_IF_SCHEMA,
+    _async_run_after_home_assistant_started,
+    _what_if_notification,
+    _what_if_range_values,
+)
 from custom_components.battmind.const import (
     DOMAIN,
     NUMBER_SETTINGS,
@@ -47,6 +52,34 @@ def test_what_if_battery_size_accepts_zero_and_rejects_negative() -> None:
     assert fields["battery_size"]["selector"]["number"]["min"] == 0
 
 
+def test_what_if_capacity_range_validation_preserves_exact_values() -> None:
+    assert _what_if_range_values({}) is None
+    assert _what_if_range_values({"range_start": 0, "range_end": 1, "range_step": 0.3}) == [
+        0.0,
+        0.3,
+        0.6,
+        0.9,
+    ]
+    assert _what_if_range_values({"range_start": 0, "range_end": 11, "range_step": 1}) == list(
+        map(float, range(12))
+    )
+    assert _what_if_range_values({"range_start": 0, "range_end": 1000, "range_step": 1001}) == [0.0]
+
+    for data in (
+        {"range_start": 1},
+        {"range_start": 0, "range_end": 1, "range_step": 0},
+        {"range_start": 2, "range_end": 1, "range_step": 1},
+        {"range_start": 0, "range_end": 12, "range_step": 1},
+        {"range_start": 0, "range_end": 1000, "range_step": 5e-324},
+        {"range_start": 0, "range_end": float("inf"), "range_step": 1},
+        {"range_start": 0, "range_end": float("nan"), "range_step": 1},
+        {"range_start": -0.1, "range_end": 1, "range_step": 1},
+        {"range_start": 0, "range_end": 1000.1, "range_step": 1},
+    ):
+        with pytest.raises(ServiceValidationError):
+            _what_if_range_values(data)
+
+
 def test_what_if_new_service_fields_have_entity_names_and_descriptions() -> None:
     component = Path(__file__).parents[1] / "custom_components" / "battmind"
     fields = yaml.safe_load((component / "services.yaml").read_text(encoding="utf-8"))["what_if"]["fields"]
@@ -54,6 +87,9 @@ def test_what_if_new_service_fields_have_entity_names_and_descriptions() -> None
         "min_profit_per_kwh",
         "min_total_profit",
         "min_sell_kwh",
+        "range_start",
+        "range_end",
+        "range_step",
         "cheapest_hour_fill_planner",
         "most_expensive_planner",
         "needed_before_max_level_planner",
@@ -81,7 +117,14 @@ def test_what_if_new_service_fields_have_entity_names_and_descriptions() -> None
         for key in new_fields:
             assert service_fields[key]["name"]
             assert service_fields[key]["description"]
-        rule_fields = new_fields - {"min_profit_per_kwh", "min_total_profit", "min_sell_kwh"}
+        rule_fields = new_fields - {
+            "min_profit_per_kwh",
+            "min_total_profit",
+            "min_sell_kwh",
+            "range_start",
+            "range_end",
+            "range_step",
+        }
         for key in rule_fields:
             assert (
                 service_fields[key]["name"]
@@ -108,6 +151,10 @@ def test_what_if_fields_are_translated_with_the_setting_names_in_every_language(
             assert field["name"] and field["description"], (path.name, key)
         for key, platform in settings.items():
             assert service_fields[key]["name"] == translations["entity"][platform][key]["name"], (path.name, key)
+        assert {
+            "what_if_range_incomplete", "what_if_range_invalid",
+            "what_if_module_incomplete", "what_if_module_invalid",
+        } <= set(translations["exceptions"])
 
 
 def test_optimize_solar_charging_has_a_label_in_every_language() -> None:
@@ -254,11 +301,12 @@ async def test_what_if_reads_statistics_and_raw_recorder_history(
     coordinator.async_run_job = AsyncMock(return_value=JobResult(value={}))
 
     with patch("homeassistant.components.recorder.get_instance", return_value=recorder):
-        await coordinator.async_what_if({}, 1)
+        await coordinator.async_what_if({}, 1, capacity_range=[0, 5])
 
     assert recorder.async_add_executor_job.await_count == 3
     job_name, data, overrides = coordinator.async_run_job.await_args.args
     assert job_name == "what_if"
+    assert coordinator.async_run_job.await_args.kwargs["capacity_range"] == [0, 5]
     assert "stats" in data
     assert "long_term_statistics_timestamps" in data
     assert data["price_providers"] == [
@@ -473,6 +521,7 @@ async def test_what_if_service_returns_simulation_without_changing_options(
     assert result_call.kwargs["notification_id"] == notification_id
     notification = result_call.args[1]
     coordinator = loaded_entry.runtime_data
+    assert coordinator.t("dashboard.what_if_baseline_note") in notification
     assert (
         f"| | **{coordinator.t('ui.what_if.current')}** "
         f"| **{coordinator.t('ui.what_if.scenario')}** |"
@@ -606,6 +655,64 @@ async def test_what_if_replaces_progress_notification_with_error(
     assert create.call_args_list[0].kwargs["notification_id"] == f"{PREFIX}_what_if"
     assert create.call_args_list[1].kwargs["notification_id"] == f"{PREFIX}_what_if"
     assert "Recorder unavailable" in create.call_args_list[1].args[1]
+
+
+async def test_what_if_capacity_interval_fields_are_validated_and_not_overrides(
+    hass: HomeAssistant, loaded_entry
+) -> None:
+    coordinator = loaded_entry.runtime_data
+    coordinator.async_what_if = AsyncMock(return_value=JobResult(value={"range": []}))
+
+    with pytest.raises(ServiceValidationError) as error:
+        await hass.services.async_call(
+            DOMAIN,
+            "what_if",
+            {"config_entry_id": loaded_entry.entry_id, "range_start": 5},
+            blocking=True,
+            return_response=True,
+        )
+    assert error.value.translation_key == "what_if_range_incomplete"
+    coordinator.async_what_if.assert_not_awaited()
+
+    with pytest.raises(ServiceValidationError) as error:
+        await hass.services.async_call(
+            DOMAIN,
+            "what_if",
+            {
+                "config_entry_id": loaded_entry.entry_id,
+                "range_start": 0,
+                "range_end": 1000,
+                "range_step": 5e-324,
+            },
+            blocking=True,
+            return_response=True,
+        )
+    assert error.value.translation_key == "what_if_range_invalid"
+    coordinator.async_what_if.assert_not_awaited()
+
+    with (
+        patch.object(persistent_notification, "async_create"),
+        patch("custom_components.battmind._what_if_notification", return_value="finished"),
+    ):
+        response = await hass.services.async_call(
+            DOMAIN,
+            "what_if",
+            {
+                "config_entry_id": loaded_entry.entry_id,
+                "battery_size": 10,
+                "optimizer_control": False,
+                "range_start": 0,
+                "range_end": 0.6,
+                "range_step": 0.3,
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    assert response["simulations"][PREFIX] == {"range": []}
+    args, kwargs = coordinator.async_what_if.await_args
+    assert args[:2] == ({"battery_size": 10.0, "optimizer_control": False}, 365)
+    assert kwargs["capacity_range"] == [0.0, 0.3, 0.6]
 
 
 

@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Coroutine
+from decimal import Decimal, InvalidOperation
 import logging
+import math
 from typing import Any
+from uuid import UUID
 
 import voluptuous as vol
 
-from homeassistant.components import persistent_notification
+from homeassistant.components import persistent_notification, websocket_api
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState, Event, HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse, callback
@@ -16,6 +19,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -35,13 +39,41 @@ from .management.backup import BACKUP_DIR, async_export, async_import
 from .management.blueprint_install import async_install_blueprints
 from .coordinator import BattMindCoordinator
 from .management.debug_export import DEBUG_DIR, DebugDownloadView, async_export_debug, async_notify_debug, install_log_buffer
-from .management.dashboard_build import async_remove_dashboard_file, async_setup_dashboard
+from .management.dashboard_build import async_remove_dashboard_file, async_setup_dashboard, async_setup_what_if_card
+from .management.what_if_storage import DashboardJob, WhatIfStorage
+from .engine.planner.replay import WhatIfCancelled
 
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 BattMindConfigEntry = ConfigEntry[BattMindCoordinator]
+
+_WHAT_IF_STORES = f"{DOMAIN}_what_if_stores"
+_WHAT_IF_WS_REGISTERED = f"{DOMAIN}_what_if_ws_registered"
+_WHAT_IF_JOB_IDS = f"{DOMAIN}_what_if_job_ids"
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "battmind/what_if_last", vol.Required("config_entry_id"): cv.string}
+)
+@websocket_api.async_response
+async def _websocket_what_if_last(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Return the last saved result for a loaded BattMind entry."""
+    entry_id = msg["config_entry_id"]
+    if not any(entry.entry_id == entry_id for entry in hass.config_entries.async_loaded_entries(DOMAIN)):
+        connection.send_error(msg["id"], "not_found", "BattMind entry is not loaded")
+        return
+    store = hass.data.get(_WHAT_IF_STORES, {}).get(entry_id)
+    if store is None or store.closed:
+        connection.send_error(msg["id"], "not_found", "BattMind entry is not loaded")
+        return
+    try:
+        record = await store.load()
+    except Exception:  # noqa: BLE001
+        connection.send_error(msg["id"], "unknown_error", "Could not load the saved what-if result")
+        return
+    connection.send_result(msg["id"], record)
 
 _WHAT_IF_SETTINGS = (
     ("battery_size", "battery_size", "kWh"),
@@ -217,6 +249,7 @@ def _what_if_notification(coordinator: BattMindCoordinator, simulation: dict, ov
     if tariff_unavailable_hours:
         lines.append(coordinator.t("ui.what_if.tariff_unavailable", hours=tariff_unavailable_hours))
     lines.extend((control_mode, ""))
+    lines.extend((coordinator.t("dashboard.what_if_baseline_note"), ""))
     if setting_rows:
         lines.extend((f"**{coordinator.t('ui.what_if.changed_settings')}**", heading, "|---|---|---|", *setting_rows, ""))
     lines.extend(
@@ -305,11 +338,25 @@ IMPORT_SCHEMA = vol.Schema(
         vol.Optional("restore_configuration", default=False): cv.boolean,
     }
 )
+
+
+def _whole_module_count(value: float) -> int:
+    if not value.is_integer():
+        raise vol.Invalid("Module count must be a whole number")
+    return int(value)
+
+
 WHAT_IF_SCHEMA = vol.Schema(
     {
         vol.Optional("config_entry_id"): cv.string,
         vol.Optional("history_days", default=365): vol.All(vol.Coerce(int), vol.Range(min=1, max=365)),
         vol.Optional("battery_size"): vol.All(vol.Coerce(float), vol.Range(min=0, max=1000)),
+        vol.Optional("range_start"): vol.Coerce(float),
+        vol.Optional("range_end"): vol.Coerce(float),
+        vol.Optional("range_step"): vol.Coerce(float),
+        vol.Optional("module_capacity"): vol.All(vol.Coerce(float), vol.Range(min=0.001, max=1000)),
+        vol.Optional("module_price"): vol.All(vol.Coerce(float), vol.Range(min=0, max=1000000000)),
+        vol.Optional("module_count"): vol.All(vol.Coerce(float), vol.Range(min=1, max=12), _whole_module_count),
         vol.Optional("minimum_level"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
         vol.Optional("maximum_level"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
         vol.Optional("starting_level"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
@@ -340,6 +387,104 @@ WHAT_IF_SCHEMA = vol.Schema(
 )
 
 
+def _what_if_range_values(data: dict) -> list[float] | None:
+    """Validate and expand an optional capacity interval without rounding its values."""
+    keys = ("range_start", "range_end", "range_step")
+    supplied = [key in data for key in keys]
+    if not any(supplied):
+        return None
+    if not all(supplied):
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="what_if_range_incomplete",
+        )
+
+    try:
+        start, end, step = (Decimal(str(data[key])) for key in keys)
+    except (InvalidOperation, ValueError):
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="what_if_range_invalid",
+        ) from None
+
+    if (
+        not all(value.is_finite() for value in (start, end, step))
+        or start < 0
+        or end > 1000
+        or start > end
+        or step <= 0
+    ):
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="what_if_range_invalid",
+        )
+
+    scale = max(0, *(-value.as_tuple().exponent for value in (start, end, step)))
+
+    def units(value: Decimal) -> int:
+        sign, digits, exponent = value.as_tuple()
+        coefficient = int("".join(map(str, digits)) or "0")
+        if sign:
+            coefficient = -coefficient
+        return coefficient * 10 ** (exponent + scale)
+
+    start_units, end_units, step_units = (units(value) for value in (start, end, step))
+    count = (end_units - start_units) // step_units + 1
+    if count > 12:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="what_if_range_invalid",
+        )
+    values = [
+        float(Decimal(f"{start_units + step_units * index}e-{scale}"))
+        for index in range(count)
+    ]
+
+    if (
+        any(not math.isfinite(value) or value < 0 or value > 1000 for value in values)
+        or any(left >= right for left, right in zip(values, values[1:]))
+    ):
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="what_if_range_invalid",
+        )
+    return values
+
+
+def _what_if_module_options(data: dict) -> dict | None:
+    """Validate optional module comparison settings, preserving zero-priced modules."""
+    has_capacity = "module_capacity" in data
+    has_price = "module_price" in data
+    has_count = "module_count" in data
+    if not has_capacity and not has_price and not has_count:
+        return None
+    if not has_capacity or not has_price:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="what_if_module_incomplete",
+        )
+    capacity = float(data["module_capacity"])
+    price = float(data["module_price"])
+    count = int(data.get("module_count", 5))
+    if (
+        not math.isfinite(capacity)
+        or capacity <= 0
+        or capacity > 1000
+        or not math.isfinite(price)
+        or price < 0
+        or not 1 <= count <= 12
+    ):
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="what_if_module_invalid",
+        )
+    return {
+        "module_capacity": capacity,
+        "module_price": price,
+        "module_count": count,
+    }
+
+
 def _validation_error(err: HomeAssistantError | str) -> ServiceValidationError:
     """A translated ServiceValidationError for an error from a service action."""
     if isinstance(err, HomeAssistantError) and err.translation_domain == DOMAIN and err.translation_key:
@@ -365,8 +510,148 @@ def _coordinators(hass: HomeAssistant, call: ServiceCall) -> list[BattMindCoordi
     return [entry.runtime_data for entry in entries]
 
 
+def _dashboard_entry(hass: HomeAssistant, entry_id: str):
+    """Resolve only a loaded entry with an open result store."""
+    store = hass.data.get(_WHAT_IF_STORES, {}).get(entry_id)
+    if store is None or store.closed:
+        return None, None
+    for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+        if entry.entry_id == entry_id:
+            return entry, store
+    return None, None
+
+
+async def _dashboard_what_if(hass, coordinator, store, job, data):
+    """Run without persistent notifications, and commit only if not stopped."""
+    try:
+        capacity_range = _what_if_range_values(data)
+        module_comparison = _what_if_module_options(data)
+        overrides = {
+            key: value for key, value in data.items()
+            if key not in (
+                "config_entry_id", "history_days", "range_start", "range_end", "range_step",
+                "module_capacity", "module_price", "module_count",
+            )
+        }
+        kwargs = {"cancel_check": job.check}
+        if capacity_range is not None:
+            kwargs["capacity_range"] = capacity_range
+        if module_comparison is not None:
+            kwargs["module_comparison"] = module_comparison
+        job.check()
+        result = await coordinator.async_what_if(
+            overrides, data["history_days"], job.report, **kwargs
+        )
+        job.check()
+        if result.error:
+            raise result.error
+        record = {
+            "completed_at": dt_util.utcnow().isoformat(),
+            "inputs": {key: value for key, value in data.items() if key != "config_entry_id"},
+            "simulation": result.value,
+        }
+        await store.save(record, job)
+        return {"job_id": job.job_id, "status": "completed", "result": result.value}
+    except WhatIfCancelled:
+        return {"job_id": job.job_id, "status": "cancelled"}
+    finally:
+        if store.dashboard_job is job:
+            store.dashboard_job = None
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "battmind/what_if_start",
+    vol.Required("config_entry_id"): cv.string,
+    vol.Required("job_id"): cv.string,
+    vol.Required("data"): dict,
+})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def _websocket_what_if_start(hass, connection, msg):
+    entry, store = _dashboard_entry(hass, msg["config_entry_id"])
+    if entry is None:
+        connection.send_error(msg["id"], "not_found", "BattMind entry is not loaded")
+        return
+    try:
+        if str(UUID(msg["job_id"])) != msg["job_id"]:
+            raise ValueError("job ID must be a canonical UUID")
+        if "config_entry_id" in msg["data"]:
+            raise ValueError("config_entry_id must be outside data")
+        data = WHAT_IF_SCHEMA({**msg["data"], "config_entry_id": entry.entry_id})
+        _what_if_range_values(data)
+        _what_if_module_options(data)
+    except (ValueError, vol.Invalid, HomeAssistantError):
+        connection.send_error(msg["id"], "invalid_format", "Invalid what-if inputs or job ID")
+        return
+    if store.dashboard_job is not None:
+        connection.send_error(msg["id"], "already_running", "A dashboard what-if is already running")
+        return
+    used_ids = hass.data.setdefault(_WHAT_IF_JOB_IDS, {}).setdefault(entry.entry_id, set())
+    if msg["job_id"] in used_ids:
+        connection.send_error(msg["id"], "invalid_format", "Job ID was already used")
+        return
+    used_ids.add(msg["job_id"])
+    job = DashboardJob(msg["job_id"])
+    store.dashboard_job = job
+    task = hass.async_create_task(_dashboard_what_if(hass, entry.runtime_data, store, job, data))
+    store.track(task)
+    try:
+        result = await asyncio.shield(task)
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("Dashboard what-if simulation failed")
+        connection.send_error(msg["id"], "unknown_error", "Could not run or save the what-if result")
+        return
+    connection.send_result(msg["id"], result)
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "battmind/what_if_status",
+    vol.Required("config_entry_id"): cv.string,
+})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def _websocket_what_if_status(hass, connection, msg):
+    entry, store = _dashboard_entry(hass, msg["config_entry_id"])
+    if entry is None:
+        connection.send_error(msg["id"], "not_found", "BattMind entry is not loaded")
+        return
+    job = store.dashboard_job
+    connection.send_result(msg["id"], {
+        "job_id": job.job_id if job else None,
+        "status": "stopping" if job and job.cancelled.is_set() else "running" if job else "idle",
+        "progress": job.progress if job else None,
+    })
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "battmind/what_if_cancel",
+    vol.Required("config_entry_id"): cv.string,
+    vol.Required("job_id"): cv.string,
+})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def _websocket_what_if_cancel(hass, connection, msg):
+    entry, store = _dashboard_entry(hass, msg["config_entry_id"])
+    job = store.dashboard_job if store else None
+    if entry is None or job is None or job.job_id != msg["job_id"]:
+        connection.send_error(msg["id"], "not_found", "Dashboard what-if job not found")
+        return
+    if job.committing:
+        connection.send_error(msg["id"], "too_late", "The result is already being saved")
+        return
+    job.cancelled.set()
+    connection.send_result(msg["id"], {"job_id": job.job_id, "status": "stopping"})
+
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the BattMind services."""
+    await async_setup_what_if_card(hass)
+    if not hass.data.get(_WHAT_IF_WS_REGISTERED):
+        websocket_api.async_register_command(hass, _websocket_what_if_last)
+        websocket_api.async_register_command(hass, _websocket_what_if_start)
+        websocket_api.async_register_command(hass, _websocket_what_if_status)
+        websocket_api.async_register_command(hass, _websocket_what_if_cancel)
+        hass.data[_WHAT_IF_WS_REGISTERED] = True
 
     async def _debug_info(call: ServiceCall) -> ServiceResponse:
         output = {}
@@ -390,11 +675,21 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         for coordinator in _coordinators(hass, call):
             coordinator.async_request_charge(force=True)
 
-    async def _what_if(call: ServiceCall) -> ServiceResponse:
+    async def _what_if_job(call: ServiceCall, coordinator: BattMindCoordinator) -> ServiceResponse:
         history_days = call.data["history_days"]
-        overrides = {key: value for key, value in call.data.items() if key not in ("config_entry_id", "history_days")}
+        capacity_range = _what_if_range_values(call.data)
+        module_comparison = _what_if_module_options(call.data)
+        range_keys = {
+            "range_start", "range_end", "range_step", "module_capacity", "module_price", "module_count",
+        }
+        overrides = {
+            key: value
+            for key, value in call.data.items()
+            if key not in ("config_entry_id", "history_days", *range_keys)
+        }
         output = {}
-        for coordinator in _coordinators(hass, call):
+        saved = {}
+        for coordinator in (coordinator,):
             notification_id = f"{coordinator.prefix}_what_if"
             title = coordinator.t("ui.what_if.title", prefix=coordinator.prefix)
             persistent_notification.async_create(
@@ -429,7 +724,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 )
 
             try:
-                result = await coordinator.async_what_if(overrides, history_days, _progress)
+                kwargs = {}
+                if capacity_range is not None:
+                    kwargs["capacity_range"] = capacity_range
+                if module_comparison is not None:
+                    kwargs["module_comparison"] = module_comparison
+                if kwargs:
+                    result = await coordinator.async_what_if(
+                        overrides, history_days, _progress, **kwargs
+                    )
+                else:
+                    result = await coordinator.async_what_if(overrides, history_days, _progress)
             except HomeAssistantError as err:
                 persistent_notification.async_create(
                     hass,
@@ -455,14 +760,44 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                     notification_id=notification_id,
                 )
                 raise _validation_error(result.error)
+            record = {
+                "completed_at": dt_util.utcnow().isoformat(),
+                "inputs": {key: value for key, value in call.data.items() if key != "config_entry_id"},
+                "simulation": result.value,
+            }
+            try:
+                await hass.data[_WHAT_IF_STORES][coordinator.entry.entry_id].save(record)
+            except Exception as err:
+                persistent_notification.async_create(
+                    hass, coordinator.t("ui.what_if.failed", error="Could not save result"),
+                    title=title, notification_id=notification_id,
+                )
+                raise _validation_error("Could not save the what-if result") from err
             output[coordinator.prefix] = result.value
+            saved[coordinator.prefix] = record
             persistent_notification.async_create(
                 hass,
                 _what_if_notification(coordinator, result.value, overrides),
                 title=title,
                 notification_id=notification_id,
             )
-        return {"simulations": output}
+        return {"simulations": output, "saved_results": saved}
+
+    async def _what_if(call: ServiceCall) -> ServiceResponse:
+        # Validate before launching any entry jobs.
+        _what_if_range_values(call.data)
+        output: dict = {"simulations": {}, "saved_results": {}}
+        for coordinator in _coordinators(hass, call):
+            entry = coordinator.entry
+            store = hass.data[_WHAT_IF_STORES].get(entry.entry_id)
+            if store is None or store.closed:
+                raise _validation_error("BattMind entry is unloading")
+            task = entry.async_create_task(hass, _what_if_job(call, coordinator), name="battmind_what_if")
+            store.track(task)
+            result = await asyncio.shield(task)
+            output["simulations"].update(result["simulations"])
+            output["saved_results"].update(result["saved_results"])
+        return output
 
     async def _export_data(call: ServiceCall) -> ServiceResponse:
         files = {}
@@ -549,6 +884,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BattMindConfigEntry) -> 
     coordinator = BattMindCoordinator(hass, entry)
     entry.runtime_data = coordinator
     await coordinator.async_setup()
+    hass.data.setdefault(_WHAT_IF_STORES, {})[entry.entry_id] = WhatIfStorage(hass, entry.entry_id)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     if coordinator.config.get("dashboard"):
@@ -565,6 +901,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: BattMindConfigEntry) -> 
 async def async_unload_entry(hass: HomeAssistant, entry: BattMindConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
+        stores = hass.data.get(_WHAT_IF_STORES, {})
+        store = stores.get(entry.entry_id)
+        if store is not None:
+            await store.close()
+            stores.pop(entry.entry_id, None)
         await entry.runtime_data.async_unload()
     return unloaded
 
@@ -579,6 +920,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: BattMindConfigEntry) ->
         _LOGGER.exception("Could not back up BattMind %s, its databases are kept in .storage", entry.title)
         return
     await BattMindStorage(hass, entry.entry_id).async_remove()
+    await WhatIfStorage(hass, entry.entry_id).store.async_remove()
     await async_remove_dashboard_file(hass, entry.entry_id)
 
 

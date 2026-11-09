@@ -139,7 +139,9 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         try:
             result.value = func(*args, **kwargs)
         except Exception as err:  # noqa: BLE001
-            _LOGGER.exception("BattMind job %s failed", getattr(func, "__name__", func))
+            from .planner.replay import WhatIfCancelled
+            if not isinstance(err, WhatIfCancelled):
+                _LOGGER.exception("BattMind job %s failed", getattr(func, "__name__", func))
             result.error = err
         finally:
             for name in self._dirty:

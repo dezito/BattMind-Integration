@@ -21,9 +21,16 @@ from custom_components.battmind.engine.optimizer import (
     simulate,
     step_hour,
 )
-from custom_components.battmind.engine.planner.replay import _known_until, _next_planning
+from custom_components.battmind.engine.planner.replay import _known_until, _next_planning, _segments
 from custom_components.battmind.engine.planner import what_if as what_if_module
-from custom_components.battmind.engine.planner.what_if import _nearest_eds_tariffs, _reference_months
+from custom_components.battmind.engine.planner.what_if import (
+    _annualized_module_gain,
+    _module_annualization,
+    _module_dst_resets,
+    _module_payback,
+    _nearest_eds_tariffs,
+    _reference_months,
+)
 from custom_components.battmind.prices.base import calculate_sell_price
 
 from .test_engine import DAY, OPTIONS, SOLAR_SURPLUS, TEXTS, TZ, _power_values_db, charge_hours, snapshot
@@ -35,6 +42,75 @@ OFF = {
     "needed_before_max_level_planner": False,
     "only_discharge_on_profit": False,
 }
+
+
+def test_module_annualization_requires_monthly_utc_coverage() -> None:
+    start = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
+    full_year = [start + hour * 3600 for hour in range(365 * 24)]
+    period = {"start": start, "end": start + 365 * 86400}
+    annualization = _module_annualization(full_year, period, datetime.timezone.utc)
+    assert annualization["minimum_matched_hours"] == 7887
+    assert annualization["available"] is True
+    assert annualization["matched_hours"] == 8760
+    assert annualization["represented_months"] == list(range(1, 13))
+    assert _annualized_module_gain(125.0, 8760, True) == 125.0
+    assert _annualized_module_gain(125.0, 4380, True) == 250.0
+    assert _annualized_module_gain(-25.0, 8760, True) == -25.0
+    assert _module_payback(1000, 250) == 4.0
+    assert _module_payback(0, 250) == 0.0
+    assert _module_payback(1000, 0) is None
+    assert _module_payback(1000, -25) is None
+    assert _module_payback(1000, None) is None
+
+    hours_without_december = full_year[:334 * 24]
+    missing_month = _module_annualization(hours_without_december, period, datetime.timezone.utc)
+    assert missing_month["matched_hours"] >= 7884
+    assert missing_month["represented_months"] == list(range(1, 12))
+    assert missing_month["available"] is False
+    assert missing_month["reason"] == "insufficient_monthly_coverage"
+    assert _annualized_module_gain(125.0, len(hours_without_december), False) is None
+    # January has 744 hours: 670 passes 90%, 669 fails despite > 7884 overall.
+    for missing, available in ((74, True), (75, False)):
+        result = _module_annualization(full_year[missing:], period, datetime.timezone.utc)
+        assert result["available"] is available
+        assert result["months"]["2025-01"]["matched_hours"] == 744 - missing
+    assert _module_annualization(full_year + [full_year[0]], period, datetime.timezone.utc)["reason"] == "unexpected_timestamps"
+    assert _module_annualization(full_year + [start - 3600], period, datetime.timezone.utc)["reason"] == "unexpected_timestamps"
+    assert _module_annualization(full_year, None, datetime.timezone.utc)["reason"] == "missing_requested_period"
+    assert _module_annualization(full_year, {"start": start, "end": start + 364 * 86400}, datetime.timezone.utc)["reason"] == "partial_year"
+    assert _module_annualization(full_year, period, datetime.timezone.utc, True)["reason"] == "missing_sell_price"
+    assert _module_annualization(full_year, period, datetime.timezone.utc, missing_sell_cost=True)["reason"] == "missing_sell_cost"
+    assert _module_annualization(full_year, period, datetime.timezone.utc, True, True)["reason"] == "missing_sell_price"
+    # A ten-hour partial end month makes the exact 90% boundary testable.
+    edge = datetime.datetime(2025, 1, 31, 14, tzinfo=datetime.timezone.utc).timestamp()
+    edge_period = {"start": edge, "end": edge + 365 * 86400}
+    edge_hours = [edge + i * 3600 for i in range(365 * 24)]
+    assert _module_annualization(edge_hours[1:], edge_period, datetime.timezone.utc)["available"] is True
+    assert _module_annualization(edge_hours[2:], edge_period, datetime.timezone.utc)["reason"] == "insufficient_monthly_coverage"
+
+
+def test_module_annualization_rolling_leap_year_and_dst() -> None:
+    start = datetime.datetime(2024, 3, 1, 12, tzinfo=datetime.timezone.utc).timestamp()
+    period = {"start": start, "end": start + 365 * 86400}
+    timestamps = [start + i * 3600 for i in range(365 * 24)]
+    result = _module_annualization(timestamps, period, TZ)
+    assert result["available"] is True
+    assert len(result["months"]) == 13
+    assert result["months"]["2024-03"]["expected_hours"] == 31 * 24 - 13 - 1
+    assert result["months"]["2024-10"]["expected_hours"] == 31 * 24 + 1
+    assert result["months"]["2025-02"]["expected_hours"] == 28 * 24
+    assert _module_dst_resets(timestamps, TZ) == 2
+    assert _module_dst_resets(timestamps, datetime.timezone.utc) == 0
+    for transition in ((2024, 3, 31), (2024, 10, 27)):
+        ts = datetime.datetime(*transition, tzinfo=datetime.timezone.utc).timestamp()
+        local = [datetime.datetime.fromtimestamp(ts + i * 3600, TZ).replace(tzinfo=None) for i in range(2)]
+        replay_hours = [OptimizerHour(t, 1, 1, 0, 0) for t in local]
+        assert len(_segments(replay_hours)) == 2
+        assert _module_dst_resets([ts, ts + 3600], TZ) == 1
+    leap_start = datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
+    leap_period = {"start": leap_start, "end": leap_start + 365 * 86400}
+    leap = [leap_start + i * 3600 for i in range(365 * 24)]
+    assert _module_annualization(leap, leap_period, datetime.timezone.utc)["months"]["2024-02"]["expected_hours"] == 29 * 24
 
 
 def test_what_if_uses_nearest_historical_eds_tariff_and_live_sell_formula() -> None:
@@ -1648,6 +1724,277 @@ def test_what_if_replays_the_planner_without_touching_the_live_engine(optimizer_
         assert simulation[column]["profit"] > 0.0
     assert (engine.plan, engine.charge_hours, engine.optimizer_shadow, engine.shadow_plan_actions) == live
     assert engine.charging_history_db == history
+
+
+@pytest.mark.parametrize("optimizer_control", [True, False])
+def test_what_if_capacity_interval_replays_each_capacity_independently(
+    optimizer_control: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    settings = {"optimizer_control": optimizer_control}
+    engine, _ = planned(3, 40, settings, solar=True)
+    capacity = engine.config["solar"]["powerwall_battery_size"]
+    assert capacity > 0
+    data = _what_if_data(engine)
+    data["requested_period"] = _requested_period(3, 3)
+    overrides = {"starting_level": 40}
+    snapshot = realistic_snapshot(now, 40, settings)
+    live = deepcopy((engine.plan, engine.charge_hours, engine.optimizer_shadow, engine.shadow_plan_actions))
+    history = deepcopy(engine.charging_history_db)
+    monkeypatch.setattr(what_if_module, "PROGRESS_INTERVAL", 0.0)
+    reports = []
+
+    baseline = engine.run_job(snapshot, engine.what_if, deepcopy(data), overrides)
+    ranged = engine.run_job(
+        snapshot,
+        engine.what_if,
+        deepcopy(data),
+        overrides,
+        capacity_range=[0.0, capacity],
+        progress=reports.append,
+    )
+
+    assert baseline.error is None, baseline.error
+    assert ranged.error is None, ranged.error
+    assert "range" not in baseline.value
+    assert [set(item) for item in ranged.value["range"]] == [
+        {"battery_size", "profit", "bill", "difference_profit", "difference_bill"}
+    ] * 2
+    for key in ("current", "scenario", "difference", "coverage", "estimate"):
+        assert ranged.value[key] == baseline.value[key]
+    assert ranged.value["coverage"] is not None
+
+    for result in ranged.value["range"]:
+        independent = engine.run_job(
+            snapshot,
+            engine.what_if,
+            deepcopy(data),
+            {**overrides, "battery_size": result["battery_size"]},
+        )
+        assert independent.error is None, independent.error
+        scenario = independent.value["scenario"]
+        assert result["profit"] == scenario["profit"]
+        assert result["bill"] == scenario["with"]["bill"]
+        assert result["difference_profit"] == independent.value["difference"]["profit"]
+        assert result["difference_bill"] == independent.value["difference"]["bill"]
+
+    assert ranged.value["range"][0]["battery_size"] == 0
+    assert reports[-1] == {"percent": 100, "step": 2, "steps": 2, "hours": 48, "total_hours": 48}
+    assert (engine.plan, engine.charge_hours, engine.optimizer_shadow, engine.shadow_plan_actions) == live
+    assert engine.charging_history_db == history
+
+
+def test_what_if_module_comparison_uses_same_assumptions_and_avoids_partial_year_payback() -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine, _ = planned(3, 40, {"optimizer_control": True}, solar=True)
+    data = _what_if_data(engine)
+    overrides = {"starting_level": 40, "round_trip_loss": 8}
+    base_capacity = engine.config["solar"]["powerwall_battery_size"]
+    options = {"module_capacity": 2.5, "module_price": 0.0, "module_count": 2}
+
+    compared = engine.run_job(
+        realistic_snapshot(now, 40, {"optimizer_control": True}),
+        engine.what_if,
+        deepcopy(data),
+        overrides,
+        module_comparison=options,
+    )
+    baseline = engine.run_job(
+        realistic_snapshot(now, 40, {"optimizer_control": True}),
+        engine.what_if,
+        deepcopy(data),
+        {**overrides, "battery_size": base_capacity},
+    )
+
+    assert compared.error is None, compared.error
+    assert baseline.error is None, baseline.error
+    module = compared.value["module_comparison"]
+    assert module["base_capacity"] == base_capacity
+    assert [row["added_modules"] for row in module["rows"]] == [0, 1, 2]
+    assert [row["battery_size"] for row in module["rows"]] == pytest.approx(
+        [base_capacity, base_capacity + 2.5, base_capacity + 5.0]
+    )
+    assert module["rows"][0]["profit"] == baseline.value["scenario"]["profit"]
+    assert module["rows"][0]["gain_vs_current_capacity"] == 0
+    assert module["rows"][1]["gain_vs_current_capacity"] == pytest.approx(
+        module["rows"][1]["profit"] - module["rows"][0]["profit"]
+    )
+    assert module["rows"][1]["module_price"] == 0
+    assert module["rows"][1]["cumulative_module_cost"] == 0
+    assert module["annualization"]["available"] is False
+    assert module["annualization"]["reason"] == "missing_requested_period"
+    assert all(row["annualized_incremental_gain"] is None for row in module["rows"])
+    assert all(row["payback_years"] is None for row in module["rows"])
+    assert "module_comparison" not in baseline.value
+
+
+@pytest.mark.parametrize("production_price", [-1.0, 1.5])
+def test_module_missing_sell_price_blocks_payback_without_changing_replay(production_price: float) -> None:
+    engine, _ = planned(3, 40, {"optimizer_control": True}, solar=True)
+    engine.config["solar"]["production_price"] = production_price
+    data = _what_if_data(engine)
+    end = datetime.datetime.combine(DAY, datetime.time(), tzinfo=TZ).timestamp()
+    data["requested_period"] = {"start": end - 365 * 86400, "end": end}
+    data["sell_price_history_available"] = False
+    snap = realistic_snapshot(datetime.datetime.combine(DAY, datetime.time(3, 30)), 40, {"optimizer_control": True})
+    options = {"module_capacity": 2.5, "module_price": 1000, "module_count": 1}
+    with_module = engine.run_job(snap, engine.what_if, deepcopy(data), {}, module_comparison=options)
+    without_module = engine.run_job(snap, engine.what_if, deepcopy(data), {})
+    assert with_module.error is None, with_module.error
+    assert without_module.error is None, without_module.error
+    for key in ("current", "scenario", "difference"):
+        assert with_module.value[key] == without_module.value[key]
+    comparison = with_module.value["module_comparison"]
+    assert comparison["annualization"]["reason"] == "missing_sell_price"
+    assert comparison["rows"][1]["annualized_incremental_gain"] is None
+    assert comparison["rows"][1]["payback_years"] is None
+
+
+@pytest.mark.parametrize("pricing", ["ordinary", "estimated", "known_zero_cost", "unknown_cost"])
+def test_module_full_year_annualization_uses_matched_utc_hours(
+    monkeypatch: pytest.MonkeyPatch, pricing: str,
+) -> None:
+    engine, _ = planned(3, 40, {"optimizer_control": True}, solar=True)
+    data = _what_if_data(engine)
+    end = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
+    start = end - 365 * 86400
+    data["requested_period"] = {"start": start, "end": end}
+    for key, series in data["stats"].items():
+        data["stats"][key] = [(start + i * 3600, series[i % len(series)][1]) for i in range(365 * 24)]
+    if pricing != "ordinary":
+        provider = {
+            "name": "Energi Data Service" if pricing != "estimated" else "historical",
+            "buy_entity_id": data["buy_entity_id"],
+            "sell_entity_id": data["sell_entity_id"],
+        }
+        if pricing == "estimated":
+            provider["sell_tariff_entity_ids"] = {"systemtarif": "sensor.tariff"}
+            data["stats"]["sensor.tariff"] = [(start, 0.1)]
+        else:
+            provider["sell_includes_tariffs"] = False
+            provider["sell_costs"] = {"systemtarif": 0.0, "transmissions_nettarif": 0.0} if pricing == "known_zero_cost" else None
+        data["price_providers"] = [provider]
+    real_replay = what_if_module.replay_history
+
+    def short_replay(engine_class, config, prefix, texts, settings, tz, hours, sell, level, progress, cancel_check):
+        # Exercise the real calculation but limit the expensive replay, not the eligibility inputs.
+        assert len(hours) == 8760
+        return real_replay(engine_class, config, prefix, texts, settings, tz, hours[:48], sell, level, progress, cancel_check)
+
+    monkeypatch.setattr(what_if_module, "replay_history", short_replay)
+    snap = realistic_snapshot(datetime.datetime.combine(DAY, datetime.time(3, 30)), 40, {"optimizer_control": True})
+    result = engine.run_job(
+        snap, engine.what_if, data, {},
+        module_comparison={"module_capacity": 2.5, "module_price": 1000, "module_count": 1},
+    )
+    assert result.error is None, result.error
+    module = result.value["module_comparison"]
+    assert module["annualization"]["available"] is (pricing != "unknown_cost")
+    assert module["annualization"]["matched_hours"] == 8760
+    assert module["warnings"]["dst_replay_resets"] == 2
+    if pricing == "unknown_cost":
+        assert module["annualization"]["reason"] == "missing_sell_cost"
+        assert module["warnings"]["raw_unknown_sell_cost_hours"] == 8760
+        assert module["rows"][1]["annualized_incremental_gain"] is None
+        assert module["rows"][1]["payback_years"] is None
+    else:
+        assert module["annualization"]["reason"] is None
+        assert module["rows"][1]["annualized_incremental_gain"] == module["rows"][1]["incremental_gain"]
+        assert module["rows"][1]["payback_years"] == _module_payback(1000, module["rows"][1]["incremental_gain"])
+    if pricing == "estimated":
+        assert module["warnings"]["tariff_estimated_hours"] == 8759
+
+
+@pytest.mark.parametrize("sell_costs,expected_current,expected_unknown", [
+    ({"systemtarif": 0.1, "transmissions_nettarif": 0.0}, 48, 0),
+    (None, 0, 48), ({}, 0, 48), ({"systemtarif": 0.1}, 0, 48),
+])
+def test_module_warnings_report_raw_sell_cost_provenance(sell_costs, expected_current, expected_unknown) -> None:
+    engine, _ = planned(3, 40, {"optimizer_control": True}, solar=True)
+    data = _what_if_data(engine)
+    provider = {
+        "name": "Energi Data Service",
+        "buy_entity_id": data["buy_entity_id"],
+        "sell_entity_id": data["sell_entity_id"],
+        "sell_includes_tariffs": False,
+        "sell_costs": sell_costs,
+    }
+    data["price_providers"] = [provider]
+    end = datetime.datetime.combine(DAY, datetime.time(), tzinfo=TZ).timestamp()
+    data["requested_period"] = {"start": end - 365 * 86400, "end": end}
+    snap = realistic_snapshot(datetime.datetime.combine(DAY, datetime.time(3, 30)), 40, {"optimizer_control": True})
+    result = engine.run_job(
+        snap, engine.what_if, data, {},
+        module_comparison={"module_capacity": 2.5, "module_price": 1000, "module_count": 1},
+    )
+    assert result.error is None, result.error
+    warnings = result.value["module_comparison"]["warnings"]
+    assert warnings["raw_current_sell_cost_hours"] == expected_current
+    assert warnings["raw_unknown_sell_cost_hours"] == expected_unknown
+    assert warnings["tariff_estimated_hours"] == 0
+    assert result.value["module_comparison"]["annualization"]["reason"] == (
+        "missing_sell_cost" if expected_unknown else "insufficient_monthly_coverage"
+    )
+
+
+@pytest.mark.parametrize("fallback,expected_reason,unknown_hours", [
+    ("missing_sell", "missing_sell_price", 0),
+    ("raw_unknown", "missing_sell_cost", 24),
+    ("unused_raw_unknown", "insufficient_monthly_coverage", 0),
+])
+def test_module_mixed_provider_sell_data_gates(fallback, expected_reason, unknown_hours) -> None:
+    engine, _ = planned(3, 40, {"optimizer_control": True}, solar=True)
+    data = _what_if_data(engine)
+    buy, sell = data["buy_entity_id"], data["sell_entity_id"]
+    data["stats"]["sensor.fallback_buy"] = data["stats"][buy][:]
+    data["stats"]["sensor.fallback_sell"] = data["stats"][sell][:]
+    if fallback != "unused_raw_unknown":
+        data["stats"][buy] = data["stats"][buy][:24]
+        data["stats"][sell] = data["stats"][sell][:24]
+    primary = {"name": "primary", "buy_entity_id": buy, "sell_entity_id": sell}
+    secondary = {
+        "name": "Energi Data Service",
+        "buy_entity_id": "sensor.fallback_buy",
+        "sell_entity_id": None if fallback == "missing_sell" else "sensor.fallback_sell",
+        "sell_includes_tariffs": False,
+    }
+    data["price_providers"] = [primary, secondary]
+    end = datetime.datetime.combine(DAY, datetime.time(), tzinfo=TZ).timestamp()
+    data["requested_period"] = {"start": end - 365 * 86400, "end": end}
+    snap = realistic_snapshot(datetime.datetime.combine(DAY, datetime.time(3, 30)), 40, {"optimizer_control": True})
+    options = {"module_capacity": 2.5, "module_price": 1000, "module_count": 1}
+    result = engine.run_job(snap, engine.what_if, deepcopy(data), {}, module_comparison=options)
+    baseline = engine.run_job(snap, engine.what_if, deepcopy(data), {})
+    assert result.error is None, result.error
+    assert baseline.error is None, baseline.error
+    for key in ("current", "scenario", "difference"):
+        assert result.value[key] == baseline.value[key]
+    module = result.value["module_comparison"]
+    assert module["annualization"]["reason"] == expected_reason
+    assert module["warnings"]["raw_unknown_sell_cost_hours"] == unknown_hours
+    assert module["rows"][1]["annualized_incremental_gain"] is None
+    assert module["rows"][1]["payback_years"] is None
+
+
+def test_module_warnings_report_estimated_tariffs() -> None:
+    engine, _ = planned(3, 40, {"optimizer_control": True}, solar=True)
+    data = _what_if_data(engine)
+    first = data["stats"][data["buy_entity_id"]][0][0]
+    data["stats"]["sensor.tariff"] = [(first, 0.1)]
+    data["price_providers"] = [{
+        "name": "historical",
+        "buy_entity_id": data["buy_entity_id"],
+        "sell_entity_id": data["sell_entity_id"],
+        "sell_tariff_entity_ids": {"systemtarif": "sensor.tariff"},
+    }]
+    snap = realistic_snapshot(datetime.datetime.combine(DAY, datetime.time(3, 30)), 40, {"optimizer_control": True})
+    result = engine.run_job(
+        snap, engine.what_if, data, {},
+        module_comparison={"module_capacity": 2.5, "module_price": 1000, "module_count": 1},
+    )
+    assert result.error is None, result.error
+    assert result.value["module_comparison"]["warnings"]["tariff_estimated_hours"] == 47
+    assert result.value["tariff_estimated_hours"] == 47
 
 
 @pytest.mark.parametrize("optimizer_control", [True, False])

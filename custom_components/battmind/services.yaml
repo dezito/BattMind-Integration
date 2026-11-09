@@ -49,6 +49,62 @@ what_if:
           step: 0.1
           unit_of_measurement: kWh
           mode: box
+    range_start:
+      name: Capacity range start
+      description: First battery capacity in the optional interval, in kWh. Provide this with range_end and range_step.
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 0.1
+          unit_of_measurement: kWh
+          mode: box
+    range_end:
+      name: Capacity range end
+      description: Last allowed battery capacity in the optional interval, in kWh. Provide this with range_start and range_step.
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 0.1
+          unit_of_measurement: kWh
+          mode: box
+    range_step:
+      name: Capacity range step
+      description: Positive capacity increment in kWh. Provide this with range_start and range_end; at most 12 values are simulated.
+      selector:
+        number:
+          min: 0
+          step: 0.1
+          unit_of_measurement: kWh
+          mode: box
+    module_capacity:
+      name: Battery module capacity
+      description: Optional module comparison. Provide this with module_price; candidates add whole modules to current capacity.
+      selector:
+        number:
+          min: 0.001
+          max: 1000
+          step: 0.001
+          unit_of_measurement: kWh
+          mode: box
+    module_price:
+      name: Battery module price
+      description: Price of one module in the configured currency; excludes installation and other costs. Zero is allowed.
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box
+    module_count:
+      name: Additional battery modules
+      description: Number of whole modules to compare after the current-capacity baseline; defaults to 5 and is limited to 12.
+      selector:
+        number:
+          min: 1
+          max: 12
+          step: 1
+          mode: box
     minimum_level:
       selector:
         number:

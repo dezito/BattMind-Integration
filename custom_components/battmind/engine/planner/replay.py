@@ -133,6 +133,10 @@ def _next_planning(now: datetime.datetime) -> datetime.datetime:
     return publication if now.hour < NEXT_DAY_PRICES_HOUR else publication + datetime.timedelta(days=1)
 
 
+class WhatIfCancelled(Exception):
+    """A dashboard replay was cooperatively stopped."""
+
+
 def replay_history(
     engine_class: type,
     config: dict,
@@ -144,6 +148,7 @@ def replay_history(
     sell: dict,
     start_level: float,
     progress: Callable[[int], None] | None = None,
+    cancel_check: Callable[[], None] | None = None,
 ) -> dict:
     """Plan and execute the history with the configuration and settings; the economy of the period.
 
@@ -155,6 +160,8 @@ def replay_history(
     to the profit and the bill of the summaries.
     """
     replay_class = type("ReplayEngine", (ReplayInputs, engine_class), {})
+    if cancel_check is not None:
+        cancel_check()
     engine = replay_class(config, prefix, texts)
     engine.replay_setup()
     level_entity = config["home"]["entity_ids"]["powerwall_battery_level_entity_id"] or f"sensor.{prefix}_battery_level"
@@ -172,6 +179,8 @@ def replay_history(
         summaries = []
         months: dict[str, dict[str, float]] = {}
         for segment in _segments(hours):
+            if cancel_check is not None:
+                cancel_check()
             summaries.append(breakdown(segment, 0.0, cfg, [FALLBACK_ACTION[0]] * len(segment), 0.0))
             for hour in segment:
                 month = months.setdefault(hour.timestamp.strftime("%Y-%m"), {"hours": 0, "profit": 0.0, "bill": 0.0})
@@ -189,6 +198,8 @@ def replay_history(
     months: dict[str, dict[str, float]] = {}
     done = 0
     for index, segment in enumerate(_segments(hours)):
+        if cancel_check is not None:
+            cancel_check()
         segment_start = start_level if index == 0 else cfg.level_min
         level = segment_start
         actions, limits = [], []
@@ -197,6 +208,8 @@ def replay_history(
         month = months.setdefault(segment[0].timestamp.strftime("%Y-%m"), {"hours": 0, "profit": 0.0, "bill": 0.0})
         month["bill"] -= (segment_start - cfg.level_min) * to_kwh * end_value
         while position < len(segment):
+            if cancel_check is not None:
+                cancel_check()
             now = segment[position].timestamp
             known_until, next_planning = _known_until(now), _next_planning(now)
             window = [hour for hour in segment[position:] if hour.timestamp < known_until]

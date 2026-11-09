@@ -322,9 +322,54 @@ consumption forecast per hour with the three forecast types.
 
 ### What-if simulator
 
-A short description and a link to **Settings → Developer tools → Actions** with the
-**battmind.what_if** action preselected (requires an administrator). See
+A short description and a link on the What-if tab to **Settings → Developer tools → Actions**
+with the **battmind.what_if** action preselected (requires an administrator). See
 [What-if simulator](what-if-simulator.md).
+
+The **What-if** dashboard tab also compares a selected battery capacity against the current
+configuration, or plots a range of capacities. Current is an estimate assuming the current setup
+throughout the historical period, not the actual historical result. Focus on the difference between
+current and scenario; it too is an estimate. A summary highlights the current and scenario
+profits and their difference, followed by detailed tables and charts. It also shows net bill, data
+coverage and tariff warnings. For a range, it shows the change in profit between adjacent sizes and
+the change per added kWh of battery capacity over the simulated period. The fixed scenario and
+capacity range have separate sections. The range table explains its columns and highlights the
+highest total profit and highest incremental profit per added kWh (including ties); these are
+historical comparisons, not a recommendation or a measure of investment return. Each point in the
+incremental chart represents the capacity interval shown below it, not total battery profit.
+Move the pointer across the total-profit chart or tap it to see a shape-preserving curve estimate
+between simulated sizes. It is not a new simulation or forecast, and a smooth curve is not necessarily
+more accurate than a straight line. The incremental chart's curve represents a trend between interval
+averages plotted at their midpoints, not a calculated profit at a particular battery size. Its values
+between points are estimates, and outside the midpoint range it shows the nearest interval average.
+On the total-profit chart, each segment's color indicates the interval's average change in profit
+per added kWh, not the height or instantaneous slope of the interpolated curve. Green and red
+indicate higher and lower rates relative to the displayed intervals, and colors change at simulated
+sizes. On the incremental chart, colors indicate the interval averages and interpolated trend.
+Even the green value can be negative. When all rates are equal, the respective chart uses its normal color.
+The table still provides the calculated values and text labels without relying on color.
+Its selection list provides keyboard access to calculated points. Pointer estimates normally
+use whole kWh; fractional positions are retained when rounding would fall outside the plotted range.
+Simulated fractional capacities are shown accurately. Currency values are shown
+to two decimals. The curve also has a keyboard-accessible capacity input.
+The interval figures use
+rounded profits and can be imprecise for very small capacity steps. The calculated bill includes
+wear and the value of energy remaining in the battery; battery purchase cost and fixed fees are
+excluded. The results are historical hindsight, not a forecast. A range takes longer
+and can delay planning. The last successful calculation for each BattMind instance is saved with its
+completion time and selected values. The dashboard reloads it when you return, including after a page
+refresh or Home Assistant restart; no extra entities are created. A failed or stopped dashboard
+calculation does not replace the previous result. Dashboard runs show their status and errors in the
+card instead of persistent notifications; the **Stop simulation** button requests cancellation.
+Cancellation can take time while an ongoing history query or planning step finishes. Runs started
+through the action continue to use persistent notifications.
+The form starts a new calculation using only its displayed fields and current settings. Other
+overrides from a saved action or automation are displayed with that result but are not reused;
+missing values in the form use its defaults. The action in Developer tools remains available for
+changing other settings.
+If an edited BattMind dashboard has an older What-if card configuration, missing card labels are
+filled from the current translation when the dashboard is loaded. Existing labels and other edits
+are preserved; older customized text is not automatically replaced.
 
 <p align="center">
   <img src="../images/what-if-simulator.png" alt="The What-if simulator card in the analysis" width="100%">

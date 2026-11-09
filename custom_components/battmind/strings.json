@@ -582,11 +582,17 @@
     },
     "what_if": {
       "name": "What-if simulator",
-      "description": "Replays the BattMind planner (rules or optimizer) on up to one year of hourly history with the current settings and with temporary values, and compares the economy. Nothing is saved and the active plan is not changed.",
+      "description": "Replays the BattMind planner on up to one year of hourly history. Current is an estimate assuming the current configuration throughout the period, not the actual historical result. Focus on the difference between current and scenario; it is also an estimate. The latest result is saved; the active plan and settings are not changed.",
       "fields": {
         "config_entry_id": {"name": "Config entry", "description": "Only simulate this BattMind entry (default: all)."},
         "history_days": {"name": "History", "description": "Number of days of hourly history to compare (default: 365)."},
         "battery_size": {"name": "Usable battery capacity", "description": "Temporary usable capacity in kWh. Leave out to use the current setting."},
+        "range_start": {"name": "Capacity range start", "description": "First battery capacity in the optional interval, in kWh. Provide this with range_end and range_step."},
+        "range_end": {"name": "Capacity range end", "description": "Last allowed battery capacity in the optional interval, in kWh. Provide this with range_start and range_step."},
+        "range_step": {"name": "Capacity range step", "description": "Positive capacity increment in kWh. Provide this with range_start and range_end; at most 12 values are simulated."},
+        "module_capacity": {"name": "Battery module capacity", "description": "Optional module comparison. Provide this with module_price; candidates add whole modules to current capacity."},
+        "module_price": {"name": "Battery module price", "description": "Price of one module in the configured currency; excludes installation and other costs. Zero is allowed."},
+        "module_count": {"name": "Additional battery modules", "description": "Number of whole modules after the current-capacity baseline; defaults to 5 and is limited to 12."},
         "minimum_level": {"name": "Minimum battery level", "description": "Temporary minimum battery state of charge in percent. Leave out to use the current setting."},
         "maximum_level": {"name": "Maximum battery level", "description": "Temporary maximum battery state of charge in percent. Leave out to use the current setting."},
         "starting_level": {"name": "Starting battery level", "description": "State of charge at the start of both comparisons. Leave out to use the configured minimum."},
@@ -818,6 +824,18 @@
     },
     "what_if_no_recorder": {
       "message": "The Recorder is required for the historical what-if comparison"
+    },
+    "what_if_range_incomplete": {
+      "message": "Provide range_start, range_end, and range_step together"
+    },
+    "what_if_range_invalid": {
+      "message": "The capacity range must use finite values from 0 to 1000 kWh, a positive step, an end no lower than the start, and no more than 12 values"
+    },
+    "what_if_module_incomplete": {
+      "message": "Provide module_capacity and module_price together; module_count is optional"
+    },
+    "what_if_module_invalid": {
+      "message": "Module capacity must be greater than 0 and no more than 1000 kWh, price must be non-negative, and module_count must be from 1 to 12"
     }
   },
   "issues": {

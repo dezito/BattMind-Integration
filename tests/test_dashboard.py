@@ -4,12 +4,13 @@ from __future__ import annotations
 import pytest
 import yaml
 
+from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL
 from homeassistant.components.lovelace.const import LOVELACE_DATA
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.battmind.const import ACTION_SWITCHES, CONTROLLABLE_ACTIONS, LANGUAGES, NUMBER_SETTINGS, SELECT_SETTINGS, SWITCH_SETTINGS, TEXT_SETTINGS, build_config
-from custom_components.battmind.management.dashboard_build import render_dashboard
+from custom_components.battmind.management.dashboard_build import WHAT_IF_CARD_URL, render_dashboard
 from custom_components.battmind.utils.formatting import format_analysis_help_text, format_help_text, load_texts
 
 from .conftest import MOCK_OPTIONS, PREFIX, async_unload_and_join, set_source_states
@@ -35,7 +36,34 @@ def test_every_language_renders_without_placeholders(language: str) -> None:
     content = rendered(language)
     assert "@@" not in content
     views = yaml.safe_load(content)["views"]
-    assert [view["path"] for view in views] == ["overview", "settings", "analysis"]
+    assert [view["path"] for view in views] == ["overview", "settings", "analysis", "what-if"]
+
+
+@pytest.mark.parametrize("language", list(LANGUAGES))
+def test_what_if_card_targets_its_config_entry(language: str) -> None:
+    config = build_config({**OPTIONS, "language": language})
+    for entry_id, prefix in (("first-entry", "battmind"), ("second-entry", "other_battery")):
+        dashboard = yaml.safe_load(render_dashboard(config, prefix, entry_id=entry_id))
+        card = dashboard["views"][-1]["sections"][0]["cards"][0]
+        assert card["type"] == "custom:battmind-what-if"
+        assert card["config_entry_id"] == entry_id
+        assert all(card["labels"].values())
+        assert "sensor." not in yaml.safe_dump(card)
+        views = {view["path"]: view for view in dashboard["views"]}
+        action_url = "/config/tools/action?service=battmind.what_if"
+        assert action_url not in yaml.safe_dump(views["analysis"])
+        assert action_url in yaml.safe_dump(views["what-if"])
+
+
+@pytest.mark.parametrize("language", list(LANGUAGES))
+def test_what_if_dashboard_translations_have_no_corrupted_characters(language: str) -> None:
+    config = build_config({**OPTIONS, "language": language})
+    dashboard = yaml.safe_load(render_dashboard(config, "battmind", entry_id="test-entry"))
+    labels = dashboard["views"][-1]["sections"][0]["cards"][0]["labels"]
+    assert all("?" not in value and "\ufffd" not in value for value in labels.values())
+    if language == "da":
+        assert labels["battery"] == "Batteristørrelse (kWh)"
+        assert "planlægningen" in labels["help"]
 
 
 def test_texts_follow_the_language() -> None:
@@ -372,13 +400,20 @@ def test_consumption_forecast_is_aligned_and_visually_distinguishes_totals() -> 
         assert "return keys.map(ts =>" in generator
 
 
-async def test_sidebar_dashboard_can_be_edited_and_reset(hass: HomeAssistant, hass_ws_client, mock_entry: MockConfigEntry, tmp_path) -> None:
+async def test_sidebar_dashboard_can_be_edited_and_reset(
+    hass: HomeAssistant, hass_ws_client, hass_client_no_auth, mock_entry: MockConfigEntry, tmp_path
+) -> None:
     hass.config.config_dir = str(tmp_path)
     set_source_states(hass)
     entry = MockConfigEntry(domain=mock_entry.domain, title=mock_entry.title, data=dict(mock_entry.data), options={**MOCK_OPTIONS, "dashboard": True})
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done(wait_background_tasks=True)
+    assert WHAT_IF_CARD_URL in hass.data[DATA_EXTRA_MODULE_URL].urls
+    http_client = await hass_client_no_auth()
+    response = await http_client.get(WHAT_IF_CARD_URL)
+    assert response.status == 200
+    assert 'customElements.define("battmind-what-if"' in await response.text()
     client = await hass_ws_client(hass)
 
     async def command(message: dict) -> dict:
@@ -395,10 +430,31 @@ async def test_sidebar_dashboard_can_be_edited_and_reset(hass: HomeAssistant, ha
     await command({"type": "lovelace/config/save", "config": {"views": [{"title": "Mine"}]}})
     assert await command({"type": "lovelace/config"}) == {"views": [{"title": "Mine"}]}
 
+    original_card = next(node for node in walk(generated) if node.get("type") == "custom:battmind-what-if")
+    saved_card = {
+        "type": original_card["type"],
+        "config_entry_id": entry.entry_id,
+        "labels": {"title": "My custom title", "help": "My custom help"},
+    }
+    other_card = {
+        "type": original_card["type"],
+        "config_entry_id": "another-entry",
+        "labels": {"title": "Other"},
+    }
+    missing_card = {"type": original_card["type"], "config_entry_id": entry.entry_id}
+    custom = {"views": [{"title": "Mine", "cards": [saved_card, other_card, missing_card]}]}
+    await command({"type": "lovelace/config/save", "config": custom})
+    restored = await command({"type": "lovelace/config"})
+    actual_card, actual_other, actual_missing = restored["views"][0]["cards"]
+    assert actual_card["labels"] == {**original_card["labels"], **saved_card["labels"]}
+    assert actual_other == other_card
+    assert actual_missing["labels"] == original_card["labels"]
+    assert saved_card["labels"] == {"title": "My custom title", "help": "My custom help"}
+
     # the edits survive a reload, the generated dashboard is not shown over them
     await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert await command({"type": "lovelace/config"}) == {"views": [{"title": "Mine"}]}
+    assert await command({"type": "lovelace/config"}) == restored
 
     await hass.services.async_call("button", "press", {"entity_id": f"button.{PREFIX}_reset_dashboard"}, blocking=True)
     assert await command({"type": "lovelace/config"}) == generated

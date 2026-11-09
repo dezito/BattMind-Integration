@@ -126,7 +126,7 @@ every rule explained with examples, [inverter setups](docs/inverters/huawei.md) 
   - a hindsight score per day, planned against what happened, days with an empty battery in the most expensive
     hours, and planned against measured solar surplus
   - the first time, the last year is read from Home Assistant's long-term statistics
-- **[Ready-made dashboard](docs/dashboard-analysis.md)** in the sidebar with overview, settings and analysis, built from your setup
+- **[Ready-made dashboard](docs/dashboard-analysis.md)** in the sidebar with overview, settings, analysis and a what-if comparison, built from your setup
 - **Fail-safe:** BattMind stores the prices in its own [price database](docs/how-it-works.md#prices). Hours
   without a price are filled from it, and if the price integration is down, the last prices are kept for 2
   hours, and then planning falls back to the database
@@ -279,13 +279,14 @@ Large attributes (markdown, plans) are not stored in the recorder database.
 ## Dashboard
 
 With **Dashboard in the sidebar** enabled (default), each instance gets its own dashboard,
-e.g. `/battmind-dashboard`, with three views. You choose its sidebar icon when adding the instance, and can change it under **Configure → General**:
+e.g. `/battmind-dashboard`, with four views. You choose its sidebar icon when adding the instance, and can change it under **Configure → General**:
 
 - **Overview:** the battery level forecast with the planned charging and discharging, the electricity
   prices with sell price and solar forecast, the current rule and action, a status with battery, consumption, solar, price and savings, the charging history and the overview
 - **Settings:** the planners and their limits, grouped (control, profit, charging, discharging, selling,
   solar), each with a "Read more"
 - **Analysis:** what the battery earns and how well BattMind plans
+- **What-if:** compare historical results with alternative battery sizes and view the last saved calculation
 
 Every card is explained in [Dashboard and analysis](docs/dashboard-analysis.md). Once you save your own
 changes to the dashboard, your version is kept. Press **Reset dashboard** (on the integration's device) to

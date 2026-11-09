@@ -675,6 +675,18 @@
     },
     "what_if_no_recorder": {
       "message": "Für den historischen What-if-Vergleich wird der Recorder benötigt"
+    },
+    "what_if_range_incomplete": {
+      "message": "range_start, range_end und range_step müssen zusammen angegeben werden"
+    },
+    "what_if_range_invalid": {
+      "message": "Der Kapazitätsbereich muss endliche Werte von 0 bis 1000 kWh, einen positiven Schritt, ein Ende mindestens so groß wie den Start und höchstens 12 Werte enthalten"
+    },
+    "what_if_module_incomplete": {
+      "message": "module_capacity und module_price müssen zusammen angegeben werden; module_count ist optional"
+    },
+    "what_if_module_invalid": {
+      "message": "Die Modulkapazität muss größer als 0 und höchstens 1000 kWh sein, der Preis darf nicht negativ sein und module_count muss zwischen 1 und 12 liegen"
     }
   },
   "issues": {
@@ -724,11 +736,17 @@
   "services": {
     "what_if": {
       "name": "What-if-Simulator",
-      "description": "Spielt die BattMind-Planung (Regeln oder Optimierer) mit bis zu einem Jahr stündlicher Historie mit den aktuellen Einstellungen und mit vorübergehenden Werten nach und vergleicht die Wirtschaftlichkeit. Es wird nichts gespeichert und der aktive Plan wird nicht geändert.",
+      "description": "Spielt die BattMind-Planung mit bis zu einem Jahr stündlicher Historie nach. Aktuell ist eine Schätzung, die die aktuelle Konfiguration für den gesamten Zeitraum annimmt, nicht das tatsächliche historische Ergebnis. Konzentrieren Sie sich auf den Unterschied zwischen Aktuell und Szenario; auch er ist eine Schätzung. Das letzte Ergebnis wird gespeichert; der aktive Plan und die Einstellungen bleiben unverändert.",
       "fields": {
         "config_entry_id": {"name": "Konfigurationseintrag", "description": "Nur diesen BattMind-Eintrag simulieren (Standard: alle)."},
         "history_days": {"name": "Historie", "description": "Anzahl der Tage stündlicher Historie für den Vergleich (Standard: 365)."},
         "battery_size": {"name": "Nutzbare Batteriekapazität", "description": "Vorübergehende nutzbare Kapazität in kWh. Weglassen, um die aktuelle Einstellung zu verwenden."},
+        "range_start": {"name": "Start des Kapazitätsbereichs", "description": "Erste Batteriekapazität im optionalen Bereich in kWh. Zusammen mit range_end und range_step angeben."},
+        "range_end": {"name": "Ende des Kapazitätsbereichs", "description": "Letzte zulässige Batteriekapazität im optionalen Bereich in kWh. Zusammen mit range_start und range_step angeben."},
+        "range_step": {"name": "Schrittweite des Kapazitätsbereichs", "description": "Positive Kapazitätsschrittweite in kWh. Zusammen mit range_start und range_end angeben; es werden höchstens 12 Werte simuliert."},
+        "module_capacity": {"name": "Kapazität des Batteriemoduls", "description": "Optionaler Modulvergleich. Zusammen mit module_price angeben; die Kandidaten ergänzen ganze Module zur aktuellen Kapazität."},
+        "module_price": {"name": "Preis des Batteriemoduls", "description": "Preis für ein Modul in der konfigurierten Währung; Installation und weitere Kosten sind nicht enthalten. Null ist zulässig."},
+        "module_count": {"name": "Zusätzliche Batteriemodule", "description": "Anzahl ganzer Module nach der Vergleichsbasis mit aktueller Kapazität; Standardwert 5, höchstens 12."},
         "minimum_level": {"name": "Minimaler Batteriestand", "description": "Vorübergehender minimaler Ladestand der Batterie in Prozent. Weglassen, um die aktuelle Einstellung zu verwenden."},
         "maximum_level": {"name": "Maximaler Batteriestand", "description": "Vorübergehender maximaler Ladestand der Batterie in Prozent. Weglassen, um die aktuelle Einstellung zu verwenden."},
         "starting_level": {"name": "Startfüllstand", "description": "Ladestand zu Beginn beider Vergleiche. Weglassen, um das konfigurierte Minimum zu verwenden."},

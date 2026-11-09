@@ -19,7 +19,7 @@ from ...const import (
 )
 from ..optimizer import OptimizerConfig, OptimizerHour
 from ..energy.energy import derive_power_values
-from ...prices.base import calculate_sell_price
+from ...prices.base import calculate_sell_price, is_number
 from ...utils.efficiency import efficiency_curve_mapping, parse_efficiency_curve
 from ...utils.power import unit_factor_to_w
 from ...utils.helpers import float_or_none
@@ -33,6 +33,9 @@ MIN_MISSING_HOURS = 24
 MIN_ESTIMATE_COVERAGE = 0.5
 # a calendar month estimates missing hours with this many simulated hours (or a quarter of a short period)
 MIN_REFERENCE_HOURS = 7 * 24
+# Annualized module comparisons require a full rolling year and monthly coverage.
+ANNUAL_HOURS = 365 * 24
+MIN_MODULE_ANNUAL_HOURS = math.ceil(ANNUAL_HOURS * 0.9)
 
 # what-if input -> battery configuration (config["solar"])
 _CONFIG_OVERRIDES = {
@@ -147,10 +150,93 @@ def _estimated_bill(
     return estimated
 
 
+def _module_annualization(
+    timestamps: list[float], requested_period: dict | None, tz, missing_sell_price: bool = False,
+    missing_sell_cost: bool = False,
+) -> dict:
+    """Assess unique matched UTC grid hours in each local month of a rolling year."""
+    represented_months = sorted({datetime.datetime.fromtimestamp(ts, tz).month for ts in timestamps})
+    months: dict[str, dict[str, int]] = {}
+    reason = None
+    expected: set[float] = set()
+    if not requested_period:
+        reason = "missing_requested_period"
+    else:
+        start, end = float(requested_period["start"]), float(requested_period["end"])
+        if not math.isfinite(start) or not math.isfinite(end) or end - start != ANNUAL_HOURS * 3600:
+            reason = "partial_year"
+        else:
+            for index in range(ANNUAL_HOURS):
+                ts = start + index * 3600
+                expected.add(ts)
+                key = datetime.datetime.fromtimestamp(ts, tz).strftime("%Y-%m")
+                month = months.setdefault(key, {"expected_hours": 0, "matched_hours": 0})
+                month["expected_hours"] += 1
+            for ts in set(timestamps) & expected:
+                key = datetime.datetime.fromtimestamp(ts, tz).strftime("%Y-%m")
+                months[key]["matched_hours"] += 1
+    matched = len(set(timestamps) & expected)
+    if reason is None:
+        if len(timestamps) != matched:
+            reason = "unexpected_timestamps"
+        elif missing_sell_price:
+            reason = "missing_sell_price"
+        elif missing_sell_cost:
+            reason = "missing_sell_cost"
+        elif any(month["matched_hours"] * 10 < month["expected_hours"] * 9 for month in months.values()):
+            reason = "insufficient_monthly_coverage"
+    return {
+        "available": reason is None,
+        "matched_hours": matched if expected else len(set(timestamps)),
+        "minimum_matched_hours": (
+            sum((month["expected_hours"] * 9 + 9) // 10 for month in months.values())
+            if months else MIN_MODULE_ANNUAL_HOURS
+        ),
+        "represented_months": represented_months,
+        "months": months,
+        "reason": reason,
+    }
+
+
+def _module_dst_resets(timestamps: list[float], tz) -> int:
+    """Count replay splits at offset changes between consecutive real UTC hours."""
+    resets = 0
+    for previous, current in zip(timestamps, timestamps[1:]):
+        if current - previous != 3600:
+            continue
+        earlier = datetime.datetime.fromtimestamp(previous, tz)
+        later = datetime.datetime.fromtimestamp(current, tz)
+        if tz is None:
+            earlier, later = earlier.astimezone(), later.astimezone()
+        if (
+            earlier.utcoffset() != later.utcoffset()
+            and later.replace(tzinfo=None) - earlier.replace(tzinfo=None) != datetime.timedelta(hours=1)
+        ):
+            resets += 1
+    return resets
+
+
+def _annualized_module_gain(incremental_gain: float, matched_hours: int, available: bool) -> float | None:
+    """Scale a historical module increment only when annual history coverage is adequate."""
+    if not available or matched_hours <= 0:
+        return None
+    return round(incremental_gain * ANNUAL_HOURS / matched_hours, 2)
+
+
+def _module_payback(module_price: float, annualized_gain: float | None) -> float | None:
+    """Return simple payback only for a positive annualized historical increment."""
+    if annualized_gain is None or annualized_gain <= 0:
+        return None
+    return round(module_price / annualized_gain, 2)
+
+
 class WhatIf:
     """The what-if calculation of the planner."""
 
-    def what_if(self, data: dict, overrides: dict, progress=None) -> dict:
+    def what_if(
+        self, data: dict, overrides: dict, progress=None, capacity_range: list[float] | None = None,
+        cancel_check=None, module_comparison: dict | None = None,
+    ) -> dict:
         """Compare battery assumptions against historical hourly statistics.
 
         progress (optional) is called from the worker thread after the first plan and then at most
@@ -362,8 +448,8 @@ class WhatIf:
         current_config, current_settings = self._what_if_setup({})
         scenario_config, scenario_settings = self._what_if_setup(overrides)
         requested_start = overrides.get("starting_level")
-        starts = []
-        for config in (current_config, scenario_config):
+
+        def initial_level(config: dict) -> float:
             level_min = config["solar"]["powerwall_battery_level_min"]
             level_max = config["solar"]["powerwall_battery_level_max"]
             if level_min >= level_max:
@@ -371,13 +457,61 @@ class WhatIf:
             start = float(requested_start if requested_start is not None else level_min)
             if not level_min <= start <= level_max:
                 raise ValueError("Starting level must be between minimum and maximum level")
-            starts.append(start)
-        current_start_level, start_level = starts
+            return start
+
+        current_start_level = initial_level(current_config)
+        start_level = initial_level(scenario_config)
         if scenario_config["solar"]["powerwall_battery_size"] == 0:
             start_level = 0.0
 
-        unchanged = (scenario_config, scenario_settings, start_level) == (current_config, current_settings, current_start_level)
-        steps = 1 if unchanged else 2
+        cases: list[tuple[dict, dict, float]] = []
+
+        def add_case(config: dict, settings: dict, initial: float) -> int:
+            for index, (existing_config, existing_settings, existing_initial) in enumerate(cases):
+                if (config, settings, initial) == (existing_config, existing_settings, existing_initial):
+                    return index
+            cases.append((config, settings, initial))
+            return len(cases) - 1
+
+        current_case = add_case(current_config, current_settings, current_start_level)
+        scenario_case = add_case(scenario_config, scenario_settings, start_level)
+        range_cases = []
+        for capacity in capacity_range or []:
+            range_config, range_settings = self._what_if_setup({**overrides, "battery_size": capacity})
+            range_start_level = initial_level(range_config)
+            if range_config["solar"]["powerwall_battery_size"] == 0:
+                range_start_level = 0.0
+            range_cases.append(
+                (capacity, add_case(range_config, range_settings, range_start_level))
+            )
+        module_cases = []
+        if module_comparison is not None:
+            module_capacity = float(module_comparison["module_capacity"])
+            module_price = float(module_comparison["module_price"])
+            module_count = int(module_comparison["module_count"])
+            if (
+                not math.isfinite(module_capacity)
+                or module_capacity <= 0
+                or not math.isfinite(module_price)
+                or module_price < 0
+                or not 1 <= module_count <= 12
+            ):
+                raise ValueError("Invalid battery module comparison")
+            base_capacity = float(current_config["solar"]["powerwall_battery_size"])
+            for added_modules in range(module_count + 1):
+                capacity = base_capacity + added_modules * module_capacity
+                if not math.isfinite(capacity) or capacity > 1000:
+                    raise ValueError("Battery module comparison exceeds 1000 kWh")
+                module_config, module_settings = self._what_if_setup(
+                    {**overrides, "battery_size": capacity}
+                )
+                module_start_level = initial_level(module_config)
+                if module_config["solar"]["powerwall_battery_size"] == 0:
+                    module_start_level = 0.0
+                module_cases.append(
+                    (added_modules, capacity, add_case(module_config, module_settings, module_start_level))
+                )
+        steps = len(cases)
         # the first plan is reported at once: the history is loaded and the simulation runs
         last_report = [-PROGRESS_INTERVAL]
 
@@ -397,9 +531,11 @@ class WhatIf:
             return report
 
         def calculate(config: dict, settings: dict, initial_level: float, step: int) -> dict:
+            if cancel_check is not None:
+                cancel_check()
             replay = replay_history(
                 type(self), config, f"{self.name}_what_if", self.texts, settings, tz, hours, planner_sell, initial_level,
-                reporter(step),
+                reporter(step), cancel_check,
             )
             summaries = replay["summaries"]
 
@@ -428,13 +564,96 @@ class WhatIf:
                 },
             }
 
-        current = calculate(current_config, current_settings, current_start_level, 1)
-        summary = deepcopy(current) if unchanged else calculate(scenario_config, scenario_settings, start_level, 2)
+        calculated = [
+            calculate(config, settings, initial, index + 1)
+            for index, (config, settings, initial) in enumerate(cases)
+        ]
+        current = deepcopy(calculated[current_case])
+        summary = deepcopy(calculated[scenario_case])
+        range_results = [
+            {
+                "battery_size": capacity,
+                "profit": calculated[index]["profit"],
+                "bill": calculated[index]["with"]["bill"],
+                "difference_profit": round(calculated[index]["profit"] - current["profit"], 2),
+                "difference_bill": round(
+                    calculated[index]["with"]["bill"] - current["with"]["bill"], 2
+                ),
+            }
+            for capacity, index in range_cases
+        ]
+        module_result = None
+        if module_cases:
+            raw_current_cost_hours = 0
+            raw_unknown_cost_hours = 0
+            for ts in timestamps:
+                source = hour_sources[ts]
+                provider = source["provider"]
+                if (
+                    source["sell_price_history_available"]
+                    and provider.get("name") == "Energi Data Service"
+                    and not provider.get("sell_includes_tariffs", True)
+                    and not hour_tariff_values[ts][0]
+                ):
+                    costs = provider.get("sell_costs")
+                    if isinstance(costs, dict) and all(
+                        is_number(costs.get(key)) for key in ("transmissions_nettarif", "systemtarif")
+                    ):
+                        raw_current_cost_hours += 1
+                    else:
+                        raw_unknown_cost_hours += 1
+            annualization = _module_annualization(
+                timestamps, data.get("requested_period"), tz,
+                missing_sell_price=not sell_price_history_available,
+                missing_sell_cost=raw_unknown_cost_hours > 0,
+            )
+            baseline_profit = calculated[module_cases[0][2]]["profit"]
+            rows = []
+            previous_profit = None
+            for added_modules, capacity, index in module_cases:
+                profit = calculated[index]["profit"]
+                incremental_gain = (
+                    None if previous_profit is None else round(profit - previous_profit, 2)
+                )
+                annualized_gain = (
+                    _annualized_module_gain(
+                        incremental_gain, annualization["matched_hours"], annualization["available"]
+                    )
+                    if incremental_gain is not None
+                    else None
+                )
+                payback_years = _module_payback(module_price, annualized_gain)
+                rows.append({
+                    "added_modules": added_modules,
+                    "battery_size": capacity,
+                    "profit": profit,
+                    "gain_vs_current_capacity": round(profit - baseline_profit, 2),
+                    "incremental_gain": incremental_gain,
+                    "annualized_incremental_gain": annualized_gain,
+                    "module_price": round(module_price if added_modules else 0.0, 2),
+                    "cumulative_module_cost": round(module_price * added_modules, 2),
+                    "payback_years": payback_years,
+                })
+                previous_profit = profit
+            module_result = {
+                "base_capacity": base_capacity,
+                "module_capacity": module_capacity,
+                "module_price": module_price,
+                "module_count": module_count,
+                "annualization": annualization,
+                "warnings": {
+                    "dst_replay_resets": _module_dst_resets(timestamps, tz),
+                    "tariff_estimated_hours": tariff_estimated_hours,
+                    "raw_current_sell_cost_hours": raw_current_cost_hours,
+                    "raw_unknown_sell_cost_hours": raw_unknown_cost_hours,
+                },
+                "rows": rows,
+            }
         current_cfg, cfg = current.pop("config"), summary.pop("config")
         coverage, estimate = self._what_if_coverage(
             data.get("requested_period"), tz, timestamps, hours, required, price_sources, current, summary
         )
-        return {
+        result = {
             "price_provider": ", ".join(
                 source["provider"]["name"] for source in used_sources if source["provider"].get("name")
             ) or None,
@@ -466,6 +685,11 @@ class WhatIf:
                 "bill": round(summary["with"]["bill"] - current["with"]["bill"], 2),
             },
         }
+        if capacity_range is not None:
+            result["range"] = range_results
+        if module_result is not None:
+            result["module_comparison"] = module_result
+        return result
 
     @staticmethod
     def _what_if_coverage(
