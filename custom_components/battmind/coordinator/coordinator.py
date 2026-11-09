@@ -27,6 +27,7 @@ from homeassistant.util import dt as dt_util
 from ..const import CONF_ENTITY_PREFIX, DOMAIN, SIGNAL_UPDATE, build_config, default_options
 from ..engine import BattMindEngine, JobResult
 from ..engine.planner.what_if import PROGRESS_INTERVAL
+from ..engine.planner.replay import WhatIfCancelled
 from ..utils.formatting import translate
 from ..management.debug_export import DebugRecorder
 from ..management.storage import BattMindStorage
@@ -201,11 +202,18 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         job_kwargs are passed to the job but not kept in the debug export (e.g. callbacks).
         """
         async with self._job_lock:
+            cancel_check = job_kwargs.get("cancel_check")
+            if cancel_check:
+                cancel_check()
             snapshot = await self._async_snapshot(include_prices=include_prices, include_forecast=include_forecast)
+            if cancel_check:
+                cancel_check()
             func = getattr(self.engine, job_name)
             result: JobResult = await self.hass.loop.run_in_executor(
                 self._executor, partial(self.engine.run_job, snapshot, func, *args, **job_kwargs)
             )
+            if cancel_check:
+                cancel_check()
             await self._async_publish(result, job_name)
             self.debug.record(job_name, args, snapshot, result, self.data.get("current_charging_rule"))
             _LOGGER.debug("Job %s ran in %s for %.3fs", job_name, result.worker_thread, result.duration)
@@ -223,7 +231,13 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
     # ------------------------------------------------------------------ #
 
     async def async_what_if(
-        self, overrides: dict, history_days: int, progress: Callable[[dict], None] | None = None
+        self,
+        overrides: dict,
+        history_days: int,
+        progress: Callable[[dict], None] | None = None,
+        capacity_range: list[float] | None = None,
+        cancel_check: Callable[[], None] | None = None,
+        module_comparison: dict | None = None,
     ) -> JobResult:
         """Load hourly recorder statistics and run an economic historical comparison.
 
@@ -275,8 +289,13 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         @callback
         def simulation_progress(info: dict) -> None:
             # the simulation reports its own progress from now on
+            if cancel_check:
+                try:
+                    cancel_check()
+                except WhatIfCancelled:
+                    return
             phase[0] = None
-            progress(info)
+            progress({**info, "seconds": int(time.monotonic() - started)})
 
         def report(info: dict) -> None:
             # called in the worker thread
@@ -286,7 +305,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         try:
             return await self._async_what_if_run(
                 overrides, history_days, start, end, entities, price_providers, report_phase,
-                report if progress else None,
+                report if progress else None, capacity_range, cancel_check, module_comparison,
             )
         finally:
             cancel_ticker()
@@ -301,12 +320,17 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         price_providers: list[dict],
         report_phase: Callable[[str], None],
         report: Callable[[dict], None] | None,
+        capacity_range: list[float] | None = None,
+        cancel_check: Callable[[], None] | None = None,
+        module_comparison: dict | None = None,
     ) -> JobResult:
         """Read the Recorder history of the what-if comparison and run it in the worker."""
         from homeassistant.components.recorder import get_instance, history
         from homeassistant.components.recorder.statistics import statistics_during_period
 
         try:
+            if cancel_check:
+                cancel_check()
             recorder = get_instance(self.hass)
             report_phase("statistics")
             stats = await recorder.async_add_executor_job(
@@ -319,6 +343,8 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
                 None,
                 {"mean", "state"},
             )
+            if cancel_check:
+                cancel_check()
             report_phase("states")
             states = await recorder.async_add_executor_job(
                 partial(
@@ -334,6 +360,8 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
                     no_attributes=True,
                 )
             )
+            if cancel_check:
+                cancel_check()
             eds_sell_entities = {
                 provider["sell_entity_id"]
                 for provider in price_providers
@@ -361,6 +389,10 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
                 if eds_sell_entities
                 else {}
             )
+            if cancel_check:
+                cancel_check()
+        except WhatIfCancelled:
+            raise
         except Exception as err:  # noqa: BLE001
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="what_if_history_failed", translation_placeholders={"error": str(err)}) from err
         # the raw history of a year can be large: it is converted outside the event loop
@@ -368,6 +400,8 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         combined_stats, statistical_timestamps, tariff_history = await self.hass.async_add_executor_job(
             self._what_if_history, entities, stats, states, tariff_states, start, end
         )
+        if cancel_check:
+            cancel_check()
         for provider in price_providers:
             if provider["name"] == "Energi Data Service" and provider["sell_entity_id"]:
                 provider["sell_tariff_history"] = tariff_history.get(provider["sell_entity_id"], [])
@@ -378,7 +412,14 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
             "requested_period": {"start": start.timestamp(), "end": end.timestamp(), "days": history_days},
         }
         report_phase("preparing")
-        return await self.async_run_job("what_if", data, overrides, progress=report)
+        job_kwargs = {"progress": report}
+        if capacity_range is not None:
+            job_kwargs["capacity_range"] = capacity_range
+        if module_comparison is not None:
+            job_kwargs["module_comparison"] = module_comparison
+        if cancel_check:
+            job_kwargs["cancel_check"] = cancel_check
+        return await self.async_run_job("what_if", data, overrides, **job_kwargs)
 
     async def async_debug_info(self) -> str:
         extra = {

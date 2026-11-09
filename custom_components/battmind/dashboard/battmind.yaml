@@ -3411,9 +3411,99 @@ views:
               columns: full
               rows: auto
         column_span: 4
-      # link to the what-if action (battmind.what_if) in the developer tools
+  - type: sections
+    path: what-if
+    title: '@@section_what_if@@'
+    icon: mdi:flask-outline
+    max_columns: 2
+    sections:
       - type: grid
-        column_span: 4
+        column_span: 2
+        cards:
+          - type: custom:battmind-what-if
+            config_entry_id: '@@what_if_entry_id@@'
+            labels:
+              title: '@@section_what_if@@'
+              help: '@@what_if_dashboard_help@@'
+              baseline_note: '@@what_if_baseline_note@@'
+              history: '@@what_if_history@@'
+              battery: '@@what_if_battery@@'
+              range: '@@what_if_range@@'
+              range_start: '@@what_if_range_start@@'
+              range_end: '@@what_if_range_end@@'
+              range_step: '@@what_if_range_step@@'
+              module_compare: '@@what_if_module_compare@@'
+              module_capacity: '@@what_if_module_capacity@@'
+              module_price: '@@what_if_module_price@@'
+              module_count: '@@what_if_module_count@@'
+              module_section: '@@what_if_module_section@@'
+              module_baseline_note: '@@what_if_module_baseline_note@@'
+              module_history: '@@what_if_module_history@@'
+              module_months: '@@what_if_module_months@@'
+              module_insufficient_history: '@@what_if_module_insufficient_history@@'
+              module_coverage_requirement: '@@what_if_module_coverage_requirement@@'
+              module_missing_sell_price: '@@what_if_module_missing_sell_price@@'
+              module_missing_sell_cost: '@@what_if_module_missing_sell_cost@@'
+              module_rerun: '@@what_if_module_rerun@@'
+              module_dst_warning: '@@what_if_module_dst_warning@@'
+              module_tariff_warning: '@@what_if_module_tariff_warning@@'
+              module_current_cost_warning: '@@what_if_module_current_cost_warning@@'
+              module_added: '@@what_if_module_added@@'
+              module_profit: '@@what_if_module_profit@@'
+              module_gain_baseline: '@@what_if_module_gain_baseline@@'
+              module_incremental_gain: '@@what_if_module_incremental_gain@@'
+              module_annualized_gain: '@@what_if_module_annualized_gain@@'
+              module_cumulative_cost: '@@what_if_module_cumulative_cost@@'
+              module_payback: '@@what_if_module_payback@@'
+              module_no_payback: '@@what_if_module_no_payback@@'
+              module_years: '@@what_if_module_years@@'
+              module_note: '@@what_if_module_note@@'
+              run: '@@what_if_run@@'
+              running: '@@what_if_running@@'
+              failed: '@@what_if_failed@@'
+              dashboard_running: '@@what_if_dashboard_running@@'
+              dashboard_failed: '@@what_if_dashboard_failed@@'
+              stop: '@@what_if_stop@@'
+              stopping: '@@what_if_stopping@@'
+              stopped: '@@what_if_stopped@@'
+              results: '@@what_if_results@@'
+              completed: '@@what_if_completed@@'
+              used_settings: '@@what_if_used_settings@@'
+              load_failed: '@@what_if_load_failed@@'
+              current: '@@what_if_current@@'
+              scenario: '@@what_if_scenario@@'
+              profit: '@@what_if_profit@@'
+              bill: '@@what_if_bill@@'
+              difference: '@@what_if_difference@@'
+              period: '@@what_if_period@@'
+              hours: '@@what_if_hours@@'
+              missing: '@@what_if_missing@@'
+              tariffs: '@@what_if_tariffs@@'
+              sell_history: '@@what_if_sell_history@@'
+              chart: '@@what_if_chart@@'
+              interval_profit: '@@what_if_interval_profit@@'
+              interval_per_kwh: '@@what_if_interval_per_kwh@@'
+              interval_chart: '@@what_if_interval_chart@@'
+              interval_explain: '@@what_if_interval_explain@@'
+              interval_curve_note: '@@what_if_interval_curve_note@@'
+              chart_growth_legend: '@@what_if_chart_growth_legend@@'
+              interval_color_legend: '@@what_if_interval_color_legend@@'
+              interpolated: '@@what_if_interpolated@@'
+              interpolation_note: '@@what_if_interpolation_note@@'
+              scenario_section: '@@what_if_scenario_section@@'
+              range_section: '@@what_if_range_section@@'
+              highest_profit: '@@what_if_highest_profit@@'
+              highest_rate: '@@what_if_highest_rate@@'
+              interval_example: '@@what_if_interval_example@@'
+              range_columns: '@@what_if_range_columns@@'
+              bill_explain: '@@what_if_bill_explain@@'
+              form_explain: '@@what_if_form_explain@@'
+              days: '@@what_if_days@@'
+              empty: '@@what_if_empty@@'
+            grid_options:
+              columns: full
+      - type: grid
+        column_span: 2
         cards:
           - type: heading
             heading: '@@section_what_if@@'

@@ -582,11 +582,17 @@
     },
     "what_if": {
       "name": "What-if-simulator",
-      "description": "Genafspiller BattMinds planlægning (regler eller optimering) på op til et års timehistorik med de nuværende indstillinger og med midlertidige værdier og sammenligner økonomien. Intet gemmes, og den aktive plan ændres ikke.",
+      "description": "Genafspiller BattMinds planlægning på op til et års timehistorik. Nuværende er et estimat, som antager den nuværende opsætning gennem hele perioden, ikke det faktiske historiske resultat. Fokusér på forskellen mellem nuværende og scenariet; også forskellen er et estimat. Det seneste resultat gemmes; den aktive plan og indstillingerne ændres ikke.",
       "fields": {
         "config_entry_id": {"name": "Konfigurationspost", "description": "Simuler kun denne BattMind-post (standard: alle)."},
         "history_days": {"name": "Historik", "description": "Antal dage med timehistorik, der skal sammenlignes (standard: 365)."},
         "battery_size": {"name": "Brugbar batterikapacitet", "description": "Midlertidig brugbar kapacitet i kWh. Udelad feltet for at bruge den nuværende indstilling."},
+        "range_start": {"name": "Start på kapacitetsinterval", "description": "Første batterikapacitet i det valgfrie interval i kWh. Angiv den sammen med range_end og range_step."},
+        "range_end": {"name": "Slut på kapacitetsinterval", "description": "Sidste tilladte batterikapacitet i det valgfrie interval i kWh. Angiv den sammen med range_start og range_step."},
+        "range_step": {"name": "Trin i kapacitetsinterval", "description": "Positivt kapacitetstrin i kWh. Angiv det sammen med range_start og range_end; højst 12 værdier simuleres."},
+        "module_capacity": {"name": "Batterimodulkapacitet", "description": "Valgfri modulsammenligning. Angiv sammen med module_price; kandidater tilføjer hele moduler til den nuværende kapacitet."},
+        "module_price": {"name": "Batterimodulpris", "description": "Pris for ét modul i den konfigurerede valuta; installation og andre omkostninger er ikke medregnet. Nul er tilladt."},
+        "module_count": {"name": "Ekstra batterimoduler", "description": "Antal hele moduler efter grundlinjen med nuværende kapacitet; standard er 5, højst 12."},
         "minimum_level": {"name": "Minimum batteriniveau", "description": "Midlertidigt minimum for batteriets ladeniveau i procent. Udelad feltet for at bruge den nuværende indstilling."},
         "maximum_level": {"name": "Maksimum batteriniveau", "description": "Midlertidigt maksimum for batteriets ladeniveau i procent. Udelad feltet for at bruge den nuværende indstilling."},
         "starting_level": {"name": "Batteriniveau ved start", "description": "Ladeniveau ved starten af begge sammenligninger. Udelad feltet for at bruge det konfigurerede minimum."},
@@ -818,6 +824,18 @@
     },
     "what_if_no_recorder": {
       "message": "Recorder skal være aktiv for den historiske what-if-sammenligning"
+    },
+    "what_if_range_incomplete": {
+      "message": "Angiv range_start, range_end og range_step sammen"
+    },
+    "what_if_range_invalid": {
+      "message": "Kapacitetsintervallet skal bruge endelige værdier fra 0 til 1000 kWh, et positivt trin, en slutværdi der ikke er mindre end startværdien og højst 12 værdier"
+    },
+    "what_if_module_incomplete": {
+      "message": "Angiv module_capacity og module_price sammen; module_count er valgfri"
+    },
+    "what_if_module_invalid": {
+      "message": "Modulkapaciteten skal være større end 0 og højst 1000 kWh, prisen må ikke være negativ, og module_count skal være fra 1 til 12"
     }
   },
   "issues": {

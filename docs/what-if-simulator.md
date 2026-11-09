@@ -3,6 +3,7 @@
 The **battmind.what_if** action answers questions such as:
 
 - Would a larger battery have saved more money during the last year?
+- How would the result change across a range of battery capacities?
 - How much would more charge/discharge power have improved the economy?
 - How much do loss, wear or the reserve affect the result?
 - Would the rules have done better or worse than the whole period optimisation?
@@ -11,7 +12,12 @@ The **battmind.what_if** action answers questions such as:
 It replays the BattMind planner on your own hourly history twice: once with the current configuration
 and settings, and once with the values you change. Both use the same hourly Home Assistant long-term
 statistics for consumption, solar production and buy/sell prices. By default it uses up to 365 days.
-Nothing is saved, the active plan is not changed, and no inverter command is sent.
+The active plan is not changed, and no inverter command is sent.
+
+**Current** is a simulated estimate assuming the current configuration and settings applied
+throughout the historical period, not the actual historical result. Concentrate on the difference
+between current and scenario, which compares both under the same replay assumptions. That
+difference is also an estimate, not a guaranteed saving or an investment return.
 
 ## How the replay works
 
@@ -49,6 +55,12 @@ simulation) and the elapsed seconds, updated when the step changes and at least 
 the simulation starts it is updated at most every 10 seconds with the percentage done and the simulated
 days, and the finished result (or an error) replaces that same notification.
 
+The latest successful calculation for each BattMind instance is saved on the Home Assistant server,
+with its completion time, submitted values and full simulation result. It is also shown in the
+dashboard's What-if view, even after reloading the page or restarting Home Assistant. This applies to
+calculations started from the dashboard, Developer tools or automations. A failed calculation leaves
+the previous saved result intact; removing the BattMind instance removes its saved result.
+
 <p align="center">
   <img src="../images/what-if-result-notification.png" alt="The what-if action in Developer tools and the result notification comparing current and what-if" width="100%">
 </p>
@@ -70,6 +82,69 @@ Example action:
       min_profit_per_kwh: 0.25
       exclude_sell_hours: "17,18,19"
 
+To compare several capacities in one request, provide **range_start**, **range_end**, and
+**range_step** together. The interval is in kWh, includes the start, and includes the end only when
+the step reaches it exactly; a non-aligned end is not rounded or added. The interval can contain at
+most 12 values, from 0 to 1000 kWh, and the step must be positive. Every interval result uses the
+same other overrides and its own initial battery level and replay state. A zero-capacity result uses
+the no-battery behavior described above. The existing **scenario** comparison remains unchanged;
+the additional **range** response list contains one entry per capacity, with profit and bill
+differences measured against **current**. If **battery_size** is also supplied, it still controls the
+ordinary **scenario** comparison; each **range** entry uses its own capacity. Interval parameters
+are not planner settings; they are saved only with the latest successful calculation. The capacity
+replays run sequentially in the worker using separate
+replay engines, so a range takes longer than one scenario but never runs concurrent calculations on
+the live engine.
+
+For an optional module comparison, provide **module_capacity** and **module_price** together;
+**module_count** is optional (defaults to 5 and is limited to 12). The comparison starts with the
+current battery capacity, then simulates that baseline and each cumulative whole-module increase.
+Every case uses the same other supplied overrides, so the baseline is re-simulated with the candidates'
+assumptions rather than reusing the differently configured **current** result. Module capacities may
+be fractional, and zero module price is allowed. The module table reports historical total profit,
+gain against the same-assumption baseline, the incremental historical gain from the previous module,
+the entered module price and cumulative module cost separately.
+
+An annualized incremental gain and simple payback require a 365-day rolling requested window, with
+at least 90% of the expected hours matched in **each local calendar-month portion** of that window.
+Both partial months at the ends are assessed separately, even if they have the same month number.
+Expected hours are the 8,760 hourly UTC instants in the half-open requested window, grouped by their
+local month; this includes leap days and the actual DST transitions. Only unique matched instants on
+that grid count. Unexpected, duplicate or out-of-window matched instants make annualization
+unavailable, because their replay profit cannot safely be scaled using the valid count. Missing hours
+are never filled with monthly averages for this comparison. Historical sell-price data must also be
+available for every simulated hour, regardless of production-price configuration. When a raw Energi
+Data Service sell price is used, its selling costs must be available as well. These gates do not
+change the replay or its historical results.
+
+Annualization scales the observed incremental gain by 8,760 divided by the actual matched hours; it
+is a historical equivalent, not a future outcome. Payback is module price divided by positive annualized incremental gain; non-positive gains
+have no payback, while a zero-priced module with a positive gain has zero simple payback. Module
+costs are not subtracted from simulated profit and exclude installation, inverter, wiring, financing,
+maintenance, taxes and future degradation. The replay uses recorded prices in its planning windows,
+so forecast error and future prices, usage and solar production can make actual results different.
+
+The `module_comparison.annualization` response includes `months`, with `expected_hours` and
+`matched_hours` per `YYYY-MM`, and a `reason` when unavailable: `missing_requested_period`,
+`partial_year`, `unexpected_timestamps`, `missing_sell_price`, `missing_sell_cost`, or `insufficient_monthly_coverage`
+(in that precedence order). A partial month with very few requested hours must still meet 90%, a
+deliberately conservative edge-window tradeoff. `matched_hours` counts unique on-grid instants for a
+full requested year. The card has specific labels for `missing_sell_price` and `missing_sell_cost`;
+other reasons use its coverage message.
+
+`module_comparison.warnings` provides `dst_replay_resets`, `tariff_estimated_hours`,
+`raw_current_sell_cost_hours`, and `raw_unknown_sell_cost_hours` as counts. A DST reset is counted
+when consecutive matched UTC hours change offset and their naive local timestamps cause a replay
+segment split; the replay and its results are unchanged. Repeated local times can also collide in
+the replay's local-time keyed data. These effects may make the annualized result inaccurate and are
+not quantified. Estimated tariffs and DST resets do not themselves make payback unavailable.
+For raw Energi Data Service prices, current buy-sensor selling costs may be reused across history;
+when those costs are unavailable, the existing sell-price calculation instead uses zero costs, but
+module annualization and payback are suppressed with `missing_sell_cost`.
+The warning counts identify the relevant hours but do not validate historical tariff accuracy.
+The card displays these warnings when their counts are nonzero.
+These module parameters are saved with the successful result but are not planner settings.
+
 All fields are optional; a field you leave out uses the current setting. Power is in W, battery capacity
 in kWh, and battery levels and round-trip loss are percentages.
 Set **battery_size** to **0** to compare against a home without a battery. The scenario buys its
@@ -83,6 +158,7 @@ configurations, as in other simulations.
 | Battery | **battery_size**, **minimum_level**, **maximum_level**, **starting_level**, **max_charging_power**, **max_discharging_power**, **round_trip_loss**, **wear_cost_per_kwh** |
 | Controller | **optimizer_control** (on: whole period optimisation, off: rules), **use_midnight_battery_level**, **solar_charging**, **enhance_battery_efficiency** |
 | Profit and selling | **min_profit_per_kwh**, **min_total_profit**, **min_sell_kwh**, **usage_reserve**, **exclude_sell_hours** |
+| Module comparison | **module_capacity**, **module_price**, **module_count** |
 | Charging rules | **cheapest_hour_fill_planner**, **cheapest_hour_fill_up**, **cheap_price_periods**, **cheapest_price_rise_threshold**, **cheap_price_period_rise_threshold**, **most_expensive_planner**, **needed_before_max_level_planner**, **negative_price_planner**, **grid_charge_to_sell** |
 | Discharging and selling rules | **only_discharge_on_profit**, **prioritize_discharge_hours_by_energy_cost**, **discharge_before_solar**, **most_profit**, **sell_excess_kwh_available**, **force_powerwall_max_hours_old_discharge**, **powerwall_max_hours_old** |
 | Solar | **optimize_solar_charging** |
@@ -107,6 +183,8 @@ the current value beside the scenario value for each setting you changed.
 | **scenario** | economy with the changed values |
 | **difference.profit** | scenario profit minus current profit; positive is better |
 | **difference.bill** | scenario bill minus current bill; negative is better |
+| **range** | only when all three capacity interval fields are supplied: entries with exactly **battery_size**, **profit**, **bill**, **difference_profit**, and **difference_bill**, each compared with the current configuration |
+| **module_comparison** | only when module capacity and price are supplied: same-assumption current-capacity baseline plus cumulative whole-module results, actual matched-hour coverage, incremental historical gains, separate module costs, and annualization/payback fields when data suffices |
 | **coverage** | only when at least 24 hours of the requested period have no data: requested and missing hours, the hours missing before the first simulated hour and inside the period (**gap_hours**), the entity whose history starts last (**limited_by**) and the requested/simulated hours per month |
 | **estimate** | the rough estimate of the whole requested period (see below), or empty when there is too little data |
 

@@ -9,6 +9,15 @@ permissions:
   contents: read
 
 jobs:
+  what-if-card:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: node tests/test_what_if_card.cjs
+
   hassfest:
     runs-on: ubuntu-latest
     steps:

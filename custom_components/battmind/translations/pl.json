@@ -675,6 +675,18 @@
     },
     "what_if_no_recorder": {
       "message": "Historyczne porównanie what-if wymaga Recordera"
+    },
+    "what_if_range_incomplete": {
+      "message": "Podaj razem wartości range_start, range_end i range_step"
+    },
+    "what_if_range_invalid": {
+      "message": "Zakres pojemności musi zawierać skończone wartości od 0 do 1000 kWh, dodatni krok, koniec nie mniejszy niż początek i najwyżej 12 wartości"
+    },
+    "what_if_module_incomplete": {
+      "message": "Podaj razem module_capacity i module_price; module_count jest opcjonalny"
+    },
+    "what_if_module_invalid": {
+      "message": "Pojemność modułu musi być większa od 0 i nie większa niż 1000 kWh, cena nie może być ujemna, a module_count musi wynosić od 1 do 12"
     }
   },
   "issues": {
@@ -724,11 +736,17 @@
   "services": {
     "what_if": {
       "name": "Symulator what-if",
-      "description": "Odtwarza planowanie BattMind (reguły lub optymalizator) na maksymalnie rocznej historii godzinowej z bieżącymi ustawieniami i z tymczasowymi wartościami oraz porównuje ekonomię. Nic nie jest zapisywane, a aktywny plan nie jest zmieniany.",
+      "description": "Odtwarza planowanie BattMind na maksymalnie rocznej historii godzinowej. Wynik bieżący jest oszacowaniem zakładającym obecną konfigurację przez cały okres, a nie rzeczywistym wynikiem historycznym. Skup się na różnicy między wynikiem bieżącym a scenariuszem; ona również jest oszacowaniem. Ostatni wynik jest zapisywany; aktywny plan i ustawienia nie są zmieniane.",
       "fields": {
         "config_entry_id": {"name": "Wpis konfiguracji", "description": "Symuluj tylko ten wpis BattMind (domyślnie: wszystkie)."},
         "history_days": {"name": "Historia", "description": "Liczba dni historii godzinowej do porównania (domyślnie: 365)."},
         "battery_size": {"name": "Użyteczna pojemność baterii", "description": "Tymczasowa użyteczna pojemność w kWh. Pomiń, aby użyć bieżącego ustawienia."},
+        "range_start": {"name": "Początek zakresu pojemności", "description": "Pierwsza pojemność baterii w opcjonalnym zakresie, w kWh. Podaj razem z range_end i range_step."},
+        "range_end": {"name": "Koniec zakresu pojemności", "description": "Ostatnia dozwolona pojemność baterii w opcjonalnym zakresie, w kWh. Podaj razem z range_start i range_step."},
+        "range_step": {"name": "Krok zakresu pojemności", "description": "Dodatni krok pojemności w kWh. Podaj razem z range_start i range_end; symulowanych jest najwyżej 12 wartości."},
+        "module_capacity": {"name": "Pojemność modułu baterii", "description": "Opcjonalne porównanie modułów. Podaj razem z module_price; warianty dodają całe moduły do obecnej pojemności."},
+        "module_price": {"name": "Cena modułu baterii", "description": "Cena jednego modułu w skonfigurowanej walucie; nie obejmuje montażu ani innych kosztów. Dopuszczalna jest wartość zero."},
+        "module_count": {"name": "Dodatkowe moduły baterii", "description": "Liczba całych modułów po wariancie bazowym z obecną pojemnością; domyślnie 5, maksymalnie 12."},
         "minimum_level": {"name": "Minimalny poziom baterii", "description": "Tymczasowy minimalny poziom naładowania baterii w procentach. Pomiń, aby użyć bieżącego ustawienia."},
         "maximum_level": {"name": "Maksymalny poziom baterii", "description": "Tymczasowy maksymalny poziom naładowania baterii w procentach. Pomiń, aby użyć bieżącego ustawienia."},
         "starting_level": {"name": "Poziom początkowy", "description": "Poziom naładowania na początku obu porównań. Pomiń, aby użyć skonfigurowanego minimum."},
