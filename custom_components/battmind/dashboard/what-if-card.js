@@ -353,9 +353,8 @@ const whatIfModuleLabels = {
     "module_monthly_note": "Gevinst pr. kalendermåned i den valgte periode, så du kan se hvornår på året det giver mest. Det er ikke en prognose; måneder med få timer er ufuldstændige. Fed markerer bedste måned.",
     "module_monthly_month": "Måned",
     "module_bill_title": "Strømregning over tid: uden batteri og pr. antal moduler",
-    "module_bill_note": "Linjerne viser samlet strømregning over tid ved uændret årlig regning, hvor modulernes pris lægges til som startværdi. Når en modullinje ligger under linjen for nuværende batteri, er modulerne tjent hjem og giver gevinst. Estimat ud fra historikken; ingen installation, finansiering, skatter eller fremtidige ændringer. Den stiplede linje er helt uden batteri og er derfor ikke den samme som nuværende batteri; +N er ekstra moduler oven i det nuværende.",
+    "module_bill_note": "Linjerne viser samlet strømregning over tid ved uændret årlig regning, hvor prisen for det nuværende batteri og de ekstra moduler lægges til som startværdi. Når en modullinje ligger under den stiplede linje uden batteri, er købet tjent hjem. Estimat ud fra historikken; ingen installation, finansiering, skatter eller fremtidige ændringer. +N er ekstra moduler oven i det nuværende batteri.",
     "module_bill_none": "Uden batteri",
-    "module_bill_current": "Nuværende batteri (ingen ekstra moduler)",
     "module_bill_missing": "Grafen over strømregningen kræver en ny kørsel af simulationen med flere moduler og årsestimat.",
     "module_monthly_range_title": "Månedlig gevinst pr. batteristørrelse",
     "module_monthly_modules_title": "Månedlig ekstra gevinst pr. antal moduler (mod 0 ekstra moduler)",
@@ -402,9 +401,8 @@ const whatIfModuleLabels = {
     "module_monthly_note": "Gewinn pro Kalendermonat im gewählten Zeitraum, damit sichtbar wird, wann im Jahr es am meisten bringt. Das ist keine Prognose; Monate mit wenigen Stunden sind unvollständig. Fett markiert den besten Monat.",
     "module_monthly_month": "Monat",
     "module_bill_title": "Stromrechnung im Zeitverlauf: ohne Batterie und je Modulanzahl",
-    "module_bill_note": "Die Linien zeigen die kumulierte Stromrechnung bei konstanter Jahresrechnung, wobei der Modulpreis als Startwert addiert wird. Liegt eine Modullinie unter der Linie für die aktuelle Batterie, haben sich die Module amortisiert und bringen Gewinn. Schätzung aus der Historie; Installation, Finanzierung, Steuern und zukünftige Änderungen sind nicht enthalten. Die gestrichelte Linie gilt ganz ohne Batterie und ist daher nicht dieselbe wie die aktuelle Batterie; +N sind zusätzliche Module zur aktuellen Batterie.",
+    "module_bill_note": "Die Linien zeigen die kumulierte Stromrechnung bei konstanter Jahresrechnung, wobei der Preis der aktuellen Batterie und der zusätzlichen Module als Startwert addiert wird. Liegt eine Modullinie unter der gestrichelten Linie ohne Batterie, hat sich der Kauf amortisiert. Schätzung auf Basis der Historie; Installation, Finanzierung, Steuern und zukünftige Änderungen sind nicht enthalten. +N sind zusätzliche Module zur aktuellen Batterie.",
     "module_bill_none": "Ohne Batterie",
-    "module_bill_current": "Aktuelle Batterie (keine zusätzlichen Module)",
     "module_bill_missing": "Das Stromrechnungsdiagramm erfordert einen neuen Simulationslauf mit mehreren Modulen und Jahresschätzung.",
     "module_monthly_range_title": "Monatlicher Gewinn pro Batteriegröße",
     "module_monthly_modules_title": "Monatlicher Zusatzgewinn pro Modulanzahl (gegenüber 0 zusätzlichen Modulen)",
@@ -451,9 +449,8 @@ const whatIfModuleLabels = {
     "module_monthly_note": "Gain per calendar month in the selected period, so you can see when in the year it pays most. This is not a forecast; months with few hours are incomplete. Bold marks the best month.",
     "module_monthly_month": "Month",
     "module_bill_title": "Electricity bill over time: without battery and per number of modules",
-    "module_bill_note": "Lines show the cumulative electricity bill at a constant annual bill, with the module price added as the starting value. When a module line is below the current-battery line, the modules have paid back and give a gain. Estimate from history; installation, finance, taxes and future changes are excluded. The dashed line is without any battery, so it differs from the current battery; +N are extra modules on top of the current one.",
+    "module_bill_note": "Lines show the cumulative electricity bill at a constant annual bill, with the price of the current battery and the added modules as the starting value. When a module line is below the dashed line without a battery, the purchase has paid back. Estimate from history; installation, finance, taxes and future changes are excluded. +N are extra modules on top of the current battery.",
     "module_bill_none": "Without battery",
-    "module_bill_current": "Current battery (no extra modules)",
     "module_bill_missing": "The electricity bill graph requires a new simulation run with several modules and an annual estimate.",
     "module_monthly_range_title": "Monthly gain per battery size",
     "module_monthly_modules_title": "Monthly extra gain per number of modules (versus 0 extra modules)",
@@ -500,9 +497,8 @@ const whatIfModuleLabels = {
     "module_monthly_note": "Zysk w każdym miesiącu kalendarzowym wybranego okresu, aby zobaczyć, kiedy w roku jest największy. To nie jest prognoza; miesiące z małą liczbą godzin są niepełne. Pogrubienie oznacza najlepszy miesiąc.",
     "module_monthly_month": "Miesiąc",
     "module_bill_title": "Rachunek za prąd w czasie: bez baterii i dla liczby modułów",
-    "module_bill_note": "Linie pokazują skumulowany rachunek za prąd przy stałym rocznym rachunku, z ceną modułów dodaną jako wartość początkowa. Gdy linia modułów leży poniżej linii dla obecnej baterii, moduły się zwróciły i dają zysk. Szacunek na podstawie historii; montaż, finansowanie, podatki i przyszłe zmiany nie są uwzględnione. Linia przerywana oznacza brak baterii, więc różni się od obecnej baterii; +N to dodatkowe moduły ponad obecną baterię.",
+    "module_bill_note": "Linie pokazują skumulowany rachunek za prąd przy stałym rocznym rachunku, z ceną obecnej baterii i dodatkowych modułów dodaną jako wartość początkowa. Gdy linia modułów leży poniżej linii przerywanej bez baterii, zakup się zwrócił. Szacunek na podstawie historii; montaż, finansowanie, podatki i przyszłe zmiany nie są uwzględnione. +N to dodatkowe moduły ponad obecną baterię.",
     "module_bill_none": "Bez baterii",
-    "module_bill_current": "Obecna bateria (bez dodatkowych modułów)",
     "module_bill_missing": "Wykres rachunku za prąd wymaga ponownego uruchomienia symulacji z kilkoma modułami i szacunkiem rocznym.",
     "module_monthly_range_title": "Miesięczny zysk dla każdej pojemności baterii",
     "module_monthly_modules_title": "Miesięczny dodatkowy zysk dla liczby modułów (względem 0 dodatkowych modułów)",
@@ -549,9 +545,8 @@ const whatIfModuleLabels = {
     "module_monthly_note": "Прибуток за кожен календарний місяць вибраного періоду, щоб побачити, коли протягом року він найбільший. Це не прогноз; місяці з малою кількістю годин неповні. Жирним позначено найкращий місяць.",
     "module_monthly_month": "Місяць",
     "module_bill_title": "Рахунок за електроенергію в часі: без батареї та за кількістю модулів",
-    "module_bill_note": "Лінії показують накопичений рахунок за електроенергію за незмінного річного рахунку, де вартість модулів додано як початкове значення. Коли лінія модулів нижче лінії для поточної батареї, модулі окупилися й дають прибуток. Оцінка за історією; монтаж, фінансування, податки та майбутні зміни не враховано. Пунктирна лінія — зовсім без батареї, тому вона відрізняється від поточної батареї; +N — додаткові модулі до поточної.",
+    "module_bill_note": "Лінії показують накопичений рахунок за електроенергію за незмінного річного рахунку, де вартість поточної батареї та додаткових модулів додано як початкове значення. Коли лінія модулів нижче пунктирної лінії без батареї, покупка окупилася. Оцінка за історією; монтаж, фінансування, податки та майбутні зміни не враховано. +N — додаткові модулі до поточної батареї.",
     "module_bill_none": "Без батареї",
-    "module_bill_current": "Поточна батарея (без додаткових модулів)",
     "module_bill_missing": "Графік рахунку за електроенергію потребує нового запуску симуляції з кількома модулями та річною оцінкою.",
     "module_monthly_range_title": "Місячний прибуток для кожної ємності батареї",
     "module_monthly_modules_title": "Місячний додатковий прибуток за кількістю модулів (порівняно з 0 додатковими модулями)",
@@ -1611,12 +1606,7 @@ class BattMindWhatIfCard extends HTMLElement {
           .filter(row => row.module_count > 0 && Number.isFinite(row.cumulative_vs_baseline?.annual_gain)
             && Number.isFinite(row.cumulative_cost))
           .map(row => ({ modules: row.module_count, gain: row.cumulative_vs_baseline.annual_gain, cost: row.cumulative_cost }));
-        const baselineBill = annual.rows.find(row => row.module_count === 0)?.annual_bill?.with;
-        const withoutBill = annual.rows.find(row => Number.isFinite(row.annual_bill?.without))?.annual_bill.without;
         const currentCost = comparison.base_capacity / comparison.module_capacity * comparison.module_price;
-        if (currentCost > 0 && Number.isFinite(baselineBill) && Number.isFinite(withoutBill)) {
-          series.unshift({ modules: 0, current: true, gain: withoutBill - baselineBill, cost: currentCost });
-        }
         this._modulePaybackChart(series, labels);
         this._moduleBillChart(annual.rows, labels, currentCost);
       }
@@ -1841,8 +1831,7 @@ class BattMindWhatIfCard extends HTMLElement {
   _modulePaybackChart(series, labels) {
     if (!series.length) return;
     const currency = this._hass.config.currency;
-    const name = item => item.current ? labels.module_bill_current
-      : `${this._number(item.modules)} ${labels.module_graph_modules}`;
+    const name = item => `${this._number(item.modules)} ${labels.module_graph_modules}`;
     const crossings = series.map(item => item.gain > 0 ? item.cost / item.gain : null)
       .filter(value => value !== null && Number.isFinite(value));
     const horizon = Math.min(30, Math.max(5, Math.ceil(Math.max(0, ...crossings) * 1.6 / 5) * 5));
@@ -2046,25 +2035,21 @@ class BattMindWhatIfCard extends HTMLElement {
     const usable = rows.filter(row => Number.isFinite(row.annual_bill?.with) && Number.isFinite(row.cumulative_cost));
     const without = rows.find(row => Number.isFinite(row.annual_bill?.without))?.annual_bill.without;
     const baseline = usable.find(row => row.module_count === 0);
-    if (!baseline || !Number.isFinite(without) || usable.length < 2) {
+    if (!baseline || !Number.isFinite(without) || usable.length < 2 || !Number.isFinite(currentCost) || currentCost < 0) {
       this._element("p", labels.module_bill_missing, this._results).className = "result-note";
       return;
     }
     const currency = this._hass.config.currency;
-    const base = Number.isFinite(currentCost) && currentCost > 0 ? currentCost : 0;
-    const currentGain = without - baseline.annual_bill.with;
-    const crossings = [
-      ...usable.filter(row => row.module_count > 0 && baseline.annual_bill.with > row.annual_bill.with)
-        .map(row => row.cumulative_cost / (baseline.annual_bill.with - row.annual_bill.with)),
-      ...(base > 0 && currentGain > 0 ? [base / currentGain] : []),
-    ];
+    const base = currentCost;
+    const added = usable.filter(row => row.module_count > 0);
+    const crossings = added.filter(row => without > row.annual_bill.with)
+      .map(row => (base + row.cumulative_cost) / (without - row.annual_bill.with));
     const horizon = Math.min(30, Math.max(5, Math.ceil(Math.max(0, ...crossings) * 1.6 / 5) * 5));
     const lines = [
       { label: labels.module_bill_none, start: 0, rate: without, color: "var(--secondary-text-color)", dashed: true },
-      ...usable.map((row, index) => ({
-        label: row.module_count === 0 ? labels.module_bill_current
-          : `+${this._number(row.module_count)} ${labels.module_graph_modules}`,
-        start: base + row.cumulative_cost, rate: row.annual_bill.with, current: row.module_count === 0,
+      ...added.map((row, index) => ({
+        label: `+${this._number(row.module_count)} ${labels.module_graph_modules}`,
+        start: base + row.cumulative_cost, rate: row.annual_bill.with,
         color: ["var(--primary-color)", "#e65100", "#388e3c", "#ad1457", "#6a1b9a", "#00838f", "#5d4037",
           "#c62828", "#558b2f", "#4527a0", "#00796b", "#9e5d00"][index % 12],
       })),
@@ -2122,10 +2107,9 @@ class BattMindWhatIfCard extends HTMLElement {
       swatch.className = "module-legend-color";
       swatch.style.backgroundColor = line.color;
       this._element("span", line.label, entry);
-      const gap = line.current ? currentGain : baseline.annual_bill.with - line.rate;
-      const cost = line.current ? base : line.start - base;
-      if (!line.dashed && cost > 0 && gap > 0) {
-        const years = cost / gap;
+      const gap = without - line.rate;
+      if (!line.dashed && line.start > 0 && gap > 0) {
+        const years = line.start / gap;
         if (years <= horizon) markers.push({ x: x(years), y: y(line.start + line.rate * years), years, color: line.color });
       }
     }
