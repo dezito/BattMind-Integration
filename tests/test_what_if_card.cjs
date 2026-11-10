@@ -51,7 +51,7 @@ const labels = Object.fromEntries([
   "module_reliability_details", "module_estimate_unavailable", "module_graph_title",
   "module_graph_note", "module_graph_modules", "module_graph_no_payback", "module_estimate_details",
   "module_monthly_title", "module_monthly_note", "module_monthly_month", "module_monthly_range_title",
-  "module_monthly_modules_title", "module_bill_title", "module_bill_note", "module_bill_none", "module_bill_current",
+  "module_monthly_modules_title", "module_bill_title", "module_bill_note", "module_bill_none",
   "run", "running", "failed", "results", "completed", "used_settings", "load_failed", "current", "scenario", "profit", "bill", "difference",
   "period", "hours", "missing", "tariffs", "sell_history", "chart", "interval_profit",
   "interval_per_kwh", "interval_chart", "interval_explain", "bill_explain", "form_explain",
@@ -362,20 +362,29 @@ async function main() {
   const legend = moduleChart.children.find(node => node.className === "module-legend");
   assert.equal(legend.children[0].children[1].textContent, "1 module_graph_modules: 10 yrs");
   assert.equal(legend.children[1].children[1].textContent, "2 module_graph_modules: 40 yrs");
-  const billChart = reliabilityCard._results.children.filter(node => node.className === "module-chart")[1];
-  const billSvg = billChart.children.find(node => node.tag === "svg");
-  assert.equal(billSvg.children.filter(node => node.tag === "line").length, 5);
-  assert.deepEqual(billChart.children.find(node => node.className === "module-legend").children
-    .map(node => node.children[1].textContent),
-  ["module_bill_none", "module_bill_current", "+1 module_graph_modules", "+2 module_graph_modules"]);
+  // Without the current battery's price the bill chart must not be drawn (it would favour the modules).
+  assert.equal(reliabilityCard._results.children.filter(node => node.className === "module-chart").length, 1);
+  assert(reliabilityCard._results.children.some(node => node.textContent === "module_bill_missing"));
   const withCurrent = structuredClone(estimated);
   Object.assign(withCurrent.module_comparison, { base_capacity: 5, module_capacity: 2.5, module_price: 1000 });
   reliabilityCard._show(withCurrent);
   const currentCharts = reliabilityCard._results.children.filter(node => node.className === "module-chart");
-  assert.equal(currentCharts[0].children.find(node => node.className === "module-legend").children[0].children[1].textContent,
-    "module_bill_current: 10 yrs");
-  assert.equal(currentCharts[1].children.find(node => node.tag === "svg").style.height, "330px");
-  reliabilityCard._show(estimated);
+  const currentLegend = currentCharts[0].children.find(node => node.className === "module-legend").children;
+  assert.deepEqual(currentLegend.map(node => node.children[1].textContent),
+    ["1 module_graph_modules: 10 yrs", "2 module_graph_modules: 40 yrs"]);
+  assert(!reliabilityCard._results.children.some(node => node.textContent === "module_bill_missing"));
+  const billChart = currentCharts[1];
+  const billSvg = billChart.children.find(node => node.tag === "svg");
+  assert.equal(billSvg.children.filter(node => node.tag === "line").length, 4);
+  assert.deepEqual(billChart.children.find(node => node.className === "module-legend").children
+    .map(node => node.children[1].textContent),
+  ["module_bill_none", "+1 module_graph_modules", "+2 module_graph_modules"]);
+  assert.equal(billSvg.style.height, "330px");
+  // Payback points are where a module line crosses the dashed no-battery line:
+  // (current battery price 2000 + module cost) / (bill without - bill with) = 3000/300 and 4000/250.
+  const billTexts = billSvg.children.filter(node => node.tag === "text").map(node => node.textContent);
+  assert(billTexts.includes("10 yrs"));
+  assert(billTexts.includes("16 yrs"));
   for (const hoverSvg of [chartSvg, billSvg]) {
     const hoverGroup = hoverSvg.children.at(-1);
     assert.equal(hoverGroup.style.display, "none");

@@ -3472,7 +3472,6 @@ views:
               module_bill_title: '@@what_if_module_bill_title@@'
               module_bill_note: '@@what_if_module_bill_note@@'
               module_bill_none: '@@what_if_module_bill_none@@'
-              module_bill_current: '@@what_if_module_bill_current@@'
               module_bill_missing: '@@what_if_module_bill_missing@@'
               module_monthly_range_title: '@@what_if_module_monthly_range_title@@'
               module_monthly_modules_title: '@@what_if_module_monthly_modules_title@@'
