@@ -343,20 +343,46 @@ results without rule assumptions must be run again. The table shows the configur
 an optimizer that does not converge can fall back to rules for individual planning windows.
 The optional module comparison shows historical gains alongside annual estimates and simple
 payback when sufficient history and selling data are available. Missing hours can be estimated
-from the same or nearest reference months; missing seasons increase uncertainty. Its compact table
-shows marginal payback for each extra module. The responsive graph instead shows cumulative gain
-minus total module cost for each whole module package against the same-assumption baseline.
-Lines assume the estimated annual gain remains constant; their zero crossing is the package's
-simple payback. The graph shows at most 30 years, with longer payback times in the legend. These
-are historical estimates, not predictions, and exclude installation and other investment costs.
-A second module graph shows the cumulative electricity bill over time without a battery (dashed) and
-for each extra module count, starting at the purchase cost of the current battery plus the added
-modules (the current battery is priced at the same price per kWh as a module); a line dropping below
-the dashed line marks where the purchase has paid back. The current battery has no line of its own
-in either graph, and the bill graph is not drawn when the current battery's price cannot be derived.
-Both module graphs are 50% taller than the other charts. Both graphs mark each payback point with its time in years
-and months, extend the period beyond the last payback to show the development, and hovering shows
-dots on every line with the elapsed years and months.
+from the same or nearest reference months; missing seasons increase uncertainty. It answers two
+different questions, and the section keeps them apart:
+
+- **What does the last added module earn on its own?** This is what matters when deciding whether to
+  buy more: the module's price divided by the extra yearly gain it adds on top of the previous size
+  ("module alone" columns of the table, and the last-module time in the graph legend).
+- **What does the whole battery earn against no battery at all?** The current battery plus the added
+  modules, priced together, against having no home battery ("whole battery" columns, and the dot in the
+  graph). This time is an average of the current battery and the added modules, so it is shorter than
+  the module-alone time only when the current battery pays back faster than the module does (the summary
+  says so only then). It only answers how long the whole battery would take to pay back if bought today.
+
+At the top, a short plain-language summary fills in the numbers of the run: the current battery's
+price, yearly saving and payback; what the first extra module costs, earns and pays back on its own;
+and the whole battery's payback with a reminder to use the module-alone time when considering buying
+more. A sentence is left out unless every number in it is known (never replaced by 0). The table has
+one row per battery size, with the historical gain from the previous size, then the module-alone
+columns (extra yearly gain, module price, simple payback) and the whole-battery columns (total price,
+saving per year against no battery, payback). The whole-battery columns are "—" when the current
+battery's price or the yearly bills are unknown. The current battery is priced at the same price per
+kWh as a module.
+
+The responsive payback graph shows the accumulated cost over time at a constant yearly bill, on an axis
+that starts at 0 (lower only if a yearly bill is negative) and is rounded to an even step (10k, 20k,
+...) with gridlines and an axis title. A grey line is without a battery: it starts at 0 and rises with
+the whole estimated yearly bill. The current battery and each extra module count have one line each: it
+starts at the purchase price (the current battery plus the added modules) and rises with the yearly bill
+with that setup; each line has its own stroke pattern as well as colour. A dot on the grey line,
+labelled with the battery size and "total" and its time counted from the start, and joined by a thin
+line down to the time axis, marks where each line crosses it, i.e. when the whole battery has paid back.
+The legend names each line with its battery size in kWh: the current battery has one time; each extra
+module count has the whole battery's time ("total") and the last module alone, also counted from the
+start so nothing has to be added up, where its line crosses the line before it (the table's simple
+payback; with a strict one-year window the graph can be slightly longer). The graph shows at most 30 years; a dot beyond that is not drawn. It is not
+drawn when the current battery's price or the bill without a battery is unknown, or when the module
+price is 0 (a missing price is never treated as 0); without a current battery only the grey line and the
+extra module lines are drawn. These are historical estimates, not predictions, and exclude installation
+and other investment costs.
+The graph is 2.25 times as tall as the other charts, extends the period beyond the last point to show the
+development, and hovering shows dots on every line with the elapsed years and months.
 For periods longer than three months, monthly tables and bar charts show the gain per calendar
 month for Current/Scenario/difference and, when used, for up to six range sizes and module counts
 (gain versus zero extra modules), so you can see when in the year it pays most. Bold marks the best

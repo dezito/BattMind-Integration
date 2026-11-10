@@ -126,10 +126,10 @@ maintenance, taxes and future degradation. The replay uses recorded prices in it
 so forecast error and future prices, usage and solar production can make actual results different.
 
 The separate `module_comparison.annual` result preserves those strict annualization fields and adds
-an annual estimate for graphing cumulative module gains against cumulative purchase cost and for
-the marginal-module payback table. Each annual row also has `annual_bill` (`without` = estimated yearly
-bill without a battery, `with` = bill with that module count; null when unavailable) for the
-electricity-bill-over-time graph. It targets the complete 365-day requested window; a shorter
+an annual estimate for the marginal-module payback table and the payback graph. Each annual row also
+has `annual_bill` (`without` = estimated yearly bill without a battery, `with` = bill with that module
+count; null when unavailable), which the graph uses as the yearly bill of the grey no-battery line and
+of each setup. It targets the complete 365-day requested window; a shorter
 window is never extrapolated as a full year. When strict annualization is unavailable only because
 hours are missing, the result uses monthly estimates (rather than scaling the matched gain) if at
 least half of the 8,760 expected hours are matched and the existing calendar-month reference rule
@@ -142,8 +142,13 @@ the Settings page (and any explicit what-if overrides) used by its replay; filli
 does not substitute default settings. The `annual.method` is `strict`, `estimated`, or
 `unavailable`; an unavailable method also has a `status_reason`.
 `annual.rows[*].module_count` is the number of added modules.
-`cumulative_vs_baseline.annual_gain` and `cumulative_cost` are the graph values; the marginal table
-uses `marginal_vs_previous.annual_gain` and its `payback_years`. Payback is simple purchase cost
+`cumulative_cost` and `annual_bill` feed the payback graph (a setup's line starts at the current
+battery price plus `cumulative_cost` and rises with its `annual_bill.with`); the marginal table uses
+the price of the last added module and `marginal_vs_previous.annual_gain` (its `payback_years`). The
+graph's time for each extra module count is where its line crosses the line before it. It uses the
+unscaled yearly bills, so it equals that figure for the `estimated` method; with `strict`, whose gains
+are scaled to a full year, the graph and the whole-battery columns (also built from `annual_bill`) can
+be somewhat longer than the table's module payback, never shorter. Payback is simple purchase cost
 divided by positive annual gain; zero or negative gain has no payback.
 
 The annual estimate's `coverage` reports matched and missing hours and their ratio.

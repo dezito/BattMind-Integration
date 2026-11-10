@@ -48,10 +48,14 @@ const labels = Object.fromEntries([
   "module_gain_baseline", "module_incremental_gain", "module_annualized_gain", "module_cumulative_cost",
   "module_payback", "module_no_payback", "module_years", "module_note",
   "module_estimate_note", "module_estimated_hours", "module_estimated_months",
-  "module_reliability_details", "module_estimate_unavailable", "module_graph_title",
-  "module_graph_note", "module_graph_modules", "module_graph_no_payback", "module_estimate_details",
+  "module_reliability_details", "module_estimate_unavailable",
+  "module_graph_modules", "module_graph_no_payback", "module_estimate_details",
   "module_monthly_title", "module_monthly_note", "module_monthly_month", "module_monthly_range_title",
-  "module_monthly_modules_title", "module_bill_title", "module_bill_note", "module_bill_none",
+  "module_monthly_modules_title", "module_payback_title", "module_payback_note", "module_payback_missing",
+  "module_payback_current", "module_payback_none", "module_payback_axis", "module_graph_module", "module_graph_modules_few",
+  "module_whole_cost", "module_whole_gain", "module_whole_payback", "module_in_total", "module_extra_only",
+  "module_summary_title", "module_summary_current", "module_summary_added", "module_summary_added_none",
+  "module_summary_total", "module_summary_total_plain", "module_summary_advice",
   "run", "running", "failed", "results", "completed", "used_settings", "load_failed", "current", "scenario", "profit", "bill", "difference",
   "period", "hours", "missing", "tariffs", "sell_history", "chart", "interval_profit",
   "interval_per_kwh", "interval_chart", "interval_explain", "bill_explain", "form_explain",
@@ -350,42 +354,151 @@ async function main() {
   reliabilityCard._show(estimated);
   const estimatedRows = tables(reliabilityCard)[2].children;
   assert.equal(estimatedRows[2].children[2].textContent, "100.00 DKK");
-  assert.equal(estimatedRows[0].children[2].textContent, "Estimated annual incremental gain");
+  assert.equal(estimatedRows[0].children[2].textContent, "Module alone: extra gain per year");
   assert.equal(estimatedRows[2].children[4].textContent, "10 module_years");
   assert.equal(estimatedRows[3].children[4].textContent, "—");
   assert.equal(estimatedRows[3].children[4].attributes["aria-label"], "module_no_payback");
-  const moduleChart = reliabilityCard._results.children.find(node => node.className === "module-chart");
-  const chartSvg = moduleChart.children.find(node => node.tag === "svg");
-  assert.equal(chartSvg.attributes.viewBox, "0 0 600 300");
-  assert.equal(chartSvg.style.minWidth, undefined);
-  assert.equal(chartSvg.children.filter(node => node.tag === "line").length, 3);
-  const legend = moduleChart.children.find(node => node.className === "module-legend");
-  assert.equal(legend.children[0].children[1].textContent, "1 module_graph_modules: 10 yrs");
-  assert.equal(legend.children[1].children[1].textContent, "2 module_graph_modules: 40 yrs");
-  // Without the current battery's price the bill chart must not be drawn (it would favour the modules).
-  assert.equal(reliabilityCard._results.children.filter(node => node.className === "module-chart").length, 1);
-  assert(reliabilityCard._results.children.some(node => node.textContent === "module_bill_missing"));
+  // One payback graph (see the numbers below).
+  const legendOf = (card, index = 0) => card._results.children.filter(node => node.className === "module-chart")[index]
+    .children.find(node => node.className === "module-legend").children.map(node => node.children[1].textContent);
+  const chartCount = card => card._results.children.filter(node => node.className === "module-chart").length;
+  const hasMissing = card => card._results.children.some(node => node.textContent === "module_payback_missing");
+  // Without the current battery's price (no base_capacity) nothing is drawn: it must not be priced at 0.
+  assert.equal(chartCount(reliabilityCard), 0);
+  assert(hasMissing(reliabilityCard));
   const withCurrent = structuredClone(estimated);
   Object.assign(withCurrent.module_comparison, { base_capacity: 5, module_capacity: 2.5, module_price: 1000 });
   reliabilityCard._show(withCurrent);
-  const currentCharts = reliabilityCard._results.children.filter(node => node.className === "module-chart");
-  const currentLegend = currentCharts[0].children.find(node => node.className === "module-legend").children;
-  assert.deepEqual(currentLegend.map(node => node.children[1].textContent),
-    ["1 module_graph_modules: 10 yrs", "2 module_graph_modules: 40 yrs"]);
-  assert(!reliabilityCard._results.children.some(node => node.textContent === "module_bill_missing"));
-  const billChart = currentCharts[1];
-  const billSvg = billChart.children.find(node => node.tag === "svg");
-  assert.equal(billSvg.children.filter(node => node.tag === "line").length, 4);
-  assert.deepEqual(billChart.children.find(node => node.className === "module-legend").children
-    .map(node => node.children[1].textContent),
-  ["module_bill_none", "+1 module_graph_modules", "+2 module_graph_modules"]);
-  assert.equal(billSvg.style.height, "330px");
-  // Payback points are where a module line crosses the dashed no-battery line:
-  // (current battery price 2000 + module cost) / (bill without - bill with) = 3000/300 and 4000/250.
-  const billTexts = billSvg.children.filter(node => node.tag === "text").map(node => node.textContent);
-  assert(billTexts.includes("10 yrs"));
-  assert(billTexts.includes("16 yrs"));
-  for (const hoverSvg of [chartSvg, billSvg]) {
+  assert.equal(chartCount(reliabilityCard), 1);
+  // The graph is the accumulated cost over time at a constant yearly bill: a dashed line without a battery (starts at 0,
+  // rises 1200 a year) and one line per setup starting at its price (current battery 2000, +1 2000 + 1000, +2 2000 + 2000)
+  // and rising with the bill with that setup (1000, 900, 950). The legend names the battery size and shows one time per
+  // line, counted from the start, where it crosses the line before it: the current battery crosses the dashed line at
+  // 2000 / (1200 - 1000) = 10 yrs; +1 crosses the current line at (3000 - 2000) / (1000 - 900) = 10 yrs (the last added
+  // module on its own, as in the table); +2 never crosses +1 (900 -> 950 a year), so no payback. One module is singular.
+  // The current battery shows one time; +N shows the whole battery against no battery (total) and the last module alone
+  // (+1 crosses the current line at 10 yrs, +2 never: the whole 4000 / (1200 - 950) = 16 yrs).
+  assert.deepEqual(legendOf(reliabilityCard), [
+    "module_payback_none",
+    "5 kWh · module_payback_current: 10 yrs",
+    "7.5 kWh · +1 module_graph_module: module_in_total 10 yrs · module_extra_only 10 yrs",
+    "10 kWh · +2 module_graph_modules: module_in_total 16 yrs · module_extra_only module_graph_no_payback",
+  ]);
+  // The table has the whole battery against no battery after the module-alone columns: total price (current battery
+  // 2000 + modules), saving per year (1200 - bill with) and payback (price / saving).
+  const wholeColumns = tables(reliabilityCard)[2].children.map(row => row.children.slice(5).map(cell => cell.textContent));
+  assert.deepEqual(wholeColumns, [
+    ["module_whole_cost", "module_whole_gain", "module_whole_payback"],
+    ["2,000.00 DKK", "200.00 DKK", "10 module_years"],
+    ["3,000.00 DKK", "300.00 DKK", "10 module_years"],
+    ["4,000.00 DKK", "250.00 DKK", "16 module_years"],
+  ]);
+  // Plain-language summary with the numbers filled in by name (labels with placeholders replace the defaults).
+  const summaryCard = new Card();
+  summaryCard.setConfig({ config_entry_id: "summary", labels: { ...labels,
+    module_summary_current: "current|{capacity}|{price}|{gain}|{currency}|{time}",
+    module_summary_added: "added|{modules}|{capacity}|{extra}|{price}|{gain}|{currency}|{time}",
+    module_summary_added_none: "none|{modules}|{capacity}|{extra}",
+    module_summary_total: "total|{capacity}|{time}", module_summary_total_plain: "plain|{capacity}|{time}" } });
+  summaryCard.hass = { language: "en", config: { currency: "DKK" }, callWS: serviceOnly(async () => null) };
+  const summaryOf = (result, mutate = () => {}) => {
+    const variant = structuredClone(result);
+    mutate(variant.module_comparison);
+    summaryCard._show(variant);
+    return summaryCard._results.children.find(node => node.className === "module-summary")
+      ?.children.map(node => node.textContent);
+  };
+  // The whole battery (10 yrs) is not faster than the module alone (10 yrs) here, so the neutral sentence is used:
+  // "faster because the current battery pulls the average down" is only said when it is true.
+  assert.deepEqual(summaryOf(withCurrent), [
+    "current|5|2,000.00|200.00|DKK|10 yrs",
+    "added|1 module_graph_module|7.5|2.5|1,000.00|100.00|DKK|10 yrs",
+    "plain|7.5|10 yrs",
+    "module_summary_advice",
+  ]);
+  // The module alone takes 20 yrs, longer than the whole battery (10 yrs): now the explanation is used.
+  assert.deepEqual(summaryOf(withCurrent, comparison => {
+    comparison.annual.rows[1].marginal_vs_previous = { annual_gain: 100, payback_years: 20 };
+  }), [
+    "current|5|2,000.00|200.00|DKK|10 yrs",
+    "added|1 module_graph_module|7.5|2.5|1,000.00|100.00|DKK|20 yrs",
+    "total|7.5|10 yrs",
+    "module_summary_advice",
+  ]);
+  // The module alone is quicker than the whole battery: neutral sentence again.
+  assert.equal(summaryOf(withCurrent, comparison => {
+    comparison.annual.rows[1].marginal_vs_previous = { annual_gain: 100, payback_years: 5 };
+  })[2], "plain|7.5|10 yrs");
+  // The extra module earns nothing more: says so instead of a payback time.
+  assert.deepEqual(summaryOf(withCurrent, comparison => {
+    comparison.annual.rows[1].marginal_vs_previous = { annual_gain: -5, payback_years: null };
+  }).slice(1, 2), ["none|1 module_graph_module|7.5|2.5"]);
+  // No current battery: no sentence about it or the whole battery, only the extra module.
+  assert.deepEqual(summaryOf(withCurrent, comparison => { comparison.base_capacity = 0; }), [
+    "added|1 module_graph_module|2.5|2.5|1,000.00|100.00|DKK|10 yrs",
+    "module_summary_advice",
+  ]);
+  // A zero module price or missing yearly bills: no sentence is invented, so no summary at all.
+  assert.equal(summaryOf(withCurrent, comparison => { comparison.module_price = 0; }), undefined);
+  assert.equal(summaryOf(withCurrent, comparison => { delete comparison.annual; }), undefined);
+  reliabilityCard._show(withCurrent);
+  const billSvg = reliabilityCard._results.children.find(node => node.className === "module-chart")
+    .children.find(node => node.tag === "svg");
+  // 50% taller than the previous 300 high view box / 330 px (both scale together, so the chart is not letterboxed).
+  assert.equal(billSvg.attributes.viewBox, "0 0 600 450");
+  assert.equal(billSvg.style.height, "495px");
+  // The dashed no-battery line and three setups (gridlines and drop lines are thinner lines), each setup with its own
+  // stroke pattern as well as colour: solid, dashed, dotted.
+  const seriesLines = billSvg.children.filter(node => node.tag === "line" && node.style.strokeWidth === "2.5");
+  assert.deepEqual(seriesLines.map(node => node.style.strokeDasharray), ["6 4", undefined, "8 4", "2 4"]);
+  // The value axis is rounded to an even step with gridlines: 0..36000 -> 0..40000 in steps of 10000, labelled 0, 10k ... 40k,
+  // with the axis title; the time axis has a tick every 5 years over 30 years.
+  const axisTexts = billSvg.children.filter(node => node.tag === "text").map(node => node.textContent);
+  for (const expected of ["0", "10k", "20k", "30k", "40k", "module_payback_axis", "module_years", "5", "30"]) {
+    assert(axisTexts.includes(expected), expected);
+  }
+  // The dots sit on the dashed line where each setup's line crosses it (the whole setup has paid back), labelled with
+  // the battery size: 2000 / (1200 - 1000) = 10 yrs, 3000 / (1200 - 900) = 10 yrs, 4000 / (1200 - 950) = 16 yrs.
+  for (const expected of ["5 kWh module_in_total · 10 yrs", "7.5 kWh module_in_total · 10 yrs", "10 kWh module_in_total · 16 yrs"]) {
+    assert(axisTexts.includes(expected), expected);
+  }
+  assert.equal(billSvg.children.filter(node => node.tag === "circle").length, 4 + 3);
+  // Each dot has a thin line down to the time axis.
+  assert.equal(billSvg.children.filter(node => node.tag === "line" && node.style.strokeDasharray === "2 3").length, 3);
+  // The dots sit ON the dashed line (1200 a year; y axis 0..40000, plot area 355 high from y = 395): at 10 yrs x = 220,
+  // y = 395 - 12000 * 355 / 40000 = 288.5 (twice), at 16 yrs x = 316, y = 395 - 19200 * 355 / 40000 = 224.6.
+  const dotsOnDashed = billSvg.children.filter(node => node.tag === "circle" && String(node.attributes.r) === "5")
+    .map(node => [Number(node.attributes.cx), Math.round(Number(node.attributes.cy) * 100) / 100]);
+  assert.deepEqual(dotsOnDashed, [[220, 288.5], [220, 288.5], [316, 224.6]]);
+  const variantOf = mutate => {
+    const variant = structuredClone(withCurrent);
+    mutate(variant.module_comparison);
+    reliabilityCard._show(variant);
+    return reliabilityCard;
+  };
+  // A setup that saves nothing against no battery (bill 1300 > 1200): its whole-battery payback is "—" and marked.
+  const noWholePayback = variantOf(comparison => { comparison.annual.rows[2].annual_bill.with = 1300; });
+  const noWholeCell = tables(noWholePayback)[2].children[3].children[7];
+  assert.equal(noWholeCell.textContent, "—");
+  assert.equal(noWholeCell.attributes["aria-label"], "module_no_payback");
+  // No current battery at all: only the extra modules against no battery (no current price to add).
+  assert.deepEqual(legendOf(variantOf(comparison => { comparison.base_capacity = 0; })).map(text => text.split(":")[0]),
+    ["module_payback_none", "2.5 kWh · +1 module_graph_module", "5 kWh · +2 module_graph_modules"]);
+  // Nothing to draw (the missing note is shown instead): unknown, zero or negative current-battery price, unknown
+  // "without" bill, no zero-module bill, or free modules without a current battery.
+  for (const mutate of [
+    comparison => { comparison.module_price = 0; },
+    comparison => { comparison.module_price = -5; },
+    comparison => { comparison.annual.rows.forEach(row => { row.annual_bill.without = null; }); },
+    comparison => { comparison.annual.rows.shift(); },
+    comparison => { comparison.base_capacity = 0; comparison.annual.rows.forEach(row => { row.cumulative_cost = 0; }); },
+  ]) {
+    const missing = variantOf(mutate);
+    assert.equal(chartCount(missing), 0);
+    assert(hasMissing(missing));
+  }
+  reliabilityCard._show(withCurrent);
+  for (const hoverSvg of [billSvg]) {
     const hoverGroup = hoverSvg.children.at(-1);
     assert.equal(hoverGroup.style.display, "none");
     hoverSvg.on_pointermove({ clientX: 400 });
@@ -394,6 +507,15 @@ async function main() {
     hoverSvg.on_pointerleave({ pointerType: "mouse" });
     assert.equal(hoverGroup.style.display, "none");
   }
+  // Singular/plural follows the language: Polish and Ukrainian have a separate form for 2-4.
+  const pluralLabels = { module_graph_module: "one", module_graph_modules_few: "few", module_graph_modules: "many" };
+  const countLabel = (language, count, labels = pluralLabels) =>
+    reliabilityCard._moduleCountLabel.call({ _hass: { language }, _number: value => String(value) }, count, labels);
+  assert.deepEqual([1, 2, 5, 22, 12].map(count => countLabel("pl", count)),
+    ["1 one", "2 few", "5 many", "22 few", "12 many"]);
+  assert.deepEqual([1, 3, 11, 21].map(count => countLabel("uk", count)), ["1 one", "3 few", "11 many", "21 one"]);
+  assert.deepEqual([1, 2].map(count => countLabel("en", count)), ["1 one", "2 many"]);
+  assert.equal(countLabel("pl", 2, { module_graph_modules: "many" }), "2 many");
   const details = card._results.children.filter(node => node.className === "chart-detail");
   assert.equal(details.length, 2);
   assert.equal(details[0].textContent, "0 kWh — chart: 0.00 DKK");
