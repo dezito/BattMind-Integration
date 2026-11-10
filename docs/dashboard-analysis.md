@@ -349,6 +349,15 @@ minus total module cost for each whole module package against the same-assumptio
 Lines assume the estimated annual gain remains constant; their zero crossing is the package's
 simple payback. The graph shows at most 30 years, with longer payback times in the legend. These
 are historical estimates, not predictions, and exclude installation and other investment costs.
+A second module graph shows the cumulative electricity bill over time without a battery (dashed) and
+for each module count, starting at the module cost; a module line dropping below the 0-module line
+marks where the modules have paid back. Both graphs mark each payback point with its time in years
+and months, extend the period beyond the last payback to show the development, and hovering shows
+dots on every line with the elapsed years and months.
+For periods longer than three months, monthly tables and bar charts show the gain per calendar
+month for Current/Scenario/difference and, when used, for up to six range sizes and module counts
+(gain versus zero extra modules), so you can see when in the year it pays most. Bold marks the best
+month; months with few hours are incomplete and the figures are not a forecast.
 For a range, it shows the change in profit between adjacent sizes and the change per added kWh of
 battery capacity over the simulated period. The fixed scenario and
 capacity range have separate sections. The range table explains its columns and highlights the

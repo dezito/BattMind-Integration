@@ -103,7 +103,8 @@ Every case uses the same other supplied overrides, so the baseline is re-simulat
 assumptions rather than reusing the differently configured **current** result. Module capacities may
 be fractional, and zero module price is allowed. The module table reports historical total profit,
 gain against the same-assumption baseline, the incremental historical gain from the previous module,
-the entered module price and cumulative module cost separately.
+the entered module price and cumulative module cost separately. Each row also has **months**
+(`YYYY-MM` → that month's battery profit) for the dashboard's monthly bar chart.
 
 An annualized incremental gain and simple payback require a 365-day rolling requested window, with
 at least 90% of the expected hours matched in **each local calendar-month portion** of that window.
@@ -126,7 +127,9 @@ so forecast error and future prices, usage and solar production can make actual 
 
 The separate `module_comparison.annual` result preserves those strict annualization fields and adds
 an annual estimate for graphing cumulative module gains against cumulative purchase cost and for
-the marginal-module payback table. It targets the complete 365-day requested window; a shorter
+the marginal-module payback table. Each annual row also has `annual_bill` (`without` = estimated yearly
+bill without a battery, `with` = bill with that module count; null when unavailable) for the
+electricity-bill-over-time graph. It targets the complete 365-day requested window; a shorter
 window is never extrapolated as a full year. When strict annualization is unavailable only because
 hours are missing, the result uses monthly estimates (rather than scaling the matched gain) if at
 least half of the 8,760 expected hours are matched and the existing calendar-month reference rule
@@ -213,7 +216,7 @@ the current value beside the scenario value for each setting you changed.
 | **scenario** | economy with the changed values |
 | **difference.profit** | scenario profit minus current profit; positive is better |
 | **difference.bill** | scenario bill minus current bill; negative is better |
-| **range** | only when all three capacity interval fields are supplied: entries with exactly **battery_size**, **profit**, **bill**, **difference_profit**, and **difference_bill**, each compared with the current configuration |
+| **range** | only when all three capacity interval fields are supplied: entries with exactly **battery_size**, **profit**, **bill**, **difference_profit**, **difference_bill**, and **months** (`YYYY-MM` → that month's battery profit; the values sum to **profit** up to cent rounding), each compared with the current configuration |
 | **module_comparison** | only when module capacity and price are supplied: same-assumption current-capacity baseline plus cumulative whole-module results, actual matched-hour coverage, incremental historical gains, separate module costs, and annualization/payback fields when data suffices |
 | **coverage** | only when at least 24 hours of the requested period have no data: requested and missing hours, the hours missing before the first simulated hour and inside the period (**gap_hours**), the entity whose history starts last (**limited_by**) and the requested/simulated hours per month |
 | **estimate** | the rough estimate of the whole requested period (see below), or empty when there is too little data |

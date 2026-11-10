@@ -109,6 +109,8 @@ def test_module_annual_estimate_accepts_half_coverage_and_reports_seasonal_refer
     assert "2025-07" in annual["provenance"]["estimated_from_other_months"]
     assert annual["rows"][1]["annual_profit"]["estimated"] - annual["rows"][0]["annual_profit"]["estimated"] == 4380
     assert annual["rows"][1]["cumulative_vs_baseline"]["annual_gain"] == 8760
+    assert annual["rows"][0]["annual_bill"] == {"without": 8760.0, "with": 0.0}
+    assert annual["rows"][1]["annual_bill"] == {"without": 8760.0, "with": -8760.0}
 
 
 def test_module_annual_estimate_rejects_less_than_half_coverage() -> None:
@@ -1948,7 +1950,7 @@ def test_what_if_capacity_interval_replays_each_capacity_independently(
     assert ranged.error is None, ranged.error
     assert "range" not in baseline.value
     assert [set(item) for item in ranged.value["range"]] == [
-        {"battery_size", "profit", "bill", "difference_profit", "difference_bill"}
+        {"battery_size", "profit", "bill", "difference_profit", "difference_bill", "months"}
     ] * 2
     for key in ("current", "scenario", "difference", "coverage", "estimate"):
         assert ranged.value[key] == baseline.value[key]
@@ -1967,6 +1969,10 @@ def test_what_if_capacity_interval_replays_each_capacity_independently(
         assert result["bill"] == scenario["with"]["bill"]
         assert result["difference_profit"] == independent.value["difference"]["profit"]
         assert result["difference_bill"] == independent.value["difference"]["bill"]
+        assert result["months"] == {
+            key: month["profit"] for key, month in independent.value["scenario"]["months"].items()
+        }
+        assert round(sum(result["months"].values()), 2) == result["profit"]
 
     assert ranged.value["range"][0]["battery_size"] == 0
     assert reports[-1] == {"percent": 100, "step": 2, "steps": 2, "hours": 48, "total_hours": 48}
