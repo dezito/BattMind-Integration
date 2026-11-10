@@ -51,7 +51,7 @@ const labels = Object.fromEntries([
   "module_reliability_details", "module_estimate_unavailable", "module_graph_title",
   "module_graph_note", "module_graph_modules", "module_graph_no_payback", "module_estimate_details",
   "module_monthly_title", "module_monthly_note", "module_monthly_month", "module_monthly_range_title",
-  "module_monthly_modules_title", "module_bill_title", "module_bill_note", "module_bill_none",
+  "module_monthly_modules_title", "module_bill_title", "module_bill_note", "module_bill_none", "module_bill_current",
   "run", "running", "failed", "results", "completed", "used_settings", "load_failed", "current", "scenario", "profit", "bill", "difference",
   "period", "hours", "missing", "tariffs", "sell_history", "chart", "interval_profit",
   "interval_per_kwh", "interval_chart", "interval_explain", "bill_explain", "form_explain",
@@ -367,7 +367,7 @@ async function main() {
   assert.equal(billSvg.children.filter(node => node.tag === "line").length, 5);
   assert.deepEqual(billChart.children.find(node => node.className === "module-legend").children
     .map(node => node.children[1].textContent),
-  ["module_bill_none", "0 module_graph_modules", "1 module_graph_modules", "2 module_graph_modules"]);
+  ["module_bill_none", "module_bill_current", "+1 module_graph_modules", "+2 module_graph_modules"]);
   for (const hoverSvg of [chartSvg, billSvg]) {
     const hoverGroup = hoverSvg.children.at(-1);
     assert.equal(hoverGroup.style.display, "none");
