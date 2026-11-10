@@ -50,6 +50,8 @@ const labels = Object.fromEntries([
   "module_estimate_note", "module_estimated_hours", "module_estimated_months",
   "module_reliability_details", "module_estimate_unavailable", "module_graph_title",
   "module_graph_note", "module_graph_modules", "module_graph_no_payback", "module_estimate_details",
+  "module_monthly_title", "module_monthly_note", "module_monthly_month", "module_monthly_range_title",
+  "module_monthly_modules_title", "module_bill_title", "module_bill_note", "module_bill_none",
   "run", "running", "failed", "results", "completed", "used_settings", "load_failed", "current", "scenario", "profit", "bill", "difference",
   "period", "hours", "missing", "tariffs", "sell_history", "chart", "interval_profit",
   "interval_per_kwh", "interval_chart", "interval_explain", "bill_explain", "form_explain",
@@ -327,11 +329,11 @@ async function main() {
     method: "estimated", provenance: { estimated_hours: 2000, estimated_from_other_months: ["2026-01"] },
     rows: [
       { module_count: 0, cumulative_cost: 0, marginal_vs_previous: null,
-        cumulative_vs_baseline: { annual_gain: 0 } },
+        annual_bill: { without: 1200, with: 1000 }, cumulative_vs_baseline: { annual_gain: 0 } },
       { module_count: 1, cumulative_cost: 1000, marginal_vs_previous: { annual_gain: 100, payback_years: 10 },
-        cumulative_vs_baseline: { annual_gain: 100 } },
+        annual_bill: { without: 1200, with: 900 }, cumulative_vs_baseline: { annual_gain: 100 } },
       { module_count: 2, cumulative_cost: 2000, marginal_vs_previous: { annual_gain: -50, payback_years: null },
-        cumulative_vs_baseline: { annual_gain: 50 } },
+        annual_bill: { without: 1200, with: 950 }, cumulative_vs_baseline: { annual_gain: 50 } },
     ],
   };
   estimated.module_comparison.rows.push({ added_modules: 2, battery_size: 15, profit: 11,
@@ -354,12 +356,27 @@ async function main() {
   assert.equal(estimatedRows[3].children[4].attributes["aria-label"], "module_no_payback");
   const moduleChart = reliabilityCard._results.children.find(node => node.className === "module-chart");
   const chartSvg = moduleChart.children.find(node => node.tag === "svg");
-  assert.equal(chartSvg.attributes.viewBox, "0 0 400 205");
+  assert.equal(chartSvg.attributes.viewBox, "0 0 600 200");
   assert.equal(chartSvg.style.minWidth, undefined);
   assert.equal(chartSvg.children.filter(node => node.tag === "line").length, 3);
   const legend = moduleChart.children.find(node => node.className === "module-legend");
-  assert.equal(legend.children[0].children[1].textContent, "1 module_graph_modules: 10 module_years");
-  assert.equal(legend.children[1].children[1].textContent, "2 module_graph_modules: 40 module_years");
+  assert.equal(legend.children[0].children[1].textContent, "1 module_graph_modules: 10 yrs");
+  assert.equal(legend.children[1].children[1].textContent, "2 module_graph_modules: 40 yrs");
+  const billChart = reliabilityCard._results.children.filter(node => node.className === "module-chart")[1];
+  const billSvg = billChart.children.find(node => node.tag === "svg");
+  assert.equal(billSvg.children.filter(node => node.tag === "line").length, 5);
+  assert.deepEqual(billChart.children.find(node => node.className === "module-legend").children
+    .map(node => node.children[1].textContent),
+  ["module_bill_none", "0 module_graph_modules", "1 module_graph_modules", "2 module_graph_modules"]);
+  for (const hoverSvg of [chartSvg, billSvg]) {
+    const hoverGroup = hoverSvg.children.at(-1);
+    assert.equal(hoverGroup.style.display, "none");
+    hoverSvg.on_pointermove({ clientX: 400 });
+    assert.equal(hoverGroup.style.display, "");
+    assert(hoverGroup.children.some(node => node.tag === "text" && /module_graph_modules: .* DKK/.test(node.textContent)));
+    hoverSvg.on_pointerleave({ pointerType: "mouse" });
+    assert.equal(hoverGroup.style.display, "none");
+  }
   const details = card._results.children.filter(node => node.className === "chart-detail");
   assert.equal(details.length, 2);
   assert.equal(details[0].textContent, "0 kWh — chart: 0.00 DKK");
@@ -408,6 +425,38 @@ async function main() {
   }
   card._config.labels = labels;
   card._hass.language = "en";
+  card._show(simulation);
+  assert(!card._results.children.some(node => node.textContent === "module_monthly_title (DKK)"));
+  const monthKeys = ["2026-01", "2026-02", "2026-03", "2026-04"];
+  const monthData = values => Object.fromEntries(monthKeys.map((key, index) => [key, values[index]]));
+  const monthly = {
+    ...simulation,
+    current: { ...simulation.current, months: Object.fromEntries(monthKeys.map(key => [key, { profit: 2 }])) },
+    scenario: { ...simulation.scenario, months: Object.fromEntries(monthKeys.map((key, index) => [key, { profit: index + 1 }])) },
+    range: simulation.range.map(item => ({ ...item, months: monthData([item.battery_size, 1, 2, 3]) })),
+    module_comparison: { ...simulation.module_comparison, rows: simulation.module_comparison.rows.map(row => ({
+      ...row, months: monthData([row.added_modules, 5, 1, 1]),
+    })) },
+  };
+  card._show(monthly);
+  const monthlyTitles = card._results.children.filter(node => node.tag === "h3").map(node => node.textContent);
+  for (const key of ["module_monthly_title", "module_monthly_range_title", "module_monthly_modules_title"]) {
+    assert(monthlyTitles.includes(`${key} (DKK)`), key);
+  }
+  const bars = card._results.children.filter(node => node.className === "module-chart");
+  assert.equal(bars.length, 3);
+  for (const chart of bars) {
+    const svg = chart.children.find(node => node.tag === "svg");
+    assert.equal(svg.attributes.viewBox, "0 0 600 200");
+    assert(svg.children.some(node => node.tag === "rect"));
+    const barHover = svg.children.at(-1);
+    svg.on_pointermove({ clientX: 300 });
+    assert.equal(barHover.style.display, "");
+    assert(barHover.children.some(node => node.tag === "text" && /DKK/.test(node.textContent)));
+    assert(!svg.style.minWidth);
+  }
+  card._show({ ...monthly, scenario: { ...monthly.scenario, months: { "2026-01": { profit: 1 } } } });
+  assert(!card._results.children.some(node => node.textContent === "module_monthly_title (DKK)"));
   card._show(simulation);
   card._show({ ...simulation, range: [
     { battery_size: 0, profit: 0, bill: 50 },

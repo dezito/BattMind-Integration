@@ -349,6 +349,15 @@ const whatIfModuleLabels = {
     "module_estimate_unavailable": "Årlig gevinst og tilbagebetaling kræver en fuld periode på 365 dage samt tilstrækkelig historik og kendte historiske salgspriser og -omkostninger. Manglende timer kan estimeres ud fra samme eller nærmeste måned. En kortere periode bliver ikke omregnet til et år.",
     "module_graph_title": "Tilbagebetaling over tid",
     "module_graph_note": "Linjerne viser estimeret samlet gevinst minus samlet modulpris ved uændret årlig gevinst. Når en linje krydser nul, er modulprisen tjent hjem. Grafen viser højst 30 år; forklaringen viser den beregnede tid også uden for grafen. Ingen installation, finansiering, skatter eller fremtidige ændringer er med.",
+    "module_monthly_title": "Månedlig fordeling: Nuværende, scenarie og forskel",
+    "module_monthly_note": "Gevinst pr. kalendermåned i den valgte periode, så du kan se hvornår på året det giver mest. Det er ikke en prognose; måneder med få timer er ufuldstændige. Fed markerer bedste måned.",
+    "module_monthly_month": "Måned",
+    "module_bill_title": "Strømregning over tid: uden batteri og pr. antal moduler",
+    "module_bill_note": "Linjerne viser samlet strømregning over tid ved uændret årlig regning, hvor modulernes pris lægges til som startværdi. Når en modullinje ligger under linjen for 0 moduler, er modulerne tjent hjem og giver gevinst. Estimat ud fra historikken; ingen installation, finansiering, skatter eller fremtidige ændringer.",
+    "module_bill_none": "Uden batteri",
+    "module_bill_missing": "Grafen over strømregningen kræver en ny kørsel af simulationen med flere moduler og årsestimat.",
+    "module_monthly_range_title": "Månedlig gevinst pr. batteristørrelse",
+    "module_monthly_modules_title": "Månedlig ekstra gevinst pr. antal moduler (mod 0 ekstra moduler)",
     "module_graph_modules": "moduler",
     "module_graph_no_payback": "Ingen tilbagebetaling ved ikke-positiv gevinst",
     "module_estimate_details": "Enkel tilbagebetaling i tabellen er prisen for ét ekstra modul divideret med dets årlige mergevinst. Grafen sammenligner hele modulpakken med den nuværende kapacitet. Resultaterne er historiske estimater, ikke garantier.",
@@ -388,6 +397,15 @@ const whatIfModuleLabels = {
     "module_estimate_unavailable": "Jahresgewinn und Amortisation erfordern einen vollständigen Zeitraum von 365 Tagen, genügend Historie sowie bekannte historische Verkaufspreise und -kosten. Fehlende Stunden können anhand desselben oder des nächstgelegenen Monats geschätzt werden. Ein kürzerer Zeitraum wird nicht auf ein Jahr hochgerechnet.",
     "module_graph_title": "Amortisation über die Zeit",
     "module_graph_note": "Die Linien zeigen geschätzten Gesamtgewinn abzüglich der gesamten Modulkosten bei konstantem Jahresgewinn. Beim Nulldurchgang sind die Modulkosten gedeckt. Die Grafik zeigt höchstens 30 Jahre; die Legende nennt auch längere Zeiten. Installation, Finanzierung, Steuern und zukünftige Änderungen sind nicht enthalten.",
+    "module_monthly_title": "Monatliche Verteilung: Aktuell, Szenario und Differenz",
+    "module_monthly_note": "Gewinn pro Kalendermonat im gewählten Zeitraum, damit sichtbar wird, wann im Jahr es am meisten bringt. Das ist keine Prognose; Monate mit wenigen Stunden sind unvollständig. Fett markiert den besten Monat.",
+    "module_monthly_month": "Monat",
+    "module_bill_title": "Stromrechnung im Zeitverlauf: ohne Batterie und je Modulanzahl",
+    "module_bill_note": "Die Linien zeigen die kumulierte Stromrechnung bei konstanter Jahresrechnung, wobei der Modulpreis als Startwert addiert wird. Liegt eine Modullinie unter der Linie für 0 Module, haben sich die Module amortisiert und bringen Gewinn. Schätzung aus der Historie; Installation, Finanzierung, Steuern und zukünftige Änderungen sind nicht enthalten.",
+    "module_bill_none": "Ohne Batterie",
+    "module_bill_missing": "Das Stromrechnungsdiagramm erfordert einen neuen Simulationslauf mit mehreren Modulen und Jahresschätzung.",
+    "module_monthly_range_title": "Monatlicher Gewinn pro Batteriegröße",
+    "module_monthly_modules_title": "Monatlicher Zusatzgewinn pro Modulanzahl (gegenüber 0 zusätzlichen Modulen)",
     "module_graph_modules": "Module",
     "module_graph_no_payback": "Keine Amortisation bei nicht positivem Gewinn",
     "module_estimate_details": "Die einfache Amortisation in der Tabelle ist der Preis eines zusätzlichen Moduls geteilt durch seinen jährlichen Mehrgewinn. Die Grafik vergleicht das gesamte Modulset mit der aktuellen Kapazität. Ergebnisse sind historische Schätzungen, keine Garantien.",
@@ -427,6 +445,15 @@ const whatIfModuleLabels = {
     "module_estimate_unavailable": "Annual gain and payback require a full 365-day window, sufficient history, and known historical sell prices and costs. Missing hours can be estimated from the same or nearest month. A shorter period is not extrapolated to a year.",
     "module_graph_title": "Payback over time",
     "module_graph_note": "Lines show estimated cumulative gain minus total module cost at a constant annual gain. A line crossing zero has recovered its module cost. The chart shows at most 30 years; the legend also shows longer calculated times. Installation, finance, taxes and future changes are excluded.",
+    "module_monthly_title": "Monthly breakdown: Current, scenario and difference",
+    "module_monthly_note": "Gain per calendar month in the selected period, so you can see when in the year it pays most. This is not a forecast; months with few hours are incomplete. Bold marks the best month.",
+    "module_monthly_month": "Month",
+    "module_bill_title": "Electricity bill over time: without battery and per number of modules",
+    "module_bill_note": "Lines show the cumulative electricity bill at a constant annual bill, with the module price added as the starting value. When a module line is below the 0-module line, the modules have paid back and give a gain. Estimate from history; installation, finance, taxes and future changes are excluded.",
+    "module_bill_none": "Without battery",
+    "module_bill_missing": "The electricity bill graph requires a new simulation run with several modules and an annual estimate.",
+    "module_monthly_range_title": "Monthly gain per battery size",
+    "module_monthly_modules_title": "Monthly extra gain per number of modules (versus 0 extra modules)",
     "module_graph_modules": "modules",
     "module_graph_no_payback": "No payback for non-positive gain",
     "module_estimate_details": "Simple payback in the table is the price of one added module divided by its annual incremental gain. The chart compares the whole module package with current capacity. Results are historical estimates, not guarantees.",
@@ -466,6 +493,15 @@ const whatIfModuleLabels = {
     "module_estimate_unavailable": "Roczny zysk i okres zwrotu wymagają pełnego okresu 365 dni, wystarczającej historii oraz znanych historycznych cen i kosztów sprzedaży. Brakujące godziny można oszacować na podstawie tego samego lub najbliższego miesiąca. Krótszy okres nie jest przeliczany na rok.",
     "module_graph_title": "Zwrot w czasie",
     "module_graph_note": "Linie pokazują szacowany łączny zysk minus łączny koszt modułów przy stałym rocznym zysku. Przecięcie zera oznacza odzyskanie kosztu modułów. Wykres obejmuje maksymalnie 30 lat; legenda pokazuje też dłuższe obliczone czasy. Montaż, finansowanie, podatki i przyszłe zmiany nie są uwzględnione.",
+    "module_monthly_title": "Podział miesięczny: obecnie, scenariusz i różnica",
+    "module_monthly_note": "Zysk w każdym miesiącu kalendarzowym wybranego okresu, aby zobaczyć, kiedy w roku jest największy. To nie jest prognoza; miesiące z małą liczbą godzin są niepełne. Pogrubienie oznacza najlepszy miesiąc.",
+    "module_monthly_month": "Miesiąc",
+    "module_bill_title": "Rachunek za prąd w czasie: bez baterii i dla liczby modułów",
+    "module_bill_note": "Linie pokazują skumulowany rachunek za prąd przy stałym rocznym rachunku, z ceną modułów dodaną jako wartość początkowa. Gdy linia modułów leży poniżej linii dla 0 modułów, moduły się zwróciły i dają zysk. Szacunek na podstawie historii; montaż, finansowanie, podatki i przyszłe zmiany nie są uwzględnione.",
+    "module_bill_none": "Bez baterii",
+    "module_bill_missing": "Wykres rachunku za prąd wymaga ponownego uruchomienia symulacji z kilkoma modułami i szacunkiem rocznym.",
+    "module_monthly_range_title": "Miesięczny zysk dla każdej pojemności baterii",
+    "module_monthly_modules_title": "Miesięczny dodatkowy zysk dla liczby modułów (względem 0 dodatkowych modułów)",
     "module_graph_modules": "modułów",
     "module_graph_no_payback": "Brak zwrotu przy niedodatnim zysku",
     "module_estimate_details": "Prosty okres zwrotu w tabeli to cena jednego dodatkowego modułu podzielona przez jego roczny dodatkowy zysk. Wykres porównuje cały pakiet modułów z obecną pojemnością. Wyniki są historycznymi szacunkami, a nie gwarancją.",
@@ -505,6 +541,15 @@ const whatIfModuleLabels = {
     "module_estimate_unavailable": "Річний прибуток та окупність потребують повного періоду 365 днів, достатньої історії та відомих історичних цін і витрат на продаж. Пропущені години можна оцінити за тим самим або найближчим місяцем. Коротший період не перераховується на рік.",
     "module_graph_title": "Окупність у часі",
     "module_graph_note": "Лінії показують оцінений сукупний прибуток мінус загальна вартість модулів за незмінного річного прибутку. Перетин нуля означає повернення вартості модулів. Графік охоплює не більше 30 років; легенда також показує більший розрахований строк. Монтаж, фінансування, податки та майбутні зміни не враховано.",
+    "module_monthly_title": "Розподіл за місяцями: поточний, сценарій і різниця",
+    "module_monthly_note": "Прибуток за кожен календарний місяць вибраного періоду, щоб побачити, коли протягом року він найбільший. Це не прогноз; місяці з малою кількістю годин неповні. Жирним позначено найкращий місяць.",
+    "module_monthly_month": "Місяць",
+    "module_bill_title": "Рахунок за електроенергію в часі: без батареї та за кількістю модулів",
+    "module_bill_note": "Лінії показують накопичений рахунок за електроенергію за незмінного річного рахунку, де вартість модулів додано як початкове значення. Коли лінія модулів нижче лінії для 0 модулів, модулі окупилися й дають прибуток. Оцінка за історією; монтаж, фінансування, податки та майбутні зміни не враховано.",
+    "module_bill_none": "Без батареї",
+    "module_bill_missing": "Графік рахунку за електроенергію потребує нового запуску симуляції з кількома модулями та річною оцінкою.",
+    "module_monthly_range_title": "Місячний прибуток для кожної ємності батареї",
+    "module_monthly_modules_title": "Місячний додатковий прибуток за кількістю модулів (порівняно з 0 додатковими модулями)",
     "module_graph_modules": "модулів",
     "module_graph_no_payback": "Немає окупності за недодатного прибутку",
     "module_estimate_details": "Простий строк окупності в таблиці — це ціна одного доданого модуля, поділена на його річний додатковий прибуток. Графік порівнює весь пакет модулів з поточною ємністю. Результати є історичними оцінками, а не гарантіями.",
@@ -1042,9 +1087,8 @@ class BattMindWhatIfCard extends HTMLElement {
         .module-scroll th, .module-scroll td { padding: 8px; }
         .module-scroll th { white-space: normal; min-width: 0; line-height: 1.2; overflow-wrap: anywhere; }
         .module-scroll td { white-space: normal; overflow-wrap: anywhere; }
-        .module-chart { margin: 12px 0; border: 1px solid var(--divider-color); border-radius: 12px;
-          padding: 8px; background: var(--secondary-background-color, var(--card-background-color)); }
-        .module-chart svg { display: block; width: 100%; height: auto; }
+        .module-chart { margin: 12px 0; padding: 12px 4px 4px; background: var(--secondary-background-color, var(--card-background-color)); }
+        .module-chart svg { display: block; width: 100%; height: 220px; }
         .module-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 4px; font-size: .85rem; }
         .module-legend-item { display: flex; align-items: center; gap: 5px; }
         .module-legend-color { width: 18px; height: 3px; flex: none; }
@@ -1366,6 +1410,19 @@ class BattMindWhatIfCard extends HTMLElement {
       for (const value of [current, scenario, difference]) this._element("td", `${this._money(value)} ${currency}`, row);
     }
     this._element("p", labels.bill_explain, this._results).className = "result-note";
+    const periodMonths = Object.keys(simulation.scenario.months || {}).sort();
+    const monthly = periodMonths.length > 3 && simulation.current.months;
+    if (monthly) {
+      const profits = data => Object.fromEntries(Object.entries(data).map(([key, value]) => [key, value.profit]));
+      const currentMonths = profits(simulation.current.months);
+      const scenarioMonths = profits(simulation.scenario.months);
+      this._monthlyBars(labels.module_monthly_title, labels.module_monthly_note, periodMonths, [
+        { label: labels.current, values: currentMonths },
+        { label: labels.scenario, values: scenarioMonths },
+        { label: labels.difference, values: Object.fromEntries(periodMonths.map(key =>
+          [key, (scenarioMonths[key] ?? 0) - (currentMonths[key] ?? 0)])) },
+      ], labels);
+    }
     if (!simulation.range) {
       const points = [
           { label: `${labels.current} (${this._capacity(simulation.current_assumptions.battery_size)} kWh)`, value: simulation.current.profit },
@@ -1454,6 +1511,11 @@ class BattMindWhatIfCard extends HTMLElement {
         this._chart(intervals, labels.interval_chart || whatIfIntervalTitles[language] || whatIfIntervalTitles.en, `${currency}/kWh`, value => this._money(value),
           explanations, true, true, true);
       }
+    }
+    if (monthly && simulation.range?.every(item => item.months)) {
+      const picked = this._spread(simulation.range, 6);
+      this._monthlyBars(labels.module_monthly_range_title, labels.module_monthly_note, periodMonths,
+        picked.map(item => ({ label: `${this._capacity(item.battery_size)} kWh`, values: item.months })), labels);
     }
     if (simulation.module_comparison) {
       const comparison = simulation.module_comparison;
@@ -1545,6 +1607,16 @@ class BattMindWhatIfCard extends HTMLElement {
             && Number.isFinite(row.cumulative_cost))
           .map(row => ({ modules: row.module_count, gain: row.cumulative_vs_baseline.annual_gain, cost: row.cumulative_cost }));
         this._modulePaybackChart(series, labels);
+        this._moduleBillChart(annual.rows, labels);
+      }
+      const baseline = comparison.rows.find(row => row.added_modules === 0);
+      const added = comparison.rows.filter(row => row.added_modules > 0 && row.months);
+      if (monthly && baseline?.months && added.length) {
+        this._monthlyBars(labels.module_monthly_modules_title, labels.module_monthly_note, periodMonths,
+          this._spread(added, 6).map(row => ({
+            label: `${this._number(row.added_modules)} ${labels.module_graph_modules}`,
+            values: Object.fromEntries(periodMonths.map(key => [key, (row.months[key] ?? 0) - (baseline.months[key] ?? 0)])),
+          })), labels);
       }
     }
     this._showRuleSettings(simulation);
@@ -1653,30 +1725,132 @@ class BattMindWhatIfCard extends HTMLElement {
     }
   }
 
+  _spread(items, limit) {
+    if (items.length <= limit) return items;
+    return Array.from({ length: limit }, (_, index) => items[Math.round(index * (items.length - 1) / (limit - 1))]);
+  }
+
+  _monthlyBars(title, note, months, series, labels) {
+    if (!months.length || !series.length) return;
+    const language = this._hass.language;
+    const monthName = key => {
+      const [year, month] = key.split("-").map(Number);
+      return new Intl.DateTimeFormat(language, { month: "short", year: "2-digit", timeZone: "UTC" })
+        .format(new Date(Date.UTC(year, month - 1, 1)));
+    };
+    const currency = this._hass.config.currency;
+    const colors = ["var(--primary-color)", "#e65100", "#388e3c", "#ad1457", "#6a1b9a", "#00838f"];
+    this._element("h3", `${title} (${currency})`, this._results);
+    this._element("p", note, this._results).className = "result-note";
+    const scroll = this._element("div", undefined, this._results);
+    scroll.className = "scroll";
+    const table = this._element("table", undefined, scroll);
+    const header = this._element("tr", undefined, table);
+    this._element("th", labels.module_monthly_month, header).setAttribute("scope", "col");
+    for (const item of series) this._element("th", item.label, header).setAttribute("scope", "col");
+    const best = series.map(item => Math.max(...months.map(key => item.values[key] ?? -Infinity)));
+    for (const key of months) {
+      const row = this._element("tr", undefined, table);
+      this._element("th", monthName(key), row).setAttribute("scope", "row");
+      series.forEach((item, index) => {
+        const value = item.values[key];
+        const cell = this._element("td", Number.isFinite(value) ? `${this._money(value)} ${currency}` : "—", row);
+        if (Number.isFinite(value) && value === best[index] && months.length > 1) cell.style.fontWeight = "700";
+      });
+    }
+    const all = months.flatMap(key => series.map(item => item.values[key] ?? 0));
+    const minimum = Math.min(0, ...all);
+    const maximum = Math.max(0, ...all);
+    const spread = maximum - minimum || 1;
+    const y = value => 145 - (value - minimum) * 105 / spread;
+    const left = 60;
+    const slot = 480 / months.length;
+    const barWidth = Math.max(1.5, Math.min(22, slot * 0.8 / series.length));
+    const wrapper = this._element("div", undefined, this._results);
+    wrapper.className = "module-chart";
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 600 200");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", `${title} (${currency})`);
+    wrapper.appendChild(svg);
+    const text = (content, px, py, anchor = "middle") => {
+      const node = document.createElementNS(ns, "text");
+      node.setAttribute("x", px);
+      node.setAttribute("y", py);
+      node.setAttribute("text-anchor", anchor);
+      node.textContent = content;
+      svg.appendChild(node);
+    };
+    const axis = document.createElementNS(ns, "line");
+    axis.setAttribute("x1", left); axis.setAttribute("x2", 540);
+    axis.setAttribute("y1", y(0)); axis.setAttribute("y2", y(0));
+    svg.appendChild(axis);
+    text(this._money(maximum), 55, 40, "end");
+    text(this._money(minimum), 55, 145, "end");
+    months.forEach((key, monthIndex) => {
+      const start = left + monthIndex * slot + (slot - barWidth * series.length) / 2;
+      series.forEach((item, index) => {
+        const value = item.values[key] ?? 0;
+        const bar = document.createElementNS(ns, "rect");
+        bar.setAttribute("x", start + index * barWidth);
+        bar.setAttribute("width", barWidth);
+        bar.setAttribute("y", Math.min(y(value), y(0)));
+        bar.setAttribute("height", Math.abs(y(value) - y(0)));
+        bar.setAttribute("rx", "2");
+        bar.style.fill = colors[index % colors.length];
+        svg.appendChild(bar);
+      });
+      if (months.length <= 12 || monthIndex % 2 === 0) {
+        text(monthName(key), left + monthIndex * slot + slot / 2, 172);
+      }
+    });
+    const legend = this._element("div", undefined, wrapper);
+    legend.className = "module-legend";
+    series.forEach((item, index) => {
+      const entry = this._element("div", undefined, legend);
+      entry.className = "module-legend-item";
+      const swatch = this._element("span", undefined, entry);
+      swatch.className = "module-legend-color";
+      swatch.style.backgroundColor = colors[index % colors.length];
+      this._element("span", item.label, entry);
+    });
+    this._hoverTip(svg, 600, 200, 25, 145, pointer => {
+      const index = Math.floor((pointer - left) / slot);
+      if (index < 0 || index >= months.length) return null;
+      const key = months[index];
+      return {
+        x: left + index * slot + slot / 2,
+        lines: [monthName(key), ...series.map(item => Number.isFinite(item.values[key])
+          ? `${item.label}: ${this._money(item.values[key])} ${currency}` : `${item.label}: —`)],
+      };
+    });
+  }
+
   _modulePaybackChart(series, labels) {
     if (!series.length) return;
     const currency = this._hass.config.currency;
     const crossings = series.map(item => item.gain > 0 ? item.cost / item.gain : null)
       .filter(value => value !== null && Number.isFinite(value));
-    const horizon = Math.min(30, Math.max(5, Math.ceil(Math.max(0, ...crossings) / 5) * 5));
+    const horizon = Math.min(30, Math.max(5, Math.ceil(Math.max(0, ...crossings) * 1.6 / 5) * 5));
     const endpoints = series.flatMap(item => [-item.cost, item.gain * horizon - item.cost]);
     if (endpoints.some(value => !Number.isFinite(value))) return;
     const minimum = Math.min(0, ...endpoints);
     const maximum = Math.max(0, ...endpoints);
     const spread = maximum - minimum || 1;
-    const y = value => 155 - (value - minimum) * 120 / spread;
-    const x = value => 74 + value / horizon * 306;
-    const colors = ["#388e3c", "#e65100", "#1565c0", "#ad1457", "#6a1b9a", "#00838f",
+    const y = value => 145 - (value - minimum) * 105 / spread;
+    const x = value => 60 + value / horizon * 480;
+    const colors = ["var(--primary-color)", "#e65100", "#388e3c", "#ad1457", "#6a1b9a", "#00838f",
       "#5d4037", "#c62828", "#558b2f", "#4527a0", "#00796b", "#9e5d00"];
-    this._element("h3", labels.module_graph_title, this._results);
+    this._element("h3", `${labels.module_graph_title} (${currency})`, this._results);
     this._element("p", labels.module_graph_note, this._results).className = "result-note";
     const wrapper = this._element("div", undefined, this._results);
     wrapper.className = "module-chart";
     const ns = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("viewBox", "0 0 400 205");
+    svg.setAttribute("viewBox", "0 0 600 200");
     svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", labels.module_graph_title);
+    svg.setAttribute("aria-label", `${labels.module_graph_title} (${currency})`);
     wrapper.appendChild(svg);
     const axisText = (text, px, py, anchor = "middle") => {
       const node = document.createElementNS(ns, "text");
@@ -1690,16 +1864,16 @@ class BattMindWhatIfCard extends HTMLElement {
     zero.setAttribute("x1", x(0)); zero.setAttribute("x2", x(horizon));
     zero.setAttribute("y1", y(0)); zero.setAttribute("y2", y(0));
     svg.appendChild(zero);
-    axisText(this._money(maximum), 68, 37, "end");
-    axisText(this._money(minimum), 68, 155, "end");
-    axisText("0", 68, y(0) - 3, "end");
+    axisText(this._money(maximum), 55, 40, "end");
+    axisText(this._money(minimum), 55, 145, "end");
+    axisText("0", 55, y(0) - 3, "end");
     for (const tick of [0, horizon / 2, horizon]) {
-      axisText(this._number(tick), x(tick), 174);
+      axisText(this._number(tick), x(tick), 172);
     }
-    axisText(labels.module_years, 227, 195);
-    axisText(currency, 7, 18, "start");
+    axisText(labels.module_years, 300, 192);
     const legend = this._element("div", undefined, wrapper);
     legend.className = "module-legend";
+    const markers = [];
     for (const [index, item] of series.entries()) {
       const color = colors[index % colors.length];
       const line = document.createElementNS(ns, "line");
@@ -1707,18 +1881,243 @@ class BattMindWhatIfCard extends HTMLElement {
       line.setAttribute("x2", x(horizon)); line.setAttribute("y2", y(item.gain * horizon - item.cost));
       line.style.stroke = color;
       line.style.strokeWidth = "2.5";
+      line.style.strokeLinecap = "round";
       line.style.opacity = "1";
       svg.appendChild(line);
+      const dot = document.createElementNS(ns, "circle");
+      dot.setAttribute("cx", x(horizon));
+      dot.setAttribute("cy", y(item.gain * horizon - item.cost));
+      dot.setAttribute("r", "4");
+      dot.style.fill = color;
+      svg.appendChild(dot);
       const entry = this._element("div", undefined, legend);
       entry.className = "module-legend-item";
       const swatch = this._element("span", undefined, entry);
       swatch.className = "module-legend-color";
       swatch.style.backgroundColor = color;
       const years = item.gain > 0 ? item.cost / item.gain : null;
+      if (years !== null && Number.isFinite(years) && years <= horizon) {
+        markers.push({ x: x(years), y: y(0), years, color });
+      }
       this._element("span", `${this._number(item.modules)} ${labels.module_graph_modules}: `
         + (years === null || !Number.isFinite(years) ? labels.module_graph_no_payback
-          : `${this._number(years)} ${labels.module_years}`), entry);
+          : this._duration(years)), entry);
     }
+    this._paybackMarkers(svg, ns, markers);
+    this._hoverTip(svg, 600, 200, 25, 145, pointer => {
+      const time = Math.max(0, Math.min(horizon, (pointer - 60) / 480 * horizon));
+      return {
+        x: x(time),
+        lines: [this._duration(time),
+          ...series.map(item => `${this._number(item.modules)} ${labels.module_graph_modules}: ${this._money(item.gain * time - item.cost)} ${currency}`)],
+        colors: ["", ...series.map((_, index) => colors[index % colors.length])],
+        dots: series.map((item, index) => ({ x: x(time), y: y(item.gain * time - item.cost), color: colors[index % colors.length] })),
+      };
+    });
+  }
+
+  _hoverTip(svg, width, height, top, bottom, resolve) {
+    const ns = "http://www.w3.org/2000/svg";
+    const hover = document.createElementNS(ns, "g");
+    hover.style.display = "none";
+    hover.setAttribute("pointer-events", "none");
+    const line = document.createElementNS(ns, "line");
+    line.setAttribute("y1", top);
+    line.setAttribute("y2", bottom);
+    hover.appendChild(line);
+    const box = document.createElementNS(ns, "rect");
+    box.setAttribute("rx", "5");
+    box.setAttribute("fill", "var(--card-background-color)");
+    box.setAttribute("stroke", "var(--divider-color)");
+    hover.appendChild(box);
+    const texts = [];
+    const dots = [];
+    const update = event => {
+      const bounds = svg.getBoundingClientRect();
+      if (!bounds.width || !bounds.height) return;
+      const scale = Math.min(bounds.width / width, bounds.height / height);
+      const x = (event.clientX - bounds.left - (bounds.width - width * scale) / 2) / scale;
+      const info = resolve(x);
+      if (!info) { hover.style.display = "none"; return; }
+      while (texts.length < info.lines.length) {
+        const node = document.createElementNS(ns, "text");
+        hover.appendChild(node);
+        texts.push(node);
+      }
+      const points = info.dots || [];
+      while (dots.length < points.length) {
+        const node = document.createElementNS(ns, "circle");
+        node.setAttribute("r", "5");
+        node.setAttribute("stroke", "var(--card-background-color)");
+        node.setAttribute("stroke-width", "2");
+        hover.appendChild(node);
+        dots.push(node);
+      }
+      dots.forEach((node, index) => {
+        const point = points[index];
+        node.style.display = point ? "" : "none";
+        if (point) {
+          node.setAttribute("cx", point.x);
+          node.setAttribute("cy", point.y);
+          node.style.fill = point.color;
+        }
+      });
+      const boxWidth = Math.min(width - 4, Math.max(...info.lines.map(text => text.length)) * 6 + 14);
+      const boxHeight = info.lines.length * 13 + 8;
+      const preferred = info.x > width / 2 ? info.x - boxWidth - 10 : info.x + 10;
+      const boxX = Math.max(2, Math.min(width - boxWidth - 2, preferred));
+      const boxY = Math.max(2, Math.min(height - boxHeight - 2, top));
+      line.setAttribute("x1", info.x);
+      line.setAttribute("x2", info.x);
+      box.setAttribute("x", boxX);
+      box.setAttribute("y", boxY);
+      box.setAttribute("width", boxWidth);
+      box.setAttribute("height", boxHeight);
+      box.setAttribute("fill-opacity", "0.9");
+      texts.forEach((node, index) => {
+        node.textContent = info.lines[index] ?? "";
+        node.setAttribute("x", boxX + 6);
+        node.setAttribute("y", boxY + 14 + index * 13);
+        node.style.fill = info.colors?.[index] || "";
+      });
+      hover.style.display = "";
+    };
+    svg.addEventListener("pointermove", update);
+    svg.addEventListener("pointerdown", update);
+    svg.addEventListener("pointerleave", event => {
+      if (event.pointerType !== "touch") hover.style.display = "none";
+    });
+    svg.appendChild(hover);
+  }
+
+  _duration(years) {
+    const whole = Math.floor(years);
+    const months = Math.min(11, Math.round((years - whole) * 12));
+    const carry = months === 12 ? 1 : 0;
+    const unit = (value, name) => new Intl.NumberFormat(this._hass.language,
+      { style: "unit", unit: name, unitDisplay: "short" }).format(value);
+    const parts = [];
+    if (whole + carry > 0) parts.push(unit(whole + carry, "year"));
+    if (months % 12 > 0 || !parts.length) parts.push(unit(months % 12, "month"));
+    return parts.join(" ");
+  }
+
+  _paybackMarkers(svg, ns, items) {
+    items.forEach((item, index) => {
+      const dot = document.createElementNS(ns, "circle");
+      dot.setAttribute("cx", item.x);
+      dot.setAttribute("cy", item.y);
+      dot.setAttribute("r", "5");
+      dot.setAttribute("stroke", "var(--card-background-color)");
+      dot.setAttribute("stroke-width", "2");
+      dot.style.fill = item.color;
+      svg.appendChild(dot);
+      const label = document.createElementNS(ns, "text");
+      const text = this._duration(item.years);
+      const above = item.y - 10 - text.length * 7 >= 5;
+      const px = item.x + 4;
+      const py = above ? item.y - 10 : item.y + 10;
+      label.setAttribute("x", px);
+      label.setAttribute("y", py);
+      label.setAttribute("transform", `rotate(-90 ${px} ${py})`);
+      label.setAttribute("text-anchor", above ? "start" : "end");
+      label.style.fill = item.color;
+      label.style.fontWeight = "700";
+      label.textContent = text;
+      svg.appendChild(label);
+    });
+  }
+
+  _moduleBillChart(rows, labels) {
+    const usable = rows.filter(row => Number.isFinite(row.annual_bill?.with) && Number.isFinite(row.cumulative_cost));
+    const without = rows.find(row => Number.isFinite(row.annual_bill?.without))?.annual_bill.without;
+    const baseline = usable.find(row => row.module_count === 0);
+    if (!baseline || !Number.isFinite(without) || usable.length < 2) {
+      this._element("p", labels.module_bill_missing, this._results).className = "result-note";
+      return;
+    }
+    const currency = this._hass.config.currency;
+    const crossings = usable.filter(row => row.module_count > 0 && baseline.annual_bill.with > row.annual_bill.with)
+      .map(row => row.cumulative_cost / (baseline.annual_bill.with - row.annual_bill.with));
+    const horizon = Math.min(30, Math.max(5, Math.ceil(Math.max(0, ...crossings) * 1.6 / 5) * 5));
+    const lines = [
+      { label: labels.module_bill_none, start: 0, rate: without, color: "var(--secondary-text-color)", dashed: true },
+      ...usable.map((row, index) => ({
+        label: `${this._number(row.module_count)} ${labels.module_graph_modules}`,
+        start: row.cumulative_cost, rate: row.annual_bill.with,
+        color: ["var(--primary-color)", "#e65100", "#388e3c", "#ad1457", "#6a1b9a", "#00838f", "#5d4037",
+          "#c62828", "#558b2f", "#4527a0", "#00796b", "#9e5d00"][index % 12],
+      })),
+    ];
+    const ends = lines.flatMap(line => [line.start, line.start + line.rate * horizon]);
+    if (ends.some(value => !Number.isFinite(value))) return;
+    const minimum = Math.min(0, ...ends);
+    const maximum = Math.max(0, ...ends);
+    const spread = maximum - minimum || 1;
+    const y = value => 145 - (value - minimum) * 105 / spread;
+    const x = value => 60 + value / horizon * 480;
+    this._element("h3", `${labels.module_bill_title} (${currency})`, this._results);
+    this._element("p", labels.module_bill_note, this._results).className = "result-note";
+    const wrapper = this._element("div", undefined, this._results);
+    wrapper.className = "module-chart";
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 600 200");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", `${labels.module_bill_title} (${currency})`);
+    wrapper.appendChild(svg);
+    const axisText = (text, px, py, anchor = "middle") => {
+      const node = document.createElementNS(ns, "text");
+      node.setAttribute("x", px);
+      node.setAttribute("y", py);
+      node.setAttribute("text-anchor", anchor);
+      node.textContent = text;
+      svg.appendChild(node);
+    };
+    const zero = document.createElementNS(ns, "line");
+    zero.setAttribute("x1", x(0)); zero.setAttribute("x2", x(horizon));
+    zero.setAttribute("y1", y(0)); zero.setAttribute("y2", y(0));
+    svg.appendChild(zero);
+    axisText(this._money(maximum), 55, 40, "end");
+    axisText(this._money(minimum), 55, 145, "end");
+    for (const tick of [0, horizon / 2, horizon]) axisText(this._number(tick), x(tick), 172);
+    axisText(labels.module_years, 300, 192);
+    const legend = this._element("div", undefined, wrapper);
+    legend.className = "module-legend";
+    const markers = [];
+    for (const line of lines) {
+      const node = document.createElementNS(ns, "line");
+      node.setAttribute("x1", x(0)); node.setAttribute("y1", y(line.start));
+      node.setAttribute("x2", x(horizon)); node.setAttribute("y2", y(line.start + line.rate * horizon));
+      node.style.stroke = line.color;
+      node.style.strokeWidth = "2.5";
+      node.style.strokeLinecap = "round";
+      node.style.opacity = "1";
+      if (line.dashed) node.style.strokeDasharray = "6 4";
+      svg.appendChild(node);
+      const entry = this._element("div", undefined, legend);
+      entry.className = "module-legend-item";
+      const swatch = this._element("span", undefined, entry);
+      swatch.className = "module-legend-color";
+      swatch.style.backgroundColor = line.color;
+      this._element("span", line.label, entry);
+      const gap = baseline.annual_bill.with - line.rate;
+      if (!line.dashed && line.start > 0 && gap > 0) {
+        const years = line.start / gap;
+        if (years <= horizon) markers.push({ x: x(years), y: y(baseline.annual_bill.with * years), years, color: line.color });
+      }
+    }
+    this._paybackMarkers(svg, ns, markers);
+    this._hoverTip(svg, 600, 200, 25, 145, pointer => {
+      const time = Math.max(0, Math.min(horizon, (pointer - 60) / 480 * horizon));
+      return {
+        x: x(time),
+        lines: [this._duration(time),
+          ...lines.map(line => `${line.label}: ${this._money(line.start + line.rate * time)} ${currency}`)],
+        colors: ["", ...lines.map(line => line.color)],
+        dots: lines.map(line => ({ x: x(time), y: y(line.start + line.rate * time), color: line.color })),
+      };
+    });
   }
 
   _chart(points, title, currency, format = value => this._money(value), explanations = [], connect = true, interpolate = false, colorByValue = false, segmentRates = null) {

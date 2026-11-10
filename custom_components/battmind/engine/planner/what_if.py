@@ -335,6 +335,26 @@ def _module_annual_estimate(
             "total": round(total_profit, 2),
         })
 
+    annual_without: float | None = None
+    if method in ("strict", "estimated") and cases:
+        without_months = {
+            key: (float(month["bill"] + month["profit"]), int(month["hours"]))
+            for key, month in cases[0][2].items()
+        }
+        annual_without = sum(value for value, _ in without_months.values())
+        if method == "estimated":
+            by_month: dict[int, list[float]] = {}
+            for key, (value, hours_in_month) in without_months.items():
+                entry = by_month.setdefault(int(key[5:]), [0.0, 0])
+                entry[0] += value
+                entry[1] += hours_in_month
+            for key, reference in references.items():
+                missing = requested[key] - monthly_hours.get(key, 0)
+                if missing > 0:
+                    annual_without += missing * sum(
+                        by_month[month][0] / by_month[month][1] for month in reference
+                    ) / len(reference)
+
     rows = []
     for index, (module_count, _, _, _) in enumerate(cases):
         profit = annual_totals[index]
@@ -359,6 +379,10 @@ def _module_annual_estimate(
         rows.append({
             "module_count": module_count,
             "annual_profit": annual_profits[index],
+            "annual_bill": {
+                "without": None if annual_without is None else round(annual_without, 2),
+                "with": None if annual_without is None or profit is None else round(annual_without - profit, 2),
+            },
             "cumulative_cost": cumulative_cost,
             "cumulative_vs_baseline": {
                 "annual_gain": cumulative_gain,
@@ -744,6 +768,7 @@ class WhatIf:
                 "difference_bill": round(
                     calculated[index]["with"]["bill"] - current["with"]["bill"], 2
                 ),
+                "months": {key: month["profit"] for key, month in calculated[index]["months"].items()},
             }
             for capacity, index in range_cases
         ]
@@ -817,6 +842,7 @@ class WhatIf:
                     "module_price": round(module_price if added_modules else 0.0, 2),
                     "cumulative_module_cost": round(module_price * added_modules, 2),
                     "payback_years": payback_years,
+                    "months": {key: month["profit"] for key, month in calculated[index]["months"].items()},
                 })
                 previous_profit = profit
             module_result = {
