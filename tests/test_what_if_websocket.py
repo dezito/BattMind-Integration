@@ -19,7 +19,7 @@ from custom_components.battmind import (
     _websocket_what_if_start,
     _websocket_what_if_status,
 )
-from custom_components.battmind.const import DOMAIN
+from custom_components.battmind.const import DOMAIN, WHAT_IF_SWITCHES
 from custom_components.battmind.engine import JobResult
 from custom_components.battmind.engine.planner.replay import WhatIfCancelled, replay_history
 from custom_components.battmind.management.what_if_storage import DashboardJob
@@ -45,6 +45,37 @@ async def test_dashboard_completes_without_notifications(hass, hass_ws_client, l
     notification.assert_not_called()
     last = await _send(client, loaded_entry, "last")
     assert last["result"]["simulation"] == {"ok": True}
+
+
+async def test_dashboard_settings_default_to_current_state(hass, hass_ws_client, loaded_entry):
+    coordinator = loaded_entry.runtime_data
+    coordinator.settings.update({"most_profit": False, "usage_reserve": 15.0, "exclude_sell_hours": "1,2"})
+    client = await hass_ws_client(hass)
+
+    reply = await _send(client, loaded_entry, "settings")
+
+    assert reply["success"]
+    result = reply["result"]
+    assert set(result["switches"]) == set(WHAT_IF_SWITCHES)
+    assert result["switches"]["most_profit"] is False
+    assert result["numbers"]["usage_reserve"] == {"value": 15.0, "min": 0.0, "max": 100.0, "step": 1.0}
+    assert result["numbers"]["min_sell_kwh"]["value"] == 0.2
+    assert result["exclude_sell_hours"] == "1,2"
+    assert isinstance(result["unsupported"], list)
+
+
+async def test_dashboard_rule_overrides_reach_the_simulation(hass, hass_ws_client, loaded_entry):
+    coordinator = loaded_entry.runtime_data
+    coordinator.async_what_if = AsyncMock(return_value=JobResult(value={"ok": True}))
+    client = await hass_ws_client(hass)
+    data = {"history_days": 30, "most_profit": True, "usage_reserve": 25, "exclude_sell_hours": "1,3"}
+
+    reply = await _send(client, loaded_entry, "start", job_id=str(uuid4()), data=data)
+
+    assert reply["success"]
+    assert coordinator.async_what_if.call_args.args[0] == {
+        "most_profit": True, "usage_reserve": 25.0, "exclude_sell_hours": "1,3",
+    }
 
 
 async def test_dashboard_module_options_are_simulated_and_persisted(hass, hass_ws_client, loaded_entry):

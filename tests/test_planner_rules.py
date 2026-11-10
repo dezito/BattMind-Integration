@@ -25,6 +25,7 @@ from custom_components.battmind.engine.planner.replay import _known_until, _next
 from custom_components.battmind.engine.planner import what_if as what_if_module
 from custom_components.battmind.engine.planner.what_if import (
     _annualized_module_gain,
+    _module_annual_estimate,
     _module_annualization,
     _module_dst_resets,
     _module_payback,
@@ -53,6 +54,195 @@ def test_module_annualization_requires_monthly_utc_coverage() -> None:
     assert annualization["available"] is True
     assert annualization["matched_hours"] == 8760
     assert annualization["represented_months"] == list(range(1, 13))
+
+
+def _annual_estimate_fixture(hours: int):
+    start = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
+    period = {"start": start, "end": start + 365 * 86400}
+    timestamps = [start + hour * 3600 for hour in range(hours)]
+    monthly_hours: dict[str, int] = {}
+    for timestamp in timestamps:
+        key = datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).strftime("%Y-%m")
+        monthly_hours[key] = monthly_hours.get(key, 0) + 1
+    return period, timestamps, monthly_hours
+
+
+def _annual_estimate_cases(monthly_hours: dict[str, int], rates: list[float]):
+    cases = []
+    for module_count, rate in enumerate(rates):
+        months = {
+            key: {"hours": count, "profit": count * rate, "bill": 0.0}
+            for key, count in monthly_hours.items()
+        }
+        cases.append((module_count, float(module_count), months, sum(item["profit"] for item in months.values())))
+    return cases
+
+
+def _annual_estimate(period, timestamps, monthly_hours, rates, module_price=100.0):
+    annualization = _module_annualization(
+        timestamps, period, datetime.timezone.utc
+    )
+    return _module_annual_estimate(
+        period,
+        datetime.timezone.utc,
+        timestamps,
+        _annual_estimate_cases(monthly_hours, rates),
+        annualization,
+        module_price,
+        missing_sell_price=False,
+        missing_sell_cost=False,
+    )
+
+
+def test_module_annual_estimate_accepts_half_coverage_and_reports_seasonal_references() -> None:
+    period, timestamps, monthly_hours = _annual_estimate_fixture(365 * 24 // 2)
+
+    annual = _annual_estimate(period, timestamps, monthly_hours, [1.0, 2.0])
+
+    assert annual["method"] == "estimated"
+    assert annual["status_reason"] is None
+    assert annual["coverage"]["matched_hours"] == 4380
+    assert annual["coverage"]["ratio"] == 0.5
+    assert annual["provenance"]["estimated_hours"] == 4380
+    assert annual["uncertainty"]["estimated_share"] == 0.5
+    assert annual["provenance"]["reference_months"]["2025-07"] == [6]
+    assert "2025-07" in annual["provenance"]["estimated_from_other_months"]
+    assert annual["rows"][1]["annual_profit"]["estimated"] - annual["rows"][0]["annual_profit"]["estimated"] == 4380
+    assert annual["rows"][1]["cumulative_vs_baseline"]["annual_gain"] == 8760
+
+
+def test_module_annual_estimate_rejects_less_than_half_coverage() -> None:
+    period, timestamps, monthly_hours = _annual_estimate_fixture(365 * 24 // 2 - 1)
+
+    annual = _annual_estimate(period, timestamps, monthly_hours, [1.0, 2.0])
+
+    assert annual["method"] == "unavailable"
+    assert annual["status_reason"] == "insufficient_coverage"
+    assert annual["provenance"]["estimated_hours"] == 0
+    assert annual["rows"][1]["cumulative_vs_baseline"]["annual_gain"] is None
+
+
+def test_module_annual_estimate_does_not_extrapolate_a_shorter_period() -> None:
+    period, timestamps, monthly_hours = _annual_estimate_fixture(30 * 24)
+    period["end"] = period["start"] + 30 * 86400
+
+    annual = _annual_estimate(period, timestamps, monthly_hours, [1.0, 2.0])
+
+    assert annual["method"] == "unavailable"
+    assert annual["status_reason"] == "partial_year"
+    assert annual["window"]["expected_hours"] == 0
+    assert annual["provenance"]["estimated_hours"] == 0
+
+
+def test_module_annual_estimate_differences_estimated_scenarios_before_payback() -> None:
+    period, timestamps, monthly_hours = _annual_estimate_fixture(365 * 24 // 2)
+
+    annual = _annual_estimate(period, timestamps, monthly_hours, [3.0, 2.0, 4.0])
+    rows = annual["rows"]
+
+    assert [row["module_count"] for row in rows] == [0, 1, 2]
+    assert rows[1]["cumulative_vs_baseline"]["annual_gain"] < 0
+    assert rows[1]["cumulative_vs_baseline"]["payback_years"] is None
+    assert rows[1]["marginal_vs_previous"]["annual_gain"] < 0
+    assert rows[1]["marginal_vs_previous"]["payback_years"] is None
+    assert rows[2]["cumulative_vs_baseline"]["annual_gain"] > 0
+    assert rows[2]["marginal_vs_previous"]["annual_gain"] > 0
+    assert rows[2]["cumulative_cost"] == 200.0
+    assert rows[2]["cumulative_vs_baseline"]["annual_gain"] == pytest.approx(
+        rows[1]["cumulative_vs_baseline"]["annual_gain"]
+        + rows[2]["marginal_vs_previous"]["annual_gain"]
+    )
+
+
+def test_module_annual_estimate_zero_increment_has_no_payback() -> None:
+    period, timestamps, monthly_hours = _annual_estimate_fixture(365 * 24 // 2)
+
+    annual = _annual_estimate(period, timestamps, monthly_hours, [1.0, 1.0])
+
+    assert annual["rows"][1]["marginal_vs_previous"]["annual_gain"] == 0
+    assert annual["rows"][1]["marginal_vs_previous"]["payback_years"] is None
+
+
+def test_module_annual_estimate_strict_full_year_uses_existing_annualization() -> None:
+    period, timestamps, monthly_hours = _annual_estimate_fixture(365 * 24)
+
+    annual = _annual_estimate(period, timestamps, monthly_hours, [1.0, 2.0])
+
+    assert annual["method"] == "strict"
+    assert annual["provenance"]["estimated_hours"] == 0
+    assert annual["uncertainty"]["estimated_share"] == 0
+    assert annual["rows"][1]["marginal_vs_previous"]["annual_gain"] == (
+        annual["rows"][1]["annual_profit"]["total"] - annual["rows"][0]["annual_profit"]["total"]
+    )
+    assert annual["rows"][1]["cumulative_vs_baseline"]["annual_gain"] == (
+        annual["rows"][1]["marginal_vs_previous"]["annual_gain"]
+    )
+    assert annual["rows"][1]["marginal_vs_previous"]["payback_years"] == _module_payback(
+        100.0, annual["rows"][1]["marginal_vs_previous"]["annual_gain"]
+    )
+
+
+def test_module_annual_estimate_fills_small_monthly_gaps_even_when_strict_coverage_passes() -> None:
+    period, timestamps, monthly_hours = _annual_estimate_fixture(365 * 24)
+    missing = {
+        timestamp for timestamp in timestamps
+        if datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).day == 1
+        and datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).hour == 0
+    }
+    timestamps = [timestamp for timestamp in timestamps if timestamp not in missing]
+    monthly_hours: dict[str, int] = {}
+    for timestamp in timestamps:
+        key = datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).strftime("%Y-%m")
+        monthly_hours[key] = monthly_hours.get(key, 0) + 1
+    annualization = _module_annualization(timestamps, period, datetime.timezone.utc)
+    assert annualization["available"] is True
+    cases = _annual_estimate_cases(monthly_hours, [1.0, 2.0])
+    annual = _module_annual_estimate(
+        period, datetime.timezone.utc, timestamps, cases, annualization, 100.0, False, False,
+    )
+    assert annual["method"] == "estimated"
+    assert annual["provenance"]["estimated_hours"] == 12
+    assert annual["rows"][1]["annual_profit"]["estimated"] == 24.0
+    assert annual["rows"][1]["marginal_vs_previous"]["annual_gain"] == 8760.0
+
+
+@pytest.mark.parametrize(
+    ("missing_sell_price", "missing_sell_cost", "reason"),
+    [(True, False, "missing_sell_price"), (False, True, "missing_sell_cost")],
+)
+def test_module_annual_estimate_never_fills_missing_sell_valuation(
+    missing_sell_price: bool, missing_sell_cost: bool, reason: str,
+) -> None:
+    period, timestamps, monthly_hours = _annual_estimate_fixture(365 * 24 // 2)
+    annualization = _module_annualization(
+        timestamps,
+        period,
+        datetime.timezone.utc,
+        missing_sell_price=missing_sell_price,
+        missing_sell_cost=missing_sell_cost,
+    )
+
+    annual = _module_annual_estimate(
+        period,
+        datetime.timezone.utc,
+        timestamps,
+        _annual_estimate_cases(monthly_hours, [1.0, 2.0]),
+        annualization,
+        100.0,
+        missing_sell_price=missing_sell_price,
+        missing_sell_cost=missing_sell_cost,
+    )
+
+    assert annual["method"] == "unavailable"
+    assert annual["status_reason"] == reason
+    assert annual["rows"][1]["annual_profit"]["total"] is None
+    assert annual["rows"][1]["cumulative_vs_baseline"]["annual_gain"] is None
+
+
+def test_module_annualization_strict_eligibility_details() -> None:
+    start = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc).timestamp()
+    full_year = [start + hour * 3600 for hour in range(365 * 24)]
+    period = {"start": start, "end": start + 365 * 86400}
     assert _annualized_module_gain(125.0, 8760, True) == 125.0
     assert _annualized_module_gain(125.0, 4380, True) == 250.0
     assert _annualized_module_gain(-25.0, 8760, True) == -25.0

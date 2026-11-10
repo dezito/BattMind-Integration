@@ -124,6 +124,36 @@ costs are not subtracted from simulated profit and exclude installation, inverte
 maintenance, taxes and future degradation. The replay uses recorded prices in its planning windows,
 so forecast error and future prices, usage and solar production can make actual results different.
 
+The separate `module_comparison.annual` result preserves those strict annualization fields and adds
+an annual estimate for graphing cumulative module gains against cumulative purchase cost and for
+the marginal-module payback table. It targets the complete 365-day requested window; a shorter
+window is never extrapolated as a full year. When strict annualization is unavailable only because
+hours are missing, the result uses monthly estimates (rather than scaling the matched gain) if at
+least half of the 8,760 expected hours are matched and the existing calendar-month reference rule
+can fill the rest. It estimates
+each module case's missing monthly profit from that case's replayed `months[*].profit`, then
+calculates cumulative gains against the baseline and marginal gains against the previous case.
+This keeps module interactions in the case results rather than estimating profit differences
+independently. Each case uses the effective charging, discharging and selling rules/settings from
+the Settings page (and any explicit what-if overrides) used by its replay; filling missing hours
+does not substitute default settings. The `annual.method` is `strict`, `estimated`, or
+`unavailable`; an unavailable method also has a `status_reason`.
+`annual.rows[*].module_count` is the number of added modules.
+`cumulative_vs_baseline.annual_gain` and `cumulative_cost` are the graph values; the marginal table
+uses `marginal_vs_previous.annual_gain` and its `payback_years`. Payback is simple purchase cost
+divided by positive annual gain; zero or negative gain has no payback.
+
+The annual estimate's `coverage` reports matched and missing hours and their ratio.
+`provenance.reference_months` maps estimated `YYYY-MM` periods to the calendar month numbers used;
+`estimated_from_other_months` lists periods that borrowed from other calendar months, and
+`estimated_hours` reports the number of imputed hours. `uncertainty.estimated_share` is the fraction
+of the 8,760-hour window estimated, not a statistical confidence interval. Missing sell-price or
+sell-cost valuation makes the annual result unavailable: no sell price or valuation is fabricated
+for missing hours. The existing strict `annualization`, `annualized_incremental_gain`, and
+`payback_years` fields remain unchanged and retain their original eligibility and calculation
+semantics. The annual estimate is a historical replay estimate, not a price, usage, degradation, or
+future performance forecast.
+
 The `module_comparison.annualization` response includes `months`, with `expected_hours` and
 `matched_hours` per `YYYY-MM`, and a `reason` when unavailable: `missing_requested_period`,
 `partial_year`, `unexpected_timestamps`, `missing_sell_price`, `missing_sell_cost`, or `insufficient_monthly_coverage`

@@ -331,8 +331,26 @@ configuration, or plots a range of capacities. Current is an estimate assuming t
 throughout the historical period, not the actual historical result. Focus on the difference between
 current and scenario; it too is an estimate. A summary highlights the current and scenario
 profits and their difference, followed by detailed tables and charts. It also shows net bill, data
-coverage and tariff warnings. For a range, it shows the change in profit between adjacent sizes and
-the change per added kWh of battery capacity over the simulated period. The fixed scenario and
+coverage and tariff warnings. The result also includes a compact table of enabled rules and their
+saved current/scenario settings.
+The form also has a collapsible **Rules and settings in the scenario** section with the entity names
+of the rule switches and numbers, plus excluded sell hours. It defaults to the current state of
+those entities; only values you change are sent and applied to the scenario, while Current always
+uses the current settings. Switches the inverter cannot support are disabled.
+Enabled rules are permitted but do not necessarily execute; a dash marks an inactive rule or a
+zero-capacity case. Rule values come from the completed simulation, not live settings. Older saved
+results without rule assumptions must be run again. The table shows the configured control mode;
+an optimizer that does not converge can fall back to rules for individual planning windows.
+The optional module comparison shows historical gains alongside annual estimates and simple
+payback when sufficient history and selling data are available. Missing hours can be estimated
+from the same or nearest reference months; missing seasons increase uncertainty. Its compact table
+shows marginal payback for each extra module. The responsive graph instead shows cumulative gain
+minus total module cost for each whole module package against the same-assumption baseline.
+Lines assume the estimated annual gain remains constant; their zero crossing is the package's
+simple payback. The graph shows at most 30 years, with longer payback times in the legend. These
+are historical estimates, not predictions, and exclude installation and other investment costs.
+For a range, it shows the change in profit between adjacent sizes and the change per added kWh of
+battery capacity over the simulated period. The fixed scenario and
 capacity range have separate sections. The range table explains its columns and highlights the
 highest total profit and highest incremental profit per added kWh (including ties); these are
 historical comparisons, not a recommendation or a measure of investment return. Each point in the
