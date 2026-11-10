@@ -43,6 +43,277 @@ const whatIfIntervalGradientLegends = {
   pl: "Zielony: wyższy zysk na dodatkową kWh. Czerwony: niższy zysk na dodatkową kWh w pokazanych zakresach. Zielony może również oznaczać wartość ujemną.",
   uk: "Зелений: вищий прибуток на додаткову кВт·год. Червоний: нижчий прибуток на додаткову кВт·год серед показаних інтервалів. Зелене значення також може бути від’ємним.",
 };
+const whatIfRuleSwitches = [
+  "optimizer_control",
+  "use_midnight_battery_level",
+  "solar_charging",
+  "enhance_battery_efficiency",
+  "cheapest_hour_fill_planner",
+  "cheapest_hour_fill_up",
+  "most_expensive_planner",
+  "needed_before_max_level_planner",
+  "negative_price_planner",
+  "grid_charge_to_sell",
+  "most_profit",
+  "sell_excess_kwh_available",
+  "force_powerwall_max_hours_old_discharge",
+  "discharge_before_solar",
+  "only_discharge_on_profit",
+  "prioritize_discharge_hours_by_energy_cost",
+  "optimize_solar_charging"
+];
+const whatIfRuleLabels = {
+  "da": {
+    "title": "Aktive regler og indstillinger",
+    "edit_title": "Regler og indstillinger i scenariet",
+    "edit_note": "Standard er de nuværende indstillinger. Kun værdier, du ændrer, bruges i scenariet; Current bruger altid de nuværende.",
+    "edit_loading": "Henter nuværende indstillinger …",
+    "edit_unavailable": "Nuværende indstillinger kunne ikke hentes; reglerne kan ikke ændres.",
+    "edit_unsupported": "ikke understøttet",
+    "edit_reset": "Nulstil til nuværende",
+    "setting": "Indstilling",
+    "on": "Til",
+    "mode": "Styring",
+    "optimizer": "Optimering",
+    "rule_mode": "Regler",
+    "note": "Værdierne er fra simulationen. Aktiverede regler er mulige at bruge, men har ikke nødvendigvis været anvendt. Stregen betyder inaktiv eller uden batteri.",
+    "unavailable": "Regelværdier mangler i dette gemte resultat. Kør simulationen igen for at se dem.",
+    "names": {
+      "optimizer_control": "Styr batteriet med optimering af hele perioden",
+      "use_midnight_battery_level": "Brug midnat batteriniveau",
+      "solar_charging": "Solcelleoverskud til opladning",
+      "enhance_battery_efficiency": "Forbedr batteriets virkningsgrad",
+      "cheapest_hour_fill_planner": "Ladning: Billigste perioder planlægger",
+      "cheapest_hour_fill_up": "Ladning: Fyld op i billigste periode",
+      "most_expensive_planner": "Ladning: Dyreste perioder planlægger",
+      "needed_before_max_level_planner": "Ladning: Nødvendig før max niveau planlægger",
+      "negative_price_planner": "Ladning: Negative priser",
+      "grid_charge_to_sell": "Ladning: Køb for at sælge",
+      "most_profit": "Afladning: Maksimer profit",
+      "sell_excess_kwh_available": "Afladning: Sælg overskydende kWh tilgængelig",
+      "force_powerwall_max_hours_old_discharge": "Tvangsafladning: Maks. timer gamle kwh",
+      "discharge_before_solar": "Afladning: Før solen",
+      "only_discharge_on_profit": "Afladning: Kun ved profit",
+      "prioritize_discharge_hours_by_energy_cost": "Afladning: Prioriter efter energikost",
+      "optimize_solar_charging": "Optimer solcelleopladning",
+      "usage_reserve": "Reserve til huset (sælges ikke)",
+      "min_profit_per_kwh": "Min. profit per kWh (afladning)",
+      "min_total_profit": "Min. total profit (salg til nettet)",
+      "min_sell_kwh": "Min. overskydende kWh til salg",
+      "cheap_price_periods": "Billige prisperioder",
+      "cheapest_price_rise_threshold": "Stigning for billigste pris",
+      "cheap_price_period_rise_threshold": "Stigning for billige prisperioder",
+      "powerwall_max_hours_old": "Maks. timer gamle kWh i husbatteri",
+      "exclude_sell_hours": "Ekskluder salgstimer"
+    },
+    "groups": {
+      "charging": "Ladning",
+      "discharging": "Afladning",
+      "selling": "Salg",
+      "shared": "Fælles"
+    }
+  },
+  "de": {
+    "title": "Aktive Regeln und Einstellungen",
+    "edit_title": "Regeln und Einstellungen im Szenario",
+    "edit_note": "Standard sind die aktuellen Einstellungen. Nur geänderte Werte werden im Szenario verwendet; Current nutzt immer die aktuellen.",
+    "edit_loading": "Aktuelle Einstellungen werden geladen …",
+    "edit_unavailable": "Die aktuellen Einstellungen konnten nicht geladen werden; die Regeln sind nicht änderbar.",
+    "edit_unsupported": "nicht unterstützt",
+    "edit_reset": "Auf aktuelle zurücksetzen",
+    "setting": "Einstellung",
+    "on": "Ein",
+    "mode": "Steuerung",
+    "optimizer": "Optimierung",
+    "rule_mode": "Regeln",
+    "note": "Die Werte stammen aus der Simulation. Aktivierte Regeln können verwendet worden sein, müssen aber nicht ausgeführt worden sein. Der Strich bedeutet inaktiv oder ohne Batterie.",
+    "unavailable": "Regelwerte fehlen in diesem gespeicherten Ergebnis. Simulation erneut ausführen, um sie anzuzeigen.",
+    "names": {
+      "optimizer_control": "Batterie mit Optimierung des ganzen Zeitraums steuern",
+      "use_midnight_battery_level": "Mitternachts-Batteriestand verwenden",
+      "solar_charging": "Solarüberschuss-Laden",
+      "enhance_battery_efficiency": "Batterieeffizienz verbessern",
+      "cheapest_hour_fill_planner": "Laden: Günstigste Zeiträume",
+      "cheapest_hour_fill_up": "Laden: In der günstigsten Zeit vollständig laden",
+      "most_expensive_planner": "Laden: Teuerste Zeiträume",
+      "needed_before_max_level_planner": "Laden: Planer vor maximalem Niveau",
+      "negative_price_planner": "Laden: Negative Preise",
+      "grid_charge_to_sell": "Laden: Kaufen um zu verkaufen",
+      "most_profit": "Entladen: Gewinn maximieren",
+      "sell_excess_kwh_available": "Entladen: Überschüssige kWh verkaufen",
+      "force_powerwall_max_hours_old_discharge": "Erzwungene Entladung: Max. Alter der kWh in Stunden",
+      "discharge_before_solar": "Entladen: Vor der Sonne",
+      "only_discharge_on_profit": "Entladen: Nur bei Gewinn",
+      "prioritize_discharge_hours_by_energy_cost": "Entladen: Nach Energiekosten priorisieren",
+      "optimize_solar_charging": "Solarladung optimieren",
+      "usage_reserve": "Reserve für das Haus (nicht verkaufen)",
+      "min_profit_per_kwh": "Min. Gewinn pro kWh (Entladen)",
+      "min_total_profit": "Min. Gesamtgewinn (Verkauf ins Netz)",
+      "min_sell_kwh": "Min. überschüssige kWh zum Verkauf",
+      "cheap_price_periods": "Günstige Preiszeiträume",
+      "cheapest_price_rise_threshold": "Anstieg für niedrigsten Preis",
+      "cheap_price_period_rise_threshold": "Anstieg für günstige Zeiträume",
+      "powerwall_max_hours_old": "Max. Alter der kWh in der Hausbatterie",
+      "exclude_sell_hours": "Verkaufsstunden ausschließen"
+    },
+    "groups": {
+      "charging": "Laden",
+      "discharging": "Entladen",
+      "selling": "Verkauf",
+      "shared": "Gemeinsam"
+    }
+  },
+  "en": {
+    "title": "Active rules and settings",
+    "edit_title": "Rules and settings in the scenario",
+    "edit_note": "The default is the current settings. Only values you change are used in the scenario; Current always uses the current ones.",
+    "edit_loading": "Loading current settings …",
+    "edit_unavailable": "The current settings could not be loaded; the rules cannot be changed.",
+    "edit_unsupported": "not supported",
+    "edit_reset": "Reset to current",
+    "setting": "Setting",
+    "on": "On",
+    "mode": "Control",
+    "optimizer": "Optimization",
+    "rule_mode": "Rules",
+    "note": "Values are from the simulation. Enabled rules may be used but did not necessarily execute. A dash means inactive or no battery.",
+    "unavailable": "Rule values are missing from this saved result. Run the simulation again to see them.",
+    "names": {
+      "optimizer_control": "Control the battery with the whole period optimisation",
+      "use_midnight_battery_level": "Use midnight battery level",
+      "solar_charging": "Solar surplus charging",
+      "enhance_battery_efficiency": "Enhance battery efficiency",
+      "cheapest_hour_fill_planner": "Charging: Cheapest periods planner",
+      "cheapest_hour_fill_up": "Charging: Fill up during cheapest period",
+      "most_expensive_planner": "Charging: Most expensive periods planner",
+      "needed_before_max_level_planner": "Charging: Required before max level planner",
+      "negative_price_planner": "Charging: Negative prices",
+      "grid_charge_to_sell": "Charging: Buy to sell",
+      "most_profit": "Discharging: Maximise profit",
+      "sell_excess_kwh_available": "Discharging: Sell excess kWh",
+      "force_powerwall_max_hours_old_discharge": "Forced discharge: Max. kWh age in hours",
+      "discharge_before_solar": "Discharging: Before the sun",
+      "only_discharge_on_profit": "Discharging: Profit only",
+      "prioritize_discharge_hours_by_energy_cost": "Discharging: Prioritise by energy cost",
+      "optimize_solar_charging": "Optimise solar charging",
+      "usage_reserve": "Reserve for house use (not sold)",
+      "min_profit_per_kwh": "Min. profit per kWh (discharging)",
+      "min_total_profit": "Min. total profit (sale to the grid)",
+      "min_sell_kwh": "Minimum excess kWh for export",
+      "cheap_price_periods": "Cheap price periods",
+      "cheapest_price_rise_threshold": "Increase for cheapest price",
+      "cheap_price_period_rise_threshold": "Increase for cheap periods",
+      "powerwall_max_hours_old": "Max. age of kWh in home battery",
+      "exclude_sell_hours": "Exclude selling hours"
+    },
+    "groups": {
+      "charging": "Charging",
+      "discharging": "Discharging",
+      "selling": "Selling",
+      "shared": "Shared"
+    }
+  },
+  "pl": {
+    "title": "Aktywne reguły i ustawienia",
+    "edit_title": "Reguły i ustawienia w scenariuszu",
+    "edit_note": "Domyślnie są to bieżące ustawienia. W scenariuszu używane są tylko zmienione wartości; Current zawsze używa bieżących.",
+    "edit_loading": "Wczytywanie bieżących ustawień …",
+    "edit_unavailable": "Nie udało się wczytać bieżących ustawień; reguł nie można zmienić.",
+    "edit_unsupported": "nieobsługiwane",
+    "edit_reset": "Przywróć bieżące",
+    "setting": "Ustawienie",
+    "on": "Wł.",
+    "mode": "Sterowanie",
+    "optimizer": "Optymalizacja",
+    "rule_mode": "Reguły",
+    "note": "Wartości pochodzą z symulacji. Włączone reguły mogą być użyte, ale nie musiały zostać wykonane. Kreska oznacza regułę nieaktywną lub brak baterii.",
+    "unavailable": "W zapisanym wyniku brakuje wartości reguł. Uruchom symulację ponownie, aby je zobaczyć.",
+    "names": {
+      "optimizer_control": "Steruj baterią optymalizacją całego okresu",
+      "use_midnight_battery_level": "Użyj poziomu baterii o północy",
+      "solar_charging": "Ładowanie z nadwyżki solarnej",
+      "enhance_battery_efficiency": "Zwiększ wydajność baterii",
+      "cheapest_hour_fill_planner": "Ładowanie: Najtańsze okresy",
+      "cheapest_hour_fill_up": "Ładowanie: Doładuj w najtańszym okresie",
+      "most_expensive_planner": "Ładowanie: Najdroższe okresy",
+      "needed_before_max_level_planner": "Ładowanie: Planowanie przed osiągnięciem maksymalnego poziomu",
+      "negative_price_planner": "Ładowanie: Ujemne ceny",
+      "grid_charge_to_sell": "Ładowanie: Kup, aby sprzedać",
+      "most_profit": "Rozładowanie: Maksymalizuj zysk",
+      "sell_excess_kwh_available": "Rozładowanie: Sprzedaj nadwyżkę kWh",
+      "force_powerwall_max_hours_old_discharge": "Wymuszone rozładowanie: Maks. wiek kWh w godzinach",
+      "discharge_before_solar": "Rozładowanie: Przed słońcem",
+      "only_discharge_on_profit": "Rozładowanie: Tylko przy zysku",
+      "prioritize_discharge_hours_by_energy_cost": "Rozładowanie: Priorytet wg kosztu energii",
+      "optimize_solar_charging": "Optymalizuj ładowanie energią słoneczną",
+      "usage_reserve": "Rezerwa dla domu (nie sprzedawaj)",
+      "min_profit_per_kwh": "Min. zysk na kWh (rozładowanie)",
+      "min_total_profit": "Min. całkowity zysk (sprzedaż do sieci)",
+      "min_sell_kwh": "Min. nadwyżka kWh do sprzedaży",
+      "cheap_price_periods": "Tanie okresy cenowe",
+      "cheapest_price_rise_threshold": "Wzrost dla najniższej ceny",
+      "cheap_price_period_rise_threshold": "Wzrost dla tanich okresów",
+      "powerwall_max_hours_old": "Maks. wiek kWh w magazynie energii",
+      "exclude_sell_hours": "Wyklucz godziny sprzedaży"
+    },
+    "groups": {
+      "charging": "Ładowanie",
+      "discharging": "Rozładowanie",
+      "selling": "Sprzedaż",
+      "shared": "Wspólne"
+    }
+  },
+  "uk": {
+    "title": "Активні правила та налаштування",
+    "edit_title": "Правила та налаштування у сценарії",
+    "edit_note": "За замовчуванням — поточні налаштування. У сценарії використовуються лише змінені значення; Current завжди використовує поточні.",
+    "edit_loading": "Завантаження поточних налаштувань …",
+    "edit_unavailable": "Не вдалося завантажити поточні налаштування; правила змінити неможливо.",
+    "edit_unsupported": "не підтримується",
+    "edit_reset": "Скинути до поточних",
+    "setting": "Налаштування",
+    "on": "Увімк.",
+    "mode": "Керування",
+    "optimizer": "Оптимізація",
+    "rule_mode": "Правила",
+    "note": "Значення взято із симуляції. Увімкнені правила можуть використовуватися, але не обов’язково виконувалися. Риска означає неактивне правило або відсутність батареї.",
+    "unavailable": "У збереженому результаті немає значень правил. Запустіть симуляцію знову, щоб їх побачити.",
+    "names": {
+      "optimizer_control": "Керувати батареєю оптимізацією всього періоду",
+      "use_midnight_battery_level": "Використовувати рівень батареї опівночі",
+      "solar_charging": "Заряджання надлишком сонця",
+      "enhance_battery_efficiency": "Підвищити ефективність акумулятора",
+      "cheapest_hour_fill_planner": "Заряджання: Найдешевші періоди",
+      "cheapest_hour_fill_up": "Заряджання: Повністю зарядити у найдешевший період",
+      "most_expensive_planner": "Заряджання: Найдорожчі періоди",
+      "needed_before_max_level_planner": "Заряджання: Планування перед досягненням максимального рівня",
+      "negative_price_planner": "Заряджання: Від'ємні ціни",
+      "grid_charge_to_sell": "Заряджання: Купити, щоб продати",
+      "most_profit": "Розряджання: Максимізувати прибуток",
+      "sell_excess_kwh_available": "Розряджання: Продати надлишкові кВт·год",
+      "force_powerwall_max_hours_old_discharge": "Примусове розряджання: Макс. вік кВт·год у годинах",
+      "discharge_before_solar": "Розряджання: Перед сонцем",
+      "only_discharge_on_profit": "Розряджання: Лише при прибутку",
+      "prioritize_discharge_hours_by_energy_cost": "Розряджання: Пріоритет за вартістю енергії",
+      "optimize_solar_charging": "Оптимізувати заряджання від сонячної енергії",
+      "usage_reserve": "Резерв для дому (не продавати)",
+      "min_profit_per_kwh": "Мін. прибуток за кВт·год (розряджання)",
+      "min_total_profit": "Мін. загальний прибуток (продаж у мережу)",
+      "min_sell_kwh": "Мін. надлишок кВт·год для продажу",
+      "cheap_price_periods": "Дешеві цінові періоди",
+      "cheapest_price_rise_threshold": "Зростання для найнижчої ціни",
+      "cheap_price_period_rise_threshold": "Зростання для дешевих періодів",
+      "powerwall_max_hours_old": "Макс. вік кВт·год у домашній батареї",
+      "exclude_sell_hours": "Виключити години продажу"
+    },
+    "groups": {
+      "charging": "Заряджання",
+      "discharging": "Розряджання",
+      "selling": "Продаж",
+      "shared": "Спільні"
+    }
+  }
+};
 const whatIfModuleLabels = {
   "da": {
     "module_compare": "Sammenlign batterimoduler",
@@ -53,24 +324,35 @@ const whatIfModuleLabels = {
     "module_baseline_note": "Grundlinjen med nul moduler simuleres ved den nuværende kapacitet med samme forudsætninger som hver sag med ekstra moduler.",
     "module_history": "Matchede historiske timer",
     "module_months": "repræsenterede måneder",
-    "module_insufficient_history": "Årlig beregning kræver en periode på 365 dage og mindst 90 % matchede timer i hver lokal måned eller del af måned. Manglende timer udfyldes ikke.",
-    "module_coverage_requirement": "Årlig beregning kræver en periode på 365 dage og mindst 90 % matchede timer i hver lokal måned eller del af måned. Manglende timer udfyldes ikke.",
+    "module_insufficient_history": "Årlig gevinst og tilbagebetaling kræver en fuld periode på 365 dage samt tilstrækkelig historik og kendte historiske salgspriser og -omkostninger. Manglende timer kan estimeres ud fra samme eller nærmeste måned. En kortere periode bliver ikke omregnet til et år.",
+    "module_coverage_requirement": "Årlig gevinst og tilbagebetaling kræver en fuld periode på 365 dage samt tilstrækkelig historik og kendte historiske salgspriser og -omkostninger. Manglende timer kan estimeres ud fra samme eller nærmeste måned. En kortere periode bliver ikke omregnet til et år.",
     "module_missing_sell_price": "Historiske salgspriser mangler. Gevinst er usikker, og tilbagebetaling kan ikke beregnes.",
     "module_missing_sell_cost": "Historiske salgsomkostninger mangler. Gevinst er usikker, og tilbagebetaling kan ikke beregnes.",
     "module_rerun": "Dette gemte resultat er fra en ældre version. Kør simulationen igen for at vurdere tilbagebetaling.",
     "module_dst_warning": "Skift til eller fra sommertid kan have nulstillet batteriniveauet i gennemspilningen; antal nulstillinger",
     "module_tariff_warning": "Timer med estimerede historiske tariffer",
-    "module_current_cost_warning": "Timer med nuværende salgsomkostninger brugt som historisk estimat",
+    "module_current_cost_warning": "Årsestimatet bruger nuværende salgsomkostninger for historiske timer",
     "module_added": "Tilføjede moduler",
     "module_profit": "Historisk gevinst",
     "module_gain_baseline": "Gevinst i forhold til nuværende kapacitet",
     "module_incremental_gain": "Historisk gevinst fra forrige størrelse",
     "module_annualized_gain": "Årliggjort historisk gevinst",
+    "module_estimated_annual_gain": "Estimeret årlig mergevinst",
     "module_cumulative_cost": "Samlet modulpris",
     "module_payback": "Enkel tilbagebetalingstid",
     "module_no_payback": "Ingen tilbagebetaling ved ikke-positiv gevinst",
     "module_years": "år",
-    "module_note": "Dette er en historisk gennemspilning, ikke en prognose eller garanti. Gennemspilningen bruger registrerede priser i planlægningsvinduerne; virkelige prognoser og fremtidige resultater kan afvige. Årliggjorte gevinster skaleres kun ud fra faktisk matchede timer og vises kun, når dækningskravet ovenfor er opfyldt. Enkel tilbagebetaling er modulprisen divideret med den positive årliggjorte mergevinst. Modulpriser vises separat og trækkes ikke fra den simulerede gevinst; de omfatter ikke installation, inverter, kabling, finansiering, vedligeholdelse, skatter eller fremtidig forringelse."
+    "module_estimate_note": "Estimatet udfylder manglende timer med gennemsnit fra samme måned eller nærmeste måned med nok data. Manglende sæsoner øger usikkerheden; det er ikke en prognose.",
+    "module_estimated_hours": "Estimerede timer",
+    "module_estimated_months": "Måneder estimeret med data fra andre måneder",
+    "module_reliability_details": "Grundlag og forbehold",
+    "module_estimate_unavailable": "Årlig gevinst og tilbagebetaling kræver en fuld periode på 365 dage samt tilstrækkelig historik og kendte historiske salgspriser og -omkostninger. Manglende timer kan estimeres ud fra samme eller nærmeste måned. En kortere periode bliver ikke omregnet til et år.",
+    "module_graph_title": "Tilbagebetaling over tid",
+    "module_graph_note": "Linjerne viser estimeret samlet gevinst minus samlet modulpris ved uændret årlig gevinst. Når en linje krydser nul, er modulprisen tjent hjem. Grafen viser højst 30 år; forklaringen viser den beregnede tid også uden for grafen. Ingen installation, finansiering, skatter eller fremtidige ændringer er med.",
+    "module_graph_modules": "moduler",
+    "module_graph_no_payback": "Ingen tilbagebetaling ved ikke-positiv gevinst",
+    "module_estimate_details": "Enkel tilbagebetaling i tabellen er prisen for ét ekstra modul divideret med dets årlige mergevinst. Grafen sammenligner hele modulpakken med den nuværende kapacitet. Resultaterne er historiske estimater, ikke garantier.",
+    "module_note": "Enkel tilbagebetaling i tabellen er prisen for ét ekstra modul divideret med dets årlige mergevinst. Grafen sammenligner hele modulpakken med den nuværende kapacitet. Resultaterne er historiske estimater, ikke garantier."
   },
   "de": {
     "module_compare": "Batteriemodule vergleichen",
@@ -81,24 +363,35 @@ const whatIfModuleLabels = {
     "module_baseline_note": "Die Vergleichsbasis ohne zusätzliche Module wird mit der aktuellen Kapazität und denselben Annahmen wie jeder Modulfall simuliert.",
     "module_history": "Abgeglichene historische Stunden",
     "module_months": "abgedeckte Monate",
-    "module_insufficient_history": "Die Annualisierung erfordert einen Zeitraum von 365 Tagen und mindestens 90 % zugeordnete Stunden in jedem lokalen Monat oder Monatsteil. Fehlende Stunden werden nicht ergänzt.",
-    "module_coverage_requirement": "Die Annualisierung erfordert einen Zeitraum von 365 Tagen und mindestens 90 % zugeordnete Stunden in jedem lokalen Monat oder Monatsteil. Fehlende Stunden werden nicht ergänzt.",
+    "module_insufficient_history": "Jahresgewinn und Amortisation erfordern einen vollständigen Zeitraum von 365 Tagen, genügend Historie sowie bekannte historische Verkaufspreise und -kosten. Fehlende Stunden können anhand desselben oder des nächstgelegenen Monats geschätzt werden. Ein kürzerer Zeitraum wird nicht auf ein Jahr hochgerechnet.",
+    "module_coverage_requirement": "Jahresgewinn und Amortisation erfordern einen vollständigen Zeitraum von 365 Tagen, genügend Historie sowie bekannte historische Verkaufspreise und -kosten. Fehlende Stunden können anhand desselben oder des nächstgelegenen Monats geschätzt werden. Ein kürzerer Zeitraum wird nicht auf ein Jahr hochgerechnet.",
     "module_missing_sell_price": "Historische Verkaufspreise fehlen. Der Gewinn ist unsicher und die Amortisation kann nicht berechnet werden.",
     "module_missing_sell_cost": "Historische Verkaufskosten fehlen. Der Gewinn ist unsicher und die Amortisation kann nicht berechnet werden.",
     "module_rerun": "Dieses gespeicherte Ergebnis stammt aus einer älteren Version. Simulation zur Beurteilung der Amortisation erneut ausführen.",
     "module_dst_warning": "Zeitumstellungen können den Batteriestand im Rücklauf zurückgesetzt haben; Anzahl der Rücksetzungen",
     "module_tariff_warning": "Stunden mit geschätzten historischen Tarifen",
-    "module_current_cost_warning": "Stunden mit aktuellen Verkaufskosten als historische Schätzung",
+    "module_current_cost_warning": "Jahresschätzung verwendet aktuelle Verkaufskosten für historische Stunden",
     "module_added": "Zusätzliche Module",
     "module_profit": "Historischer Gewinn",
     "module_gain_baseline": "Gewinn gegenüber aktueller Kapazität",
     "module_incremental_gain": "Historischer Gewinn gegenüber der vorherigen Größe",
     "module_annualized_gain": "Annualisierter historischer Gewinn",
+    "module_estimated_annual_gain": "Geschätzter jährlicher Mehrgewinn",
     "module_cumulative_cost": "Kumulierte Modulkosten",
     "module_payback": "Einfache Amortisationszeit",
     "module_no_payback": "Keine Amortisation bei nicht positivem Gewinn",
     "module_years": "Jahre",
-    "module_note": "Dies ist eine historische Simulation, keine Prognose oder Garantie. Die Simulation nutzt aufgezeichnete Preise in den Planungsfenstern; reale Prognosen und zukünftige Ergebnisse können abweichen. Annualisierte Gewinne werden nur anhand tatsächlich abgeglichener Stunden hochgerechnet und nur bei erfüllter Abdeckung angezeigt. Die einfache Amortisation ist der Modulpreis geteilt durch den positiven annualisierten Mehrgewinn. Modulkosten werden separat angezeigt und nicht vom simulierten Gewinn abgezogen; Installation, Wechselrichter, Verkabelung, Finanzierung, Wartung, Steuern und zukünftige Alterung sind nicht enthalten."
+    "module_estimate_note": "Fehlende Stunden werden mit Durchschnitten desselben oder des nächstgelegenen Monats mit genügend Daten geschätzt. Fehlende Jahreszeiten erhöhen die Unsicherheit; dies ist keine Prognose.",
+    "module_estimated_hours": "Geschätzte Stunden",
+    "module_estimated_months": "Mit anderen Monaten geschätzte Monate",
+    "module_reliability_details": "Grundlage und Einschränkungen",
+    "module_estimate_unavailable": "Jahresgewinn und Amortisation erfordern einen vollständigen Zeitraum von 365 Tagen, genügend Historie sowie bekannte historische Verkaufspreise und -kosten. Fehlende Stunden können anhand desselben oder des nächstgelegenen Monats geschätzt werden. Ein kürzerer Zeitraum wird nicht auf ein Jahr hochgerechnet.",
+    "module_graph_title": "Amortisation über die Zeit",
+    "module_graph_note": "Die Linien zeigen geschätzten Gesamtgewinn abzüglich der gesamten Modulkosten bei konstantem Jahresgewinn. Beim Nulldurchgang sind die Modulkosten gedeckt. Die Grafik zeigt höchstens 30 Jahre; die Legende nennt auch längere Zeiten. Installation, Finanzierung, Steuern und zukünftige Änderungen sind nicht enthalten.",
+    "module_graph_modules": "Module",
+    "module_graph_no_payback": "Keine Amortisation bei nicht positivem Gewinn",
+    "module_estimate_details": "Die einfache Amortisation in der Tabelle ist der Preis eines zusätzlichen Moduls geteilt durch seinen jährlichen Mehrgewinn. Die Grafik vergleicht das gesamte Modulset mit der aktuellen Kapazität. Ergebnisse sind historische Schätzungen, keine Garantien.",
+    "module_note": "Die einfache Amortisation in der Tabelle ist der Preis eines zusätzlichen Moduls geteilt durch seinen jährlichen Mehrgewinn. Die Grafik vergleicht das gesamte Modulset mit der aktuellen Kapazität. Ergebnisse sind historische Schätzungen, keine Garantien."
   },
   "en": {
     "module_compare": "Compare battery modules",
@@ -109,24 +402,35 @@ const whatIfModuleLabels = {
     "module_baseline_note": "The zero-module baseline is simulated at current capacity using the same assumptions as each added-module case.",
     "module_history": "Matched historical hours",
     "module_months": "months represented",
-    "module_insufficient_history": "Annualization requires a 365-day period and at least 90% matched hours in each local month or partial month. Missing hours are not filled in.",
-    "module_coverage_requirement": "Annualization requires a 365-day period and at least 90% matched hours in each local month or partial month. Missing hours are not filled in.",
+    "module_insufficient_history": "Annual gain and payback require a full 365-day window, sufficient history, and known historical sell prices and costs. Missing hours can be estimated from the same or nearest month. A shorter period is not extrapolated to a year.",
+    "module_coverage_requirement": "Annual gain and payback require a full 365-day window, sufficient history, and known historical sell prices and costs. Missing hours can be estimated from the same or nearest month. A shorter period is not extrapolated to a year.",
     "module_missing_sell_price": "Historical sell prices are missing. Profit is uncertain and payback cannot be calculated.",
     "module_missing_sell_cost": "Historical selling costs are missing. Profit is uncertain and payback cannot be calculated.",
     "module_rerun": "This saved result is from an older version. Run the simulation again to assess payback.",
     "module_dst_warning": "Daylight-saving transitions may have reset the battery level during replay; number of resets",
     "module_tariff_warning": "Hours with estimated historical tariffs",
-    "module_current_cost_warning": "Hours using current selling costs as a historical estimate",
+    "module_current_cost_warning": "Annual estimate uses current selling costs for historical hours",
     "module_added": "Modules added",
     "module_profit": "Historical profit",
     "module_gain_baseline": "Gain vs current capacity",
     "module_incremental_gain": "Historical gain from previous size",
     "module_annualized_gain": "Annualized historical gain",
+    "module_estimated_annual_gain": "Estimated annual incremental gain",
     "module_cumulative_cost": "Cumulative module cost",
     "module_payback": "Simple payback",
     "module_no_payback": "No payback for non-positive gain",
     "module_years": "years",
-    "module_note": "This is a historical replay, not a forecast or promise. The replay uses recorded prices in its planning windows; real forecasts and future results may differ. Annualized gains scale only actually matched hours and appear only when the coverage requirement above is met. Simple payback is module price divided by positive annualized incremental gain. Module costs are shown separately, not subtracted from simulated profit, and exclude installation, inverter, wiring, financing, maintenance, taxes, and future degradation."
+    "module_estimate_note": "Missing hours are estimated using averages from the same month or the nearest month with enough data. Missing seasons increase uncertainty; this is not a forecast.",
+    "module_estimated_hours": "Estimated hours",
+    "module_estimated_months": "Months estimated using other months",
+    "module_reliability_details": "Basis and limitations",
+    "module_estimate_unavailable": "Annual gain and payback require a full 365-day window, sufficient history, and known historical sell prices and costs. Missing hours can be estimated from the same or nearest month. A shorter period is not extrapolated to a year.",
+    "module_graph_title": "Payback over time",
+    "module_graph_note": "Lines show estimated cumulative gain minus total module cost at a constant annual gain. A line crossing zero has recovered its module cost. The chart shows at most 30 years; the legend also shows longer calculated times. Installation, finance, taxes and future changes are excluded.",
+    "module_graph_modules": "modules",
+    "module_graph_no_payback": "No payback for non-positive gain",
+    "module_estimate_details": "Simple payback in the table is the price of one added module divided by its annual incremental gain. The chart compares the whole module package with current capacity. Results are historical estimates, not guarantees.",
+    "module_note": "Simple payback in the table is the price of one added module divided by its annual incremental gain. The chart compares the whole module package with current capacity. Results are historical estimates, not guarantees."
   },
   "pl": {
     "module_compare": "Porównaj moduły baterii",
@@ -137,24 +441,35 @@ const whatIfModuleLabels = {
     "module_baseline_note": "Wariant bazowy bez dodatkowych modułów jest symulowany dla obecnej pojemności przy tych samych założeniach co każdy wariant z modułami.",
     "module_history": "Dopasowane historyczne godziny",
     "module_months": "reprezentowane miesiące",
-    "module_insufficient_history": "Annualizacja wymaga okresu 365 dni i co najmniej 90% dopasowanych godzin w każdym lokalnym miesiącu lub jego części. Brakujące godziny nie są uzupełniane.",
-    "module_coverage_requirement": "Annualizacja wymaga okresu 365 dni i co najmniej 90% dopasowanych godzin w każdym lokalnym miesiącu lub jego części. Brakujące godziny nie są uzupełniane.",
+    "module_insufficient_history": "Roczny zysk i okres zwrotu wymagają pełnego okresu 365 dni, wystarczającej historii oraz znanych historycznych cen i kosztów sprzedaży. Brakujące godziny można oszacować na podstawie tego samego lub najbliższego miesiąca. Krótszy okres nie jest przeliczany na rok.",
+    "module_coverage_requirement": "Roczny zysk i okres zwrotu wymagają pełnego okresu 365 dni, wystarczającej historii oraz znanych historycznych cen i kosztów sprzedaży. Brakujące godziny można oszacować na podstawie tego samego lub najbliższego miesiąca. Krótszy okres nie jest przeliczany na rok.",
     "module_missing_sell_price": "Brakuje historycznych cen sprzedaży. Zysk jest niepewny i nie można obliczyć okresu zwrotu.",
     "module_missing_sell_cost": "Brakuje historycznych kosztów sprzedaży. Zysk jest niepewny i nie można obliczyć okresu zwrotu.",
     "module_rerun": "Ten zapisany wynik pochodzi ze starszej wersji. Uruchom symulację ponownie, aby ocenić okres zwrotu.",
     "module_dst_warning": "Zmiany czasu mogły zresetować poziom baterii podczas odtwarzania; liczba resetów",
     "module_tariff_warning": "Godziny z szacowanymi historycznymi taryfami",
-    "module_current_cost_warning": "Godziny z bieżącymi kosztami sprzedaży jako szacunkiem historycznym",
+    "module_current_cost_warning": "Szacunek roczny używa bieżących kosztów sprzedaży dla godzin historycznych",
     "module_added": "Dodane moduły",
     "module_profit": "Historyczny zysk",
     "module_gain_baseline": "Zysk względem obecnej pojemności",
     "module_incremental_gain": "Historyczny zysk względem poprzedniej wielkości",
     "module_annualized_gain": "Annualizowany zysk historyczny",
+    "module_estimated_annual_gain": "Szacowany roczny dodatkowy zysk",
     "module_cumulative_cost": "Łączny koszt modułów",
     "module_payback": "Prosty okres zwrotu",
     "module_no_payback": "Brak zwrotu przy zysku nie większym od zera",
     "module_years": "lata",
-    "module_note": "To historyczna symulacja, a nie prognoza ani gwarancja. Symulacja wykorzystuje zapisane ceny w oknach planowania; rzeczywiste prognozy i przyszłe wyniki mogą się różnić. Zyski annualizowane są przeliczane wyłącznie na podstawie faktycznie dopasowanych godzin i pokazywane tylko po spełnieniu powyższego wymogu pokrycia. Prosty okres zwrotu to cena modułu podzielona przez dodatni annualizowany przyrost zysku. Koszty modułów są wyświetlane osobno, nie odejmuje się ich od symulowanego zysku; nie obejmują montażu, falownika, okablowania, finansowania, konserwacji, podatków ani przyszłej degradacji."
+    "module_estimate_note": "Brakujące godziny są szacowane na podstawie średnich z tego samego lub najbliższego miesiąca z wystarczającymi danymi. Brakujące pory roku zwiększają niepewność; nie jest to prognoza.",
+    "module_estimated_hours": "Szacowane godziny",
+    "module_estimated_months": "Miesiące oszacowane na podstawie innych miesięcy",
+    "module_reliability_details": "Podstawa i ograniczenia",
+    "module_estimate_unavailable": "Roczny zysk i okres zwrotu wymagają pełnego okresu 365 dni, wystarczającej historii oraz znanych historycznych cen i kosztów sprzedaży. Brakujące godziny można oszacować na podstawie tego samego lub najbliższego miesiąca. Krótszy okres nie jest przeliczany na rok.",
+    "module_graph_title": "Zwrot w czasie",
+    "module_graph_note": "Linie pokazują szacowany łączny zysk minus łączny koszt modułów przy stałym rocznym zysku. Przecięcie zera oznacza odzyskanie kosztu modułów. Wykres obejmuje maksymalnie 30 lat; legenda pokazuje też dłuższe obliczone czasy. Montaż, finansowanie, podatki i przyszłe zmiany nie są uwzględnione.",
+    "module_graph_modules": "modułów",
+    "module_graph_no_payback": "Brak zwrotu przy niedodatnim zysku",
+    "module_estimate_details": "Prosty okres zwrotu w tabeli to cena jednego dodatkowego modułu podzielona przez jego roczny dodatkowy zysk. Wykres porównuje cały pakiet modułów z obecną pojemnością. Wyniki są historycznymi szacunkami, a nie gwarancją.",
+    "module_note": "Prosty okres zwrotu w tabeli to cena jednego dodatkowego modułu podzielona przez jego roczny dodatkowy zysk. Wykres porównuje cały pakiet modułów z obecną pojemnością. Wyniki są historycznymi szacunkami, a nie gwarancją."
   },
   "uk": {
     "module_compare": "Порівняти модулі батареї",
@@ -165,24 +480,35 @@ const whatIfModuleLabels = {
     "module_baseline_note": "Базовий варіант без додаткових модулів симулюється для поточної ємності з тими самими припущеннями, що й кожен варіант із модулями.",
     "module_history": "Зіставлені історичні години",
     "module_months": "представлені місяці",
-    "module_insufficient_history": "Річний перерахунок потребує періоду 365 днів та щонайменше 90% зіставлених годин у кожному місцевому місяці або його частині. Пропущені години не заповнюються.",
-    "module_coverage_requirement": "Річний перерахунок потребує періоду 365 днів та щонайменше 90% зіставлених годин у кожному місцевому місяці або його частині. Пропущені години не заповнюються.",
+    "module_insufficient_history": "Річний прибуток та окупність потребують повного періоду 365 днів, достатньої історії та відомих історичних цін і витрат на продаж. Пропущені години можна оцінити за тим самим або найближчим місяцем. Коротший період не перераховується на рік.",
+    "module_coverage_requirement": "Річний прибуток та окупність потребують повного періоду 365 днів, достатньої історії та відомих історичних цін і витрат на продаж. Пропущені години можна оцінити за тим самим або найближчим місяцем. Коротший період не перераховується на рік.",
     "module_missing_sell_price": "Історичні ціни продажу відсутні. Прибуток невизначений, а окупність неможливо обчислити.",
     "module_missing_sell_cost": "Історичні витрати на продаж відсутні. Прибуток невизначений, а окупність неможливо обчислити.",
     "module_rerun": "Цей збережений результат отримано старішою версією. Запустіть симуляцію знову для оцінки окупності.",
     "module_dst_warning": "Перехід на літній або зимовий час міг скинути рівень заряду під час відтворення; кількість скидань",
     "module_tariff_warning": "Години з оціненими історичними тарифами",
-    "module_current_cost_warning": "Години з поточними витратами на продаж як історичною оцінкою",
+    "module_current_cost_warning": "Річна оцінка використовує поточні витрати на продаж для історичних годин",
     "module_added": "Додані модулі",
     "module_profit": "Історичний прибуток",
     "module_gain_baseline": "Прибуток відносно поточної ємності",
     "module_incremental_gain": "Історичний прибуток відносно попереднього розміру",
     "module_annualized_gain": "Річний еквівалент історичного прибутку",
+    "module_estimated_annual_gain": "Оцінений річний додатковий прибуток",
     "module_cumulative_cost": "Сукупна вартість модулів",
     "module_payback": "Простий строк окупності",
     "module_no_payback": "Немає окупності за непозитивного прибутку",
     "module_years": "років",
-    "module_note": "Це історичне відтворення, а не прогноз чи гарантія. Відтворення використовує записані ціни у вікнах планування; реальні прогнози та майбутні результати можуть відрізнятися. Річний еквівалент розраховується лише за фактично зіставленими годинами й показується лише за виконання вимоги щодо покриття вище. Простий строк окупності — ціна модуля, поділена на додатний річний приріст прибутку. Вартість модулів показана окремо й не віднімається від змодельованого прибутку; не враховані монтаж, інвертор, проводка, фінансування, обслуговування, податки та майбутня деградація."
+    "module_estimate_note": "Пропущені години оцінюються за середніми значеннями того самого або найближчого місяця з достатніми даними. Відсутні сезони збільшують невизначеність; це не прогноз.",
+    "module_estimated_hours": "Оцінені години",
+    "module_estimated_months": "Місяці, оцінені за іншими місяцями",
+    "module_reliability_details": "Підстава та обмеження",
+    "module_estimate_unavailable": "Річний прибуток та окупність потребують повного періоду 365 днів, достатньої історії та відомих історичних цін і витрат на продаж. Пропущені години можна оцінити за тим самим або найближчим місяцем. Коротший період не перераховується на рік.",
+    "module_graph_title": "Окупність у часі",
+    "module_graph_note": "Лінії показують оцінений сукупний прибуток мінус загальна вартість модулів за незмінного річного прибутку. Перетин нуля означає повернення вартості модулів. Графік охоплює не більше 30 років; легенда також показує більший розрахований строк. Монтаж, фінансування, податки та майбутні зміни не враховано.",
+    "module_graph_modules": "модулів",
+    "module_graph_no_payback": "Немає окупності за недодатного прибутку",
+    "module_estimate_details": "Простий строк окупності в таблиці — це ціна одного доданого модуля, поділена на його річний додатковий прибуток. Графік порівнює весь пакет модулів з поточною ємністю. Результати є історичними оцінками, а не гарантіями.",
+    "module_note": "Простий строк окупності в таблиці — це ціна одного доданого модуля, поділена на його річний додатковий прибуток. Графік порівнює весь пакет модулів з поточною ємністю. Результати є історичними оцінками, а не гарантіями."
   }
 };
 const whatIfRunLabels = {
@@ -503,6 +829,7 @@ class BattMindWhatIfCard extends HTMLElement {
   set hass(hass) {
     const previousLanguage = (this._hass?.language || "en").toLowerCase().split("-")[0];
     this._hass = hass;
+    this._ensureRuleDefaults();
     const language = (hass.language || "en").toLowerCase().split("-")[0];
     if (this._config && language !== previousLanguage && !this._formDirty) this._build();
     this._renderSession();
@@ -554,6 +881,97 @@ class BattMindWhatIfCard extends HTMLElement {
   _labels() {
     const language = (this._hass?.language || "en").toLowerCase().split("-")[0];
     return { ...(whatIfModuleLabels[language] || whatIfModuleLabels.en), ...this._config.labels };
+  }
+
+  _ruleLabels() {
+    const language = (this._hass?.language || "en").toLowerCase().split("-")[0];
+    return whatIfRuleLabels[language] || whatIfRuleLabels.en;
+  }
+
+  async _ensureRuleDefaults() {
+    if (this._ruleDefaults || this._ruleLoading || !this._hass || !this._config || !this._ruleStatus) return;
+    this._ruleLoading = true;
+    try {
+      const settings = await this._hass.callWS({
+        type: "battmind/what_if_settings", config_entry_id: this._config.config_entry_id,
+      });
+      if (!settings?.switches || !settings.numbers) throw new Error("no settings");
+      this._ruleDefaults = settings;
+      this._buildRuleFields();
+    } catch (error) {
+      if (this._ruleStatus) this._ruleStatus.textContent = this._ruleLabels().edit_unavailable;
+    } finally {
+      this._ruleLoading = false;
+    }
+  }
+
+  _buildRuleFields() {
+    const defaults = this._ruleDefaults;
+    if (!defaults || !this._ruleBox || this._ruleFields) return;
+    const labels = this._ruleLabels();
+    this._ruleStatus.hidden = true;
+    const fields = this._element("div", undefined, this._ruleBox);
+    fields.className = "range";
+    this._ruleFields = fields;
+    this._ruleInputs = new Map();
+    const unsupported = new Set(defaults.unsupported || []);
+    for (const key of whatIfRuleSwitches) {
+      if (!(key in defaults.switches)) continue;
+      const wrapper = this._element("label", undefined, fields);
+      wrapper.className = "check";
+      const input = this._element("input", undefined, wrapper);
+      input.type = "checkbox";
+      input.name = `rule_${key}`;
+      input.disabled = unsupported.has(key);
+      this._element("span", unsupported.has(key) ? `${labels.names[key]} (${labels.edit_unsupported})` : labels.names[key], wrapper);
+      this._ruleInputs.set(key, input);
+    }
+    for (const [key, meta] of Object.entries(defaults.numbers)) {
+      const input = this._input(fields, labels.names[key], `rule_${key}`, String(meta.value), String(meta.min), String(meta.max), "any");
+      this._ruleInputs.set(key, input);
+    }
+    const hours = this._element("label", labels.names.exclude_sell_hours, fields);
+    const hoursInput = this._element("input", undefined, hours);
+    Object.assign(hoursInput, { name: "rule_exclude_sell_hours", type: "text", value: defaults.exclude_sell_hours || "" });
+    this._ruleInputs.set("exclude_sell_hours", hoursInput);
+    const reset = this._element("button", labels.edit_reset, fields);
+    reset.type = "button";
+    reset.className = "stop";
+    reset.addEventListener("click", () => {
+      this._applyRuleValues(null);
+      this._formDirty = true;
+    });
+    this._element("p", labels.edit_note, fields).className = "form-note";
+    this._applyRuleValues(this._session?.pendingInputs || this._session?.inputs);
+  }
+
+  _applyRuleValues(saved) {
+    const defaults = this._ruleDefaults;
+    if (!defaults) return;
+    for (const [key, input] of this._ruleInputs) {
+      if (input.type === "checkbox") input.checked = Boolean(saved?.[key] ?? defaults.switches[key]);
+      else if (key === "exclude_sell_hours") input.value = String(saved?.[key] ?? defaults.exclude_sell_hours ?? "");
+      else input.value = String(saved?.[key] ?? defaults.numbers[key].value);
+    }
+  }
+
+  _ruleOverrides() {
+    const defaults = this._ruleDefaults;
+    const overrides = {};
+    if (!defaults) return overrides;
+    for (const [key, input] of this._ruleInputs) {
+      if (input.disabled) continue;
+      if (input.type === "checkbox") {
+        if (input.checked !== defaults.switches[key]) overrides[key] = input.checked;
+      } else if (key === "exclude_sell_hours") {
+        const value = input.value.replaceAll(" ", "");
+        if (value !== (defaults.exclude_sell_hours || "")) overrides[key] = value;
+      } else {
+        const value = Number(input.value);
+        if (input.value !== "" && Number.isFinite(value) && value !== defaults.numbers[key].value) overrides[key] = value;
+      }
+    }
+    return overrides;
   }
 
   _build() {
@@ -620,6 +1038,23 @@ class BattMindWhatIfCard extends HTMLElement {
         .best { font-weight: 700; }
         .badge { display: block; margin-top: 4px; color: var(--primary-text-color); font-size: .75rem; font-weight: 500; }
         .scroll { overflow-x: auto; margin: 12px 0; border: 1px solid var(--divider-color); border-radius: 12px; }
+        .module-scroll table { width: 100%; min-width: 0; table-layout: fixed; }
+        .module-scroll th, .module-scroll td { padding: 8px; }
+        .module-scroll th { white-space: normal; min-width: 0; line-height: 1.2; overflow-wrap: anywhere; }
+        .module-scroll td { white-space: normal; overflow-wrap: anywhere; }
+        .module-chart { margin: 12px 0; border: 1px solid var(--divider-color); border-radius: 12px;
+          padding: 8px; background: var(--secondary-background-color, var(--card-background-color)); }
+        .module-chart svg { display: block; width: 100%; height: auto; }
+        .module-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 4px; font-size: .85rem; }
+        .module-legend-item { display: flex; align-items: center; gap: 5px; }
+        .module-legend-color { width: 18px; height: 3px; flex: none; }
+        .rules-edit { grid-column: 1 / -1; }
+        .rules-edit summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
+        .rules-edit .range { margin-top: 10px; }
+        .rules-edit .check { grid-column: auto; }
+        .rules-edit .form-note { grid-column: 1 / -1; margin: 0; }
+        .rules-scroll table { min-width: 0; }
+        .rules-scroll th, .rules-scroll td { padding: 7px 10px; white-space: normal; }
         .chart-scroll { padding: 12px 4px 0; background: var(--secondary-background-color, var(--card-background-color)); }
         .chart-detail { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
         .chart-select { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
@@ -689,6 +1124,16 @@ class BattMindWhatIfCard extends HTMLElement {
       ),
     };
     Object.values(moduleInputs).forEach(input => { input.disabled = !moduleToggle.checked; });
+    this._ruleInputs = new Map();
+    this._ruleBox = this._element("details", undefined, form);
+    this._ruleBox.className = "rules-edit";
+    const ruleLabels = this._ruleLabels();
+    this._element("summary", ruleLabels.edit_title, this._ruleBox);
+    this._ruleStatus = this._element("p", ruleLabels.edit_loading, this._ruleBox);
+    this._ruleStatus.className = "result-note";
+    this._ruleFields = null;
+    if (this._ruleDefaults) this._buildRuleFields();
+    this._ensureRuleDefaults();
     this._element("p", labels.form_explain, card).className = "form-note";
     this._formInputs = { history, battery, rangeToggle, range, inputs, moduleToggle, moduleFields, moduleInputs };
     form.addEventListener("input", () => { this._formDirty = true; });
@@ -745,7 +1190,7 @@ class BattMindWhatIfCard extends HTMLElement {
       }
     }
     try {
-      return await runWhatIf(this._session, this._hass, data);
+      return await runWhatIf(this._session, this._hass, { ...data, ...this._ruleOverrides() });
     } catch (error) {
       this._session.error = whatIfError(error);
       publishWhatIf(this._session);
@@ -781,6 +1226,7 @@ class BattMindWhatIfCard extends HTMLElement {
       moduleInputs.count.value = String(saved.module_count ?? 5);
       Object.values(moduleInputs).forEach(input => { input.disabled = !moduleToggle.checked; });
       this._appliedInputs = saved;
+      this._applyRuleValues(saved);
     }
     this._button.disabled = this._session.running;
     const language = (this._hass.language || "en").toLowerCase().split("-")[0];
@@ -1013,20 +1459,39 @@ class BattMindWhatIfCard extends HTMLElement {
       const comparison = simulation.module_comparison;
       const annualization = comparison.annualization;
       const eligibilityKnown = annualization.months && typeof annualization.months === "object";
-      const annualizationAvailable = eligibilityKnown && annualization.available;
+      const annual = comparison.annual;
+      const hasAnnual = annual && ["strict", "estimated"].includes(annual.method) && Array.isArray(annual.rows);
+      const annualizationAvailable = hasAnnual || (!annual && eligibilityKnown && annualization.available);
       const reasonLabel = {
         missing_sell_price: labels.module_missing_sell_price,
         missing_sell_cost: labels.module_missing_sell_cost,
-      }[annualization.reason] || labels.module_coverage_requirement;
+      }[annual?.status_reason || annualization.reason] || labels.module_estimate_unavailable;
       const unavailableLabel = eligibilityKnown ? reasonLabel : labels.module_rerun;
       this._element("h2", labels.module_section, this._results).className = "section-title";
       this._element("p", labels.module_baseline_note, this._results).className = "result-note";
       this._element("p",
         `${labels.module_history}: ${this._number(annualization.matched_hours)} ${labels.hours}; `
           + `${annualization.represented_months.length}/12 ${labels.module_months}`,
-        this._results).className = annualizationAvailable ? "meta" : "warning";
+        this._results).className = "meta";
+      if (annual?.method === "estimated") {
+        this._element("p", labels.module_estimate_note, this._results).className = "result-note";
+        this._element("p", `${labels.module_estimated_hours}: ${this._number(annual.provenance.estimated_hours)}`,
+          this._results).className = "meta";
+      }
       if (!annualizationAvailable) {
         this._element("p", unavailableLabel, this._results).className = "warning";
+      }
+      const reliability = this._element("details", undefined, this._results);
+      this._element("summary", labels.module_reliability_details, reliability);
+      if (["strict", "estimated"].includes(annual?.method)
+        && comparison.warnings?.raw_current_sell_cost_hours > 0) {
+        this._element("p",
+          `${labels.module_current_cost_warning} (${this._number(comparison.warnings.raw_current_sell_cost_hours)})`,
+          this._results).className = "warning";
+      }
+      if (annual?.method === "estimated" && annual.provenance.estimated_from_other_months?.length) {
+        this._element("p", `${labels.module_estimated_months}: ${annual.provenance.estimated_from_other_months.join(", ")}`,
+          reliability).className = "result-note";
       }
       const warnings = comparison.warnings || {};
       for (const [key, label] of [
@@ -1036,38 +1501,223 @@ class BattMindWhatIfCard extends HTMLElement {
         ["raw_unknown_sell_cost_hours", labels.module_missing_sell_cost],
       ]) {
         if (warnings[key] > 0) {
-          this._element("p", `${label} (${this._number(warnings[key])})`, this._results).className = "warning";
+          this._element("p", `${label} (${this._number(warnings[key])})`, reliability).className = "result-note";
         }
       }
       const moduleScroll = this._element("div", undefined, this._results);
-      moduleScroll.className = "scroll";
+      moduleScroll.className = "scroll module-scroll";
       const moduleTable = this._element("table", undefined, moduleScroll);
       const moduleHeader = this._element("tr", undefined, moduleTable);
       for (const text of [
-        labels.module_added, labels.module_capacity, labels.module_profit, labels.module_gain_baseline,
-        labels.module_incremental_gain, labels.module_annualized_gain, labels.module_price,
-        labels.module_cumulative_cost, labels.module_payback,
+        `${labels.module_added} / ${labels.module_capacity}`,
+        labels.module_incremental_gain,
+        annual?.method === "estimated" ? labels.module_estimated_annual_gain : labels.module_annualized_gain,
+        labels.module_price, labels.module_payback,
       ]) this._element("th", text, moduleHeader).setAttribute("scope", "col");
+      let hasNoPayback = false;
       for (const rowData of comparison.rows) {
+        const annualRow = hasAnnual ? annual.rows.find(item => item.module_count === rowData.added_modules) : null;
+        const gain = hasAnnual ? annualRow?.marginal_vs_previous?.annual_gain : rowData.annualized_incremental_gain;
+        const years = hasAnnual ? annualRow?.marginal_vs_previous?.payback_years : rowData.payback_years;
         const row = this._element("tr", undefined, moduleTable);
-        this._element("th", this._number(rowData.added_modules), row).setAttribute("scope", "row");
-        this._element("td", `${this._capacity(rowData.battery_size)} kWh`, row);
-        this._element("td", `${this._money(rowData.profit)} ${currency}`, row);
-        this._element("td", `${this._money(rowData.gain_vs_current_capacity)} ${currency}`, row);
+        this._element("th", `${this._number(rowData.added_modules)} · ${this._capacity(rowData.battery_size)} kWh`, row)
+          .setAttribute("scope", "row");
         this._element("td", rowData.incremental_gain === null
           ? "—" : `${this._money(rowData.incremental_gain)} ${currency}`, row);
-        this._element("td", !annualizationAvailable || rowData.annualized_incremental_gain === null
-          ? "—" : `${this._money(rowData.annualized_incremental_gain)} ${currency}`, row);
+        this._element("td", !annualizationAvailable || !Number.isFinite(gain)
+          ? "—" : `${this._money(gain)} ${currency}`, row);
         this._element("td", `${this._money(rowData.module_price)} ${currency}`, row);
-        this._element("td", `${this._money(rowData.cumulative_module_cost)} ${currency}`, row);
-        const payback = rowData.added_modules === 0
-          ? "—"
-          : !annualizationAvailable || rowData.payback_years === null
-            ? (annualizationAvailable ? labels.module_no_payback : unavailableLabel)
-            : `${this._number(rowData.payback_years)} ${labels.module_years}`;
-        this._element("td", payback, row);
+        const noPayback = rowData.added_modules > 0 && annualizationAvailable && !Number.isFinite(years);
+        const payback = rowData.added_modules === 0 || !annualizationAvailable || noPayback
+          ? "—" : `${this._number(years)} ${labels.module_years}`;
+        const paybackCell = this._element("td", payback, row);
+        if (noPayback) {
+          hasNoPayback = true;
+          paybackCell.setAttribute("aria-label", labels.module_no_payback);
+          paybackCell.setAttribute("title", labels.module_no_payback);
+        }
       }
-      this._element("p", labels.module_note, this._results).className = "result-note";
+      if (hasNoPayback) this._element("p", labels.module_no_payback, this._results).className = "result-note";
+      this._element("p", labels.module_estimate_details, this._results).className = "result-note";
+      if (hasAnnual) {
+        const series = annual.rows
+          .filter(row => row.module_count > 0 && Number.isFinite(row.cumulative_vs_baseline?.annual_gain)
+            && Number.isFinite(row.cumulative_cost))
+          .map(row => ({ modules: row.module_count, gain: row.cumulative_vs_baseline.annual_gain, cost: row.cumulative_cost }));
+        this._modulePaybackChart(series, labels);
+      }
+    }
+    this._showRuleSettings(simulation);
+  }
+
+  _showRuleSettings(simulation) {
+    const language = (this._hass?.language || "en").toLowerCase().split("-")[0];
+    const labels = whatIfRuleLabels[language] || whatIfRuleLabels.en;
+    const sides = [simulation.current_assumptions, simulation.assumptions];
+    const known = sides.map(side => side && side.rules && typeof side.rules === "object");
+    const active = side => side && side.battery_size > 0;
+    const enabled = (side, key) => active(side) && side.rules?.[key] === true
+      && (key !== "cheapest_hour_fill_up" || side.rules.cheapest_hour_fill_planner === true)
+      && (!["optimize_solar_charging", "discharge_before_solar"].includes(key)
+        || side.rules.solar_charging === true);
+    const selling = side => active(side) && (
+      ["most_profit", "sell_excess_kwh_available", "grid_charge_to_sell",
+        "force_powerwall_max_hours_old_discharge"].some(key => enabled(side, key))
+      || (enabled(side, "discharge_before_solar") && enabled(side, "solar_charging"))
+    );
+    this._element("h2", labels.title, this._results).className = "section-title";
+    this._element("p", labels.note, this._results).className = "result-note";
+    if (known.some(value => !value)) {
+      this._element("p", labels.unavailable, this._results).className = "warning";
+    }
+    if (!known.some(Boolean)) return;
+    const groups = [
+      { key: "charging", rules: [
+        "solar_charging", "cheapest_hour_fill_planner", "cheapest_hour_fill_up",
+        "most_expensive_planner", "needed_before_max_level_planner",
+        "negative_price_planner", "optimize_solar_charging",
+      ], parameters: ["cheap_price_periods", "cheapest_price_rise_threshold", "cheap_price_period_rise_threshold"] },
+      { key: "discharging", rules: [
+        "only_discharge_on_profit", "prioritize_discharge_hours_by_energy_cost",
+        "force_powerwall_max_hours_old_discharge",
+      ], parameters: ["powerwall_max_hours_old"] },
+      { key: "selling", rules: [
+        "grid_charge_to_sell", "most_profit", "sell_excess_kwh_available", "discharge_before_solar",
+      ], parameters: ["min_total_profit", "min_sell_kwh", "exclude_sell_hours"] },
+      { key: "shared", rules: [], parameters: ["usage_reserve", "min_profit_per_kwh"] },
+    ];
+    const rows = new Map(groups.map(group => [group.key, []]));
+    if (sides.some((side, index) => known[index] && active(side))) {
+      rows.get("charging").push([labels.mode, ...sides.map((side, index) =>
+        known[index] && active(side) && side.control_mode === "optimizer" ? labels.optimizer
+          : known[index] && active(side) && side.control_mode === "rules" ? labels.rule_mode : "—")]);
+    }
+    for (const group of groups) {
+      for (const key of group.rules) {
+        if (sides.some((side, index) => known[index] && enabled(side, key))) {
+          rows.get(group.key).push([labels.names[key], ...sides.map((side, index) =>
+          known[index] && enabled(side, key) ? labels.on : "—")]);
+        }
+      }
+      const parameterUnits = {
+        usage_reserve: "%", min_profit_per_kwh: "currency_kwh", min_total_profit: "currency",
+        min_sell_kwh: "kWh", cheap_price_periods: "",
+        cheapest_price_rise_threshold: "currency_kwh", cheap_price_period_rise_threshold: "currency_kwh",
+        powerwall_max_hours_old: "h", exclude_sell_hours: "text",
+      };
+      for (const key of group.parameters) {
+        const unit = parameterUnits[key];
+        const values = sides.map((side, index) => {
+          if (!known[index] || !active(side)) return null;
+          if (key.startsWith("cheap") && !enabled(side, "cheapest_hour_fill_planner")) return null;
+          if (key === "powerwall_max_hours_old" && !enabled(side, "force_powerwall_max_hours_old_discharge")) return null;
+          if (["min_total_profit", "min_sell_kwh", "exclude_sell_hours"].includes(key) && !selling(side)) return null;
+          const value = side[key];
+          if (unit === "text") {
+            const hours = typeof value === "string"
+              ? value.replaceAll(" ", "").split(",").filter(hour => /^[0-9]+$/.test(hour))
+              : [];
+            return hours.length ? hours.join(",") : null;
+          }
+          if (typeof value !== "number" || !Number.isFinite(value)) return null;
+          if (unit === "currency" || unit === "currency_kwh") {
+            const amount = new Intl.NumberFormat(this._hass.language, {
+              minimumFractionDigits: 2, maximumFractionDigits: 20,
+            }).format(value);
+            return `${amount} ${this._hass.config.currency}${unit === "currency_kwh" ? "/kWh" : ""}`;
+          }
+          const amount = new Intl.NumberFormat(this._hass.language, { maximumFractionDigits: 20 }).format(value);
+          return `${amount}${unit ? ` ${unit}` : ""}`;
+        });
+        if (values.some(value => value !== null)) rows.get(group.key).push([labels.names[key], ...values.map(value => value ?? "—")]);
+      }
+    }
+    const visibleGroups = groups.filter(group => rows.get(group.key).length);
+    if (!visibleGroups.length) return;
+    const scroll = this._element("div", undefined, this._results);
+    scroll.className = "scroll rules-scroll";
+    const table = this._element("table", undefined, scroll);
+    const header = this._element("tr", undefined, table);
+    for (const text of [labels.setting, this._labels().current, this._labels().scenario]) {
+      this._element("th", text, header).setAttribute("scope", "col");
+    }
+    for (const group of visibleGroups) {
+      const heading = this._element("tr", undefined, table);
+      this._element("th", labels.groups[group.key], heading).setAttribute("colspan", "3");
+      for (const [name, current, scenario] of rows.get(group.key)) {
+        const row = this._element("tr", undefined, table);
+        this._element("th", name, row).setAttribute("scope", "row");
+        this._element("td", current, row);
+        this._element("td", scenario, row);
+      }
+    }
+  }
+
+  _modulePaybackChart(series, labels) {
+    if (!series.length) return;
+    const currency = this._hass.config.currency;
+    const crossings = series.map(item => item.gain > 0 ? item.cost / item.gain : null)
+      .filter(value => value !== null && Number.isFinite(value));
+    const horizon = Math.min(30, Math.max(5, Math.ceil(Math.max(0, ...crossings) / 5) * 5));
+    const endpoints = series.flatMap(item => [-item.cost, item.gain * horizon - item.cost]);
+    if (endpoints.some(value => !Number.isFinite(value))) return;
+    const minimum = Math.min(0, ...endpoints);
+    const maximum = Math.max(0, ...endpoints);
+    const spread = maximum - minimum || 1;
+    const y = value => 155 - (value - minimum) * 120 / spread;
+    const x = value => 74 + value / horizon * 306;
+    const colors = ["#388e3c", "#e65100", "#1565c0", "#ad1457", "#6a1b9a", "#00838f",
+      "#5d4037", "#c62828", "#558b2f", "#4527a0", "#00796b", "#9e5d00"];
+    this._element("h3", labels.module_graph_title, this._results);
+    this._element("p", labels.module_graph_note, this._results).className = "result-note";
+    const wrapper = this._element("div", undefined, this._results);
+    wrapper.className = "module-chart";
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 400 205");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", labels.module_graph_title);
+    wrapper.appendChild(svg);
+    const axisText = (text, px, py, anchor = "middle") => {
+      const node = document.createElementNS(ns, "text");
+      node.setAttribute("x", px);
+      node.setAttribute("y", py);
+      node.setAttribute("text-anchor", anchor);
+      node.textContent = text;
+      svg.appendChild(node);
+    };
+    const zero = document.createElementNS(ns, "line");
+    zero.setAttribute("x1", x(0)); zero.setAttribute("x2", x(horizon));
+    zero.setAttribute("y1", y(0)); zero.setAttribute("y2", y(0));
+    svg.appendChild(zero);
+    axisText(this._money(maximum), 68, 37, "end");
+    axisText(this._money(minimum), 68, 155, "end");
+    axisText("0", 68, y(0) - 3, "end");
+    for (const tick of [0, horizon / 2, horizon]) {
+      axisText(this._number(tick), x(tick), 174);
+    }
+    axisText(labels.module_years, 227, 195);
+    axisText(currency, 7, 18, "start");
+    const legend = this._element("div", undefined, wrapper);
+    legend.className = "module-legend";
+    for (const [index, item] of series.entries()) {
+      const color = colors[index % colors.length];
+      const line = document.createElementNS(ns, "line");
+      line.setAttribute("x1", x(0)); line.setAttribute("y1", y(-item.cost));
+      line.setAttribute("x2", x(horizon)); line.setAttribute("y2", y(item.gain * horizon - item.cost));
+      line.style.stroke = color;
+      line.style.strokeWidth = "2.5";
+      line.style.opacity = "1";
+      svg.appendChild(line);
+      const entry = this._element("div", undefined, legend);
+      entry.className = "module-legend-item";
+      const swatch = this._element("span", undefined, entry);
+      swatch.className = "module-legend-color";
+      swatch.style.backgroundColor = color;
+      const years = item.gain > 0 ? item.cost / item.gain : null;
+      this._element("span", `${this._number(item.modules)} ${labels.module_graph_modules}: `
+        + (years === null || !Number.isFinite(years) ? labels.module_graph_no_payback
+          : `${this._number(years)} ${labels.module_years}`), entry);
     }
   }
 

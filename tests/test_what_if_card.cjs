@@ -36,7 +36,8 @@ global.customElements = {
   get: () => undefined,
   define: (_, element) => { Card = element; },
 };
-vm.runInThisContext(fs.readFileSync("custom_components/battmind/dashboard/what-if-card.js", "utf8"));
+const cardSource = fs.readFileSync("custom_components/battmind/dashboard/what-if-card.js", "utf8");
+vm.runInThisContext(cardSource);
 
 const labels = Object.fromEntries([
   "title", "help", "history", "battery", "range", "range_start", "range_end", "range_step",
@@ -46,6 +47,9 @@ const labels = Object.fromEntries([
   "module_dst_warning", "module_tariff_warning", "module_current_cost_warning",
   "module_gain_baseline", "module_incremental_gain", "module_annualized_gain", "module_cumulative_cost",
   "module_payback", "module_no_payback", "module_years", "module_note",
+  "module_estimate_note", "module_estimated_hours", "module_estimated_months",
+  "module_reliability_details", "module_estimate_unavailable", "module_graph_title",
+  "module_graph_note", "module_graph_modules", "module_graph_no_payback", "module_estimate_details",
   "run", "running", "failed", "results", "completed", "used_settings", "load_failed", "current", "scenario", "profit", "bill", "difference",
   "period", "hours", "missing", "tariffs", "sell_history", "chart", "interval_profit",
   "interval_per_kwh", "interval_chart", "interval_explain", "bill_explain", "form_explain",
@@ -99,6 +103,22 @@ const serviceOnly = handler => async message => {
 async function main() {
   for (const language of ["da", "de", "en", "pl", "uk"]) {
     const translated = JSON.parse(fs.readFileSync(`custom_components/battmind/texts/${language}.json`, "utf8")).dashboard;
+    const entities = JSON.parse(fs.readFileSync(`custom_components/battmind/translations/${language}.json`, "utf8")).entity;
+    for (const [key, name] of Object.entries(whatIfRuleLabels[language].names)) {
+      assert.equal(name, (entities.switch[key] || entities.number[key] || entities.text[key]).name);
+    }
+    for (const labelsForLanguage of Object.values(whatIfRuleLabels)) {
+      for (const key of ["charging", "discharging", "selling", "shared"]) assert(labelsForLanguage.groups[key]);
+    }
+    for (const key of [...whatIfRuleSwitches, "usage_reserve", "min_profit_per_kwh", "min_total_profit",
+      "min_sell_kwh", "cheap_price_periods", "cheapest_price_rise_threshold",
+      "cheap_price_period_rise_threshold", "powerwall_max_hours_old", "exclude_sell_hours"]) {
+      assert(whatIfRuleLabels[language].names[key], `${language} lacks a name for ${key}`);
+    }
+    for (const key of ["edit_title", "edit_note", "edit_loading", "edit_unavailable", "edit_unsupported", "edit_reset"]) {
+      assert(whatIfRuleLabels[language][key], `${language} lacks ${key}`);
+      assert(!/[?\uFFFD]/.test(whatIfRuleLabels[language][key]));
+    }
     const oldLabels = Object.fromEntries(Object.entries(labels).filter(([key]) => !key.startsWith("module_")));
     const legacy = new Card();
     legacy.setConfig({ config_entry_id: `legacy-${language}`, labels: oldLabels });
@@ -118,6 +138,115 @@ async function main() {
     assert(moduleTable.children[0].children.some(node => node.textContent === translated.what_if_module_payback));
     assert(!JSON.stringify(moduleTable).includes("undefined"));
   }
+  const rulesCard = new Card();
+  rulesCard.setConfig({ config_entry_id: "rules", labels });
+  rulesCard.hass = { language: "en", config: { currency: "DKK" }, callWS: serviceOnly(async () => null) };
+  const ruleSimulation = structuredClone(simulation);
+  ruleSimulation.current_assumptions = {
+    battery_size: 10, control_mode: "rules",
+    rules: { cheapest_hour_fill_planner: true, cheapest_hour_fill_up: true,
+      force_powerwall_max_hours_old_discharge: true, solar_charging: false,
+      optimize_solar_charging: true, discharge_before_solar: true },
+    cheap_price_periods: 2, cheapest_price_rise_threshold: 0.5,
+    cheap_price_period_rise_threshold: 0.1, powerwall_max_hours_old: 48,
+    min_sell_kwh: 0.234, min_profit_per_kwh: 0.004, exclude_sell_hours: "2,3",
+  };
+  ruleSimulation.assumptions = {
+    battery_size: 15, control_mode: "optimizer",
+    rules: { optimizer_control: true, cheapest_hour_fill_planner: false, cheapest_hour_fill_up: true,
+      force_powerwall_max_hours_old_discharge: false, solar_charging: false,
+      optimize_solar_charging: true, most_profit: true },
+    cheap_price_periods: 5, powerwall_max_hours_old: 24,
+    min_sell_kwh: 0.3, exclude_sell_hours: "",
+  };
+  rulesCard._show(ruleSimulation);
+  let ruleRows = tables(rulesCard).at(-1).children.map(row => row.children.map(cell => cell.textContent));
+  const names = whatIfRuleLabels.en.names;
+  assert(!ruleRows.some(row => row[0] === names.solar_charging));
+  assert(!ruleRows.some(row => row[0] === names.optimize_solar_charging));
+  assert(!ruleRows.some(row => row[0] === names.discharge_before_solar));
+  assert.deepEqual(ruleRows.find(row => row[0] === names.cheapest_hour_fill_up), [names.cheapest_hour_fill_up, "On", "—"]);
+  assert.deepEqual(ruleRows.find(row => row[0] === names.cheap_price_periods), [names.cheap_price_periods, "2", "—"]);
+  assert.deepEqual(ruleRows.find(row => row[0] === names.powerwall_max_hours_old), [names.powerwall_max_hours_old, "48 h", "—"]);
+  assert.deepEqual(ruleRows.find(row => row[0] === names.min_sell_kwh), [names.min_sell_kwh, "0.234 kWh", "0.3 kWh"]);
+  assert.deepEqual(ruleRows.find(row => row[0] === names.min_profit_per_kwh), [names.min_profit_per_kwh, "0.004 DKK/kWh", "—"]);
+  assert.deepEqual(ruleRows.find(row => row[0] === names.exclude_sell_hours), [names.exclude_sell_hours, "2,3", "—"]);
+  ruleSimulation.current_assumptions.exclude_sell_hours = "unknown";
+  rulesCard._show(ruleSimulation);
+  assert(!tables(rulesCard).at(-1).children.some(row => row.children[0].textContent === names.exclude_sell_hours));
+  assert.deepEqual(ruleRows.find(row => row[0] === names.cheapest_price_rise_threshold),
+    [names.cheapest_price_rise_threshold, "0.50 DKK/kWh", "—"]);
+  const groupHeaders = tables(rulesCard).at(-1).children
+    .filter(row => row.children.length === 1).map(row => row.children[0].textContent);
+  assert.deepEqual(groupHeaders, ["Charging", "Discharging", "Selling", "Shared"]);
+  const noSelling = structuredClone(ruleSimulation);
+  noSelling.current_assumptions.rules.force_powerwall_max_hours_old_discharge = false;
+  noSelling.assumptions.control_mode = "rules";
+  noSelling.assumptions.rules.optimizer_control = false;
+  noSelling.assumptions.rules.most_profit = false;
+  rulesCard._show(noSelling);
+  const noSellingRows = tables(rulesCard).at(-1).children.map(row => row.children[0].textContent);
+  assert(!noSellingRows.includes(names.min_sell_kwh));
+  assert(!noSellingRows.includes(names.exclude_sell_hours));
+  assert(noSellingRows.includes(names.min_profit_per_kwh));
+  noSelling.assumptions.control_mode = "optimizer";
+  noSelling.assumptions.rules.optimizer_control = true;
+  rulesCard._show(noSelling);
+  assert(!tables(rulesCard).at(-1).children.some(row => row.children[0].textContent === names.min_sell_kwh));
+  ruleSimulation.current_assumptions.battery_size = 0;
+  rulesCard._show(ruleSimulation);
+  ruleRows = tables(rulesCard).at(-1).children.map(row => row.children.map(cell => cell.textContent));
+  assert(!ruleRows.some(row => row[0] === names.cheapest_hour_fill_up));
+  assert(!ruleRows.some(row => row[0] === names.powerwall_max_hours_old));
+  assert.deepEqual(ruleRows.find(row => row[0] === names.min_sell_kwh), [names.min_sell_kwh, "—", "0.3 kWh"]);
+  const legacyRules = structuredClone(ruleSimulation);
+  delete legacyRules.assumptions.rules;
+  delete legacyRules.current_assumptions.rules;
+  rulesCard._show(legacyRules);
+  assert(rulesCard._results.children.some(node => node.textContent === whatIfRuleLabels.en.unavailable));
+  const ruleEditCard = new Card();
+  ruleEditCard.setConfig({ config_entry_id: "rule-edit", labels });
+  let ruleRequest;
+  const ruleSettings = {
+    switches: Object.fromEntries(whatIfRuleSwitches.map(key => [key, key !== "most_profit"])),
+    unsupported: ["negative_price_planner"],
+    numbers: {
+      usage_reserve: { value: 10, min: 0, max: 100, step: 1 },
+      min_sell_kwh: { value: 0.2, min: 0.2, max: 1, step: 0.1 },
+    },
+    exclude_sell_hours: "1,2",
+  };
+  ruleEditCard.hass = {
+    language: "en", config: { currency: "DKK" },
+    callWS: serviceOnly(async message => {
+      if (message.type === "battmind/what_if_settings") return ruleSettings;
+      ruleRequest = message;
+      return { response: { simulations: { battmind: simulation } } };
+    }),
+  };
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const ruleInputs = ruleEditCard._ruleInputs;
+  assert.equal(ruleInputs.get("negative_price_planner").disabled, true);
+  assert.equal(ruleInputs.get("most_profit").checked, false);
+  assert.equal(ruleInputs.get("solar_charging").checked, true);
+  assert.equal(ruleInputs.get("usage_reserve").value, "10");
+  assert.equal(ruleInputs.get("exclude_sell_hours").value, "1,2");
+  await ruleEditCard._run(form, false);
+  assert.deepEqual(ruleRequest.data, { history_days: 30, battery_size: 0 });
+  ruleInputs.get("most_profit").checked = true;
+  ruleInputs.get("usage_reserve").value = "25";
+  ruleInputs.get("exclude_sell_hours").value = "1, 3";
+  await ruleEditCard._run(form, false);
+  assert.deepEqual(ruleRequest.data, {
+    history_days: 30, battery_size: 0, most_profit: true, usage_reserve: 25, exclude_sell_hours: "1,3",
+  });
+  const failedRulesCard = new Card();
+  failedRulesCard.setConfig({ config_entry_id: "rule-failed", labels });
+  failedRulesCard.hass = {
+    language: "en", config: { currency: "DKK" }, callWS: serviceOnly(async () => null),
+  };
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(failedRulesCard._ruleStatus.textContent, whatIfRuleLabels.en.edit_unavailable);
   const card = new Card();
   card.setConfig({ config_entry_id: "entry-1", labels });
   card.connectedCallback();
@@ -157,11 +286,11 @@ async function main() {
   assert(intervalGraph.children.some(node => node.tag === "text" && node.textContent === "0–5 kWh"));
   const moduleRows = tables(card)[2].children;
   assert.equal(moduleRows.length, 3);
-  assert.equal(moduleRows[0].children[1].textContent, "module_capacity");
-  assert.equal(moduleRows[1].children[0].textContent, "0");
-  assert.equal(moduleRows[2].children[0].textContent, "1");
-  assert.equal(moduleRows[2].children[7].textContent, "0.00 DKK");
-  assert.equal(moduleRows[2].children[8].textContent, "module_coverage_requirement");
+  assert.equal(moduleRows[0].children[0].textContent, "module_added / module_capacity");
+  assert.equal(moduleRows[1].children[0].textContent, "0 · 10 kWh");
+  assert.equal(moduleRows[2].children[0].textContent, "1 · 12.5 kWh");
+  assert.equal(moduleRows[2].children[3].textContent, "0.00 DKK");
+  assert.equal(moduleRows[2].children[4].textContent, "—");
   const reliabilityCard = new Card();
   reliabilityCard.setConfig({ config_entry_id: "reliability", labels });
   reliabilityCard.hass = { language: "en", config: { currency: "DKK" }, callWS: serviceOnly(async () => null) };
@@ -172,22 +301,65 @@ async function main() {
     raw_unknown_sell_cost_hours: 4,
   };
   reliabilityCard._show(unreliable);
-  const warningText = reliabilityCard._results.children.filter(node => node.className === "warning").map(node => node.textContent);
-  for (const expected of ["module_missing_sell_price", "module_dst_warning (2)", "module_tariff_warning (50)",
-    "module_current_cost_warning (3)", "module_missing_sell_cost (4)"]) {
-    assert(warningText.includes(expected));
-  }
+  assert(reliabilityCard._results.children.some(node => node.textContent === "module_missing_sell_price"));
+  const reliability = reliabilityCard._results.children.find(node => node.tag === "details");
+  const warningText = reliability.children.map(node => node.textContent);
+  for (const expected of ["module_dst_warning (2)", "module_tariff_warning (50)",
+    "module_current_cost_warning (3)", "module_missing_sell_cost (4)"]) assert(warningText.includes(expected));
+  assert(!reliabilityCard._results.children.some(node =>
+    node.className === "warning" && node.textContent === "module_current_cost_warning (3)"));
   unreliable.module_comparison.annualization.reason = "missing_sell_cost";
   reliabilityCard._show(unreliable);
-  assert.equal(tables(reliabilityCard)[2].children[2].children[8].textContent, "module_missing_sell_cost");
+  assert.equal(tables(reliabilityCard)[2].children[2].children[4].textContent, "—");
+  assert(reliabilityCard._results.children.some(node => node.textContent === "module_missing_sell_cost"));
   const oldResult = structuredClone(simulation);
   oldResult.module_comparison.annualization.available = true;
   delete oldResult.module_comparison.annualization.months;
   oldResult.module_comparison.rows[1].annualized_incremental_gain = 500;
   oldResult.module_comparison.rows[1].payback_years = 2;
   reliabilityCard._show(oldResult);
-  assert.equal(tables(reliabilityCard)[2].children[2].children[5].textContent, "—");
-  assert.equal(tables(reliabilityCard)[2].children[2].children[8].textContent, "module_rerun");
+  assert.equal(tables(reliabilityCard)[2].children[2].children[2].textContent, "—");
+  assert.equal(tables(reliabilityCard)[2].children[2].children[4].textContent, "—");
+  assert(reliabilityCard._results.children.some(node => node.textContent === "module_rerun"));
+  const estimated = structuredClone(simulation);
+  estimated.module_comparison.warnings = { raw_current_sell_cost_hours: 3 };
+  estimated.module_comparison.annual = {
+    method: "estimated", provenance: { estimated_hours: 2000, estimated_from_other_months: ["2026-01"] },
+    rows: [
+      { module_count: 0, cumulative_cost: 0, marginal_vs_previous: null,
+        cumulative_vs_baseline: { annual_gain: 0 } },
+      { module_count: 1, cumulative_cost: 1000, marginal_vs_previous: { annual_gain: 100, payback_years: 10 },
+        cumulative_vs_baseline: { annual_gain: 100 } },
+      { module_count: 2, cumulative_cost: 2000, marginal_vs_previous: { annual_gain: -50, payback_years: null },
+        cumulative_vs_baseline: { annual_gain: 50 } },
+    ],
+  };
+  estimated.module_comparison.rows.push({ added_modules: 2, battery_size: 15, profit: 11,
+    gain_vs_current_capacity: 1, incremental_gain: -1, annualized_incremental_gain: null,
+    module_price: 1000, cumulative_module_cost: 2000, payback_years: null });
+  reliabilityCard._show(estimated);
+  assert(reliabilityCard._results.children.some(node =>
+    node.className === "warning" && node.textContent === "module_current_cost_warning (3)"));
+  const strict = structuredClone(estimated);
+  strict.module_comparison.annual.method = "strict";
+  reliabilityCard._show(strict);
+  assert(reliabilityCard._results.children.some(node =>
+    node.className === "warning" && node.textContent === "module_current_cost_warning (3)"));
+  reliabilityCard._show(estimated);
+  const estimatedRows = tables(reliabilityCard)[2].children;
+  assert.equal(estimatedRows[2].children[2].textContent, "100.00 DKK");
+  assert.equal(estimatedRows[0].children[2].textContent, "Estimated annual incremental gain");
+  assert.equal(estimatedRows[2].children[4].textContent, "10 module_years");
+  assert.equal(estimatedRows[3].children[4].textContent, "—");
+  assert.equal(estimatedRows[3].children[4].attributes["aria-label"], "module_no_payback");
+  const moduleChart = reliabilityCard._results.children.find(node => node.className === "module-chart");
+  const chartSvg = moduleChart.children.find(node => node.tag === "svg");
+  assert.equal(chartSvg.attributes.viewBox, "0 0 400 205");
+  assert.equal(chartSvg.style.minWidth, undefined);
+  assert.equal(chartSvg.children.filter(node => node.tag === "line").length, 3);
+  const legend = moduleChart.children.find(node => node.className === "module-legend");
+  assert.equal(legend.children[0].children[1].textContent, "1 module_graph_modules: 10 module_years");
+  assert.equal(legend.children[1].children[1].textContent, "2 module_graph_modules: 40 module_years");
   const details = card._results.children.filter(node => node.className === "chart-detail");
   assert.equal(details.length, 2);
   assert.equal(details[0].textContent, "0 kWh — chart: 0.00 DKK");
@@ -216,6 +388,11 @@ async function main() {
   ]);
   for (const language of ["da", "de", "en", "pl", "uk"]) {
     const translated = JSON.parse(fs.readFileSync(`custom_components/battmind/texts/${language}.json`, "utf8")).dashboard;
+    for (const key of ["what_if_module_estimated_annual_gain", "what_if_module_current_cost_warning"]) {
+      assert(translated[key]);
+      assert(!/[?\uFFFD]/.test(translated[key]), `${language} ${key} contains corrupted characters`);
+      assert(cardSource.includes(JSON.stringify(translated[key])), `${language} ${key} differs from card fallback`);
+    }
     const oldLabels = { ...labels };
     delete oldLabels.interval_profit;
     oldLabels.interval_per_kwh = "";

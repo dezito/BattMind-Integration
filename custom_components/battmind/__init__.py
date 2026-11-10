@@ -32,8 +32,12 @@ from .const import (
     SERVICE_RECALC_HISTORY_TODAY,
     SERVICE_WHAT_IF,
     NUMBER_SETTINGS,
+    SWITCH_SETTINGS,
     TEXT_SETTINGS,
+    WHAT_IF_NUMBERS,
     WHAT_IF_SWITCHES,
+    unsupported_actions,
+    unsupported_switches,
 )
 from .management.backup import BACKUP_DIR, async_export, async_import
 from .management.blueprint_install import async_install_blueprints
@@ -74,6 +78,39 @@ async def _websocket_what_if_last(hass: HomeAssistant, connection, msg: dict) ->
         connection.send_error(msg["id"], "unknown_error", "Could not load the saved what-if result")
         return
     connection.send_result(msg["id"], record)
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "battmind/what_if_settings", vol.Required("config_entry_id"): cv.string}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def _websocket_what_if_settings(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Return the current rule settings, the default of the what-if scenario."""
+    entry, _store = _dashboard_entry(hass, msg["config_entry_id"])
+    if entry is None:
+        connection.send_error(msg["id"], "not_found", "BattMind entry is not loaded")
+        return
+    coordinator = entry.runtime_data
+    settings = coordinator.settings
+
+    def value(key: str, definitions: dict):
+        current = settings.get(key)
+        return definitions[key]["default"] if current is None else current
+
+    unsupported = unsupported_switches(unsupported_actions(coordinator.config))
+    connection.send_result(msg["id"], {
+        "switches": {key: bool(value(key, SWITCH_SETTINGS)) for key in WHAT_IF_SWITCHES},
+        "unsupported": sorted(key for key in WHAT_IF_SWITCHES if key in unsupported),
+        "numbers": {
+            key: {
+                "value": float(value(key, NUMBER_SETTINGS)),
+                **{name: NUMBER_SETTINGS[key][name] for name in ("min", "max", "step")},
+            }
+            for key in WHAT_IF_NUMBERS
+        },
+        "exclude_sell_hours": str(settings.get("exclude_sell_hours") or ""),
+    })
 
 _WHAT_IF_SETTINGS = (
     ("battery_size", "battery_size", "kWh"),
@@ -648,6 +685,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_setup_what_if_card(hass)
     if not hass.data.get(_WHAT_IF_WS_REGISTERED):
         websocket_api.async_register_command(hass, _websocket_what_if_last)
+        websocket_api.async_register_command(hass, _websocket_what_if_settings)
         websocket_api.async_register_command(hass, _websocket_what_if_start)
         websocket_api.async_register_command(hass, _websocket_what_if_status)
         websocket_api.async_register_command(hass, _websocket_what_if_cancel)

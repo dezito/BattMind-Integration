@@ -230,6 +230,171 @@ def _module_payback(module_price: float, annualized_gain: float | None) -> float
     return round(module_price / annualized_gain, 2)
 
 
+def _module_annual_estimate(
+    requested_period: dict | None,
+    tz,
+    timestamps: list[float],
+    cases: list[tuple[int, float, dict, dict]],
+    annualization: dict,
+    module_price: float,
+    missing_sell_price: bool,
+    missing_sell_cost: bool,
+) -> dict:
+    """Provide strict or reference-month-estimated annual module results.
+
+    Each case is (module_count, capacity, replay_months, strict_profit). The replay's
+    monthly profit is used only for the incomplete-history estimate; strict annual
+    gains continue to use the same scaling helper as the existing annualization.
+    """
+    start = end = None
+    expected: set[float] = set()
+    if requested_period:
+        start, end = float(requested_period["start"]), float(requested_period["end"])
+    if start is not None and end is not None and end - start == ANNUAL_HOURS * 3600:
+        expected = {start + hour * 3600 for hour in range(ANNUAL_HOURS)}
+
+    matched_timestamps = set(timestamps) & expected
+    matched_hours = len(matched_timestamps)
+    missing_hours = ANNUAL_HOURS - matched_hours if expected else 0
+    monthly_hours: dict[str, int] = {}
+    for timestamp in matched_timestamps:
+        month = datetime.datetime.fromtimestamp(timestamp, tz).strftime("%Y-%m")
+        monthly_hours[month] = monthly_hours.get(month, 0) + 1
+    requested = _requested_hours_per_month(start, end, tz) if expected else {}
+
+    reason = None
+    if not requested_period:
+        reason = "missing_requested_period"
+    elif not expected:
+        reason = "partial_year"
+    elif len(timestamps) != matched_hours:
+        reason = "unexpected_timestamps"
+    elif missing_sell_price:
+        reason = "missing_sell_price"
+    elif missing_sell_cost:
+        reason = "missing_sell_cost"
+
+    references: dict[str, list[int]] = {}
+    from_other_months: list[str] = []
+    estimated_hours = 0
+    method = "unavailable"
+    if reason is None and matched_hours == ANNUAL_HOURS and annualization["available"]:
+        method = "strict"
+    elif reason is None:
+        if matched_hours * 2 < ANNUAL_HOURS:
+            reason = "insufficient_coverage"
+        else:
+            minimum_reference_hours = min(MIN_REFERENCE_HOURS, sum(requested.values()) / 4)
+            selected = _reference_months(requested, monthly_hours, minimum_reference_hours)
+            if selected is None:
+                reason = "insufficient_reference"
+            else:
+                references, from_other_months = selected
+                method = "estimated"
+                estimated_hours = missing_hours
+
+    reference_profits: list[dict[int, list[float]]] = []
+    if method == "estimated":
+        for _, _, months, _ in cases:
+            reference_profit: dict[int, list[float]] = {}
+            for key, month in months.items():
+                month_number = int(key[5:])
+                value = reference_profit.setdefault(month_number, [0.0, 0])
+                value[0] += float(month["profit"])
+                value[1] += int(month["hours"])
+            reference_profits.append(reference_profit)
+
+    annual_profits: list[dict[str, float | None]] = []
+    annual_totals: list[float | None] = []
+    for case_index, (_, _, months, strict_profit) in enumerate(cases):
+        if method == "strict":
+            matched_profit = float(strict_profit)
+            estimated_profit = 0.0
+        elif method == "estimated":
+            matched_profit = sum(float(month["profit"]) for month in months.values())
+            estimated_profit = 0.0
+            for key, reference in references.items():
+                missing = requested[key] - monthly_hours.get(key, 0)
+                if missing <= 0:
+                    continue
+                reference_profit = reference_profits[case_index]
+                per_hour = sum(
+                    reference_profit[month][0] / reference_profit[month][1]
+                    for month in reference
+                ) / len(reference)
+                estimated_profit += missing * per_hour
+        else:
+            annual_profits.append({"matched": None, "estimated": None, "total": None})
+            annual_totals.append(None)
+            continue
+        total_profit = matched_profit + estimated_profit
+        annual_totals.append(total_profit)
+        annual_profits.append({
+            "matched": round(matched_profit, 2),
+            "estimated": round(estimated_profit, 2),
+            "total": round(total_profit, 2),
+        })
+
+    rows = []
+    for index, (module_count, _, _, _) in enumerate(cases):
+        profit = annual_totals[index]
+        baseline_profit = annual_totals[0]
+        previous_profit = annual_totals[index - 1] if index else None
+        if method == "strict" and profit is not None and baseline_profit is not None:
+            cumulative_gain = _annualized_module_gain(
+                profit - baseline_profit, matched_hours, annualization["available"]
+            )
+            marginal_gain = (
+                _annualized_module_gain(
+                    profit - previous_profit, matched_hours, annualization["available"]
+                )
+                if previous_profit is not None else None
+            )
+        elif method == "estimated" and profit is not None and baseline_profit is not None:
+            cumulative_gain = round(profit - baseline_profit, 2)
+            marginal_gain = round(profit - previous_profit, 2) if previous_profit is not None else None
+        else:
+            cumulative_gain = marginal_gain = None
+        cumulative_cost = round(module_price * module_count, 2)
+        rows.append({
+            "module_count": module_count,
+            "annual_profit": annual_profits[index],
+            "cumulative_cost": cumulative_cost,
+            "cumulative_vs_baseline": {
+                "annual_gain": cumulative_gain,
+                "payback_years": _module_payback(cumulative_cost, cumulative_gain),
+            },
+            "marginal_vs_previous": {
+                "annual_gain": marginal_gain,
+                "payback_years": _module_payback(module_price, marginal_gain),
+            },
+        })
+
+    return {
+        "method": method,
+        "status_reason": reason,
+        "window": {
+            "start": datetime.datetime.fromtimestamp(start, tz).isoformat() if start is not None else None,
+            "end": datetime.datetime.fromtimestamp(end, tz).isoformat() if end is not None else None,
+            "expected_hours": ANNUAL_HOURS if expected else 0,
+        },
+        "coverage": {
+            "matched_hours": matched_hours,
+            "missing_hours": missing_hours,
+            "ratio": round(matched_hours / ANNUAL_HOURS, 4) if expected else 0.0,
+        },
+        "provenance": {
+            "reference_months": references,
+            "estimated_from_other_months": from_other_months,
+            "estimated_hours": estimated_hours,
+        },
+        "uncertainty": {
+            "estimated_share": round(estimated_hours / ANNUAL_HOURS, 4),
+        },
+        "rows": rows,
+    }
+
+
 class WhatIf:
     """The what-if calculation of the planner."""
 
@@ -607,6 +772,25 @@ class WhatIf:
                 missing_sell_price=not sell_price_history_available,
                 missing_sell_cost=raw_unknown_cost_hours > 0,
             )
+            annual_cases = [
+                (
+                    added_modules,
+                    capacity,
+                    calculated[index]["months"],
+                    calculated[index]["profit"],
+                )
+                for added_modules, capacity, index in module_cases
+            ]
+            annual_estimate = _module_annual_estimate(
+                data.get("requested_period"),
+                tz,
+                timestamps,
+                annual_cases,
+                annualization,
+                module_price,
+                missing_sell_price=not sell_price_history_available,
+                missing_sell_cost=raw_unknown_cost_hours > 0,
+            )
             baseline_profit = calculated[module_cases[0][2]]["profit"]
             rows = []
             previous_profit = None
@@ -641,6 +825,7 @@ class WhatIf:
                 "module_price": module_price,
                 "module_count": module_count,
                 "annualization": annualization,
+                "annual": annual_estimate,
                 "warnings": {
                     "dst_replay_resets": _module_dst_resets(timestamps, tz),
                     "tariff_estimated_hours": tariff_estimated_hours,
