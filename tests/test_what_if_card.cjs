@@ -356,7 +356,7 @@ async function main() {
   assert.equal(estimatedRows[3].children[4].attributes["aria-label"], "module_no_payback");
   const moduleChart = reliabilityCard._results.children.find(node => node.className === "module-chart");
   const chartSvg = moduleChart.children.find(node => node.tag === "svg");
-  assert.equal(chartSvg.attributes.viewBox, "0 0 600 200");
+  assert.equal(chartSvg.attributes.viewBox, "0 0 600 300");
   assert.equal(chartSvg.style.minWidth, undefined);
   assert.equal(chartSvg.children.filter(node => node.tag === "line").length, 3);
   const legend = moduleChart.children.find(node => node.className === "module-legend");
@@ -368,6 +368,14 @@ async function main() {
   assert.deepEqual(billChart.children.find(node => node.className === "module-legend").children
     .map(node => node.children[1].textContent),
   ["module_bill_none", "module_bill_current", "+1 module_graph_modules", "+2 module_graph_modules"]);
+  const withCurrent = structuredClone(estimated);
+  Object.assign(withCurrent.module_comparison, { base_capacity: 5, module_capacity: 2.5, module_price: 1000 });
+  reliabilityCard._show(withCurrent);
+  const currentCharts = reliabilityCard._results.children.filter(node => node.className === "module-chart");
+  assert.equal(currentCharts[0].children.find(node => node.className === "module-legend").children[0].children[1].textContent,
+    "module_bill_current: 10 yrs");
+  assert.equal(currentCharts[1].children.find(node => node.tag === "svg").style.height, "330px");
+  reliabilityCard._show(estimated);
   for (const hoverSvg of [chartSvg, billSvg]) {
     const hoverGroup = hoverSvg.children.at(-1);
     assert.equal(hoverGroup.style.display, "none");

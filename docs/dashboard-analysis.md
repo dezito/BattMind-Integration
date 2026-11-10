@@ -349,9 +349,11 @@ minus total module cost for each whole module package against the same-assumptio
 Lines assume the estimated annual gain remains constant; their zero crossing is the package's
 simple payback. The graph shows at most 30 years, with longer payback times in the legend. These
 are historical estimates, not predictions, and exclude installation and other investment costs.
-A second module graph shows the cumulative electricity bill over time without a battery (dashed) and
-for each module count, starting at the module cost; a module line dropping below the 0-module line
-marks where the modules have paid back. Both graphs mark each payback point with its time in years
+A second module graph shows the cumulative electricity bill over time without a battery (dashed), for
+the current battery and for each extra module count, starting at the purchase cost (the current
+battery is priced at the same price per kWh as a module); a line dropping below the dashed line
+marks where the purchase has paid back, shown for the current battery as if it had just been bought.
+Both module graphs are 50% taller than the other charts. Both graphs mark each payback point with its time in years
 and months, extend the period beyond the last payback to show the development, and hovering shows
 dots on every line with the elapsed years and months.
 For periods longer than three months, monthly tables and bar charts show the gain per calendar

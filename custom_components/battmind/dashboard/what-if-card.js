@@ -1611,8 +1611,14 @@ class BattMindWhatIfCard extends HTMLElement {
           .filter(row => row.module_count > 0 && Number.isFinite(row.cumulative_vs_baseline?.annual_gain)
             && Number.isFinite(row.cumulative_cost))
           .map(row => ({ modules: row.module_count, gain: row.cumulative_vs_baseline.annual_gain, cost: row.cumulative_cost }));
+        const baselineBill = annual.rows.find(row => row.module_count === 0)?.annual_bill?.with;
+        const withoutBill = annual.rows.find(row => Number.isFinite(row.annual_bill?.without))?.annual_bill.without;
+        const currentCost = comparison.base_capacity / comparison.module_capacity * comparison.module_price;
+        if (currentCost > 0 && Number.isFinite(baselineBill) && Number.isFinite(withoutBill)) {
+          series.unshift({ modules: 0, current: true, gain: withoutBill - baselineBill, cost: currentCost });
+        }
         this._modulePaybackChart(series, labels);
-        this._moduleBillChart(annual.rows, labels);
+        this._moduleBillChart(annual.rows, labels, currentCost);
       }
       const baseline = comparison.rows.find(row => row.added_modules === 0);
       const added = comparison.rows.filter(row => row.added_modules > 0 && row.months);
@@ -1835,6 +1841,8 @@ class BattMindWhatIfCard extends HTMLElement {
   _modulePaybackChart(series, labels) {
     if (!series.length) return;
     const currency = this._hass.config.currency;
+    const name = item => item.current ? labels.module_bill_current
+      : `${this._number(item.modules)} ${labels.module_graph_modules}`;
     const crossings = series.map(item => item.gain > 0 ? item.cost / item.gain : null)
       .filter(value => value !== null && Number.isFinite(value));
     const horizon = Math.min(30, Math.max(5, Math.ceil(Math.max(0, ...crossings) * 1.6 / 5) * 5));
@@ -1843,7 +1851,7 @@ class BattMindWhatIfCard extends HTMLElement {
     const minimum = Math.min(0, ...endpoints);
     const maximum = Math.max(0, ...endpoints);
     const spread = maximum - minimum || 1;
-    const y = value => 145 - (value - minimum) * 105 / spread;
+    const y = value => 245 - (value - minimum) * 205 / spread;
     const x = value => 60 + value / horizon * 480;
     const colors = ["var(--primary-color)", "#e65100", "#388e3c", "#ad1457", "#6a1b9a", "#00838f",
       "#5d4037", "#c62828", "#558b2f", "#4527a0", "#00796b", "#9e5d00"];
@@ -1853,7 +1861,8 @@ class BattMindWhatIfCard extends HTMLElement {
     wrapper.className = "module-chart";
     const ns = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("viewBox", "0 0 600 200");
+    svg.setAttribute("viewBox", "0 0 600 300");
+    svg.style.height = "330px";
     svg.setAttribute("role", "img");
     svg.setAttribute("aria-label", `${labels.module_graph_title} (${currency})`);
     wrapper.appendChild(svg);
@@ -1870,12 +1879,12 @@ class BattMindWhatIfCard extends HTMLElement {
     zero.setAttribute("y1", y(0)); zero.setAttribute("y2", y(0));
     svg.appendChild(zero);
     axisText(this._money(maximum), 55, 40, "end");
-    axisText(this._money(minimum), 55, 145, "end");
+    axisText(this._money(minimum), 55, 245, "end");
     axisText("0", 55, y(0) - 3, "end");
     for (const tick of [0, horizon / 2, horizon]) {
-      axisText(this._number(tick), x(tick), 172);
+      axisText(this._number(tick), x(tick), 272);
     }
-    axisText(labels.module_years, 300, 192);
+    axisText(labels.module_years, 300, 292);
     const legend = this._element("div", undefined, wrapper);
     legend.className = "module-legend";
     const markers = [];
@@ -1904,17 +1913,17 @@ class BattMindWhatIfCard extends HTMLElement {
       if (years !== null && Number.isFinite(years) && years <= horizon) {
         markers.push({ x: x(years), y: y(0), years, color });
       }
-      this._element("span", `${this._number(item.modules)} ${labels.module_graph_modules}: `
+      this._element("span", `${name(item)}: `
         + (years === null || !Number.isFinite(years) ? labels.module_graph_no_payback
           : this._duration(years)), entry);
     }
     this._paybackMarkers(svg, ns, markers);
-    this._hoverTip(svg, 600, 200, 25, 145, pointer => {
+    this._hoverTip(svg, 600, 300, 25, 245, pointer => {
       const time = Math.max(0, Math.min(horizon, (pointer - 60) / 480 * horizon));
       return {
         x: x(time),
         lines: [this._duration(time),
-          ...series.map(item => `${this._number(item.modules)} ${labels.module_graph_modules}: ${this._money(item.gain * time - item.cost)} ${currency}`)],
+          ...series.map(item => `${name(item)}: ${this._money(item.gain * time - item.cost)} ${currency}`)],
         colors: ["", ...series.map((_, index) => colors[index % colors.length])],
         dots: series.map((item, index) => ({ x: x(time), y: y(item.gain * time - item.cost), color: colors[index % colors.length] })),
       };
@@ -2033,7 +2042,7 @@ class BattMindWhatIfCard extends HTMLElement {
     });
   }
 
-  _moduleBillChart(rows, labels) {
+  _moduleBillChart(rows, labels, currentCost = 0) {
     const usable = rows.filter(row => Number.isFinite(row.annual_bill?.with) && Number.isFinite(row.cumulative_cost));
     const without = rows.find(row => Number.isFinite(row.annual_bill?.without))?.annual_bill.without;
     const baseline = usable.find(row => row.module_count === 0);
@@ -2042,15 +2051,20 @@ class BattMindWhatIfCard extends HTMLElement {
       return;
     }
     const currency = this._hass.config.currency;
-    const crossings = usable.filter(row => row.module_count > 0 && baseline.annual_bill.with > row.annual_bill.with)
-      .map(row => row.cumulative_cost / (baseline.annual_bill.with - row.annual_bill.with));
+    const base = Number.isFinite(currentCost) && currentCost > 0 ? currentCost : 0;
+    const currentGain = without - baseline.annual_bill.with;
+    const crossings = [
+      ...usable.filter(row => row.module_count > 0 && baseline.annual_bill.with > row.annual_bill.with)
+        .map(row => row.cumulative_cost / (baseline.annual_bill.with - row.annual_bill.with)),
+      ...(base > 0 && currentGain > 0 ? [base / currentGain] : []),
+    ];
     const horizon = Math.min(30, Math.max(5, Math.ceil(Math.max(0, ...crossings) * 1.6 / 5) * 5));
     const lines = [
       { label: labels.module_bill_none, start: 0, rate: without, color: "var(--secondary-text-color)", dashed: true },
       ...usable.map((row, index) => ({
         label: row.module_count === 0 ? labels.module_bill_current
           : `+${this._number(row.module_count)} ${labels.module_graph_modules}`,
-        start: row.cumulative_cost, rate: row.annual_bill.with,
+        start: base + row.cumulative_cost, rate: row.annual_bill.with, current: row.module_count === 0,
         color: ["var(--primary-color)", "#e65100", "#388e3c", "#ad1457", "#6a1b9a", "#00838f", "#5d4037",
           "#c62828", "#558b2f", "#4527a0", "#00796b", "#9e5d00"][index % 12],
       })),
@@ -2060,7 +2074,7 @@ class BattMindWhatIfCard extends HTMLElement {
     const minimum = Math.min(0, ...ends);
     const maximum = Math.max(0, ...ends);
     const spread = maximum - minimum || 1;
-    const y = value => 145 - (value - minimum) * 105 / spread;
+    const y = value => 245 - (value - minimum) * 205 / spread;
     const x = value => 60 + value / horizon * 480;
     this._element("h3", `${labels.module_bill_title} (${currency})`, this._results);
     this._element("p", labels.module_bill_note, this._results).className = "result-note";
@@ -2068,7 +2082,8 @@ class BattMindWhatIfCard extends HTMLElement {
     wrapper.className = "module-chart";
     const ns = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("viewBox", "0 0 600 200");
+    svg.setAttribute("viewBox", "0 0 600 300");
+    svg.style.height = "330px";
     svg.setAttribute("role", "img");
     svg.setAttribute("aria-label", `${labels.module_bill_title} (${currency})`);
     wrapper.appendChild(svg);
@@ -2085,9 +2100,9 @@ class BattMindWhatIfCard extends HTMLElement {
     zero.setAttribute("y1", y(0)); zero.setAttribute("y2", y(0));
     svg.appendChild(zero);
     axisText(this._money(maximum), 55, 40, "end");
-    axisText(this._money(minimum), 55, 145, "end");
-    for (const tick of [0, horizon / 2, horizon]) axisText(this._number(tick), x(tick), 172);
-    axisText(labels.module_years, 300, 192);
+    axisText(this._money(minimum), 55, 245, "end");
+    for (const tick of [0, horizon / 2, horizon]) axisText(this._number(tick), x(tick), 272);
+    axisText(labels.module_years, 300, 292);
     const legend = this._element("div", undefined, wrapper);
     legend.className = "module-legend";
     const markers = [];
@@ -2107,14 +2122,15 @@ class BattMindWhatIfCard extends HTMLElement {
       swatch.className = "module-legend-color";
       swatch.style.backgroundColor = line.color;
       this._element("span", line.label, entry);
-      const gap = baseline.annual_bill.with - line.rate;
-      if (!line.dashed && line.start > 0 && gap > 0) {
-        const years = line.start / gap;
-        if (years <= horizon) markers.push({ x: x(years), y: y(baseline.annual_bill.with * years), years, color: line.color });
+      const gap = line.current ? currentGain : baseline.annual_bill.with - line.rate;
+      const cost = line.current ? base : line.start - base;
+      if (!line.dashed && cost > 0 && gap > 0) {
+        const years = cost / gap;
+        if (years <= horizon) markers.push({ x: x(years), y: y(line.start + line.rate * years), years, color: line.color });
       }
     }
     this._paybackMarkers(svg, ns, markers);
-    this._hoverTip(svg, 600, 200, 25, 145, pointer => {
+    this._hoverTip(svg, 600, 300, 25, 245, pointer => {
       const time = Math.max(0, Math.min(horizon, (pointer - 60) / 480 * horizon));
       return {
         x: x(time),
