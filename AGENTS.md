@@ -203,8 +203,11 @@ private agent memory). Update or remove a note when it stops being true.
   published; run it by hand with a tag for a release that lacks the zip. It
   sets `manifest.json` `version` in the zip from the tag (`v1.0.9` -> `1.0.9`),
   so the version in the repository need not be bumped by hand.
-  `.github/workflows/release-notes.yml` (*Draft release*, run by hand with the
-  new tag) lets Claude write the notes from the changes since the previous
+  `.github/workflows/release-notes.yml` (*Draft release*, run by hand; with an
+  empty tag it suggests the next one from the git tags via
+  `.github/next_version.py`, using the *beta* checkbox and the *bump* choice;
+  covered by `tests/test_next_version.py`, keep the copy in CJP in sync)
+  lets Claude write the notes from the changes since the previous
   release and creates or updates a draft release; it never touches a
   published one. It needs the secret `CLAUDE_CODE_OAUTH_TOKEN`. Keep its
   prompt in sync with the CJP copy. A tag with a letter (`-beta.1`, `b1`,
