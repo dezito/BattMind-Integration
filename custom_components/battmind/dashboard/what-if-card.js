@@ -336,10 +336,10 @@ const whatIfModuleLabels = {
     "module_profit": "Historisk gevinst",
     "module_gain_baseline": "Gevinst i forhold til nuværende kapacitet",
     "module_incremental_gain": "Historisk gevinst fra forrige størrelse",
-    "module_annualized_gain": "Årliggjort historisk gevinst",
-    "module_estimated_annual_gain": "Estimeret årlig mergevinst",
+    "module_annualized_gain": "Modulet alene: årliggjort historisk gevinst",
+    "module_estimated_annual_gain": "Modulet alene: ekstra gevinst pr. år",
     "module_cumulative_cost": "Samlet modulpris",
-    "module_payback": "Enkel tilbagebetalingstid",
+    "module_payback": "Modulet alene: enkel tilbagebetalingstid",
     "module_no_payback": "Ingen tilbagebetaling ved ikke-positiv gevinst",
     "module_years": "år",
     "module_estimate_note": "Estimatet udfylder manglende timer med gennemsnit fra samme måned eller nærmeste måned med nok data. Manglende sæsoner øger usikkerheden; det er ikke en prognose.",
@@ -347,21 +347,35 @@ const whatIfModuleLabels = {
     "module_estimated_months": "Måneder estimeret med data fra andre måneder",
     "module_reliability_details": "Grundlag og forbehold",
     "module_estimate_unavailable": "Årlig gevinst og tilbagebetaling kræver en fuld periode på 365 dage samt tilstrækkelig historik og kendte historiske salgspriser og -omkostninger. Manglende timer kan estimeres ud fra samme eller nærmeste måned. En kortere periode bliver ikke omregnet til et år.",
-    "module_graph_title": "Tilbagebetaling over tid",
-    "module_graph_note": "Linjerne viser estimeret samlet gevinst minus samlet modulpris ved uændret årlig gevinst. Når en linje krydser nul, er modulprisen tjent hjem. Grafen viser højst 30 år; forklaringen viser den beregnede tid også uden for grafen. Ingen installation, finansiering, skatter eller fremtidige ændringer er med.",
     "module_monthly_title": "Månedlig fordeling: Nuværende, scenarie og forskel",
     "module_monthly_note": "Gevinst pr. kalendermåned i den valgte periode, så du kan se hvornår på året det giver mest. Det er ikke en prognose; måneder med få timer er ufuldstændige. Fed markerer bedste måned.",
     "module_monthly_month": "Måned",
-    "module_bill_title": "Strømregning over tid: uden batteri og pr. antal moduler",
-    "module_bill_note": "Linjerne viser samlet strømregning over tid ved uændret årlig regning, hvor prisen for det nuværende batteri og de ekstra moduler lægges til som startværdi. Når en modullinje ligger under den stiplede linje uden batteri, er købet tjent hjem. Estimat ud fra historikken; ingen installation, finansiering, skatter eller fremtidige ændringer. +N er ekstra moduler oven i det nuværende batteri.",
-    "module_bill_none": "Uden batteri",
-    "module_bill_missing": "Grafen over strømregningen kræver en ny kørsel af simulationen med flere moduler og årsestimat.",
+    "module_payback_title": "Tilbagebetaling over tid: strømregning og batterikøb",
+    "module_payback_note": "Grafen viser den samlede udgift over tid ved uændret årlig regning. Den grå linje er uden batteri og stiger med hele regningen. De øvrige linjer starter ved købsprisen for den batteristørrelse, der står i forklaringen, og stiger med regningen for den størrelse. Prikken viser, hvornår hele batteriet er tjent hjem mod slet intet batteri (i alt); forklaringen viser desuden, hvor lang tid det sidste modul alene tager. Alle tider tælles fra start. Grafen viser højst 30 år; prikker uden for det er ikke tegnet. Estimat ud fra historikken; ingen installation, finansiering, skatter eller fremtidige ændringer. Det nuværende batteri er prissat til samme pris pr. kWh som et modul.",
+    "module_payback_current": "Nuværende batteri",
+    "module_payback_none": "Uden batteri",
+    "module_payback_axis": "Akkumuleret udgift",
+    "module_whole_cost": "Hele batteriet: samlet pris",
+    "module_whole_gain": "Hele batteriet: besparelse pr. år mod intet batteri",
+    "module_whole_payback": "Hele batteriet: tilbagebetaling mod intet batteri",
+    "module_in_total": "i alt",
+    "module_extra_only": "sidste modul ({extra} kWh) alene",
+    "module_summary_title": "Sådan læser du sammenligningen",
+    "module_summary_current": "Dit nuværende batteri ({capacity} kWh) er prissat til ca. {price} {currency} og sparer ca. {gain} {currency} om året i forhold til slet intet batteri. Det tjener sig hjem efter {time}.",
+    "module_summary_added": "Lægger du {modules} til ({capacity} kWh i alt), koster de ekstra {extra} kWh {price} {currency} og giver {gain} {currency} mere om året. De ekstra kWh alene tjener sig hjem efter {time}.",
+    "module_summary_added_none": "Lægger du {modules} til ({capacity} kWh i alt), giver de ekstra {extra} kWh ikke mere om året, så de tjener sig ikke hjem.",
+    "module_summary_total": "Hele {capacity} kWh-batteriet mod slet intet batteri er tjent hjem efter {time}. Det er hurtigere end de ekstra kWh alene, fordi dit nuværende batteri tjener sig hjem hurtigere og trækker gennemsnittet ned. Tallet svarer kun på, hvor lang tid det tager at tjene hele batteriet hjem, hvis du købte det i dag.",
+    "module_summary_total_plain": "Hele {capacity} kWh-batteriet mod slet intet batteri er tjent hjem efter {time}.",
+    "module_summary_advice": "Overvejer du at købe mere, så brug tiden for de ekstra kWh alene: dit nuværende batteri er allerede købt. Alle tal er historiske estimater, ikke garantier.",
+    "module_payback_missing": "Grafen over tilbagebetaling kræver en ny kørsel af simulationen med flere moduler, årsestimat og en modulpris over 0.",
     "module_monthly_range_title": "Månedlig gevinst pr. batteristørrelse",
     "module_monthly_modules_title": "Månedlig ekstra gevinst pr. antal moduler (mod 0 ekstra moduler)",
     "module_graph_modules": "moduler",
+    "module_graph_modules_few": "moduler",
+    "module_graph_module": "modul",
     "module_graph_no_payback": "Ingen tilbagebetaling ved ikke-positiv gevinst",
-    "module_estimate_details": "Enkel tilbagebetaling i tabellen er prisen for ét ekstra modul divideret med dets årlige mergevinst. Grafen sammenligner hele modulpakken med den nuværende kapacitet. Resultaterne er historiske estimater, ikke garantier.",
-    "module_note": "Enkel tilbagebetaling i tabellen er prisen for ét ekstra modul divideret med dets årlige mergevinst. Grafen sammenligner hele modulpakken med den nuværende kapacitet. Resultaterne er historiske estimater, ikke garantier."
+    "module_estimate_details": "Tabellen har to dele. »Modulet alene« er det sidst tilføjede modul oven i forrige størrelse: brug den, hvis du overvejer at købe mere (enkel tilbagebetaling er prisen divideret med den ekstra årlige gevinst). »Hele batteriet« er nuværende batteri plus moduler mod slet intet batteri. Resultaterne er historiske estimater, ikke garantier.",
+    "module_note": "Tabellen har to dele. »Modulet alene« er det sidst tilføjede modul oven i forrige størrelse: brug den, hvis du overvejer at købe mere (enkel tilbagebetaling er prisen divideret med den ekstra årlige gevinst). »Hele batteriet« er nuværende batteri plus moduler mod slet intet batteri. Resultaterne er historiske estimater, ikke garantier."
   },
   "de": {
     "module_compare": "Batteriemodule vergleichen",
@@ -384,10 +398,10 @@ const whatIfModuleLabels = {
     "module_profit": "Historischer Gewinn",
     "module_gain_baseline": "Gewinn gegenüber aktueller Kapazität",
     "module_incremental_gain": "Historischer Gewinn gegenüber der vorherigen Größe",
-    "module_annualized_gain": "Annualisierter historischer Gewinn",
-    "module_estimated_annual_gain": "Geschätzter jährlicher Mehrgewinn",
+    "module_annualized_gain": "Modul allein: annualisierter historischer Gewinn",
+    "module_estimated_annual_gain": "Modul allein: zusätzlicher Gewinn pro Jahr",
     "module_cumulative_cost": "Kumulierte Modulkosten",
-    "module_payback": "Einfache Amortisationszeit",
+    "module_payback": "Modul allein: einfache Amortisationszeit",
     "module_no_payback": "Keine Amortisation bei nicht positivem Gewinn",
     "module_years": "Jahre",
     "module_estimate_note": "Fehlende Stunden werden mit Durchschnitten desselben oder des nächstgelegenen Monats mit genügend Daten geschätzt. Fehlende Jahreszeiten erhöhen die Unsicherheit; dies ist keine Prognose.",
@@ -395,21 +409,35 @@ const whatIfModuleLabels = {
     "module_estimated_months": "Mit anderen Monaten geschätzte Monate",
     "module_reliability_details": "Grundlage und Einschränkungen",
     "module_estimate_unavailable": "Jahresgewinn und Amortisation erfordern einen vollständigen Zeitraum von 365 Tagen, genügend Historie sowie bekannte historische Verkaufspreise und -kosten. Fehlende Stunden können anhand desselben oder des nächstgelegenen Monats geschätzt werden. Ein kürzerer Zeitraum wird nicht auf ein Jahr hochgerechnet.",
-    "module_graph_title": "Amortisation über die Zeit",
-    "module_graph_note": "Die Linien zeigen geschätzten Gesamtgewinn abzüglich der gesamten Modulkosten bei konstantem Jahresgewinn. Beim Nulldurchgang sind die Modulkosten gedeckt. Die Grafik zeigt höchstens 30 Jahre; die Legende nennt auch längere Zeiten. Installation, Finanzierung, Steuern und zukünftige Änderungen sind nicht enthalten.",
     "module_monthly_title": "Monatliche Verteilung: Aktuell, Szenario und Differenz",
     "module_monthly_note": "Gewinn pro Kalendermonat im gewählten Zeitraum, damit sichtbar wird, wann im Jahr es am meisten bringt. Das ist keine Prognose; Monate mit wenigen Stunden sind unvollständig. Fett markiert den besten Monat.",
     "module_monthly_month": "Monat",
-    "module_bill_title": "Stromrechnung im Zeitverlauf: ohne Batterie und je Modulanzahl",
-    "module_bill_note": "Die Linien zeigen die kumulierte Stromrechnung bei konstanter Jahresrechnung, wobei der Preis der aktuellen Batterie und der zusätzlichen Module als Startwert addiert wird. Liegt eine Modullinie unter der gestrichelten Linie ohne Batterie, hat sich der Kauf amortisiert. Schätzung auf Basis der Historie; Installation, Finanzierung, Steuern und zukünftige Änderungen sind nicht enthalten. +N sind zusätzliche Module zur aktuellen Batterie.",
-    "module_bill_none": "Ohne Batterie",
-    "module_bill_missing": "Das Stromrechnungsdiagramm erfordert einen neuen Simulationslauf mit mehreren Modulen und Jahresschätzung.",
+    "module_payback_title": "Amortisation im Zeitverlauf: Stromrechnung und Batteriekauf",
+    "module_payback_note": "Die Grafik zeigt die aufgelaufenen Kosten im Zeitverlauf bei konstanter Jahresrechnung. Die graue Linie gilt ohne Batterie und steigt mit der gesamten Rechnung. Die anderen Linien beginnen beim Kaufpreis der in der Legende genannten Batteriegröße und steigen mit der Rechnung für diese Größe. Der Punkt zeigt, wann sich die gesamte Batterie gegenüber gar keiner Batterie amortisiert hat (gesamt); die Legende zeigt zusätzlich, wie lange das letzte Modul allein braucht. Alle Zeiten werden ab Beginn gezählt. Die Grafik zeigt höchstens 30 Jahre; Punkte darüber hinaus werden nicht gezeichnet. Schätzung auf Basis der Historie; Installation, Finanzierung, Steuern und zukünftige Änderungen sind nicht enthalten. Die aktuelle Batterie wird mit demselben Preis pro kWh wie ein Modul angesetzt.",
+    "module_payback_current": "Aktuelle Batterie",
+    "module_payback_none": "Ohne Batterie",
+    "module_payback_axis": "Aufgelaufene Kosten",
+    "module_whole_cost": "Gesamte Batterie: Gesamtpreis",
+    "module_whole_gain": "Gesamte Batterie: Ersparnis pro Jahr gegenüber ohne Batterie",
+    "module_whole_payback": "Gesamte Batterie: Amortisation gegenüber ohne Batterie",
+    "module_in_total": "gesamt",
+    "module_extra_only": "letztes Modul ({extra} kWh) allein",
+    "module_summary_title": "So lesen Sie den Vergleich",
+    "module_summary_current": "Ihre aktuelle Batterie ({capacity} kWh) ist mit ca. {price} {currency} angesetzt und spart ca. {gain} {currency} pro Jahr gegenüber gar keiner Batterie. Sie amortisiert sich nach {time}.",
+    "module_summary_added": "Wenn Sie {modules} hinzufügen ({capacity} kWh gesamt), kosten die zusätzlichen {extra} kWh {price} {currency} und bringen {gain} {currency} mehr pro Jahr. Die zusätzlichen kWh allein amortisieren sich nach {time}.",
+    "module_summary_added_none": "Wenn Sie {modules} hinzufügen ({capacity} kWh gesamt), bringen die zusätzlichen {extra} kWh nicht mehr pro Jahr und amortisieren sich daher nicht.",
+    "module_summary_total": "Die gesamte {capacity}-kWh-Batterie gegenüber gar keiner Batterie amortisiert sich nach {time}. Das ist schneller als die zusätzlichen kWh allein, weil sich Ihre aktuelle Batterie schneller amortisiert und den Durchschnitt senkt. Die Zahl beantwortet nur, wie lange es dauert, die gesamte Batterie zu amortisieren, wenn Sie sie heute kaufen würden.",
+    "module_summary_total_plain": "Die gesamte {capacity}-kWh-Batterie gegenüber gar keiner Batterie amortisiert sich nach {time}.",
+    "module_summary_advice": "Wenn Sie mehr kaufen möchten, nutzen Sie die Zeit der zusätzlichen kWh allein: Ihre aktuelle Batterie ist bereits gekauft. Alle Zahlen sind historische Schätzungen, keine Garantien.",
+    "module_payback_missing": "Das Amortisationsdiagramm erfordert einen neuen Simulationslauf mit mehreren Modulen, Jahresschätzung und einem Modulpreis über 0.",
     "module_monthly_range_title": "Monatlicher Gewinn pro Batteriegröße",
     "module_monthly_modules_title": "Monatlicher Zusatzgewinn pro Modulanzahl (gegenüber 0 zusätzlichen Modulen)",
     "module_graph_modules": "Module",
+    "module_graph_modules_few": "Module",
+    "module_graph_module": "Modul",
     "module_graph_no_payback": "Keine Amortisation bei nicht positivem Gewinn",
-    "module_estimate_details": "Die einfache Amortisation in der Tabelle ist der Preis eines zusätzlichen Moduls geteilt durch seinen jährlichen Mehrgewinn. Die Grafik vergleicht das gesamte Modulset mit der aktuellen Kapazität. Ergebnisse sind historische Schätzungen, keine Garantien.",
-    "module_note": "Die einfache Amortisation in der Tabelle ist der Preis eines zusätzlichen Moduls geteilt durch seinen jährlichen Mehrgewinn. Die Grafik vergleicht das gesamte Modulset mit der aktuellen Kapazität. Ergebnisse sind historische Schätzungen, keine Garantien."
+    "module_estimate_details": "Die Tabelle hat zwei Teile. „Modul allein“ ist das zuletzt hinzugefügte Modul auf der vorherigen Größe: Nutzen Sie es, wenn Sie mehr kaufen möchten (einfache Amortisation ist der Preis geteilt durch den zusätzlichen Jahresgewinn). „Gesamte Batterie“ ist die aktuelle Batterie plus Module gegenüber gar keiner Batterie. Ergebnisse sind historische Schätzungen, keine Garantien.",
+    "module_note": "Die Tabelle hat zwei Teile. „Modul allein“ ist das zuletzt hinzugefügte Modul auf der vorherigen Größe: Nutzen Sie es, wenn Sie mehr kaufen möchten (einfache Amortisation ist der Preis geteilt durch den zusätzlichen Jahresgewinn). „Gesamte Batterie“ ist die aktuelle Batterie plus Module gegenüber gar keiner Batterie. Ergebnisse sind historische Schätzungen, keine Garantien."
   },
   "en": {
     "module_compare": "Compare battery modules",
@@ -432,10 +460,10 @@ const whatIfModuleLabels = {
     "module_profit": "Historical profit",
     "module_gain_baseline": "Gain vs current capacity",
     "module_incremental_gain": "Historical gain from previous size",
-    "module_annualized_gain": "Annualized historical gain",
-    "module_estimated_annual_gain": "Estimated annual incremental gain",
+    "module_annualized_gain": "Module alone: annualized historical gain",
+    "module_estimated_annual_gain": "Module alone: extra gain per year",
     "module_cumulative_cost": "Cumulative module cost",
-    "module_payback": "Simple payback",
+    "module_payback": "Module alone: simple payback",
     "module_no_payback": "No payback for non-positive gain",
     "module_years": "years",
     "module_estimate_note": "Missing hours are estimated using averages from the same month or the nearest month with enough data. Missing seasons increase uncertainty; this is not a forecast.",
@@ -443,21 +471,35 @@ const whatIfModuleLabels = {
     "module_estimated_months": "Months estimated using other months",
     "module_reliability_details": "Basis and limitations",
     "module_estimate_unavailable": "Annual gain and payback require a full 365-day window, sufficient history, and known historical sell prices and costs. Missing hours can be estimated from the same or nearest month. A shorter period is not extrapolated to a year.",
-    "module_graph_title": "Payback over time",
-    "module_graph_note": "Lines show estimated cumulative gain minus total module cost at a constant annual gain. A line crossing zero has recovered its module cost. The chart shows at most 30 years; the legend also shows longer calculated times. Installation, finance, taxes and future changes are excluded.",
     "module_monthly_title": "Monthly breakdown: Current, scenario and difference",
     "module_monthly_note": "Gain per calendar month in the selected period, so you can see when in the year it pays most. This is not a forecast; months with few hours are incomplete. Bold marks the best month.",
     "module_monthly_month": "Month",
-    "module_bill_title": "Electricity bill over time: without battery and per number of modules",
-    "module_bill_note": "Lines show the cumulative electricity bill at a constant annual bill, with the price of the current battery and the added modules as the starting value. When a module line is below the dashed line without a battery, the purchase has paid back. Estimate from history; installation, finance, taxes and future changes are excluded. +N are extra modules on top of the current battery.",
-    "module_bill_none": "Without battery",
-    "module_bill_missing": "The electricity bill graph requires a new simulation run with several modules and an annual estimate.",
+    "module_payback_title": "Payback over time: electricity bill and battery purchase",
+    "module_payback_note": "The graph shows the accumulated cost over time at a constant yearly bill. The grey line is without a battery and rises with the whole bill. The other lines start at the purchase price of the battery size in the legend and rise with the bill for that size. The dot shows when the whole battery has paid back against no battery (total); the legend also shows how long the last module takes on its own. All times are counted from the start. The graph shows at most 30 years; dots beyond that are not drawn. Estimate from history; installation, finance, taxes and future changes are excluded. The current battery is priced at the same price per kWh as a module.",
+    "module_payback_current": "Current battery",
+    "module_payback_none": "Without battery",
+    "module_payback_axis": "Accumulated cost",
+    "module_whole_cost": "Whole battery: total price",
+    "module_whole_gain": "Whole battery: saving per year vs no battery",
+    "module_whole_payback": "Whole battery: payback vs no battery",
+    "module_in_total": "total",
+    "module_extra_only": "last module ({extra} kWh) alone",
+    "module_summary_title": "How to read the comparison",
+    "module_summary_current": "Your current battery ({capacity} kWh) is priced at about {price} {currency} and saves about {gain} {currency} a year compared with no battery at all. It pays back after {time}.",
+    "module_summary_added": "If you add {modules} ({capacity} kWh in total), the extra {extra} kWh cost {price} {currency} and earn {gain} {currency} more a year. The extra kWh alone pay back after {time}.",
+    "module_summary_added_none": "If you add {modules} ({capacity} kWh in total), the extra {extra} kWh do not earn more per year, so they never pay back.",
+    "module_summary_total": "The whole {capacity} kWh battery against no battery at all pays back after {time}. That is faster than the extra kWh alone because your current battery pays back faster and pulls the average down. The figure only answers how long the whole battery would take to pay back if you bought it today.",
+    "module_summary_total_plain": "The whole {capacity} kWh battery against no battery at all pays back after {time}.",
+    "module_summary_advice": "If you are thinking of buying more, use the time for the extra kWh alone: your current battery is already bought. All figures are historical estimates, not guarantees.",
+    "module_payback_missing": "The payback graph requires a new simulation run with several modules, an annual estimate and a module price above 0.",
     "module_monthly_range_title": "Monthly gain per battery size",
     "module_monthly_modules_title": "Monthly extra gain per number of modules (versus 0 extra modules)",
     "module_graph_modules": "modules",
+    "module_graph_modules_few": "modules",
+    "module_graph_module": "module",
     "module_graph_no_payback": "No payback for non-positive gain",
-    "module_estimate_details": "Simple payback in the table is the price of one added module divided by its annual incremental gain. The chart compares the whole module package with current capacity. Results are historical estimates, not guarantees.",
-    "module_note": "Simple payback in the table is the price of one added module divided by its annual incremental gain. The chart compares the whole module package with current capacity. Results are historical estimates, not guarantees."
+    "module_estimate_details": "The table has two parts. “Module alone” is the last added module on top of the previous size: use it if you are thinking of buying more (simple payback is the price divided by the extra yearly gain). “Whole battery” is the current battery plus modules against no battery at all. Results are historical estimates, not guarantees.",
+    "module_note": "The table has two parts. “Module alone” is the last added module on top of the previous size: use it if you are thinking of buying more (simple payback is the price divided by the extra yearly gain). “Whole battery” is the current battery plus modules against no battery at all. Results are historical estimates, not guarantees."
   },
   "pl": {
     "module_compare": "Porównaj moduły baterii",
@@ -480,10 +522,10 @@ const whatIfModuleLabels = {
     "module_profit": "Historyczny zysk",
     "module_gain_baseline": "Zysk względem obecnej pojemności",
     "module_incremental_gain": "Historyczny zysk względem poprzedniej wielkości",
-    "module_annualized_gain": "Annualizowany zysk historyczny",
-    "module_estimated_annual_gain": "Szacowany roczny dodatkowy zysk",
+    "module_annualized_gain": "Sam moduł: roczny przeliczony zysk historyczny",
+    "module_estimated_annual_gain": "Sam moduł: dodatkowy zysk rocznie",
     "module_cumulative_cost": "Łączny koszt modułów",
-    "module_payback": "Prosty okres zwrotu",
+    "module_payback": "Sam moduł: prosty okres zwrotu",
     "module_no_payback": "Brak zwrotu przy zysku nie większym od zera",
     "module_years": "lata",
     "module_estimate_note": "Brakujące godziny są szacowane na podstawie średnich z tego samego lub najbliższego miesiąca z wystarczającymi danymi. Brakujące pory roku zwiększają niepewność; nie jest to prognoza.",
@@ -491,21 +533,35 @@ const whatIfModuleLabels = {
     "module_estimated_months": "Miesiące oszacowane na podstawie innych miesięcy",
     "module_reliability_details": "Podstawa i ograniczenia",
     "module_estimate_unavailable": "Roczny zysk i okres zwrotu wymagają pełnego okresu 365 dni, wystarczającej historii oraz znanych historycznych cen i kosztów sprzedaży. Brakujące godziny można oszacować na podstawie tego samego lub najbliższego miesiąca. Krótszy okres nie jest przeliczany na rok.",
-    "module_graph_title": "Zwrot w czasie",
-    "module_graph_note": "Linie pokazują szacowany łączny zysk minus łączny koszt modułów przy stałym rocznym zysku. Przecięcie zera oznacza odzyskanie kosztu modułów. Wykres obejmuje maksymalnie 30 lat; legenda pokazuje też dłuższe obliczone czasy. Montaż, finansowanie, podatki i przyszłe zmiany nie są uwzględnione.",
     "module_monthly_title": "Podział miesięczny: obecnie, scenariusz i różnica",
     "module_monthly_note": "Zysk w każdym miesiącu kalendarzowym wybranego okresu, aby zobaczyć, kiedy w roku jest największy. To nie jest prognoza; miesiące z małą liczbą godzin są niepełne. Pogrubienie oznacza najlepszy miesiąc.",
     "module_monthly_month": "Miesiąc",
-    "module_bill_title": "Rachunek za prąd w czasie: bez baterii i dla liczby modułów",
-    "module_bill_note": "Linie pokazują skumulowany rachunek za prąd przy stałym rocznym rachunku, z ceną obecnej baterii i dodatkowych modułów dodaną jako wartość początkowa. Gdy linia modułów leży poniżej linii przerywanej bez baterii, zakup się zwrócił. Szacunek na podstawie historii; montaż, finansowanie, podatki i przyszłe zmiany nie są uwzględnione. +N to dodatkowe moduły ponad obecną baterię.",
-    "module_bill_none": "Bez baterii",
-    "module_bill_missing": "Wykres rachunku za prąd wymaga ponownego uruchomienia symulacji z kilkoma modułami i szacunkiem rocznym.",
+    "module_payback_title": "Zwrot w czasie: rachunek za prąd i zakup baterii",
+    "module_payback_note": "Wykres pokazuje skumulowany koszt w czasie przy stałym rocznym rachunku. Szara linia oznacza brak baterii i rośnie o cały rachunek. Pozostałe linie zaczynają się od ceny zakupu rozmiaru baterii podanego w legendzie i rosną o rachunek dla tego rozmiaru. Kropka pokazuje, kiedy cała bateria zwróciła się wobec braku baterii (łącznie); legenda pokazuje też, ile czasu potrzebuje sam ostatni moduł. Wszystkie czasy liczone są od początku. Wykres obejmuje maksymalnie 30 lat; kropki poza tym zakresem nie są rysowane. Szacunek na podstawie historii; montaż, finansowanie, podatki i przyszłe zmiany nie są uwzględnione. Obecna bateria jest wyceniana po tej samej cenie za kWh co moduł.",
+    "module_payback_current": "Obecna bateria",
+    "module_payback_none": "Bez baterii",
+    "module_payback_axis": "Skumulowany koszt",
+    "module_whole_cost": "Cała bateria: cena łączna",
+    "module_whole_gain": "Cała bateria: oszczędność rocznie wobec braku baterii",
+    "module_whole_payback": "Cała bateria: zwrot wobec braku baterii",
+    "module_in_total": "łącznie",
+    "module_extra_only": "ostatni moduł ({extra} kWh) osobno",
+    "module_summary_title": "Jak czytać porównanie",
+    "module_summary_current": "Twoja obecna bateria ({capacity} kWh) jest wyceniona na ok. {price} {currency} i oszczędza ok. {gain} {currency} rocznie w porównaniu z brakiem baterii. Zwraca się po {time}.",
+    "module_summary_added": "Jeśli dodasz {modules} (razem {capacity} kWh), dodatkowe {extra} kWh kosztują {price} {currency} i dają {gain} {currency} więcej rocznie. Same dodatkowe kWh zwracają się po {time}.",
+    "module_summary_added_none": "Jeśli dodasz {modules} (razem {capacity} kWh), dodatkowe {extra} kWh nie dają więcej rocznie, więc się nie zwrócą.",
+    "module_summary_total": "Cała bateria {capacity} kWh w porównaniu z brakiem baterii zwraca się po {time}. To szybciej niż same dodatkowe kWh, bo Twoja obecna bateria zwraca się szybciej i obniża średnią. Ta liczba odpowiada tylko na pytanie, jak długo zwracałaby się cała bateria, gdybyś kupił ją dzisiaj.",
+    "module_summary_total_plain": "Cała bateria {capacity} kWh w porównaniu z brakiem baterii zwraca się po {time}.",
+    "module_summary_advice": "Jeśli rozważasz zakup więcej, użyj czasu dla samych dodatkowych kWh: Twoja obecna bateria jest już kupiona. Wszystkie liczby to historyczne szacunki, nie gwarancje.",
+    "module_payback_missing": "Wykres zwrotu wymaga ponownego uruchomienia symulacji z kilkoma modułami, szacunkiem rocznym i ceną modułu powyżej 0.",
     "module_monthly_range_title": "Miesięczny zysk dla każdej pojemności baterii",
     "module_monthly_modules_title": "Miesięczny dodatkowy zysk dla liczby modułów (względem 0 dodatkowych modułów)",
     "module_graph_modules": "modułów",
+    "module_graph_modules_few": "moduły",
+    "module_graph_module": "moduł",
     "module_graph_no_payback": "Brak zwrotu przy niedodatnim zysku",
-    "module_estimate_details": "Prosty okres zwrotu w tabeli to cena jednego dodatkowego modułu podzielona przez jego roczny dodatkowy zysk. Wykres porównuje cały pakiet modułów z obecną pojemnością. Wyniki są historycznymi szacunkami, a nie gwarancją.",
-    "module_note": "Prosty okres zwrotu w tabeli to cena jednego dodatkowego modułu podzielona przez jego roczny dodatkowy zysk. Wykres porównuje cały pakiet modułów z obecną pojemnością. Wyniki są historycznymi szacunkami, a nie gwarancją."
+    "module_estimate_details": "Tabela ma dwie części. „Sam moduł” to ostatnio dodany moduł na poprzednim rozmiarze: użyj go, jeśli rozważasz zakup więcej (prosty okres zwrotu to cena podzielona przez dodatkowy roczny zysk). „Cała bateria” to obecna bateria plus moduły wobec braku baterii. Wyniki są historycznymi szacunkami, a nie gwarancją.",
+    "module_note": "Tabela ma dwie części. „Sam moduł” to ostatnio dodany moduł na poprzednim rozmiarze: użyj go, jeśli rozważasz zakup więcej (prosty okres zwrotu to cena podzielona przez dodatkowy roczny zysk). „Cała bateria” to obecna bateria plus moduły wobec braku baterii. Wyniki są historycznymi szacunkami, a nie gwarancją."
   },
   "uk": {
     "module_compare": "Порівняти модулі батареї",
@@ -528,10 +584,10 @@ const whatIfModuleLabels = {
     "module_profit": "Історичний прибуток",
     "module_gain_baseline": "Прибуток відносно поточної ємності",
     "module_incremental_gain": "Історичний прибуток відносно попереднього розміру",
-    "module_annualized_gain": "Річний еквівалент історичного прибутку",
-    "module_estimated_annual_gain": "Оцінений річний додатковий прибуток",
+    "module_annualized_gain": "Лише модуль: річний історичний прибуток",
+    "module_estimated_annual_gain": "Лише модуль: додатковий прибуток на рік",
     "module_cumulative_cost": "Сукупна вартість модулів",
-    "module_payback": "Простий строк окупності",
+    "module_payback": "Лише модуль: простий строк окупності",
     "module_no_payback": "Немає окупності за непозитивного прибутку",
     "module_years": "років",
     "module_estimate_note": "Пропущені години оцінюються за середніми значеннями того самого або найближчого місяця з достатніми даними. Відсутні сезони збільшують невизначеність; це не прогноз.",
@@ -539,21 +595,35 @@ const whatIfModuleLabels = {
     "module_estimated_months": "Місяці, оцінені за іншими місяцями",
     "module_reliability_details": "Підстава та обмеження",
     "module_estimate_unavailable": "Річний прибуток та окупність потребують повного періоду 365 днів, достатньої історії та відомих історичних цін і витрат на продаж. Пропущені години можна оцінити за тим самим або найближчим місяцем. Коротший період не перераховується на рік.",
-    "module_graph_title": "Окупність у часі",
-    "module_graph_note": "Лінії показують оцінений сукупний прибуток мінус загальна вартість модулів за незмінного річного прибутку. Перетин нуля означає повернення вартості модулів. Графік охоплює не більше 30 років; легенда також показує більший розрахований строк. Монтаж, фінансування, податки та майбутні зміни не враховано.",
     "module_monthly_title": "Розподіл за місяцями: поточний, сценарій і різниця",
     "module_monthly_note": "Прибуток за кожен календарний місяць вибраного періоду, щоб побачити, коли протягом року він найбільший. Це не прогноз; місяці з малою кількістю годин неповні. Жирним позначено найкращий місяць.",
     "module_monthly_month": "Місяць",
-    "module_bill_title": "Рахунок за електроенергію в часі: без батареї та за кількістю модулів",
-    "module_bill_note": "Лінії показують накопичений рахунок за електроенергію за незмінного річного рахунку, де вартість поточної батареї та додаткових модулів додано як початкове значення. Коли лінія модулів нижче пунктирної лінії без батареї, покупка окупилася. Оцінка за історією; монтаж, фінансування, податки та майбутні зміни не враховано. +N — додаткові модулі до поточної батареї.",
-    "module_bill_none": "Без батареї",
-    "module_bill_missing": "Графік рахунку за електроенергію потребує нового запуску симуляції з кількома модулями та річною оцінкою.",
+    "module_payback_title": "Окупність у часі: рахунок за електроенергію та купівля батареї",
+    "module_payback_note": "Графік показує накопичені витрати в часі за незмінного річного рахунку. Сіра лінія — без батареї, вона зростає на весь рахунок. Інші лінії починаються з ціни покупки розміру батареї, указаного в легенді, і зростають на рахунок для цього розміру. Крапка показує, коли вся батарея окупилася порівняно з відсутністю батареї (разом); легенда також показує, скільки часу потрібно лише останньому модулю. Усі часи відраховуються від початку. Графік охоплює не більше 30 років; крапки за його межами не малюються. Оцінка за історією; монтаж, фінансування, податки та майбутні зміни не враховано. Поточну батарею оцінено за тією самою ціною за kWh, що й модуль.",
+    "module_payback_current": "Поточна батарея",
+    "module_payback_none": "Без батареї",
+    "module_payback_axis": "Накопичені витрати",
+    "module_whole_cost": "Уся батарея: загальна ціна",
+    "module_whole_gain": "Уся батарея: економія на рік порівняно з відсутністю батареї",
+    "module_whole_payback": "Уся батарея: окупність порівняно з відсутністю батареї",
+    "module_in_total": "разом",
+    "module_extra_only": "останній модуль ({extra} kWh) окремо",
+    "module_summary_title": "Як читати порівняння",
+    "module_summary_current": "Ваша поточна батарея ({capacity} kWh) оцінена приблизно в {price} {currency} і заощаджує приблизно {gain} {currency} на рік порівняно з відсутністю батареї. Вона окупається через {time}.",
+    "module_summary_added": "Якщо додати {modules} (разом {capacity} kWh), додаткові {extra} kWh коштують {price} {currency} і дають на {gain} {currency} більше на рік. Самі додаткові kWh окупаються через {time}.",
+    "module_summary_added_none": "Якщо додати {modules} (разом {capacity} kWh), додаткові {extra} kWh не дають більше на рік, тому не окупаються.",
+    "module_summary_total": "Уся батарея {capacity} kWh порівняно з відсутністю батареї окупається через {time}. Це швидше, ніж самі додаткові kWh, бо ваша поточна батарея окупається швидше й знижує середнє. Це число відповідає лише на питання, як довго окупалася б уся батарея, якби ви купили її сьогодні.",
+    "module_summary_total_plain": "Уся батарея {capacity} kWh порівняно з відсутністю батареї окупається через {time}.",
+    "module_summary_advice": "Якщо розглядаєте купівлю більше, використовуйте час для самих додаткових kWh: ваша поточна батарея вже куплена. Усі числа — історичні оцінки, а не гарантії.",
+    "module_payback_missing": "Графік окупності потребує нового запуску симуляції з кількома модулями, річною оцінкою та ціною модуля більше 0.",
     "module_monthly_range_title": "Місячний прибуток для кожної ємності батареї",
     "module_monthly_modules_title": "Місячний додатковий прибуток за кількістю модулів (порівняно з 0 додатковими модулями)",
     "module_graph_modules": "модулів",
+    "module_graph_modules_few": "модулі",
+    "module_graph_module": "модуль",
     "module_graph_no_payback": "Немає окупності за недодатного прибутку",
-    "module_estimate_details": "Простий строк окупності в таблиці — це ціна одного доданого модуля, поділена на його річний додатковий прибуток. Графік порівнює весь пакет модулів з поточною ємністю. Результати є історичними оцінками, а не гарантіями.",
-    "module_note": "Простий строк окупності в таблиці — це ціна одного доданого модуля, поділена на його річний додатковий прибуток. Графік порівнює весь пакет модулів з поточною ємністю. Результати є історичними оцінками, а не гарантіями."
+    "module_estimate_details": "Таблиця має дві частини. «Лише модуль» — останній доданий модуль поверх попереднього розміру: використовуйте її, якщо розглядаєте купівлю більше (простий строк окупності — це ціна, поділена на додатковий річний прибуток). «Уся батарея» — поточна батарея плюс модулі порівняно з відсутністю батареї. Результати є історичними оцінками, а не гарантіями.",
+    "module_note": "Таблиця має дві частини. «Лише модуль» — останній доданий модуль поверх попереднього розміру: використовуйте її, якщо розглядаєте купівлю більше (простий строк окупності — це ціна, поділена на додатковий річний прибуток). «Уся батарея» — поточна батарея плюс модулі порівняно з відсутністю батареї. Результати є історичними оцінками, а не гарантіями."
   }
 };
 const whatIfRunLabels = {
@@ -1566,6 +1636,16 @@ class BattMindWhatIfCard extends HTMLElement {
           this._element("p", `${label} (${this._number(warnings[key])})`, reliability).className = "result-note";
         }
       }
+      // One result per setup against no battery (price, yearly saving, payback of the whole battery); used by the
+      // summary, the table and the graph. null when the current battery's price or the yearly bills are unknown.
+      const paybackSeries = hasAnnual ? this._modulePaybackSeries(annual.rows, comparison, labels) : null;
+      const moduleSummary = hasAnnual ? this._moduleSummary(annual, comparison, paybackSeries, labels) : [];
+      if (moduleSummary.length) {
+        this._element("h3", labels.module_summary_title, this._results);
+        const summaryBox = this._element("div", undefined, this._results);
+        summaryBox.className = "module-summary";
+        for (const sentence of moduleSummary) this._element("p", sentence, summaryBox);
+      }
       const moduleScroll = this._element("div", undefined, this._results);
       moduleScroll.className = "scroll module-scroll";
       const moduleTable = this._element("table", undefined, moduleScroll);
@@ -1575,6 +1655,7 @@ class BattMindWhatIfCard extends HTMLElement {
         labels.module_incremental_gain,
         annual?.method === "estimated" ? labels.module_estimated_annual_gain : labels.module_annualized_gain,
         labels.module_price, labels.module_payback,
+        labels.module_whole_cost, labels.module_whole_gain, labels.module_whole_payback,
       ]) this._element("th", text, moduleHeader).setAttribute("scope", "col");
       let hasNoPayback = false;
       for (const rowData of comparison.rows) {
@@ -1598,24 +1679,33 @@ class BattMindWhatIfCard extends HTMLElement {
           paybackCell.setAttribute("aria-label", labels.module_no_payback);
           paybackCell.setAttribute("title", labels.module_no_payback);
         }
+        // The whole battery (current battery plus the added modules) against no battery at all.
+        const line = paybackSeries?.find(item => item.modules === rowData.added_modules);
+        this._element("td", line ? `${this._money(line.start)} ${currency}` : "—", row);
+        this._element("td", line ? `${this._money(paybackSeries[0].rate - line.rate)} ${currency}` : "—", row);
+        const wholeYears = line && Number.isFinite(line.totalYears);
+        const wholeCell = this._element("td", wholeYears ? `${this._number(line.totalYears)} ${labels.module_years}` : "—", row);
+        if (line && !wholeYears) {
+          hasNoPayback = true;
+          wholeCell.setAttribute("aria-label", labels.module_no_payback);
+          wholeCell.setAttribute("title", labels.module_no_payback);
+        }
       }
       if (hasNoPayback) this._element("p", labels.module_no_payback, this._results).className = "result-note";
       this._element("p", labels.module_estimate_details, this._results).className = "result-note";
       if (hasAnnual) {
-        const series = annual.rows
-          .filter(row => row.module_count > 0 && Number.isFinite(row.cumulative_vs_baseline?.annual_gain)
-            && Number.isFinite(row.cumulative_cost))
-          .map(row => ({ modules: row.module_count, gain: row.cumulative_vs_baseline.annual_gain, cost: row.cumulative_cost }));
-        const currentCost = comparison.base_capacity / comparison.module_capacity * comparison.module_price;
-        this._modulePaybackChart(series, labels);
-        this._moduleBillChart(annual.rows, labels, currentCost);
+        if (paybackSeries) {
+          this._modulePaybackChart(paybackSeries, labels);
+        } else {
+          this._element("p", labels.module_payback_missing, this._results).className = "result-note";
+        }
       }
       const baseline = comparison.rows.find(row => row.added_modules === 0);
       const added = comparison.rows.filter(row => row.added_modules > 0 && row.months);
       if (monthly && baseline?.months && added.length) {
         this._monthlyBars(labels.module_monthly_modules_title, labels.module_monthly_note, periodMonths,
           this._spread(added, 6).map(row => ({
-            label: `${this._number(row.added_modules)} ${labels.module_graph_modules}`,
+            label: this._moduleCountLabel(row.added_modules, labels),
             values: Object.fromEntries(periodMonths.map(key => [key, (row.months[key] ?? 0) - (baseline.months[key] ?? 0)])),
           })), labels);
       }
@@ -1828,32 +1918,144 @@ class BattMindWhatIfCard extends HTMLElement {
     });
   }
 
-  _modulePaybackChart(series, labels) {
-    if (!series.length) return;
+  _moduleCountLabel(count, labels) {
+    const category = new Intl.PluralRules(this._hass.language).select(count);
+    const word = category === "one" ? labels.module_graph_module
+      : category === "few" ? labels.module_graph_modules_few
+        : labels.module_graph_modules;
+    return `${this._number(count)} ${word || labels.module_graph_modules}`;
+  }
+
+  _fill(template, values) {
+    return Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, value), template);
+  }
+
+  // Plain-language sentences for the module comparison, built from the run's numbers. A sentence is left out
+  // (never filled with 0) unless every number in it is known.
+  _moduleSummary(annual, comparison, paybackSeries, labels) {
     const currency = this._hass.config.currency;
-    const name = item => `${this._number(item.modules)} ${labels.module_graph_modules}`;
-    const crossings = series.map(item => item.gain > 0 ? item.cost / item.gain : null)
-      .filter(value => value !== null && Number.isFinite(value));
+    const sentences = [];
+    const line = modules => paybackSeries?.find(item => item.modules === modules);
+    const current = line(0);
+    if (current && Number.isFinite(current.totalYears)) {
+      sentences.push(this._fill(labels.module_summary_current, {
+        capacity: this._capacity(current.capacity), price: this._money(current.start),
+        gain: this._money(paybackSeries[0].rate - current.rate), currency, time: this._duration(current.totalYears),
+      }));
+    }
+    const step = annual.rows.find(row => row.module_count === 1)?.marginal_vs_previous;
+    if (step && Number.isFinite(step.annual_gain) && comparison.module_capacity > 0 && comparison.module_price > 0
+      && Number.isFinite(comparison.base_capacity)) {
+      const values = {
+        modules: this._moduleCountLabel(1, labels),
+        capacity: this._capacity(comparison.base_capacity + comparison.module_capacity),
+        extra: this._capacity(comparison.module_capacity), price: this._money(comparison.module_price),
+        gain: this._money(step.annual_gain), currency,
+        time: Number.isFinite(step.payback_years) ? this._duration(step.payback_years) : "",
+      };
+      sentences.push(this._fill(step.annual_gain > 0 && Number.isFinite(step.payback_years)
+        ? labels.module_summary_added : labels.module_summary_added_none, values));
+    }
+    const first = line(1);
+    if (current && first && Number.isFinite(first.totalYears)) {
+      // The whole battery's time is an average of the current battery and the module: it is only shorter than the
+      // module alone when the current battery pays back faster, so only then say that (and why).
+      const faster = !Number.isFinite(step?.payback_years) || first.totalYears < step.payback_years;
+      sentences.push(this._fill(faster ? labels.module_summary_total : labels.module_summary_total_plain, {
+        capacity: this._capacity(first.capacity), time: this._duration(first.totalYears),
+      }));
+    }
+    if (sentences.length) sentences.push(labels.module_summary_advice);
+    return sentences;
+  }
+
+  // Series for the payback graph: the accumulated cost over time at a constant yearly bill (`start` + `rate` * years).
+  //  - dashed line "without battery": starts at 0 and rises with the whole yearly bill (`without`);
+  //  - the current battery and each +N modules: start at the purchase price (current battery price plus the added
+  //    modules, `start`) and rise with the yearly bill with that setup, for the battery size `capacity`.
+  // Two times from the start, so nothing has to be added up (null = never, no saving):
+  //  - `totalYears`: where the line crosses the dashed line, i.e. the whole setup has paid back; the chart marks it
+  //    with a dot on the dashed line;
+  //  - `years`, shown in the legend: where the line crosses the line before it. For the current battery that is the
+  //    dashed line (same as `totalYears`); for +N modules it is the last added module on its own (its price / its
+  //    extra yearly saving, the table's simple payback).
+  // The whole series is null (nothing is drawn) when the current battery's price is unknown, negative or (with a
+  // current battery) zero, or the "without" bill is not a number, so a missing price is never treated as 0 (a
+  // negative bill is a real net-exporter bill and is drawn); a setup with no price at all is skipped.
+  _modulePaybackSeries(rows, comparison, labels) {
+    const hasCurrentBattery = comparison.base_capacity > 0;
+    const currentCost = comparison.base_capacity / comparison.module_capacity * comparison.module_price;
+    const usable = rows.filter(row => Number.isFinite(row.annual_bill?.with) && Number.isFinite(row.cumulative_cost));
+    const without = rows.find(row => Number.isFinite(row.annual_bill?.without))?.annual_bill.without;
+    if (!usable.some(row => row.module_count === 0) || !Number.isFinite(without)
+      || !Number.isFinite(currentCost) || currentCost < 0 || (hasCurrentBattery && currentCost === 0)) return null;
+    const none = { modules: -1, dashed: true, label: labels.module_payback_none, start: 0, rate: without, years: null };
+    const setups = usable.filter(row => row.module_count > 0 || hasCurrentBattery).map(row => ({
+      modules: row.module_count,
+      label: row.module_count === 0 ? labels.module_payback_current
+        : `+${this._moduleCountLabel(row.module_count, labels)}`,
+      capacity: comparison.base_capacity + row.module_count * comparison.module_capacity,
+      extra: comparison.module_capacity,
+      start: currentCost + row.cumulative_cost,
+      rate: row.annual_bill.with,
+    })).filter(item => item.start > 0);
+    let reference = none;
+    for (const item of setups) {
+      const saving = reference.rate - item.rate;
+      const years = saving > 0 ? (item.start - reference.start) / saving : null;
+      item.years = years !== null && Number.isFinite(years) && years >= 0 ? years : null;
+      // Where the line crosses the dashed no-battery line: the whole setup has paid back (the dot on the chart).
+      const totalSaving = none.rate - item.rate;
+      const total = totalSaving > 0 ? item.start / totalSaving : null;
+      item.totalYears = total !== null && Number.isFinite(total) && total >= 0 ? total : null;
+      reference = item;
+    }
+    return setups.length ? [none, ...setups] : null;
+  }
+
+  _modulePaybackChart(lines, labels) {
+    if (!lines.length) return;
+    const currency = this._hass.config.currency;
+    const title = labels.module_payback_title;
+    const name = item => item.dashed ? item.label : `${this._capacity(item.capacity)} kWh · ${item.label}`;
+    const crossings = lines.flatMap(item => [item.years, item.totalYears]).filter(value => Number.isFinite(value));
     const horizon = Math.min(30, Math.max(5, Math.ceil(Math.max(0, ...crossings) * 1.6 / 5) * 5));
-    const endpoints = series.flatMap(item => [-item.cost, item.gain * horizon - item.cost]);
+    const valueAt = (item, time) => item.start + item.rate * time;
+    const endpoints = lines.flatMap(item => [valueAt(item, 0), valueAt(item, horizon)]);
     if (endpoints.some(value => !Number.isFinite(value))) return;
-    const minimum = Math.min(0, ...endpoints);
-    const maximum = Math.max(0, ...endpoints);
-    const spread = maximum - minimum || 1;
-    const y = value => 245 - (value - minimum) * 205 / spread;
+    // The value axis is rounded to an even step (10k, 20k, ...) so it has evenly spaced gridlines.
+    const niceStep = raw => {
+      const power = 10 ** Math.floor(Math.log10(raw));
+      const unit = raw / power;
+      return (unit <= 1 ? 1 : unit <= 2 ? 2 : unit <= 5 ? 5 : 10) * power;
+    };
+    const rawMaximum = Math.max(0, ...endpoints);
+    const rawMinimum = Math.min(0, ...endpoints);
+    const valueStep = niceStep((rawMaximum - rawMinimum) / 5 || 1);
+    const minimum = Math.floor(rawMinimum / valueStep) * valueStep;
+    const maximum = Math.ceil(rawMaximum / valueStep) * valueStep || valueStep;
+    const spread = maximum - minimum;
+    // A tick step that divides the horizon, so the right edge has a tick and a gridline too.
+    const timeStep = [1, 2, 5, 10].find(step => horizon / step <= 8 && horizon % step === 0);
+    const y = value => 395 - (value - minimum) * 355 / spread;
     const x = value => 60 + value / horizon * 480;
+    const compact = value => Math.abs(value) >= 1000 ? `${this._number(value / 1000)}k` : this._number(value);
     const colors = ["var(--primary-color)", "#e65100", "#388e3c", "#ad1457", "#6a1b9a", "#00838f",
-      "#5d4037", "#c62828", "#558b2f", "#4527a0", "#00796b", "#9e5d00"];
-    this._element("h3", `${labels.module_graph_title} (${currency})`, this._results);
-    this._element("p", labels.module_graph_note, this._results).className = "result-note";
+      "#5d4037", "#c62828", "#558b2f", "#4527a0", "#00796b", "#9e5d00", "#455a64"];
+    // Different stroke patterns as well as colours, so the lines can be told apart without colour.
+    const patterns = ["", "8 4", "2 4", "10 4 2 4", "4 2", "12 3", "1 3", "6 2 1 2", "8 2", "3 3", "14 4", "5 5", "2 2"];
+    const colorOf = item => item.dashed ? "var(--secondary-text-color)" : colors[item.modules % colors.length];
+    this._element("h3", `${title} (${currency})`, this._results);
+    this._element("p", labels.module_payback_note, this._results).className = "result-note";
     const wrapper = this._element("div", undefined, this._results);
     wrapper.className = "module-chart";
     const ns = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("viewBox", "0 0 600 300");
-    svg.style.height = "330px";
+    // 50% taller than before: the plot area and the pixel height are both 1.5 times as high.
+    svg.setAttribute("viewBox", "0 0 600 450");
+    svg.style.height = "495px";
     svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", `${labels.module_graph_title} (${currency})`);
+    svg.setAttribute("aria-label", `${title} (${currency})`);
     wrapper.appendChild(svg);
     const axisText = (text, px, py, anchor = "middle") => {
       const node = document.createElementNS(ns, "text");
@@ -1862,34 +2064,49 @@ class BattMindWhatIfCard extends HTMLElement {
       node.setAttribute("text-anchor", anchor);
       node.textContent = text;
       svg.appendChild(node);
+      return node;
     };
-    const zero = document.createElementNS(ns, "line");
-    zero.setAttribute("x1", x(0)); zero.setAttribute("x2", x(horizon));
-    zero.setAttribute("y1", y(0)); zero.setAttribute("y2", y(0));
-    svg.appendChild(zero);
-    axisText(this._money(maximum), 55, 40, "end");
-    axisText(this._money(minimum), 55, 245, "end");
-    axisText("0", 55, y(0) - 3, "end");
-    for (const tick of [0, horizon / 2, horizon]) {
-      axisText(this._number(tick), x(tick), 272);
+    const gridLine = (x1, y1, x2, y2) => {
+      const node = document.createElementNS(ns, "line");
+      node.setAttribute("x1", x1); node.setAttribute("y1", y1);
+      node.setAttribute("x2", x2); node.setAttribute("y2", y2);
+      // Inline style: the card's `svg line` CSS rule would override presentation attributes.
+      node.style.stroke = "var(--divider-color)";
+      node.style.strokeWidth = "1";
+      node.style.opacity = "1";
+      svg.appendChild(node);
+      return node;
+    };
+    for (let index = 0, count = Math.round(spread / valueStep); index <= count; index++) {
+      const value = minimum + index * valueStep;
+      gridLine(x(0), y(value), x(horizon), y(value));
+      axisText(compact(value), 55, y(value) + 4, "end");
     }
-    axisText(labels.module_years, 300, 292);
+    for (let time = 0; time <= horizon + 1e-9; time += timeStep) {
+      gridLine(x(time), y(maximum), x(time), y(minimum));
+      axisText(this._number(time), x(time), 412);
+    }
+    axisText(labels.module_years, 300, 442);
+    const axisTitle = axisText(labels.module_payback_axis, 12, 220);
+    axisTitle.setAttribute("transform", "rotate(-90 12 220)");
     const legend = this._element("div", undefined, wrapper);
     legend.className = "module-legend";
     const markers = [];
-    for (const [index, item] of series.entries()) {
-      const color = colors[index % colors.length];
+    for (const item of lines) {
+      const color = colorOf(item);
       const line = document.createElementNS(ns, "line");
-      line.setAttribute("x1", x(0)); line.setAttribute("y1", y(-item.cost));
-      line.setAttribute("x2", x(horizon)); line.setAttribute("y2", y(item.gain * horizon - item.cost));
+      line.setAttribute("x1", x(0)); line.setAttribute("y1", y(valueAt(item, 0)));
+      line.setAttribute("x2", x(horizon)); line.setAttribute("y2", y(valueAt(item, horizon)));
       line.style.stroke = color;
       line.style.strokeWidth = "2.5";
       line.style.strokeLinecap = "round";
       line.style.opacity = "1";
+      const pattern = item.dashed ? "6 4" : patterns[item.modules % patterns.length];
+      if (pattern) line.style.strokeDasharray = pattern;
       svg.appendChild(line);
       const dot = document.createElementNS(ns, "circle");
       dot.setAttribute("cx", x(horizon));
-      dot.setAttribute("cy", y(item.gain * horizon - item.cost));
+      dot.setAttribute("cy", y(valueAt(item, horizon)));
       dot.setAttribute("r", "4");
       dot.style.fill = color;
       svg.appendChild(dot);
@@ -1898,23 +2115,42 @@ class BattMindWhatIfCard extends HTMLElement {
       const swatch = this._element("span", undefined, entry);
       swatch.className = "module-legend-color";
       swatch.style.backgroundColor = color;
-      const years = item.gain > 0 ? item.cost / item.gain : null;
-      if (years !== null && Number.isFinite(years) && years <= horizon) {
-        markers.push({ x: x(years), y: y(0), years, color });
+      if (item.dashed) {
+        this._element("span", name(item), entry);
+        continue;
       }
-      this._element("span", `${name(item)}: `
-        + (years === null || !Number.isFinite(years) ? labels.module_graph_no_payback
-          : this._duration(years)), entry);
+      // The dot sits where the line crosses the dashed line (the whole setup has paid back, y = the dashed line's
+      // value at that time), with a thin line down to the time axis; the legend shows what the last added module
+      // takes on its own.
+      const total = item.totalYears;
+      if (total !== null && total <= horizon) {
+        const at = y(valueAt(lines[0], total));
+        const drop = document.createElementNS(ns, "line");
+        drop.setAttribute("x1", x(total)); drop.setAttribute("y1", at);
+        drop.setAttribute("x2", x(total)); drop.setAttribute("y2", y(minimum));
+        drop.style.stroke = color;
+        drop.style.strokeWidth = "1";
+        drop.style.strokeDasharray = "2 3";
+        drop.style.opacity = "0.6";
+        svg.appendChild(drop);
+        markers.push({ x: x(total), y: at, years: total, color,
+          text: `${this._capacity(item.capacity)} kWh ${labels.module_in_total} · ${this._duration(total)}` });
+      }
+      const duration = value => Number.isFinite(value) ? this._duration(value) : labels.module_graph_no_payback;
+      // Current battery: one time. +N: the whole battery against no battery, and the last module on its own.
+      this._element("span", item.modules === 0 ? `${name(item)}: ${duration(item.years)}`
+        : `${name(item)}: ${labels.module_in_total} ${duration(item.totalYears)} · `
+          + `${this._fill(labels.module_extra_only, { extra: this._capacity(item.extra) })} ${duration(item.years)}`, entry);
     }
     this._paybackMarkers(svg, ns, markers);
-    this._hoverTip(svg, 600, 300, 25, 245, pointer => {
+    this._hoverTip(svg, 600, 450, 25, 395, pointer => {
       const time = Math.max(0, Math.min(horizon, (pointer - 60) / 480 * horizon));
       return {
         x: x(time),
         lines: [this._duration(time),
-          ...series.map(item => `${name(item)}: ${this._money(item.gain * time - item.cost)} ${currency}`)],
-        colors: ["", ...series.map((_, index) => colors[index % colors.length])],
-        dots: series.map((item, index) => ({ x: x(time), y: y(item.gain * time - item.cost), color: colors[index % colors.length] })),
+          ...lines.map(item => `${name(item)}: ${this._money(valueAt(item, time))} ${currency}`)],
+        colors: ["", ...lines.map(colorOf)],
+        dots: lines.map(item => ({ x: x(time), y: y(valueAt(item, time)), color: colorOf(item) })),
       };
     });
   }
@@ -2016,9 +2252,11 @@ class BattMindWhatIfCard extends HTMLElement {
       dot.style.fill = item.color;
       svg.appendChild(dot);
       const label = document.createElementNS(ns, "text");
-      const text = this._duration(item.years);
+      const text = item.text ?? this._duration(item.years);
       const above = item.y - 10 - text.length * 7 >= 5;
-      const px = item.x + 4;
+      // Labels of dots that are close together are moved sideways so they do not print over each other.
+      const neighbours = items.slice(0, index).filter(other => Math.abs(other.x - item.x) < 12).length;
+      const px = item.x + 4 + neighbours * 12;
       const py = above ? item.y - 10 : item.y + 10;
       label.setAttribute("x", px);
       label.setAttribute("y", py);
@@ -2028,101 +2266,6 @@ class BattMindWhatIfCard extends HTMLElement {
       label.style.fontWeight = "700";
       label.textContent = text;
       svg.appendChild(label);
-    });
-  }
-
-  _moduleBillChart(rows, labels, currentCost = 0) {
-    const usable = rows.filter(row => Number.isFinite(row.annual_bill?.with) && Number.isFinite(row.cumulative_cost));
-    const without = rows.find(row => Number.isFinite(row.annual_bill?.without))?.annual_bill.without;
-    const baseline = usable.find(row => row.module_count === 0);
-    if (!baseline || !Number.isFinite(without) || usable.length < 2 || !Number.isFinite(currentCost) || currentCost < 0) {
-      this._element("p", labels.module_bill_missing, this._results).className = "result-note";
-      return;
-    }
-    const currency = this._hass.config.currency;
-    const base = currentCost;
-    const added = usable.filter(row => row.module_count > 0);
-    const crossings = added.filter(row => without > row.annual_bill.with)
-      .map(row => (base + row.cumulative_cost) / (without - row.annual_bill.with));
-    const horizon = Math.min(30, Math.max(5, Math.ceil(Math.max(0, ...crossings) * 1.6 / 5) * 5));
-    const lines = [
-      { label: labels.module_bill_none, start: 0, rate: without, color: "var(--secondary-text-color)", dashed: true },
-      ...added.map((row, index) => ({
-        label: `+${this._number(row.module_count)} ${labels.module_graph_modules}`,
-        start: base + row.cumulative_cost, rate: row.annual_bill.with,
-        color: ["var(--primary-color)", "#e65100", "#388e3c", "#ad1457", "#6a1b9a", "#00838f", "#5d4037",
-          "#c62828", "#558b2f", "#4527a0", "#00796b", "#9e5d00"][index % 12],
-      })),
-    ];
-    const ends = lines.flatMap(line => [line.start, line.start + line.rate * horizon]);
-    if (ends.some(value => !Number.isFinite(value))) return;
-    const minimum = Math.min(0, ...ends);
-    const maximum = Math.max(0, ...ends);
-    const spread = maximum - minimum || 1;
-    const y = value => 245 - (value - minimum) * 205 / spread;
-    const x = value => 60 + value / horizon * 480;
-    this._element("h3", `${labels.module_bill_title} (${currency})`, this._results);
-    this._element("p", labels.module_bill_note, this._results).className = "result-note";
-    const wrapper = this._element("div", undefined, this._results);
-    wrapper.className = "module-chart";
-    const ns = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("viewBox", "0 0 600 300");
-    svg.style.height = "330px";
-    svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", `${labels.module_bill_title} (${currency})`);
-    wrapper.appendChild(svg);
-    const axisText = (text, px, py, anchor = "middle") => {
-      const node = document.createElementNS(ns, "text");
-      node.setAttribute("x", px);
-      node.setAttribute("y", py);
-      node.setAttribute("text-anchor", anchor);
-      node.textContent = text;
-      svg.appendChild(node);
-    };
-    const zero = document.createElementNS(ns, "line");
-    zero.setAttribute("x1", x(0)); zero.setAttribute("x2", x(horizon));
-    zero.setAttribute("y1", y(0)); zero.setAttribute("y2", y(0));
-    svg.appendChild(zero);
-    axisText(this._money(maximum), 55, 40, "end");
-    axisText(this._money(minimum), 55, 245, "end");
-    for (const tick of [0, horizon / 2, horizon]) axisText(this._number(tick), x(tick), 272);
-    axisText(labels.module_years, 300, 292);
-    const legend = this._element("div", undefined, wrapper);
-    legend.className = "module-legend";
-    const markers = [];
-    for (const line of lines) {
-      const node = document.createElementNS(ns, "line");
-      node.setAttribute("x1", x(0)); node.setAttribute("y1", y(line.start));
-      node.setAttribute("x2", x(horizon)); node.setAttribute("y2", y(line.start + line.rate * horizon));
-      node.style.stroke = line.color;
-      node.style.strokeWidth = "2.5";
-      node.style.strokeLinecap = "round";
-      node.style.opacity = "1";
-      if (line.dashed) node.style.strokeDasharray = "6 4";
-      svg.appendChild(node);
-      const entry = this._element("div", undefined, legend);
-      entry.className = "module-legend-item";
-      const swatch = this._element("span", undefined, entry);
-      swatch.className = "module-legend-color";
-      swatch.style.backgroundColor = line.color;
-      this._element("span", line.label, entry);
-      const gap = without - line.rate;
-      if (!line.dashed && line.start > 0 && gap > 0) {
-        const years = line.start / gap;
-        if (years <= horizon) markers.push({ x: x(years), y: y(line.start + line.rate * years), years, color: line.color });
-      }
-    }
-    this._paybackMarkers(svg, ns, markers);
-    this._hoverTip(svg, 600, 300, 25, 245, pointer => {
-      const time = Math.max(0, Math.min(horizon, (pointer - 60) / 480 * horizon));
-      return {
-        x: x(time),
-        lines: [this._duration(time),
-          ...lines.map(line => `${line.label}: ${this._money(line.start + line.rate * time)} ${currency}`)],
-        colors: ["", ...lines.map(line => line.color)],
-        dots: lines.map(line => ({ x: x(time), y: y(line.start + line.rate * time), color: line.color })),
-      };
     });
   }
 
