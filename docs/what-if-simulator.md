@@ -31,7 +31,9 @@ real BattMind rules and the whole period optimisation, exactly as the live plann
   its own day. No price forecast or offline prices are used.
 - **Consumption and solar:** the actual consumption (without ignored consumers) and the actual solar
   surplus of each hour are the forecast, so the plan is not disturbed by a bad forecast. The forecast
-  type and the price forecast correction therefore have no effect in the simulator.
+  type and the price forecast correction therefore have no effect in the simulator. The solar surplus
+  is the solar production minus that consumption, so solar that ignored consumers used (for example an
+  electric car) counts as surplus: the simulation exports it or uses it to charge the battery.
 - **Controller:** with **optimizer_control** on, the hours are executed with the whole period
   optimisation, otherwise with the rule plan, both converted to battery actions the same way as the live
   battery control. The rules can only use what they are allowed to by the rule switches.
@@ -212,7 +214,7 @@ the current value beside the scenario value for each setting you changed.
 |---|---|
 | **period** | first/last hour and the amount of historical data actually used |
 | **data_sources** | counts of used entity-hour samples from long-term statistics and raw Recorder fallback |
-| **price_provider** | configured provider with the most complete matching hourly data |
+| **price_provider** | the provider(s) that supplied the used hours, comma separated (**price_provider_hours** counts the hours of each) |
 | **tariff_estimated_hours** | hours where the closest recorded tariff value was used instead of an exact-hour value |
 | **tariff_unavailable_hours** | hours left out of the simulation because required tariff history was unavailable |
 | **current_assumptions** | battery values, settings, rule switches (**rules**) and controller (**control_mode**) of the current comparison |
@@ -230,7 +232,11 @@ Both **current** and **scenario** contain the net result with and without the ba
 charged grid/solar energy, energy delivered to the house, sales, wear, the final battery level and the
 profit, net result with the battery (**bill**) and simulated hours per calendar month (**months**). The
 change of the battery level within a month is valued like the energy left at the end, so the months add
-up to the profit and the net result.
+up to the profit and the net result. The items of the net result with the battery add up to **bill**:
+what is bought, minus what is sold, plus wear, minus the value of the energy left (**energy_value**), plus the
+value of the energy at the start (**start_value**). The column without a battery has neither. Because the
+net result without a battery is the same for every setup, the difference in net result is the opposite
+of the difference in profit.
 
 ## Less history than requested
 
@@ -251,6 +257,11 @@ the notification says that there is too little data. Season, prices and consumpt
 are unknown, so the estimate is a rough approximation and not an expected saving.
 A negative net result is not necessarily a cash credit: the calculation includes an estimated value for
 energy remaining in the battery, but excludes the battery purchase price and any fixed fees.
+A kWh in the battery is valued at the average buy price of the period, less wear and **min_profit_per_kwh**
+(and the discharge loss): energy is only worth what it would earn when it is used or sold later, with at
+least the minimum profit per kWh. The energy in the battery at the start is a cost of the net result with
+the battery, valued the same way, so a battery that starts with more energy does not get it for free; the
+profit is the same either way.
 
 This is a hindsight calculation, not a forecast or guarantee: the planner knows the actual consumption
 and solar production of the planned hours, so treat the result as an optimistic historical benchmark

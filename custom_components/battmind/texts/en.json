@@ -577,7 +577,7 @@
     "what_if_interval_example": "Each point shows the profit per added kWh for the interval below it. For example, 8–16 compares a 16 kWh battery with an 8 kWh battery. A negative value means the larger battery produced less profit during the period.",
     "what_if_range_columns": "Battery size: simulated capacity. Battery profit: total profit over the period. Net bill: calculated bill with the battery. Profit change: difference from the previous size. Profit change per added kWh: that difference divided by the added capacity. The first row has no previous size. Highlighted values are the highest among the displayed results, not necessarily the best investment.",
     "what_if_interval_explain": "The difference between two sizes is the change in historical profit over the simulated period. Profit per added kWh divides that difference by the extra battery capacity. These figures use rounded results and can be imprecise for very small steps.",
-    "what_if_bill_explain": "The calculated bill includes wear and the value of energy left in the battery; battery purchase cost and fixed fees are excluded.",
+    "what_if_bill_explain": "The calculated bill includes wear and the value of energy left in the battery, and the energy in the battery at the start is a cost; battery purchase cost and fixed fees are excluded.",
     "what_if_form_explain": "A new calculation uses only these fields and the current settings. Other values from a saved calculation started by an action or automation are not reused; missing values use the form defaults.",
     "what_if_days": "days",
     "what_if_empty": "Run a simulation to see results.",

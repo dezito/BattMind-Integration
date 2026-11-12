@@ -1782,6 +1782,33 @@ def test_bill_with_the_battery_is_the_simulated_cost() -> None:
     assert result["without"]["solar_kwh"] == pytest.approx(3.0)
 
 
+def test_start_energy_is_a_cost_of_the_bill_with_the_battery_in_the_what_if() -> None:
+    """start_energy_as_cost: the energy at the start is not free in the bill with the battery; the profit is the same."""
+    from custom_components.battmind.engine.optimizer import breakdown
+
+    hours = [OptimizerHour(0, 0.5, 0.2, 1.0, 0.0), OptimizerHour(1, 3.0, 2.0, 2.0, 0.0), OptimizerHour(2, 1.0, 0.5, 0.0, 3.0)]
+    actions = ["grid_charging", "force_discharge", "discharge_allowed"]
+    plain = breakdown(hours, 50.0, CFG, actions, 1.0)
+    cost = breakdown(hours, 50.0, CFG, actions, 1.0, start_energy_as_cost=True)
+    start_value = (50.0 - CFG.level_min) * CFG.battery_size / 100.0 * 1.0
+
+    assert cost["profit"] == pytest.approx(plain["profit"], abs=0.02)
+    assert cost["without"]["energy_value"] == 0.0
+    assert cost["without"]["bill"] == pytest.approx(cost["without"]["house_cost"] + cost["without"]["earned"], abs=0.02)
+    assert cost["with"]["start_value"] == pytest.approx(start_value, abs=0.01)
+    assert cost["with"]["bill"] == pytest.approx(plain["with"]["bill"] + start_value, abs=0.02)
+    for column in (cost["without"], cost["with"]):
+        total = column["paid"] + column["earned"] + column["wear"] + column["energy_value"] + column["start_value"]
+        assert total == pytest.approx(column["bill"], abs=0.03)
+    # the live overview is unchanged: no start_value item
+    assert "start_value" not in plain["with"]
+
+    # a bigger battery that starts full does not get its extra start energy for free
+    big = breakdown(hours, 100.0, CFG, ["discharge_allowed"] * 3, 1.0, start_energy_as_cost=True)
+    small = breakdown(hours, CFG.level_min, CFG, ["discharge_allowed"] * 3, 1.0, start_energy_as_cost=True)
+    assert big["with"]["start_value"] > small["with"]["start_value"] == 0.0
+
+
 def test_battery_price_is_a_running_average() -> None:
     """Charged kWh come in at their price, used/sold kWh leave at the average (the price of the rest stays)."""
     from custom_components.battmind.engine.planner._helpers import _running_battery_price
@@ -2306,6 +2333,15 @@ def test_what_if_months_add_up_with_a_starting_level_and_a_gap() -> None:
         assert sum(month["hours"] for month in months) == 68
         assert sum(month["profit"] for month in months) == pytest.approx(result.value[column]["profit"], abs=0.05)
         assert sum(month["bill"] for month in months) == pytest.approx(result.value[column]["with"]["bill"], abs=0.05)
+        # the energy at the start is a cost of the bill with the battery, not a credit of the bill without it
+        without, with_battery = result.value[column]["without"], result.value[column]["with"]
+        assert without["energy_value"] == 0 and without["start_value"] == 0
+        assert with_battery["start_value"] > 0
+        assert with_battery["bill"] == pytest.approx(
+            with_battery["paid"] + with_battery["earned"] + with_battery["wear"]
+            + with_battery["energy_value"] + with_battery["start_value"], abs=0.05
+        )
+        assert result.value[column]["profit"] == pytest.approx(without["bill"] - with_battery["bill"], abs=0.05)
 
 
 def test_what_if_estimates_months_without_data_from_the_nearest_month() -> None:
