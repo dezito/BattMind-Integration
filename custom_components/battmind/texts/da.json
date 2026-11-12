@@ -577,7 +577,7 @@
     "what_if_interval_example": "Hvert punkt viser gevinsten pr. ekstra kWh i intervallet under punktet. Eksempel: 8–16 sammenligner et batteri på 16 kWh med et på 8 kWh. Et negativt tal betyder, at den større størrelse gav en lavere gevinst i perioden.",
     "what_if_range_columns": "Batteristørrelse: den simulerede kapacitet. Batteriets gevinst: samlet gevinst i perioden. Netto elregning: beregnet regning med batteriet. Gevinstændring: forskellen fra forrige størrelse. Gevinstændring pr. ekstra kWh: forskellen divideret med den ekstra kapacitet. Første række har ingen forrige størrelse. Fremhævede værdier er de højeste blandt de viste resultater, ikke nødvendigvis den bedste investering.",
     "what_if_interval_explain": "Forskellen mellem to størrelser er ændringen i den historiske gevinst i den simulerede periode. Gevinst pr. ekstra kWh dividerer forskellen med den ekstra batterikapacitet. Tallene bygger på afrundede resultater og kan være upræcise ved meget små trin.",
-    "what_if_bill_explain": "Den beregnede elregning medregner slid og værdien af energi tilbage i batteriet; batteriets anskaffelsespris og faste afgifter er ikke medregnet.",
+    "what_if_bill_explain": "Den beregnede elregning medregner slid og værdien af energi tilbage i batteriet, og energien i batteriet ved start er en udgift; batteriets anskaffelsespris og faste afgifter er ikke medregnet.",
     "what_if_form_explain": "En ny beregning bruger kun felterne her og de aktuelle indstillinger. Andre værdier fra en gemt beregning via en handling eller automation genbruges ikke; manglende værdier vises med formularens standarder.",
     "what_if_days": "dage",
     "what_if_empty": "Start en simulering for at se resultater.",

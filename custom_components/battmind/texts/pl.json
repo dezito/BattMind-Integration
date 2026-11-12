@@ -577,7 +577,7 @@
     "what_if_interval_example": "Każdy punkt pokazuje zysk na dodatkową kWh dla zakresu pod punktem. Na przykład 8–16 porównuje baterię 16 kWh z baterią 8 kWh. Wartość ujemna oznacza, że większa bateria przyniosła mniejszy zysk w tym okresie.",
     "what_if_range_columns": "Pojemność baterii: symulowana pojemność. Zysk baterii: łączny zysk w okresie. Rachunek netto: obliczony rachunek z baterią. Zmiana zysku: różnica względem poprzedniej pojemności. Zmiana zysku na dodatkową kWh: różnica podzielona przez dodatkową pojemność. Pierwszy wiersz nie ma poprzedniej pojemności. Wyróżniono najwyższe wyniki, niekoniecznie najlepszą inwestycję.",
     "what_if_interval_explain": "Różnica między dwiema pojemnościami to zmiana historycznego zysku w symulowanym okresie. Zysk na dodatkową kWh to ta różnica podzielona przez dodatkową pojemność baterii. Wartości opierają się na zaokrąglonych wynikach i mogą być niedokładne dla bardzo małych kroków.",
-    "what_if_bill_explain": "Obliczony rachunek uwzględnia zużycie baterii i wartość pozostałej w niej energii; nie obejmuje kosztu zakupu baterii ani opłat stałych.",
+    "what_if_bill_explain": "Obliczony rachunek uwzględnia zużycie baterii i wartość pozostałej w niej energii, a energia w baterii na początku jest kosztem; nie obejmuje kosztu zakupu baterii ani opłat stałych.",
     "what_if_form_explain": "Nowe obliczenie używa tylko tych pól i bieżących ustawień. Inne wartości z zapisanego obliczenia uruchomionego przez akcję lub automatyzację nie są ponownie używane; brakujące wartości przyjmują domyślne wartości formularza.",
     "what_if_days": "dni",
     "what_if_empty": "Uruchom symulację, aby zobaczyć wyniki.",

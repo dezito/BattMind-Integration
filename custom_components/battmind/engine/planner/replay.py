@@ -181,7 +181,9 @@ def replay_history(
         for segment in _segments(hours):
             if cancel_check is not None:
                 cancel_check()
-            summaries.append(breakdown(segment, 0.0, cfg, [FALLBACK_ACTION[0]] * len(segment), 0.0))
+            summaries.append(breakdown(
+                segment, 0.0, cfg, [FALLBACK_ACTION[0]] * len(segment), 0.0, start_energy_as_cost=True
+            ))
             for hour in segment:
                 month = months.setdefault(hour.timestamp.strftime("%Y-%m"), {"hours": 0, "profit": 0.0, "bill": 0.0})
                 month["hours"] += 1
@@ -204,9 +206,9 @@ def replay_history(
         level = segment_start
         actions, limits = [], []
         position = 0
-        # the energy in the battery at the start is deducted from the bill, like in breakdown()
-        month = months.setdefault(segment[0].timestamp.strftime("%Y-%m"), {"hours": 0, "profit": 0.0, "bill": 0.0})
-        month["bill"] -= (segment_start - cfg.level_min) * to_kwh * end_value
+        # the energy in the battery at the start is a cost of the bill with the battery (breakdown() with
+        # start_energy_as_cost): it is the energy the level change of the hours is valued against, so the months
+        # hold no one-off item that an estimate of missing hours could scale up
         while position < len(segment):
             if cancel_check is not None:
                 cancel_check()
@@ -243,5 +245,5 @@ def replay_history(
             oldest = now - datetime.timedelta(days=HISTORY_DAYS)
             for key in [key for key in engine.charging_history_db if key < oldest]:
                 del engine.charging_history_db[key]
-        summaries.append(breakdown(segment, segment_start, cfg, actions, end_value, limits))
+        summaries.append(breakdown(segment, segment_start, cfg, actions, end_value, limits, start_energy_as_cost=True))
     return {"config": cfg, "summaries": summaries, "months": months}

@@ -553,6 +553,7 @@ def breakdown(
     actions: list[str],
     end_value_per_kwh: float,
     limits: list[float | None] | None = None,
+    start_energy_as_cost: bool = False,
 ) -> dict:
     """The electricity bill of the period without and with the battery, item by item.
 
@@ -560,6 +561,11 @@ def breakdown(
     battery the house buys all its consumption, all solar surplus is sold and the energy in the
     battery now stays (its value is deducted); with the battery the plan's flows are used and the
     energy left at the end is deducted. The profit is the difference of the bills.
+
+    start_energy_as_cost (what-if): the energy in the battery at the start is not free. The without
+    column gets no credit for it and the with column carries it as a cost ("start_value", valued like
+    the energy left), so the bill with the battery is comparable between batteries and settings
+    that start with different amounts of energy. The profit is the same either way.
     """
     keys = ("house_kwh", "house_cost", "battery_kwh", "battery_cost", "solar_kwh", "solar_income", "sold_kwh", "sold_income", "wear")
     without, with_battery = dict.fromkeys(keys, 0.0), dict.fromkeys(keys, 0.0)
@@ -584,12 +590,18 @@ def breakdown(
         delivered_house += details["house"]
         charged_solar += details["solar_in"]
     to_kwh = cfg.battery_size / 100.0
-    without["energy_value"] = -(start_level - cfg.level_min) * to_kwh * end_value_per_kwh
+    start_value = (start_level - cfg.level_min) * to_kwh * end_value_per_kwh
+    without["energy_value"] = 0.0 if start_energy_as_cost else -start_value
     with_battery["energy_value"] = -(level - cfg.level_min) * to_kwh * end_value_per_kwh
+    if start_energy_as_cost:
+        without["start_value"] = 0.0
+        with_battery["start_value"] = start_value
     for column in (without, with_battery):
         column["paid"] = column["house_cost"] + column["battery_cost"]
         column["earned"] = column["solar_income"] + column["sold_income"]
-        column["bill"] = column["paid"] + column["earned"] + column["wear"] + column["energy_value"]
+        column["bill"] = (
+            column["paid"] + column["earned"] + column["wear"] + column["energy_value"] + column.get("start_value", 0.0)
+        )
     profit = without["bill"] - with_battery["bill"]
     cycled = delivered_house + with_battery["sold_kwh"]
 
