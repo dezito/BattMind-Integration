@@ -29,6 +29,8 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
         BattMindEnforcePlanningButton(coordinator, "button", "enforce_planning"),
         BattMindExportButton(coordinator, "button", "export_data"),
         BattMindExportDebugButton(coordinator, "button", "export_debug"),
+        # the what-if view
+        BattMindResetWhatIfSettingsButton(coordinator, "button", "reset_what_if_settings"),
     ]
     if coordinator.config.get("dashboard"):
         entities.append(BattMindResetDashboardButton(coordinator, "button", "reset_dashboard"))
@@ -75,3 +77,10 @@ class BattMindResetDashboardButton(BattMindEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         await async_reset_dashboard(self.hass, self.coordinator.prefix)
+
+
+class BattMindResetWhatIfSettingsButton(BattMindEntity, ButtonEntity):
+    """Set every scenario rule and setting of the what-if view back to Current."""
+
+    async def async_press(self) -> None:
+        self.coordinator.async_reset_what_if_settings()

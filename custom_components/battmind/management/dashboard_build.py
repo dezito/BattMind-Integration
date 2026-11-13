@@ -21,13 +21,11 @@ import logging
 import re
 from copy import deepcopy
 from pathlib import Path
-from collections.abc import Iterator
 from typing import Any
 
 import yaml
 
 from homeassistant.components import frontend
-from homeassistant.components.http import StaticPathConfig
 from homeassistant.components.lovelace import dashboard as lovelace_dashboard
 from homeassistant.components.lovelace.const import LOVELACE_DATA, MODE_STORAGE
 from homeassistant.config_entries import ConfigEntry
@@ -41,8 +39,6 @@ from ..utils.formatting import load_texts
 _LOGGER = logging.getLogger(__name__)
 
 TEMPLATE = Path(__file__).parent.parent / "dashboard" / "battmind.yaml"
-WHAT_IF_CARD = Path(__file__).parent.parent / "dashboard" / "what-if-card.js"
-WHAT_IF_CARD_URL = "/battmind/what-if-card.js"
 
 _OWN_ENTITY = re.compile(r"\b(sensor|binary_sensor|switch|number|select|text|button)\.battmind_")
 _PLACEHOLDER = re.compile(r"@@(\w+)@@")
@@ -68,13 +64,12 @@ def custom_store(hass: HomeAssistant, entry_id: str) -> Store[dict[str, Any]]:
 class BattMindDashboard(lovelace_dashboard.LovelaceYAML):
     """The generated YAML file, but editable: the frontend only offers editing in storage mode."""
 
-    def __init__(self, hass: HomeAssistant, url_path: str, config: dict[str, Any], store: Store[dict[str, Any]], custom: dict[str, Any] | None, entry_id: str, what_if_labels: dict[str, str]) -> None:
+    def __init__(self, hass: HomeAssistant, url_path: str, config: dict[str, Any], store: Store[dict[str, Any]], custom: dict[str, Any] | None, entry_id: str) -> None:
         super().__init__(hass, url_path, config)
         self._store = store
         self._custom = custom
         self._custom_json: json_fragment | None = None
         self._entry_id = entry_id
-        self._what_if_labels = what_if_labels
 
     @property
     def mode(self) -> str:
@@ -91,13 +86,17 @@ class BattMindDashboard(lovelace_dashboard.LovelaceYAML):
     async def async_load(self, force: bool) -> dict[str, Any]:
         if self._custom is not None:
             config = deepcopy(self._custom)
-            for card in _what_if_cards(config):
-                if card.get("config_entry_id") == self._entry_id:
-                    labels = card.get("labels")
-                    if isinstance(labels, dict):
-                        card["labels"] = {**self._what_if_labels, **labels}
-                    elif labels is None:
-                        card["labels"] = dict(self._what_if_labels)
+            if any(_has_legacy_what_if_card(view) for view in config.get("views") or ()):
+                # a saved dashboard from before the what-if view was made of entities: the view with the removed
+                # custom card is replaced by the generated What-if view, the rest of the edits stay
+                generated = next(
+                    (view for view in (await super().async_load(force)).get("views") or () if view.get("path") == "what-if"),
+                    None,
+                )
+                if generated is not None:
+                    config["views"] = [
+                        deepcopy(generated) if _has_legacy_what_if_card(view) else view for view in config["views"]
+                    ]
             return config
         return await super().async_load(force)
 
@@ -122,16 +121,13 @@ class BattMindDashboard(lovelace_dashboard.LovelaceYAML):
         self._config_updated()
 
 
-def _what_if_cards(node: Any) -> Iterator[dict[str, Any]]:
-    """Find bundled what-if cards, including cards in nested layouts."""
+def _has_legacy_what_if_card(node: Any) -> bool:
+    """Whether the node contains the custom card the what-if view used before it was made of entities."""
     if isinstance(node, dict):
-        if node.get("type") == "custom:battmind-what-if":
-            yield node
-        for value in node.values():
-            yield from _what_if_cards(value)
-    elif isinstance(node, list):
-        for value in node:
-            yield from _what_if_cards(value)
+        return node.get("type") == "custom:battmind-what-if" or any(_has_legacy_what_if_card(value) for value in node.values())
+    if isinstance(node, list):
+        return any(_has_legacy_what_if_card(value) for value in node)
+    return False
 
 
 def external_entities(config: dict[str, Any]) -> dict[str, str]:
@@ -192,9 +188,15 @@ _ACTION_SETTINGS = {
 def unsupported_entities(config: dict[str, Any]) -> set[str]:
     """Template entity ids of the rules that need an action the battery can't run."""
     unsupported = unsupported_actions(config)
-    entities = {f"switch.battmind_{key}" for key in unsupported_switches(unsupported)}
+    keys = unsupported_switches(unsupported)
+    entities = {f"switch.battmind_{key}" for key in keys}
+    # the what-if view has a scenario value for each rule and setting as well
+    entities.update(f"select.battmind_what_if_{key}" for key in keys)
     for action in unsupported:
-        entities.update(_ACTION_SETTINGS.get(action, ()))
+        for entity in _ACTION_SETTINGS.get(action, ()):
+            entities.add(entity)
+            domain, name = entity.split(".battmind_", 1)
+            entities.add(f"{domain}.battmind_what_if_{name}")
     return entities
 
 
@@ -291,7 +293,6 @@ def render_dashboard(
     texts["dashboard.forecast_span"] = f"{max(float(config['days_to_predict']) - 0.5, 0.5):g}d"
     # the sell price charts subtract the same sell fee as the planner
     texts["dashboard.sell_fee_value"] = f"{abs(float(config['prices'].get('sell_fee', 0.0))):g}"
-    texts["dashboard.what_if_entry_id"] = entry_id
     template = _translate(template, texts)
     missing = {source for source, target in mapping.items() if not target}
     if existing is not None and DEBUG_BUTTON_SWITCH not in existing:
@@ -317,12 +318,6 @@ def _write_if_changed(path: Path, content: str) -> bool:
     return True
 
 
-async def async_setup_what_if_card(hass: HomeAssistant) -> None:
-    """Make the bundled card available without modifying Lovelace resources."""
-    await hass.http.async_register_static_paths([StaticPathConfig(WHAT_IF_CARD_URL, str(WHAT_IF_CARD), False)])
-    frontend.add_extra_js_url(hass, WHAT_IF_CARD_URL)
-
-
 async def async_setup_dashboard(hass: HomeAssistant, entry: ConfigEntry, config: dict[str, Any], prefix: str) -> None:
     """Render the dashboard and add it to the sidebar until the entry unloads."""
     lovelace = hass.data.get(LOVELACE_DATA)
@@ -339,13 +334,12 @@ async def async_setup_dashboard(hass: HomeAssistant, entry: ConfigEntry, config:
 
     existing_ids = set(hass.states.async_entity_ids())
 
-    def _render() -> tuple[bool, dict[str, str]]:
+    def _render() -> bool:
         content = render_dashboard(config, prefix, existing_ids, hass.config.currency, entry.entry_id)
-        card = next(_what_if_cards(yaml.safe_load(content)))
-        return _write_if_changed(path, content), card["labels"]
+        return _write_if_changed(path, content)
 
     try:
-        changed, what_if_labels = await hass.async_add_executor_job(_render)
+        changed = await hass.async_add_executor_job(_render)
     except (OSError, yaml.YAMLError) as err:
         _LOGGER.error("Could not create the BattMind dashboard: %s", err)
         return
@@ -361,7 +355,6 @@ async def async_setup_dashboard(hass: HomeAssistant, entry: ConfigEntry, config:
         store,
         stored["config"] if stored else None,
         entry.entry_id,
-        what_if_labels,
     )
     lovelace.dashboards[url_path] = battmind_dashboard
     frontend.async_register_built_in_panel(

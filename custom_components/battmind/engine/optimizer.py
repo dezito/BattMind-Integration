@@ -64,6 +64,7 @@ class OptimizerConfig:
     usage_reserve: float = 0.0  # % kept for the house; force discharge may not export below it
     step: float = 0.5  # % resolution of the battery level
     unsupported: frozenset = frozenset()  # actions the inverter can't run (never planned)
+    solar_charging: bool = True  # False: the solar surplus never charges the battery (all of it is sold)
     # Energy older than this is not held back (powerwall_max_hours_old, None = no limit). The battery
     # empties first in, first out: what is in it at the start of an hour is the latest charges, so the
     # old energy is the usable level minus the % charged within the max age (and minus the part of
@@ -115,7 +116,7 @@ def step_hour(
     battery_used = 0.0  # kWh removed from the battery (battery side)
 
     solar_in = house = 0.0
-    if action in ("discharge_allowed", "force_solar_only_charging", "grid_charging") and hour.solar > 0.0:
+    if cfg.solar_charging and action in ("discharge_allowed", "force_solar_only_charging", "grid_charging") and hour.solar > 0.0:
         wanted = min(hour.solar, max_charge)
         charge_efficiency = efficiency_at_power(cfg.charge_efficiency_curve, wanted * 1000.0, curve_fallback)
         solar_in = min(wanted, room / charge_efficiency)

@@ -659,6 +659,9 @@
   },
   "entity": {
     "switch": {
+      "what_if_run": {
+        "name": "Run simulation"
+      },
       "solar_charging": {
         "name": "Solar surplus charging"
       },
@@ -715,6 +718,12 @@
       },
       "auto_forecast_type": {
         "name": "Choose the forecast type automatically"
+      },
+      "what_if_range": {
+        "name": "What-if – Compare a range of battery sizes"
+      },
+      "what_if_modules": {
+        "name": "What-if – Compare battery modules"
       }
     },
     "number": {
@@ -741,16 +750,203 @@
       },
       "powerwall_max_hours_old": {
         "name": "Max. age of kWh in home battery"
+      },
+      "what_if_history_days": {
+        "name": "What-if – History (days)"
+      },
+      "what_if_battery_size": {
+        "name": "What-if – Battery size (kWh)"
+      },
+      "what_if_range_start": {
+        "name": "What-if – From (kWh)"
+      },
+      "what_if_range_end": {
+        "name": "What-if – To (kWh)"
+      },
+      "what_if_range_step": {
+        "name": "What-if – Step (kWh)"
+      },
+      "what_if_module_capacity": {
+        "name": "What-if – Module capacity (kWh)"
+      },
+      "what_if_module_price": {
+        "name": "What-if – Price per module"
+      },
+      "what_if_module_count": {
+        "name": "What-if – Additional modules"
+      },
+      "what_if_usage_reserve": {
+        "name": "What-if – Reserve for house use (not sold)"
+      },
+      "what_if_min_profit_per_kwh": {
+        "name": "What-if – Min. profit per kWh (discharging)"
+      },
+      "what_if_min_total_profit": {
+        "name": "What-if – Min. total profit (sale to the grid)"
+      },
+      "what_if_min_sell_kwh": {
+        "name": "What-if – Minimum excess kWh for export"
+      },
+      "what_if_cheap_price_periods": {
+        "name": "What-if – Cheap price periods"
+      },
+      "what_if_cheapest_price_rise_threshold": {
+        "name": "What-if – Increase for cheapest price"
+      },
+      "what_if_cheap_price_period_rise_threshold": {
+        "name": "What-if – Increase for cheap periods"
+      },
+      "what_if_powerwall_max_hours_old": {
+        "name": "What-if – Max. age of kWh in home battery"
       }
     },
     "select": {
       "forecast_type": {
         "name": "Select forecast type"
+      },
+      "what_if_optimizer_control": {
+        "name": "What-if – Control the battery with the whole period optimisation",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_use_midnight_battery_level": {
+        "name": "What-if – Use midnight battery level",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_solar_charging": {
+        "name": "What-if – Solar surplus charging",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_enhance_battery_efficiency": {
+        "name": "What-if – Enhance battery efficiency",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_cheapest_hour_fill_planner": {
+        "name": "What-if – Charging: Cheapest periods planner",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_cheapest_hour_fill_up": {
+        "name": "What-if – Charging: Fill up during cheapest period",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_most_expensive_planner": {
+        "name": "What-if – Charging: Most expensive periods planner",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_needed_before_max_level_planner": {
+        "name": "What-if – Charging: Required before max level planner",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_negative_price_planner": {
+        "name": "What-if – Charging: Negative prices",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_grid_charge_to_sell": {
+        "name": "What-if – Charging: Buy to sell",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_most_profit": {
+        "name": "What-if – Discharging: Maximise profit",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_sell_excess_kwh_available": {
+        "name": "What-if – Discharging: Sell excess kWh",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_force_powerwall_max_hours_old_discharge": {
+        "name": "What-if – Forced discharge: Max. kWh age in hours",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_discharge_before_solar": {
+        "name": "What-if – Discharging: Before the sun",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_only_discharge_on_profit": {
+        "name": "What-if – Discharging: Profit only",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_prioritize_discharge_hours_by_energy_cost": {
+        "name": "What-if – Discharging: Prioritise by energy cost",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
+      },
+      "what_if_optimize_solar_charging": {
+        "name": "What-if – Optimise solar charging",
+        "state": {
+          "current": "Current",
+          "on": "On",
+          "off": "Off"
+        }
       }
     },
     "text": {
       "exclude_sell_hours": {
         "name": "Exclude selling hours"
+      },
+      "what_if_exclude_sell_hours": {
+        "name": "What-if – Exclude selling hours"
       }
     },
     "button": {
@@ -765,6 +961,9 @@
       },
       "export_debug": {
         "name": "Export debug info"
+      },
+      "reset_what_if_settings": {
+        "name": "What-if – Reset to current"
       }
     },
     "sensor": {
@@ -791,6 +990,33 @@
       },
       "analysis": {
         "name": "Savings this month"
+      },
+      "what_if": {
+        "name": "What-if result"
+      },
+      "what_if_status": {
+        "name": "What-if status",
+        "state": {
+          "idle": "Idle",
+          "running": "Running",
+          "stopping": "Stopping",
+          "stopped": "Stopped",
+          "failed": "Failed"
+        }
+      },
+      "what_if_progress": {
+        "name": "What-if progress"
+      }
+    },
+    "binary_sensor": {
+      "what_if_has_months": {
+        "name": "What-if result has monthly data"
+      },
+      "what_if_has_range": {
+        "name": "What-if result has a capacity interval"
+      },
+      "what_if_has_modules": {
+        "name": "What-if result has a module comparison"
       }
     }
   },

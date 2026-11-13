@@ -61,6 +61,9 @@ def _collect_settings(hass: HomeAssistant, entry_id: str) -> dict[str, str]:
         key = f"{reg_entry.domain}.{reg_entry.unique_id.removeprefix(f'{entry_id}_')}"
         if reg_entry.domain not in SETTINGS_PLATFORMS and key not in EXTRA_SETTINGS:
             continue
+        # the what-if inputs only feed a simulation, they are not settings of the planner
+        if key.split(".", 1)[1].startswith("what_if_"):
+            continue
         state = hass.states.get(reg_entry.entity_id)
         if state is None or state.state in ("unknown", "unavailable"):
             stored = async_get_stored_state(hass, reg_entry.entity_id)

@@ -510,6 +510,9 @@
   },
   "entity": {
     "switch": {
+      "what_if_run": {
+        "name": "Запустити симуляцію"
+      },
       "solar_charging": {
         "name": "Заряджання надлишком сонця"
       },
@@ -566,6 +569,12 @@
       },
       "auto_forecast_type": {
         "name": "Автоматично вибирати тип прогнозу"
+      },
+      "what_if_range": {
+        "name": "What-if – Порівняти діапазон ємностей батареї"
+      },
+      "what_if_modules": {
+        "name": "What-if – Порівняти модулі батареї"
       }
     },
     "number": {
@@ -592,16 +601,203 @@
       },
       "powerwall_max_hours_old": {
         "name": "Макс. вік кВт·год у домашній батареї"
+      },
+      "what_if_history_days": {
+        "name": "What-if – Історія (дні)"
+      },
+      "what_if_battery_size": {
+        "name": "What-if – Ємність батареї (кВт·год)"
+      },
+      "what_if_range_start": {
+        "name": "What-if – Від (кВт·год)"
+      },
+      "what_if_range_end": {
+        "name": "What-if – До (кВт·год)"
+      },
+      "what_if_range_step": {
+        "name": "What-if – Крок (кВт·год)"
+      },
+      "what_if_module_capacity": {
+        "name": "What-if – Ємність модуля (кВт·год)"
+      },
+      "what_if_module_price": {
+        "name": "What-if – Ціна за модуль"
+      },
+      "what_if_module_count": {
+        "name": "What-if – Додаткові модулі"
+      },
+      "what_if_usage_reserve": {
+        "name": "What-if – Резерв для дому (не продавати)"
+      },
+      "what_if_min_profit_per_kwh": {
+        "name": "What-if – Мін. прибуток за кВт·год (розряджання)"
+      },
+      "what_if_min_total_profit": {
+        "name": "What-if – Мін. загальний прибуток (продаж у мережу)"
+      },
+      "what_if_min_sell_kwh": {
+        "name": "What-if – Мін. надлишок кВт·год для продажу"
+      },
+      "what_if_cheap_price_periods": {
+        "name": "What-if – Дешеві цінові періоди"
+      },
+      "what_if_cheapest_price_rise_threshold": {
+        "name": "What-if – Зростання для найнижчої ціни"
+      },
+      "what_if_cheap_price_period_rise_threshold": {
+        "name": "What-if – Зростання для дешевих періодів"
+      },
+      "what_if_powerwall_max_hours_old": {
+        "name": "What-if – Макс. вік кВт·год у домашній батареї"
       }
     },
     "select": {
       "forecast_type": {
         "name": "Вибрати тип прогнозу"
+      },
+      "what_if_optimizer_control": {
+        "name": "What-if – Керувати батареєю оптимізацією всього періоду",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_use_midnight_battery_level": {
+        "name": "What-if – Використовувати рівень батареї опівночі",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_solar_charging": {
+        "name": "What-if – Заряджання надлишком сонця",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_enhance_battery_efficiency": {
+        "name": "What-if – Підвищити ефективність акумулятора",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_cheapest_hour_fill_planner": {
+        "name": "What-if – Заряджання: Найдешевші періоди",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_cheapest_hour_fill_up": {
+        "name": "What-if – Заряджання: Повністю зарядити у найдешевший період",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_most_expensive_planner": {
+        "name": "What-if – Заряджання: Найдорожчі періоди",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_needed_before_max_level_planner": {
+        "name": "What-if – Заряджання: Планування перед досягненням максимального рівня",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_negative_price_planner": {
+        "name": "What-if – Заряджання: Від'ємні ціни",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_grid_charge_to_sell": {
+        "name": "What-if – Заряджання: Купити, щоб продати",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_most_profit": {
+        "name": "What-if – Розряджання: Максимізувати прибуток",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_sell_excess_kwh_available": {
+        "name": "What-if – Розряджання: Продати надлишкові кВт·год",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_force_powerwall_max_hours_old_discharge": {
+        "name": "What-if – Примусове розряджання: Макс. вік кВт·год у годинах",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_discharge_before_solar": {
+        "name": "What-if – Розряджання: Перед сонцем",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_only_discharge_on_profit": {
+        "name": "What-if – Розряджання: Лише при прибутку",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_prioritize_discharge_hours_by_energy_cost": {
+        "name": "What-if – Розряджання: Пріоритет за вартістю енергії",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
+      },
+      "what_if_optimize_solar_charging": {
+        "name": "What-if – Оптимізувати заряджання від сонячної енергії",
+        "state": {
+          "current": "Поточне",
+          "on": "Увімк.",
+          "off": "Вимк."
+        }
       }
     },
     "text": {
       "exclude_sell_hours": {
         "name": "Виключити години продажу"
+      },
+      "what_if_exclude_sell_hours": {
+        "name": "What-if – Виключити години продажу"
       }
     },
     "button": {
@@ -616,6 +812,9 @@
       },
       "export_debug": {
         "name": "Експорт debug інформації"
+      },
+      "reset_what_if_settings": {
+        "name": "What-if – Скинути до поточних"
       }
     },
     "sensor": {
@@ -642,6 +841,33 @@
       },
       "analysis": {
         "name": "Заощадження цього місяця"
+      },
+      "what_if": {
+        "name": "Результат what-if"
+      },
+      "what_if_status": {
+        "name": "Статус what-if",
+        "state": {
+          "idle": "Неактивний",
+          "running": "Виконується",
+          "stopping": "Зупинення",
+          "stopped": "Зупинено",
+          "failed": "Помилка"
+        }
+      },
+      "what_if_progress": {
+        "name": "Прогрес what-if"
+      }
+    },
+    "binary_sensor": {
+      "what_if_has_months": {
+        "name": "Результат what-if має місячні дані"
+      },
+      "what_if_has_range": {
+        "name": "Результат what-if має діапазон ємностей"
+      },
+      "what_if_has_modules": {
+        "name": "Результат what-if має порівняння модулів"
       }
     }
   },

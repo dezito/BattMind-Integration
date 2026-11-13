@@ -46,22 +46,41 @@ real BattMind rules and the whole period optimisation, exactly as the live plann
 
 ## Run a simulation
 
-Open **Developer tools → Actions**, select **BattMind: What-if simulator**, choose the BattMind config
-entry and fill only the values you want to replace. Run the action to receive a persistent notification
-with a two-column comparison of the configured values and the what-if scenario; only values and rule
-switches that differ from the current setup are listed. The action also keeps
-returning the full simulation response for automations and scripts. A progress notification is shown
+There are two ways to run a simulation.
+
+**From the dashboard.** The **What-if** tab of the BattMind dashboard has the inputs as entities: the
+history in days, the battery size, a capacity range (a switch with start, end and step) and a module
+comparison (a switch with module capacity, price and number of modules). The rules and settings of the
+scenario are one entity each (*current*, *on* or *off* for a rule switch; a number or text that has no
+value until you enter one, which means *current*). Turn on **Run simulation** (the switch
+`switch.<prefix>_what_if_run`) to run one; turning it off cancels it. **Reset to current** (a button) clears
+the scenario rules and settings. The inputs only feed the simulation: they are not planner settings, they do not
+trigger a planning run and they are not part of a backup. One simulation runs at a time. The status
+(`sensor.<prefix>_what_if_status`) shows *running* with the loading phase or the simulation progress,
+*stopped*, or *failed* with the reason (for example an invalid range); `sensor.<prefix>_what_if_progress`
+rises from 0 to 100 % while it runs; the result goes to `sensor.<prefix>_what_if` (see below). No persistent notification is created.
+
+**From Developer tools or an automation.** Open **Developer tools → Actions**, select **BattMind: What-if
+simulator**, choose the BattMind config entry and fill only the values you want to replace. Run the action to
+receive a persistent notification with a two-column comparison of the configured values and the what-if
+scenario; only values and rule switches that differ from the current setup are listed. The action also
+keeps returning the full simulation response for automations and scripts. A progress notification is shown
 while history is loaded and the simulation runs. While the history is loaded it shows the current step
 (long-term statistics, raw Recorder history, Energi Data Service tariffs, hourly values, preparing the
 simulation) and the elapsed seconds, updated when the step changes and at least every 10 seconds. When
 the simulation starts it is updated at most every 10 seconds with the percentage done and the simulated
-days, and the finished result (or an error) replaces that same notification.
+days, and the finished result (or an error) replaces that same notification. The action has more fields
+than the dashboard (for example the battery levels, the charging and discharging power, the round-trip loss
+and the wear cost).
 
 The latest successful calculation for each BattMind instance is saved on the Home Assistant server,
-with its completion time, submitted values and full simulation result. It is also shown in the
-dashboard's What-if view, even after reloading the page or restarting Home Assistant. This applies to
-calculations started from the dashboard, Developer tools or automations. A failed calculation leaves
-the previous saved result intact; removing the BattMind instance removes its saved result.
+with its completion time, submitted values and full simulation result. It is shown by the **What-if** sensor
+(`sensor.<prefix>_what_if`: the state is the profit difference of the scenario, the attributes `result`
+(the simulation as described below), `inputs`, `completed_at` and `view` (values derived for the dashboard,
+such as interval rates and payback times)), also after reloading the page or restarting Home Assistant.
+This applies to calculations started from the dashboard, Developer tools or automations. A failed or
+stopped calculation leaves the previous saved result intact; removing the BattMind instance removes its saved
+result. The attributes are not recorded in the Home Assistant database.
 
 <p align="center">
   <img src="../images/what-if-result-notification.png" alt="The what-if action in Developer tools and the result notification comparing current and what-if" width="100%">
@@ -169,7 +188,7 @@ The `module_comparison.annualization` response includes `months`, with `expected
 `partial_year`, `unexpected_timestamps`, `missing_sell_price`, `missing_sell_cost`, or `insufficient_monthly_coverage`
 (in that precedence order). A partial month with very few requested hours must still meet 90%, a
 deliberately conservative edge-window tradeoff. `matched_hours` counts unique on-grid instants for a
-full requested year. The card has specific labels for `missing_sell_price` and `missing_sell_cost`;
+full requested year. The What-if tab has specific texts for `missing_sell_price` and `missing_sell_cost`;
 other reasons use its coverage message.
 
 `module_comparison.warnings` provides `dst_replay_resets`, `tariff_estimated_hours`,
@@ -182,7 +201,7 @@ For raw Energi Data Service prices, current buy-sensor selling costs may be reus
 when those costs are unavailable, the existing sell-price calculation instead uses zero costs, but
 module annualization and payback are suppressed with `missing_sell_cost`.
 The warning counts identify the relevant hours but do not validate historical tariff accuracy.
-The card displays these warnings when their counts are nonzero.
+The What-if tab displays these warnings when their counts are nonzero.
 These module parameters are saved with the successful result but are not planner settings.
 
 All fields are optional; a field you leave out uses the current setting. Power is in W, battery capacity
@@ -203,6 +222,10 @@ configurations, as in other simulations.
 | Discharging and selling rules | **only_discharge_on_profit**, **prioritize_discharge_hours_by_energy_cost**, **discharge_before_solar**, **most_profit**, **sell_excess_kwh_available**, **force_powerwall_max_hours_old_discharge**, **powerwall_max_hours_old** |
 | Solar | **optimize_solar_charging** |
 
+With **solar_charging** off the solar surplus never charges the battery in the simulation: the planner sees no
+solar surplus, and the executed hours sell all of it instead of charging from it (the surplus is what is left
+after the house consumption).
+
 Setting **round_trip_loss** temporarily replaces the configured or measured efficiency curves (as if
 **enhance_battery_efficiency** were off). The rule thresholds (cheap price periods, rise thresholds) only
 change the result when the rules control the battery. The maximum kWh age works with both controllers. The notification shows
@@ -215,8 +238,9 @@ the current value beside the scenario value for each setting you changed.
 | **period** | first/last hour and the amount of historical data actually used |
 | **data_sources** | counts of used entity-hour samples from long-term statistics and raw Recorder fallback |
 | **price_provider** | the provider(s) that supplied the used hours, comma separated (**price_provider_hours** counts the hours of each) |
-| **tariff_estimated_hours** | hours where the closest recorded tariff value was used instead of an exact-hour value |
-| **tariff_unavailable_hours** | hours left out of the simulation because required tariff history was unavailable |
+| **tariff_estimated_hours** | hours where the tariff of the same time of day on the nearest recorded day was used instead of an exact-hour value (never a value of another hour of the day, and about 31 days away at most) |
+| **tariff_unavailable_hours** | hours left out of the simulation because required tariff history was unavailable, or only available further than 31 days from the hour |
+| **sell_cost_unknown_hours** | hours with a raw Energi Data Service sell price whose selling costs (net and system tariff of the buy sensor) are unknown: they are counted as zero, so the sell value of those hours is too high. Shown in the notification and on the What-if tab |
 | **current_assumptions** | battery values, settings, rule switches (**rules**) and controller (**control_mode**) of the current comparison |
 | **assumptions** | the same for the scenario |
 | **current** | historical economy with the current configuration and settings |
@@ -282,13 +306,17 @@ selling.
 Historical sell prices use BattMind's normal sell-price formula (the tariffs in the price, and the
 selling costs: sell fee plus Energinet's net and system tariff), with the recorded tax/tariff
 components. Energi Data Service tariff schedules are read from timestamped
-Recorder attributes; Strømligning tariff sensors use the nearest recorded hourly value. When a
-tariff sample is missing at the exact simulation hour, the closest available sample is used and the
-notification reports the number of estimated hours. Energi Data Service does not save its tariff
+Recorder attributes; Strømligning tariff sensors use the recorded hourly value. When a tariff sample is
+missing at the exact simulation hour, the sample of the same local time of day on the nearest day is used
+(the tariff depends on the time of day, so a value of another hour is never used; the earlier day wins a
+tie), and the notification reports the number of estimated hours. A sample more than 31 days from the hour
+is not used: the hour then counts as having no tariffs (see below). Energi Data Service does not save its tariff
 attribute in the Recorder, so a schedule is only available if another Recorder setup kept it. A sell
 sensor without a tariff attribute (tariffs disabled in Energi Data Service, a raw price) needs no
 tariffs, the same as in the live plan; BattMind checks this from the sensor's current state. Its
-selling costs use the net and system tariff of the buy sensor's current state for every hour. If the
+selling costs use the net and system tariff of the buy sensor's current state for every hour; when
+the buy sensor has no such tariffs the costs are unknown, counted as zero (the sell value is then too high)
+and reported as **sell_cost_unknown_hours** in the notification and on the What-if tab. If the
 tariffs of an hour are still unknown, the hour uses the next price provider with prices and tariffs.
 If no provider has them, the hour is left out like missing data: there are no purchases or sales in
 that hour, rather than purchases without the matching sales.

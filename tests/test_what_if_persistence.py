@@ -1,4 +1,4 @@
-"""Persistence contract tests for the BattMind what-if service."""
+"""Persistence contract tests for the BattMind what-if service: the last result is saved, published and kept."""
 from __future__ import annotations
 
 import asyncio
@@ -29,30 +29,28 @@ async def _run_what_if(hass, entry, **inputs):
         )
 
 
-async def _what_if_last(hass, hass_ws_client, entry_id: str):
-    """Read the public last-result websocket command."""
-    client = await hass_ws_client(hass)
-    await client.send_json_auto_id(
-        {"type": "battmind/what_if_last", "config_entry_id": entry_id}
-    )
-    return await client.receive_json()
+async def _last_record(entry):
+    """The record saved in .storage."""
+    return await entry.runtime_data.what_if_store.load()
+
+
+def _published(hass) -> dict | None:
+    """The result as the what-if sensor shows it (None until there is one)."""
+    state = hass.states.get("sensor.bmtest_what_if")
+    return state.attributes.get("result") if state else None
 
 
 def _mock_simulation(coordinator, simulation: dict) -> None:
     coordinator.async_what_if = AsyncMock(return_value=JobResult(value=simulation))
 
 
-async def test_last_result_is_null_until_a_what_if_completes(
-    hass, hass_ws_client, loaded_entry
-) -> None:
-    response = await _what_if_last(hass, hass_ws_client, loaded_entry.entry_id)
-
-    assert response["success"]
-    assert response["result"] is None
+async def test_last_result_is_null_until_a_what_if_completes(hass, loaded_entry) -> None:
+    assert await _last_record(loaded_entry) is None
+    assert _published(hass) is None
 
 
-async def test_service_persists_validated_inputs_and_websocket_returns_same_record(
-    hass, hass_ws_client, loaded_entry
+async def test_service_persists_validated_inputs_and_the_sensor_shows_the_same_result(
+    hass, loaded_entry
 ) -> None:
     simulation = {"scenario": {"bill": 12.5}, "run_id": "first"}
     _mock_simulation(loaded_entry.runtime_data, simulation)
@@ -83,30 +81,17 @@ async def test_service_persists_validated_inputs_and_websocket_returns_same_reco
     }
     assert record["simulation"] == simulation
 
-    websocket_response = await _what_if_last(hass, hass_ws_client, loaded_entry.entry_id)
-    assert websocket_response["success"]
-    assert websocket_response["result"] == record
+    assert await _last_record(loaded_entry) == record
+    assert _published(hass) == simulation
+    assert hass.states.get("sensor.bmtest_what_if").attributes["inputs"] == record["inputs"]
 
     assert await hass.config_entries.async_reload(loaded_entry.entry_id)
     await hass.async_block_till_done(wait_background_tasks=True)
-    reloaded_response = await _what_if_last(hass, hass_ws_client, loaded_entry.entry_id)
-    assert reloaded_response["success"]
-    assert reloaded_response["result"] == record
+    assert await _last_record(loaded_entry) == record
+    assert _published(hass) == simulation
 
 
-async def test_last_result_websocket_rejects_an_invalid_entry(
-    hass, hass_ws_client, loaded_entry
-) -> None:
-    response = await _what_if_last(hass, hass_ws_client, "missing-entry")
-
-    assert not response["success"]
-    assert response["error"]["code"]
-    assert response["error"]["code"] != "unknown_command"
-
-
-async def test_simulation_failure_preserves_the_previous_result(
-    hass, hass_ws_client, loaded_entry
-) -> None:
+async def test_simulation_failure_preserves_the_previous_result(hass, loaded_entry) -> None:
     coordinator = loaded_entry.runtime_data
     first_simulation = {"run_id": "successful"}
     _mock_simulation(coordinator, first_simulation)
@@ -117,13 +102,12 @@ async def test_simulation_failure_preserves_the_previous_result(
     with pytest.raises(ServiceValidationError):
         await _run_what_if(hass, loaded_entry, battery_size=21)
 
-    websocket_response = await _what_if_last(hass, hass_ws_client, loaded_entry.entry_id)
-    assert websocket_response["success"]
-    assert websocket_response["result"] == previous_record
+    assert await _last_record(loaded_entry) == previous_record
+    assert _published(hass) == first_simulation
 
 
 async def test_store_failure_preserves_previous_result_and_reports_action_failed(
-    hass, hass_ws_client, loaded_entry
+    hass, loaded_entry
 ) -> None:
     coordinator = loaded_entry.runtime_data
     _mock_simulation(coordinator, {"run_id": "successful"})
@@ -136,13 +120,12 @@ async def test_store_failure_preserves_previous_result_and_reports_action_failed
             await _run_what_if(hass, loaded_entry, battery_size=21)
 
     assert error.value.translation_key == "action_failed"
-    websocket_response = await _what_if_last(hass, hass_ws_client, loaded_entry.entry_id)
-    assert websocket_response["success"]
-    assert websocket_response["result"] == previous_record
+    assert await _last_record(loaded_entry) == previous_record
+    assert _published(hass) == {"run_id": "successful"}
 
 
 async def test_cancelling_service_caller_does_not_cancel_result_persistence(
-    hass, hass_ws_client, loaded_entry
+    hass, loaded_entry
 ) -> None:
     coordinator = loaded_entry.runtime_data
     _mock_simulation(coordinator, {"run_id": "shielded"})
@@ -176,9 +159,7 @@ async def test_cancelling_service_caller_does_not_cancel_result_persistence(
         await asyncio.wait_for(save_finished.wait(), timeout=5)
         await asyncio.wait_for(notification_finished.wait(), timeout=5)
 
-    websocket_response = await _what_if_last(hass, hass_ws_client, loaded_entry.entry_id)
-    assert websocket_response["success"]
-    assert websocket_response["result"]["simulation"] == {"run_id": "shielded"}
+    assert (await _last_record(loaded_entry))["simulation"] == {"run_id": "shielded"}
 
 
 async def test_unload_waits_for_pending_persistence(

@@ -510,6 +510,9 @@
   },
   "entity": {
     "switch": {
+      "what_if_run": {
+        "name": "Simulation starten"
+      },
       "solar_charging": {
         "name": "Solarüberschuss-Laden"
       },
@@ -566,6 +569,12 @@
       },
       "auto_forecast_type": {
         "name": "Prognosetyp automatisch wählen"
+      },
+      "what_if_range": {
+        "name": "What-if – Bereich von Batteriekapazitäten vergleichen"
+      },
+      "what_if_modules": {
+        "name": "What-if – Batteriemodule vergleichen"
       }
     },
     "number": {
@@ -592,16 +601,203 @@
       },
       "powerwall_max_hours_old": {
         "name": "Max. Alter der kWh in der Hausbatterie"
+      },
+      "what_if_history_days": {
+        "name": "What-if – Verlauf (Tage)"
+      },
+      "what_if_battery_size": {
+        "name": "What-if – Batteriekapazität (kWh)"
+      },
+      "what_if_range_start": {
+        "name": "What-if – Von (kWh)"
+      },
+      "what_if_range_end": {
+        "name": "What-if – Bis (kWh)"
+      },
+      "what_if_range_step": {
+        "name": "What-if – Schritt (kWh)"
+      },
+      "what_if_module_capacity": {
+        "name": "What-if – Modulkapazität (kWh)"
+      },
+      "what_if_module_price": {
+        "name": "What-if – Preis je Modul"
+      },
+      "what_if_module_count": {
+        "name": "What-if – Zusätzliche Module"
+      },
+      "what_if_usage_reserve": {
+        "name": "What-if – Reserve für das Haus (nicht verkaufen)"
+      },
+      "what_if_min_profit_per_kwh": {
+        "name": "What-if – Min. Gewinn pro kWh (Entladen)"
+      },
+      "what_if_min_total_profit": {
+        "name": "What-if – Min. Gesamtgewinn (Verkauf ins Netz)"
+      },
+      "what_if_min_sell_kwh": {
+        "name": "What-if – Min. überschüssige kWh zum Verkauf"
+      },
+      "what_if_cheap_price_periods": {
+        "name": "What-if – Günstige Preiszeiträume"
+      },
+      "what_if_cheapest_price_rise_threshold": {
+        "name": "What-if – Anstieg für niedrigsten Preis"
+      },
+      "what_if_cheap_price_period_rise_threshold": {
+        "name": "What-if – Anstieg für günstige Zeiträume"
+      },
+      "what_if_powerwall_max_hours_old": {
+        "name": "What-if – Max. Alter der kWh in der Hausbatterie"
       }
     },
     "select": {
       "forecast_type": {
         "name": "Prognose-Typ auswählen"
+      },
+      "what_if_optimizer_control": {
+        "name": "What-if – Batterie mit Optimierung des ganzen Zeitraums steuern",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_use_midnight_battery_level": {
+        "name": "What-if – Mitternachts-Batteriestand verwenden",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_solar_charging": {
+        "name": "What-if – Solarüberschuss-Laden",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_enhance_battery_efficiency": {
+        "name": "What-if – Batterieeffizienz verbessern",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_cheapest_hour_fill_planner": {
+        "name": "What-if – Laden: Günstigste Zeiträume",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_cheapest_hour_fill_up": {
+        "name": "What-if – Laden: In der günstigsten Zeit vollständig laden",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_most_expensive_planner": {
+        "name": "What-if – Laden: Teuerste Zeiträume",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_needed_before_max_level_planner": {
+        "name": "What-if – Laden: Planer vor maximalem Niveau",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_negative_price_planner": {
+        "name": "What-if – Laden: Negative Preise",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_grid_charge_to_sell": {
+        "name": "What-if – Laden: Kaufen um zu verkaufen",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_most_profit": {
+        "name": "What-if – Entladen: Gewinn maximieren",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_sell_excess_kwh_available": {
+        "name": "What-if – Entladen: Überschüssige kWh verkaufen",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_force_powerwall_max_hours_old_discharge": {
+        "name": "What-if – Erzwungene Entladung: Max. Alter der kWh in Stunden",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_discharge_before_solar": {
+        "name": "What-if – Entladen: Vor der Sonne",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_only_discharge_on_profit": {
+        "name": "What-if – Entladen: Nur bei Gewinn",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_prioritize_discharge_hours_by_energy_cost": {
+        "name": "What-if – Entladen: Nach Energiekosten priorisieren",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
+      },
+      "what_if_optimize_solar_charging": {
+        "name": "What-if – Solarladung optimieren",
+        "state": {
+          "current": "Aktuell",
+          "on": "Ein",
+          "off": "Aus"
+        }
       }
     },
     "text": {
       "exclude_sell_hours": {
         "name": "Verkaufsstunden ausschließen"
+      },
+      "what_if_exclude_sell_hours": {
+        "name": "What-if – Verkaufsstunden ausschließen"
       }
     },
     "button": {
@@ -616,6 +812,9 @@
       },
       "export_debug": {
         "name": "Debug-Info exportieren"
+      },
+      "reset_what_if_settings": {
+        "name": "What-if – Auf aktuelle zurücksetzen"
       }
     },
     "sensor": {
@@ -642,6 +841,33 @@
       },
       "analysis": {
         "name": "Ersparnis diesen Monat"
+      },
+      "what_if": {
+        "name": "What-if-Ergebnis"
+      },
+      "what_if_status": {
+        "name": "What-if-Status",
+        "state": {
+          "idle": "Inaktiv",
+          "running": "Läuft",
+          "stopping": "Wird gestoppt",
+          "stopped": "Gestoppt",
+          "failed": "Fehlgeschlagen"
+        }
+      },
+      "what_if_progress": {
+        "name": "What-if-Fortschritt"
+      }
+    },
+    "binary_sensor": {
+      "what_if_has_months": {
+        "name": "What-if-Ergebnis hat Monatsdaten"
+      },
+      "what_if_has_range": {
+        "name": "What-if-Ergebnis hat ein Kapazitätsintervall"
+      },
+      "what_if_has_modules": {
+        "name": "What-if-Ergebnis hat einen Modulvergleich"
       }
     }
   },

@@ -9,9 +9,9 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import SELECT_SETTINGS
+from .const import SELECT_SETTINGS, WHAT_IF_OVERRIDE_CURRENT, WHAT_IF_RULE_OPTIONS, WHAT_IF_RULE_SELECTS
 from .coordinator import BattMindCoordinator
-from .entity import BattMindEntity
+from .entity import BattMindEntity, BattMindUpdatingEntity
 
 # the entities read the coordinator's data and change only the integration's own settings
 PARALLEL_UPDATES = 0
@@ -20,6 +20,7 @@ PARALLEL_UPDATES = 0
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator: BattMindCoordinator = entry.runtime_data
     async_add_entities(BattMindSelect(coordinator, key, info) for key, info in SELECT_SETTINGS.items())
+    async_add_entities(BattMindWhatIfRuleSelect(coordinator, key) for key in WHAT_IF_RULE_SELECTS)
 
 
 class BattMindSelect(BattMindEntity, SelectEntity, RestoreEntity):
@@ -47,4 +48,29 @@ class BattMindSelect(BattMindEntity, SelectEntity, RestoreEntity):
 
     async def async_select_option(self, option: str) -> None:
         self.coordinator.async_set_setting(self._key, option)
+        self.async_write_ha_state()
+
+
+class BattMindWhatIfRuleSelect(BattMindUpdatingEntity, SelectEntity, RestoreEntity):
+    """The scenario's value of a rule switch: current (not changed), on or off. Only feeds a simulation."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_options = list(WHAT_IF_RULE_OPTIONS)
+
+    def __init__(self, coordinator: BattMindCoordinator, key: str) -> None:
+        super().__init__(coordinator, "select", key)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        value = WHAT_IF_OVERRIDE_CURRENT
+        if (last := await self.async_get_last_state()) is not None and last.state in self.options:
+            value = last.state
+        self.coordinator.async_set_what_if_input(self._key, value)
+
+    @property
+    def current_option(self) -> str:
+        return self.coordinator.what_if_inputs.get(self._key, WHAT_IF_OVERRIDE_CURRENT)
+
+    async def async_select_option(self, option: str) -> None:
+        self.coordinator.async_set_what_if_input(self._key, option)
         self.async_write_ha_state()

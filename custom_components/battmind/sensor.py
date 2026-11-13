@@ -1,12 +1,14 @@
 """BattMind output sensors."""
 from __future__ import annotations
 
+import math
+
 from homeassistant.components.sensor import RestoreSensor, SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import MATCH_ALL, PERCENTAGE, UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import POWERWALL_ACTION_STATES, SENSOR_KEYS
+from .const import POWERWALL_ACTION_STATES, SENSOR_KEYS, WHAT_IF_STATUSES
 from .coordinator import BattMindCoordinator
 from .entity import BattMindUpdatingEntity
 
@@ -23,6 +25,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
     ]
     if coordinator.config["solar"]["entity_ids"]["production_entity_id"]:
         entities.append(BattMindSolarKwhSensor(coordinator))
+    entities.extend((BattMindWhatIfSensor(coordinator), BattMindWhatIfStatusSensor(coordinator), BattMindWhatIfProgressSensor(coordinator)))
     async_add_entities(entities)
 
 
@@ -91,3 +94,86 @@ class BattMindSolarKwhSensor(BattMindUpdatingEntity, RestoreSensor):
     @property
     def native_value(self):
         return self.coordinator.solar_kwh_total
+
+
+class BattMindWhatIfSensor(BattMindUpdatingEntity, SensorEntity):
+    """The last successful what-if simulation: the profit difference of the scenario, the result in the attributes."""
+
+    # the result is large and not history: keep it out of the recorder database
+    _unrecorded_attributes = frozenset({MATCH_ALL})
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, coordinator: BattMindCoordinator) -> None:
+        super().__init__(coordinator, "sensor", "what_if")
+
+    @property
+    def native_unit_of_measurement(self):
+        return self.hass.config.currency if self.hass else None
+
+    @property
+    def native_value(self):
+        view = self.coordinator.what_if_view
+        return view["summary"]["profit"]["difference"] if view else None
+
+    @property
+    def extra_state_attributes(self):
+        record = self.coordinator.what_if_record
+        if not record:
+            return None
+        # result: the simulation as calculated, view: the values derived from it for the dashboard
+        return {
+            "completed_at": record.get("completed_at"),
+            "inputs": record.get("inputs"),
+            "result": record.get("simulation"),
+            "view": self.coordinator.what_if_view,
+        }
+
+
+class BattMindWhatIfStatusSensor(BattMindUpdatingEntity, SensorEntity):
+    """Whether a what-if simulation is running, with its progress, or why the last attempt failed or stopped."""
+
+    _unrecorded_attributes = frozenset({MATCH_ALL})
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = list(WHAT_IF_STATUSES)
+
+    def __init__(self, coordinator: BattMindCoordinator) -> None:
+        super().__init__(coordinator, "sensor", "what_if_status")
+
+    @property
+    def native_value(self):
+        return self.coordinator.what_if_state["status"]
+
+    @property
+    def extra_state_attributes(self):
+        state = self.coordinator.what_if_state
+        return {"reason": state["reason"], "error": state["error"], "progress": state["progress"]}
+
+
+class BattMindWhatIfProgressSensor(BattMindUpdatingEntity, SensorEntity):
+    """How far the running what-if simulation is, in percent.
+
+    0 when none is running. While one runs it is at least 1, also while the history loads and no percent is known yet:
+    the timer bar card of the dashboard takes the value as the time left and treats 0 as finished. The attribute
+    status is the status of the simulation (the card reads it to know that the bar is active).
+    """
+
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_suggested_display_precision = 0
+
+    def __init__(self, coordinator: BattMindCoordinator) -> None:
+        super().__init__(coordinator, "sensor", "what_if_progress")
+
+    @property
+    def native_value(self) -> float:
+        state = self.coordinator.what_if_state
+        if state["status"] not in ("running", "stopping"):
+            return 0.0
+        progress = state["progress"]
+        percent = progress.get("percent") if progress else None
+        known = isinstance(percent, (int, float)) and not isinstance(percent, bool) and math.isfinite(percent)
+        return min(max(float(percent), 1.0), 100.0) if known else 1.0
+
+    @property
+    def extra_state_attributes(self):
+        return {"status": self.coordinator.what_if_state["status"]}

@@ -107,7 +107,11 @@ class ReplayInputs:
         return [plan.get(hour.timestamp, FALLBACK_ACTION) for hour in window[:execute]]
 
     def replay_optimizer_config(self) -> OptimizerConfig:
-        return self.optimizer_config(self.max_kwh_charging, self.max_kwh_discharging, self.battery_efficiency())
+        cfg = self.optimizer_config(self.max_kwh_charging, self.max_kwh_discharging, self.battery_efficiency())
+        # the planner sees no solar surplus with solar charging switched off (planner.py), so the executed hours may not
+        # charge from it either
+        cfg.solar_charging = bool(self.enabled("solar_charging"))
+        return cfg
 
 
 def _segments(hours: list[OptimizerHour]) -> list[list[OptimizerHour]]:

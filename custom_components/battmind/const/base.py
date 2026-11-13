@@ -6,7 +6,7 @@ MANUFACTURER = "dezito"
 CONF_ENTITY_PREFIX = "entity_prefix"
 DEFAULT_ENTITY_PREFIX = "battmind"
 
-PLATFORMS = ["sensor", "switch", "number", "select", "text", "button"]
+PLATFORMS = ["sensor", "binary_sensor", "switch", "number", "select", "text", "button"]
 
 # Price providers in priority order. For each hour the planner and the what-if use the
 # first configured provider that has a price, then fall back to the next one.

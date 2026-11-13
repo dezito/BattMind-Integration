@@ -24,7 +24,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
-from ..const import CONF_ENTITY_PREFIX, DOMAIN, SIGNAL_UPDATE, build_config, default_options
+from ..const import CONF_ENTITY_PREFIX, DOMAIN, SIGNAL_UPDATE, build_config, default_options, normalize_language
 from ..engine import BattMindEngine, JobResult
 from ..engine.planner.what_if import PROGRESS_INTERVAL
 from ..engine.planner.replay import WhatIfCancelled
@@ -35,11 +35,12 @@ from ..prices import CombinedPriceProvider
 from .data import CoordinatorData
 from .events import CoordinatorEvents
 from .lifecycle import CoordinatorLifecycle
+from .what_if import CoordinatorWhatIf
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorData):
+class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorData, CoordinatorWhatIf):
     """Owns the engine, the worker thread and all scheduling for one config entry."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -52,6 +53,8 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self.entity_names: dict[str, str] = {}  # '<platform>.<key>' -> name, loaded in async_setup
         self.engine: BattMindEngine | None = None
         self.storage = BattMindStorage(hass, entry.entry_id)
+        self.language = normalize_language(self.config.get("language"), normalize_language(hass.config.language))
+        self._init_what_if()
 
         self.data: dict[str, Any] = {}
         self.attributes: dict[str, dict[str, Any]] = {}

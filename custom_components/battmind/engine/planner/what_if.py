@@ -48,24 +48,35 @@ _CONFIG_OVERRIDES = {
 }
 
 
-def _nearest_value(
-    values: list[tuple[float, float]], timestamp: float
-) -> tuple[float, bool] | None:
-    """Return the closest recorded value, preferring the earlier sample on a tie."""
-    if not values:
-        return None
-    index = bisect_left(values, (timestamp, -math.inf))
-    candidates = values[max(0, index - 1):min(len(values), index + 1)]
-    nearest_timestamp, nearest_value = min(
-        candidates, key=lambda item: (abs(item[0] - timestamp), item[0] > timestamp)
-    )
-    return nearest_value, nearest_timestamp == timestamp
+# A tariff of another day only stands in for an hour when it is this close (the distribution tariff changes with the
+# season and the grid company); further away the hour is left out of the simulation like an hour without tariffs.
+MAX_TARIFF_DISTANCE_DAYS = 31
+
+
+def _same_hour_value(values: dict[float, float], timestamp: float, tz) -> tuple[float, bool] | None:
+    """The recorded tariff of the hour, else the one of the same local time of day on the nearest day.
+
+    Tariffs depend on the time of day, so the value of another hour is never used (the live provider takes the
+    same time of day from the latest known day too). Within MAX_TARIFF_DISTANCE_DAYS, the earlier day wins a tie.
+    Returns (value, exact) or None when there is no value of that hour of the day near enough."""
+    if timestamp in values:
+        return values[timestamp], True
+    local_hour = datetime.datetime.fromtimestamp(timestamp, tz).hour
+    for days in range(1, MAX_TARIFF_DISTANCE_DAYS + 1):
+        for direction in (-1, 1):
+            for shift in (0, -3600, 3600):  # a day is 23 or 25 hours long when the clocks change
+                candidate = timestamp + direction * days * 86400 + shift
+                value = values.get(candidate)
+                if value is not None and datetime.datetime.fromtimestamp(candidate, tz).hour == local_hour:
+                    return value, False
+    return None
 
 
 def _nearest_eds_tariffs(
-    history: list[tuple[float, dict]], timestamp: float, hour: int
+    history: list[tuple[float, dict]], timestamp: float, hour: int,
+    max_distance: float = MAX_TARIFF_DISTANCE_DAYS * 86400.0,
 ) -> tuple[dict[str, float], bool] | None:
-    """Read the hourly tariff schedule from the closest recorded EDS state."""
+    """Read the hourly tariff schedule from the closest recorded EDS state, within max_distance seconds."""
     if not history:
         return None
     index = bisect_left(history, (timestamp,))
@@ -73,6 +84,8 @@ def _nearest_eds_tariffs(
     nearest_timestamp, schedule = min(
         candidates, key=lambda row: (abs(row[0] - timestamp), row[0] > timestamp)
     )
+    if abs(nearest_timestamp - timestamp) > max_distance:
+        return None
     additional = schedule.get("additional_tariffs") or {}
     hourly = schedule.get("tariffs") or {}
     try:
@@ -495,7 +508,7 @@ class WhatIf:
                 "sell": sell_values,
                 "sell_price_history_available": bool(sell_id),
                 "tariff_series": {
-                    tariff: sorted(series(entity_id, power=False).items())
+                    tariff: series(entity_id, power=False)
                     for tariff, entity_id in provider.get("sell_tariff_entity_ids", {}).items()
                 },
                 "eds_sell_tariff_history": sorted(
@@ -512,7 +525,7 @@ class WhatIf:
                 tariffs = {}
                 exact = True
                 for key, tariff_values in source["tariff_series"].items():
-                    nearest = _nearest_value(tariff_values, ts)
+                    nearest = _same_hour_value(tariff_values, ts, tz)
                     if nearest is None:
                         return None
                     tariffs[key], key_exact = nearest
@@ -772,26 +785,29 @@ class WhatIf:
             }
             for capacity, index in range_cases
         ]
+        # A raw Energi Data Service sell price has no tariffs: selling costs the net and system tariff of the buy
+        # sensor (provider "sell_costs", today's values). Unknown costs leave the sell value too high in every one of
+        # these hours, in every result, so they are always counted and reported (not only for the modules).
+        raw_current_cost_hours = 0
+        raw_unknown_cost_hours = 0
+        for ts in timestamps:
+            source = hour_sources[ts]
+            provider = source["provider"]
+            if (
+                source["sell_price_history_available"]
+                and provider.get("name") == "Energi Data Service"
+                and not provider.get("sell_includes_tariffs", True)
+                and not hour_tariff_values[ts][0]
+            ):
+                costs = provider.get("sell_costs")
+                if isinstance(costs, dict) and all(
+                    is_number(costs.get(key)) for key in ("transmissions_nettarif", "systemtarif")
+                ):
+                    raw_current_cost_hours += 1
+                else:
+                    raw_unknown_cost_hours += 1
         module_result = None
         if module_cases:
-            raw_current_cost_hours = 0
-            raw_unknown_cost_hours = 0
-            for ts in timestamps:
-                source = hour_sources[ts]
-                provider = source["provider"]
-                if (
-                    source["sell_price_history_available"]
-                    and provider.get("name") == "Energi Data Service"
-                    and not provider.get("sell_includes_tariffs", True)
-                    and not hour_tariff_values[ts][0]
-                ):
-                    costs = provider.get("sell_costs")
-                    if isinstance(costs, dict) and all(
-                        is_number(costs.get(key)) for key in ("transmissions_nettarif", "systemtarif")
-                    ):
-                        raw_current_cost_hours += 1
-                    else:
-                        raw_unknown_cost_hours += 1
             annualization = _module_annualization(
                 timestamps, data.get("requested_period"), tz,
                 missing_sell_price=not sell_price_history_available,
@@ -875,6 +891,7 @@ class WhatIf:
             },
             "tariff_estimated_hours": tariff_estimated_hours,
             "tariff_unavailable_hours": tariff_unavailable_hours,
+            "sell_cost_unknown_hours": raw_unknown_cost_hours,
             "period": {
                 "start": hours[0].timestamp.isoformat(),
                 "end": hours[-1].timestamp.isoformat(),
