@@ -3415,129 +3415,1023 @@ views:
     path: what-if
     title: '@@section_what_if@@'
     icon: mdi:flask-outline
-    max_columns: 2
+    max_columns: 4
+    dense_section_placement: true
     sections:
+      - type: grid
+        column_span: 4
+        cards:
+          - type: heading
+            heading: '@@section_what_if@@'
+            icon: mdi:flask-outline
+          - type: markdown
+            content: "@@what_if_baseline_note@@\n\n<details><summary>@@read_more@@</summary>\n\n@@what_if_dashboard_help@@\n\n@@what_if_form_explain@@\n\n@@what_if_inputs_explain@@\n\n</details>"
+            grid_options:
+              columns: full
+      - type: grid
+        cards:
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: number.battmind_what_if_history_days
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_battery_size
+                name:
+                  type: entity
+              - type: divider
+              - entity: switch.battmind_what_if_range
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_range_start
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_range_end
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_range_step
+                name:
+                  type: entity
+              - type: divider
+              - entity: switch.battmind_what_if_modules
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_module_capacity
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_module_price
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_module_count
+                name:
+                  type: entity
+              - type: divider
+              - entity: switch.battmind_what_if_run
+                name:
+                  type: entity
+              - entity: sensor.battmind_what_if_status
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+      - type: grid
+        cards:
+          - type: heading
+            heading: '@@what_if_rule_edit_title@@'
+            icon: mdi:tune-variant
+          - type: markdown
+            content: "<details><summary>@@read_more@@</summary>\n\n@@what_if_rules_explain@@\n\n</details>"
+            grid_options:
+              columns: full
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: button.battmind_reset_what_if_settings
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+          - type: heading
+            heading: '@@section_control@@'
+            icon: mdi:tune-variant
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: select.battmind_what_if_optimizer_control
+                name:
+                  type: entity
+              - entity: select.battmind_what_if_enhance_battery_efficiency
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+          - type: heading
+            heading: '@@section_profit@@'
+            icon: mdi:cash-check
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: number.battmind_what_if_min_profit_per_kwh
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_min_total_profit
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_min_sell_kwh
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_usage_reserve
+                name:
+                  type: entity
+              - entity: text.battmind_what_if_exclude_sell_hours
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+      - type: grid
+        cards:
+          - type: heading
+            heading: '@@section_charging@@'
+            icon: mdi:battery-charging-high
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: select.battmind_what_if_cheapest_hour_fill_planner
+                name:
+                  type: entity
+              - entity: select.battmind_what_if_cheapest_hour_fill_up
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_cheap_price_periods
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_cheap_price_period_rise_threshold
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_cheapest_price_rise_threshold
+                name:
+                  type: entity
+              - type: divider
+              - entity: select.battmind_what_if_most_expensive_planner
+                name:
+                  type: entity
+              - entity: select.battmind_what_if_needed_before_max_level_planner
+                name:
+                  type: entity
+              - entity: select.battmind_what_if_negative_price_planner
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+          - type: heading
+            heading: '@@section_solar@@'
+            icon: mdi:solar-power-variant
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: select.battmind_what_if_solar_charging
+                name:
+                  type: entity
+              - entity: select.battmind_what_if_optimize_solar_charging
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+      - type: grid
+        cards:
+          - type: heading
+            heading: '@@section_discharging@@'
+            icon: mdi:battery-arrow-down
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: select.battmind_what_if_only_discharge_on_profit
+                name:
+                  type: entity
+              - entity: select.battmind_what_if_prioritize_discharge_hours_by_energy_cost
+                name:
+                  type: entity
+              - entity: select.battmind_what_if_discharge_before_solar
+                name:
+                  type: entity
+              - type: divider
+              - entity: select.battmind_what_if_force_powerwall_max_hours_old_discharge
+                name:
+                  type: entity
+              - entity: number.battmind_what_if_powerwall_max_hours_old
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+          - type: heading
+            heading: '@@section_selling@@'
+            icon: mdi:transmission-tower-export
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: select.battmind_what_if_most_profit
+                name:
+                  type: entity
+              - entity: select.battmind_what_if_sell_excess_kwh_available
+                name:
+                  type: entity
+              - entity: select.battmind_what_if_use_midnight_battery_level
+                name:
+                  type: entity
+              - entity: select.battmind_what_if_grid_charge_to_sell
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+      - type: grid
+        column_span: 4
+        visibility:
+          - condition: or
+            conditions:
+              - condition: state
+                entity: sensor.battmind_what_if_status
+                state: running
+              - condition: state
+                entity: sensor.battmind_what_if_status
+                state: stopping
+        cards:
+          - type: markdown
+            content: |-
+              {% set status = states.sensor.battmind_what_if_status %}
+              {% set p = status.attributes.get('progress') if status else none %}
+              <ha-alert alert-type="info">{{ '@@what_if_stopping@@' if status and status.state == 'stopping' else '@@what_if_dashboard_running@@' }}</ha-alert>
+              {% if p and p.get('message') %}
+              {{ p.get('message') }}
+              {% endif %}
+            grid_options:
+              columns: full
+          # the bar: the sensor is the time left in the card (1 second = 1 %), inverted, so the bar and the text are the percent
+          - type: custom:timer-bar-card
+            entity: sensor.battmind_what_if_progress
+            state_attribute: status
+            active_state:
+              - running
+              - stopping
+            duration:
+              fixed: 100
+              units: seconds
+            remain_time:
+              state: true
+              units: seconds
+            invert: true
+            format: '%s %'
+            layout: hide_name
+            bar_height: 12px
+            bar_foreground: var(--primary-color)
+            bar_background: var(--divider-color)
+            tap_action:
+              action: none
+            grid_options:
+              columns: full
+      - type: grid
+        column_span: 4
+        cards:
+          - type: heading
+            heading: '@@what_if_results@@'
+            heading_style: title
+            icon: mdi:chart-tree
       - type: grid
         column_span: 2
         cards:
-          - type: custom:battmind-what-if
-            config_entry_id: '@@what_if_entry_id@@'
-            labels:
-              title: '@@section_what_if@@'
-              help: '@@what_if_dashboard_help@@'
-              baseline_note: '@@what_if_baseline_note@@'
-              history: '@@what_if_history@@'
-              battery: '@@what_if_battery@@'
-              range: '@@what_if_range@@'
-              range_start: '@@what_if_range_start@@'
-              range_end: '@@what_if_range_end@@'
-              range_step: '@@what_if_range_step@@'
-              module_compare: '@@what_if_module_compare@@'
-              module_capacity: '@@what_if_module_capacity@@'
-              module_price: '@@what_if_module_price@@'
-              module_count: '@@what_if_module_count@@'
-              module_section: '@@what_if_module_section@@'
-              module_baseline_note: '@@what_if_module_baseline_note@@'
-              module_history: '@@what_if_module_history@@'
-              module_months: '@@what_if_module_months@@'
-              module_insufficient_history: '@@what_if_module_insufficient_history@@'
-              module_coverage_requirement: '@@what_if_module_coverage_requirement@@'
-              module_missing_sell_price: '@@what_if_module_missing_sell_price@@'
-              module_missing_sell_cost: '@@what_if_module_missing_sell_cost@@'
-              module_rerun: '@@what_if_module_rerun@@'
-              module_dst_warning: '@@what_if_module_dst_warning@@'
-              module_tariff_warning: '@@what_if_module_tariff_warning@@'
-              module_current_cost_warning: '@@what_if_module_current_cost_warning@@'
-              module_added: '@@what_if_module_added@@'
-              module_profit: '@@what_if_module_profit@@'
-              module_gain_baseline: '@@what_if_module_gain_baseline@@'
-              module_incremental_gain: '@@what_if_module_incremental_gain@@'
-              module_annualized_gain: '@@what_if_module_annualized_gain@@'
-              module_estimated_annual_gain: '@@what_if_module_estimated_annual_gain@@'
-              module_cumulative_cost: '@@what_if_module_cumulative_cost@@'
-              module_payback: '@@what_if_module_payback@@'
-              module_no_payback: '@@what_if_module_no_payback@@'
-              module_years: '@@what_if_module_years@@'
-              module_note: '@@what_if_module_note@@'
-              module_estimate_note: '@@what_if_module_estimate_note@@'
-              module_estimated_hours: '@@what_if_module_estimated_hours@@'
-              module_estimated_months: '@@what_if_module_estimated_months@@'
-              module_reliability_details: '@@what_if_module_reliability_details@@'
-              module_estimate_unavailable: '@@what_if_module_estimate_unavailable@@'
-              module_monthly_title: '@@what_if_module_monthly_title@@'
-              module_monthly_note: '@@what_if_module_monthly_note@@'
-              module_monthly_month: '@@what_if_module_monthly_month@@'
-              module_payback_title: '@@what_if_module_payback_title@@'
-              module_payback_note: '@@what_if_module_payback_note@@'
-              module_payback_current: '@@what_if_module_payback_current@@'
-              module_payback_none: '@@what_if_module_payback_none@@'
-              module_payback_axis: '@@what_if_module_payback_axis@@'
-              module_whole_cost: '@@what_if_module_whole_cost@@'
-              module_whole_gain: '@@what_if_module_whole_gain@@'
-              module_whole_payback: '@@what_if_module_whole_payback@@'
-              module_in_total: '@@what_if_module_in_total@@'
-              module_extra_only: '@@what_if_module_extra_only@@'
-              module_summary_title: '@@what_if_module_summary_title@@'
-              module_summary_current: '@@what_if_module_summary_current@@'
-              module_summary_added: '@@what_if_module_summary_added@@'
-              module_summary_added_none: '@@what_if_module_summary_added_none@@'
-              module_summary_total: '@@what_if_module_summary_total@@'
-              module_summary_total_plain: '@@what_if_module_summary_total_plain@@'
-              module_summary_advice: '@@what_if_module_summary_advice@@'
-              module_payback_missing: '@@what_if_module_payback_missing@@'
-              module_monthly_range_title: '@@what_if_module_monthly_range_title@@'
-              module_monthly_modules_title: '@@what_if_module_monthly_modules_title@@'
-              module_graph_modules: '@@what_if_module_graph_modules@@'
-              module_graph_modules_few: '@@what_if_module_graph_modules_few@@'
-              module_graph_module: '@@what_if_module_graph_module@@'
-              module_graph_no_payback: '@@what_if_module_graph_no_payback@@'
-              module_estimate_details: '@@what_if_module_estimate_details@@'
-              run: '@@what_if_run@@'
-              running: '@@what_if_running@@'
-              failed: '@@what_if_failed@@'
-              dashboard_running: '@@what_if_dashboard_running@@'
-              dashboard_failed: '@@what_if_dashboard_failed@@'
-              stop: '@@what_if_stop@@'
-              stopping: '@@what_if_stopping@@'
-              stopped: '@@what_if_stopped@@'
-              results: '@@what_if_results@@'
-              completed: '@@what_if_completed@@'
-              used_settings: '@@what_if_used_settings@@'
-              load_failed: '@@what_if_load_failed@@'
-              current: '@@what_if_current@@'
-              scenario: '@@what_if_scenario@@'
-              profit: '@@what_if_profit@@'
-              bill: '@@what_if_bill@@'
-              difference: '@@what_if_difference@@'
-              period: '@@what_if_period@@'
-              hours: '@@what_if_hours@@'
-              missing: '@@what_if_missing@@'
-              tariffs: '@@what_if_tariffs@@'
-              sell_history: '@@what_if_sell_history@@'
-              chart: '@@what_if_chart@@'
-              interval_profit: '@@what_if_interval_profit@@'
-              interval_per_kwh: '@@what_if_interval_per_kwh@@'
-              interval_chart: '@@what_if_interval_chart@@'
-              interval_explain: '@@what_if_interval_explain@@'
-              interval_curve_note: '@@what_if_interval_curve_note@@'
-              chart_growth_legend: '@@what_if_chart_growth_legend@@'
-              interval_color_legend: '@@what_if_interval_color_legend@@'
-              interpolated: '@@what_if_interpolated@@'
-              interpolation_note: '@@what_if_interpolation_note@@'
-              scenario_section: '@@what_if_scenario_section@@'
-              range_section: '@@what_if_range_section@@'
-              highest_profit: '@@what_if_highest_profit@@'
-              highest_rate: '@@what_if_highest_rate@@'
-              interval_example: '@@what_if_interval_example@@'
-              range_columns: '@@what_if_range_columns@@'
-              bill_explain: '@@what_if_bill_explain@@'
-              form_explain: '@@what_if_form_explain@@'
-              days: '@@what_if_days@@'
-              empty: '@@what_if_empty@@'
+          # status, scenario compared with current and the monthly table
+          - type: markdown
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+            content: |-
+              {% macro money(x) -%}{{ ('%.2f' | format(x) ~ ' @@valuta@@') if x is number else '–' }}{%- endmacro %}
+              {% macro cap(x) -%}{{ '%.1f' | format(x) }} kWh{%- endmacro %}
+              {% macro best(text, flag) -%}{{ ('**' ~ text ~ '**') if flag else text }}{%- endmacro %}
+              {% set status = states.sensor.battmind_what_if_status %}
+              {% set st = status.state if status else 'unknown' %}
+              {% set sa = status.attributes if status else {} %}
+              {% set sensor = states.sensor.battmind_what_if %}
+              {% set a = sensor.attributes if sensor else {} %}
+              {% set r = a.get('result') %}
+              {% set v = a.get('view') %}
+              {% set reasons = {'no_recorder': '@@what_if_reason_no_recorder@@', 'no_buy_price': '@@what_if_reason_no_buy_price@@', 'history_failed': '@@what_if_reason_history_failed@@', 'range_incomplete': '@@what_if_reason_range_incomplete@@', 'range_invalid': '@@what_if_reason_range_invalid@@', 'module_incomplete': '@@what_if_reason_module_incomplete@@', 'module_invalid': '@@what_if_reason_module_invalid@@', 'invalid_inputs': '@@what_if_reason_invalid_inputs@@', 'save_failed': '@@what_if_reason_save_failed@@', 'internal_error': '@@what_if_reason_internal_error@@'} %}
+              {% if st == 'failed' -%}
+              <ha-alert alert-type="error">@@what_if_dashboard_failed@@: {{ reasons.get(sa.get('reason'), sa.get('reason')) }}{% if sa.get('reason') in ['history_failed', 'save_failed', 'internal_error'] and sa.get('error') %} ({{ sa.get('error') }}){% endif %}</ha-alert>
+              {%- elif st == 'stopped' -%}
+              <ha-alert alert-type="info">@@what_if_stopped@@</ha-alert>
+              {%- endif %}
+              {% if not r -%}
+              {% if st not in ['running', 'stopping', 'failed'] -%}
+              @@what_if_empty@@
+              {%- endif %}
+              {%- elif not v -%}
+              <ha-alert alert-type="warning">@@what_if_load_failed@@</ha-alert>
+              {%- else -%}
+              ### @@what_if_results@@
+
+              **@@what_if_completed@@**: {{ (a.get('completed_at') | as_datetime | as_local).strftime('%Y-%m-%d %H:%M') }}
+
+              **@@what_if_used_settings@@**: {% for i in v.inputs %}{{ i.label }}: {{ i.value }}{{ ' &middot; ' if not loop.last else '' }}{% endfor %}
+
+              **@@what_if_period@@**: {{ r.period.start }} &ndash; {{ r.period.end }} ({{ r.period.hours }} @@what_if_hours@@)
+              {% if r.get('coverage') and r.coverage.missing_hours %}
+              <ha-alert alert-type="warning">@@what_if_missing@@: {{ r.coverage.missing_hours }} @@what_if_hours@@</ha-alert>
+              {% endif %}
+              {% if r.get('tariff_estimated_hours') or r.get('tariff_unavailable_hours') %}
+              <ha-alert alert-type="warning">@@what_if_tariffs@@: {{ r.get('tariff_estimated_hours', 0) }} / {{ r.get('tariff_unavailable_hours', 0) }}</ha-alert>
+              {% endif %}
+              {% if r.get('sell_cost_unknown_hours') %}
+              <ha-alert alert-type="warning">@@what_if_sell_cost_unknown@@: {{ r.sell_cost_unknown_hours }}</ha-alert>
+              {% endif %}
+              {% if not r.assumptions.get('sell_price_history_available') %}
+              <ha-alert alert-type="warning">@@what_if_sell_history@@</ha-alert>
+              {% endif %}
+
+              ### @@what_if_scenario_section@@
+
+              **@@what_if_profit@@**
+
+              | @@what_if_current@@ | @@what_if_scenario@@ | @@what_if_difference@@ |
+              |:---:|:---:|:---:|
+              | **{{ money(v.summary.profit.current) }}**<br>{{ cap(v.summary.current_capacity) }} | **{{ money(v.summary.profit.scenario) }}**<br>{{ cap(v.summary.scenario_capacity) }} | **{{ money(v.summary.profit.difference) }}**<br>@@what_if_scenario@@ &ndash; @@what_if_current@@ |
+
+              | | @@what_if_current@@ ({{ cap(v.summary.current_capacity) }}) | @@what_if_scenario@@ ({{ cap(v.summary.scenario_capacity) }}) | @@what_if_difference@@ |
+              |:---|---:|---:|---:|
+              | @@what_if_profit@@ | {{ money(v.summary.profit.current) }} | {{ money(v.summary.profit.scenario) }} | {{ money(v.summary.profit.difference) }} |
+              | @@what_if_bill@@ | {{ money(v.summary.bill.current) }} | {{ money(v.summary.bill.scenario) }} | {{ money(v.summary.bill.difference) }} |
+
+              @@what_if_bill_explain@@
+              {% set mo = v.months %}
+              {% if mo %}
+
+              **@@what_if_module_monthly_title@@ (@@valuta@@)**
+
+              @@what_if_module_monthly_note@@
+
+              | @@what_if_module_monthly_month@@ | @@what_if_current@@ | @@what_if_scenario@@ | @@what_if_difference@@ |
+              |:---|---:|---:|---:|
+              {% for k in mo.order -%}
+              | {{ k }} | {{ best(money(mo.current.get(k)), mo.best.current == k) }} | {{ best(money(mo.scenario.get(k)), mo.best.scenario == k) }} | {{ best(money(mo.difference.get(k)), mo.best.difference == k) }} |
+              {% endfor %}
+              {%- endif %}
+              {%- endif %}
+            grid_options:
+              columns: full
+              rows: auto
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: binary_sensor.battmind_what_if_has_months
+                state: 'on'
+            card:
+              type: custom:config-template-card
+              entities:
+                - sensor.battmind_what_if
+              variables:
+                span_days: |
+                  (() => {
+                    const s = states['sensor.battmind_what_if'];
+                    const v = s && s.attributes && s.attributes.view;
+                    const order = (v && v.months && v.months.order) || [];
+                    const keys = order.filter(k => /^\d{4}-\d{2}$/.test(k)).sort();
+                    if (!keys.length) return 62;
+                    const now = new Date();
+                    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                    const first = new Date(Number(keys[0].slice(0, 4)), Number(keys[0].slice(5, 7)) - 1, 1);
+                    return Math.max(Math.round((end - first) / 86400000), 62);
+                  })()
+              grid_options:
+                columns: full
+              card:
+                type: custom:apexcharts-card
+                header:
+                  show: false
+                graph_span: ${vars.span_days + "d"}
+                span:
+                  end: month
+                now:
+                  show: false
+                yaxis:
+                  - decimals: 2
+                all_series_config:
+                  type: column
+                  unit: ' @@valuta@@'
+                  float_precision: 2
+                  show:
+                    legend_value: false
+                    in_header: false
+                apex_config:
+                  tooltip:
+                    shared: true
+                    intersect: false
+                  chart:
+                    height: 280px
+                  dataLabels:
+                    enabled: false
+                  xaxis:
+                    labels:
+                      format: MMM yy
+                series:
+                  - entity: sensor.battmind_what_if
+                    name: '@@what_if_current@@'
+                    color: '#7a7a85'
+                    data_generator: |
+                      const m = entity.attributes.view && entity.attributes.view.months;
+                      if (!m) return [];
+                      return m.order.filter(k => m.current[k] !== null && m.current[k] !== undefined).map(k => [new Date(k + '-15T12:00:00').getTime(), m.current[k]]);
+                  - entity: sensor.battmind_what_if
+                    name: '@@what_if_scenario@@'
+                    color: '#03a9f4'
+                    data_generator: |
+                      const m = entity.attributes.view && entity.attributes.view.months;
+                      if (!m) return [];
+                      return m.order.filter(k => m.scenario[k] !== null && m.scenario[k] !== undefined).map(k => [new Date(k + '-15T12:00:00').getTime(), m.scenario[k]]);
+                  - entity: sensor.battmind_what_if
+                    name: '@@what_if_difference@@'
+                    color: '#388e3c'
+                    data_generator: |
+                      const m = entity.attributes.view && entity.attributes.view.months;
+                      if (!m) return [];
+                      return m.order.filter(k => m.difference[k] !== null && m.difference[k] !== undefined).map(k => [new Date(k + '-15T12:00:00').getTime(), m.difference[k]]);
             grid_options:
               columns: full
       - type: grid
         column_span: 2
+        visibility:
+          - condition: state
+            entity: binary_sensor.battmind_what_if_has_modules
+            state: 'on'
+        cards:
+          # the module comparison: text, table and charts
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: binary_sensor.battmind_what_if_has_modules
+                state: 'on'
+            card:
+              type: vertical-stack
+              cards:
+                - type: markdown
+                  card_mod:
+                    style:
+                      .: |
+                        ha-card {
+                          --markdown-table-border-color: transparent
+                        }
+                      ha-markdown$: |
+                        table, th, td {
+                          border: none !important;
+                        }
+                        table {
+                          border-collapse: collapse;
+                        }
+                        table tbody tr:not(:only-child):nth-child(odd) td {
+                          background: rgba(127, 127, 127, 0.08);
+                        }
+                  content: |-
+                    {% macro money(x) -%}{{ ('%.2f' | format(x) ~ ' @@valuta@@') if x is number else '–' }}{%- endmacro %}
+                    {% macro years(x) -%}{{ ('%.2f' | format(x) ~ ' @@what_if_module_years@@') if x is number else '–' }}{%- endmacro %}
+                    {% macro cap(x) -%}{{ '%.1f' | format(x) }} kWh{%- endmacro %}
+                    {% set sensor = states.sensor.battmind_what_if %}
+                    {% set a = sensor.attributes if sensor else {} %}
+                    {% set v = a.get('view') %}
+                    {% set m = v.module if v else none %}
+                    {% if m -%}
+                    ### @@what_if_module_section@@
+
+                    @@what_if_module_baseline_note@@
+
+                    **@@what_if_module_history@@**: {{ m.matched_hours }} @@what_if_hours@@; {{ m.represented_months }}/12 @@what_if_module_months@@
+                    {% if m.estimated %}
+
+                    @@what_if_module_estimate_note@@
+
+                    **@@what_if_module_estimated_hours@@**: {{ m.estimated_hours }}
+                    {% endif %}
+                    {% if m.status == 'missing_sell_price' %}
+                    <ha-alert alert-type="warning">@@what_if_module_missing_sell_price@@</ha-alert>
+                    {% elif m.status == 'missing_sell_cost' %}
+                    <ha-alert alert-type="warning">@@what_if_module_missing_sell_cost@@</ha-alert>
+                    {% elif m.status == 'rerun' %}
+                    <ha-alert alert-type="warning">@@what_if_module_rerun@@</ha-alert>
+                    {% elif m.status %}
+                    <ha-alert alert-type="warning">@@what_if_module_estimate_unavailable@@</ha-alert>
+                    {% endif %}
+                    {% if m.method and m.warnings.raw_current_sell_cost_hours > 0 %}
+                    <ha-alert alert-type="warning">@@what_if_module_current_cost_warning@@ ({{ m.warnings.raw_current_sell_cost_hours }})</ha-alert>
+                    {% endif %}
+
+                    <details><summary>@@what_if_module_reliability_details@@</summary>
+
+                    {% if m.estimated and m.estimated_months %}
+                    @@what_if_module_estimated_months@@: {{ m.estimated_months | join(', ') }}
+
+                    {% endif %}
+                    {% if m.warnings.dst_replay_resets > 0 %}
+                    @@what_if_module_dst_warning@@ ({{ m.warnings.dst_replay_resets }})
+
+                    {% endif %}
+                    {% if m.warnings.tariff_estimated_hours > 0 %}
+                    @@what_if_module_tariff_warning@@ ({{ m.warnings.tariff_estimated_hours }})
+
+                    {% endif %}
+                    {% if m.warnings.raw_current_sell_cost_hours > 0 %}
+                    @@what_if_module_current_cost_warning@@ ({{ m.warnings.raw_current_sell_cost_hours }})
+
+                    {% endif %}
+                    {% if m.warnings.raw_unknown_sell_cost_hours > 0 %}
+                    @@what_if_module_missing_sell_cost@@ ({{ m.warnings.raw_unknown_sell_cost_hours }})
+
+                    {% endif %}
+                    @@what_if_module_coverage_requirement@@
+
+                    </details>
+                    {% if m.summary %}
+
+                    #### @@what_if_module_summary_title@@
+
+                    {% for sentence in m.summary -%}
+                    {{ sentence }}
+
+                    {% endfor %}
+                    {%- endif %}
+
+                    | @@what_if_module_added@@ / @@what_if_module_capacity@@ | @@what_if_module_incremental_gain@@ | {{ '@@what_if_module_estimated_annual_gain@@' if m.method == 'estimated' else '@@what_if_module_annualized_gain@@' }} | @@what_if_module_price@@ | @@what_if_module_payback@@ | @@what_if_module_whole_cost@@ | @@what_if_module_whole_gain@@ | @@what_if_module_whole_payback@@ |
+                    |:---|---:|---:|---:|---:|---:|---:|---:|
+                    {% for row in m.rows -%}
+                    | {{ row.added_modules }} &middot; {{ cap(row.battery_size) }} | {{ money(row.incremental_gain) }} | {{ money(row.annual_gain) }} | {{ money(row.module_price) }} | {{ years(row.payback_years) }} | {{ money(row.whole_cost) }} | {{ money(row.whole_gain) }} | {{ years(row.whole_payback_years) }} |
+                    {% endfor %}
+                    {% if m.has_no_payback %}
+
+                    @@what_if_module_no_payback@@
+                    {% endif %}
+
+                    @@what_if_module_estimate_details@@
+                    {% if m.payback_chart %}
+
+                    **@@what_if_module_payback_title@@ (@@valuta@@)**
+
+                    @@what_if_module_payback_note@@
+                    {% elif m.payback_missing %}
+
+                    @@what_if_module_payback_missing@@
+                    {% endif %}
+                    {%- endif %}
+                - type: custom:config-template-card
+                  entities:
+                    - sensor.battmind_what_if
+                  variables:
+                    chart: |
+                      (() => {
+                        const s = states['sensor.battmind_what_if'];
+                        const v = s && s.attributes && s.attributes.view;
+                        const c = v && v.module && v.module.payback_apex;
+                        const series = c ? c.series.map(x => Object.assign({ entity: 'sensor.battmind_what_if' }, x)) : [];
+                        return {
+                          days: c ? c.days : 3,
+                          series: series.length ? series : [{ entity: 'sensor.battmind_what_if', name: ' ', data_generator: 'return [];' }],
+                          apex: c ? c.apex_config : { chart: { height: '10px' }, legend: { show: false }, noData: { text: ' ' } },
+                        };
+                      })()
+                  card:
+                    type: custom:apexcharts-card
+                    header:
+                      show: false
+                    graph_span: ${vars.chart.days + "d"}
+                    span:
+                      start: day
+                    now:
+                      show: false
+                    yaxis:
+                      - decimals: 2
+                    all_series_config:
+                      unit: ' @@valuta@@'
+                      float_precision: 2
+                      show:
+                        legend_value: false
+                        in_header: false
+                    apex_config: ${vars.chart.apex}
+                    series: ${vars.chart.series}
+                - type: markdown
+                  card_mod:
+                    style:
+                      .: |
+                        ha-card {
+                          --markdown-table-border-color: transparent
+                        }
+                      ha-markdown$: |
+                        table, th, td {
+                          border: none !important;
+                        }
+                        table {
+                          border-collapse: collapse;
+                        }
+                        table tbody tr:not(:only-child):nth-child(odd) td {
+                          background: rgba(127, 127, 127, 0.08);
+                        }
+                  content: |-
+                    {% macro money(x) -%}{{ ('%.2f' | format(x) ~ ' @@valuta@@') if x is number else '–' }}{%- endmacro %}
+                    {% set sensor = states.sensor.battmind_what_if %}
+                    {% set a = sensor.attributes if sensor else {} %}
+                    {% set v = a.get('view') %}
+                    {% set m = v.module if v else none %}
+                    {% set mo = v.months if v else none %}
+                    {% if m and m.monthly and mo -%}
+                    **@@what_if_module_monthly_modules_title@@ (@@valuta@@)**
+
+                    @@what_if_module_monthly_note@@
+
+                    | @@what_if_module_monthly_month@@ {% for item in m.monthly %}| {{ item.label }} {% endfor %}|
+                    |:---{% for item in m.monthly %}|---:{% endfor %}|
+                    {% for k in mo.order -%}
+                    | {{ k }} {% for item in m.monthly %}| {{ money(item.months.get(k)) }} {% endfor %}|
+                    {% endfor %}
+                    {%- endif %}
+                - type: conditional
+                  conditions:
+                    - condition: state
+                      entity: binary_sensor.battmind_what_if_has_months
+                      state: 'on'
+                  card:
+                    type: custom:config-template-card
+                    entities:
+                      - sensor.battmind_what_if
+                    variables:
+                      span_days: |
+                        (() => {
+                          const s = states['sensor.battmind_what_if'];
+                          const v = s && s.attributes && s.attributes.view;
+                          const order = (v && v.months && v.months.order) || [];
+                          const keys = order.filter(k => /^\d{4}-\d{2}$/.test(k)).sort();
+                          if (!keys.length) return 62;
+                          const now = new Date();
+                          const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                          const first = new Date(Number(keys[0].slice(0, 4)), Number(keys[0].slice(5, 7)) - 1, 1);
+                          return Math.max(Math.round((end - first) / 86400000), 62);
+                        })()
+                      series: |
+                        (() => {
+                          const s = states['sensor.battmind_what_if'];
+                          const v = s && s.attributes && s.attributes.view;
+                          const items = (v && v.module && v.module.monthly) || [];
+                          const colors = ['#03a9f4', '#e65100', '#388e3c', '#ad1457', '#6a1b9a', '#00838f'];
+                          return items.map((item, i) => ({
+                            entity: 'sensor.battmind_what_if',
+                            name: item.label,
+                            color: colors[i % colors.length],
+                            data_generator: 'const m = entity.attributes.view.months; const item = entity.attributes.view.module.monthly[' + i + ']; return m.order.filter(k => item.months[k] !== null && item.months[k] !== undefined).map(k => [new Date(k + "-15T12:00:00").getTime(), item.months[k]]);',
+                          }));
+                        })()
+                    card:
+                      type: custom:apexcharts-card
+                      header:
+                        show: true
+                        title: '@@what_if_module_monthly_modules_title@@'
+                        show_states: false
+                      graph_span: ${vars.span_days + "d"}
+                      span:
+                        end: month
+                      now:
+                        show: false
+                      yaxis:
+                        - decimals: 2
+                      all_series_config:
+                        type: column
+                        unit: ' @@valuta@@'
+                        float_precision: 2
+                        show:
+                          legend_value: false
+                          in_header: false
+                      apex_config:
+                        tooltip:
+                          shared: true
+                          intersect: false
+                        chart:
+                          height: 420px
+                        dataLabels:
+                          enabled: false
+                        xaxis:
+                          labels:
+                            format: MMM yy
+                      series: ${vars.series}
+            grid_options:
+              columns: full
+      - type: grid
+        column_span: 2
+        visibility:
+          - condition: state
+            entity: binary_sensor.battmind_what_if_has_range
+            state: 'on'
+        cards:
+          # a capacity interval: table and charts
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: binary_sensor.battmind_what_if_has_range
+                state: 'on'
+            card:
+              type: vertical-stack
+              cards:
+                - type: markdown
+                  card_mod:
+                    style:
+                      .: |
+                        ha-card {
+                          --markdown-table-border-color: transparent
+                        }
+                      ha-markdown$: |
+                        table, th, td {
+                          border: none !important;
+                        }
+                        table {
+                          border-collapse: collapse;
+                        }
+                        table tbody tr:not(:only-child):nth-child(odd) td {
+                          background: rgba(127, 127, 127, 0.08);
+                        }
+                  content: |-
+                    {% macro money(x) -%}{{ ('%.2f' | format(x) ~ ' @@valuta@@') if x is number else '–' }}{%- endmacro %}
+                    {% macro perkwh(x) -%}{{ ('%.2f' | format(x) ~ ' @@valuta_kwh@@') if x is number else '–' }}{%- endmacro %}
+                    {% macro cap(x) -%}{{ '%.1f' | format(x) }} kWh{%- endmacro %}
+                    {% macro best(text, flag, label) -%}{{ ('**' ~ text ~ '**<br>' ~ label) if flag else text }}{%- endmacro %}
+                    {% set sensor = states.sensor.battmind_what_if %}
+                    {% set a = sensor.attributes if sensor else {} %}
+                    {% set v = a.get('view') %}
+                    {% set rg = v.range if v else none %}
+                    {% if rg -%}
+                    ### @@what_if_range_section@@
+
+                    | @@what_if_battery@@ | @@what_if_profit@@ | @@what_if_bill@@ | @@what_if_interval_profit@@ | @@what_if_interval_per_kwh@@ |
+                    |:---|---:|---:|---:|---:|
+                    {% for row in rg.rows -%}
+                    | **{{ cap(row.battery_size) }}** | {{ best(money(row.profit), row.best_profit, '@@what_if_highest_profit@@') }} | {{ money(row.bill) }} | {{ money(row.interval_profit) }} | {{ best(perkwh(row.rate), row.best_rate, '@@what_if_highest_rate@@') }} |
+                    {% endfor %}
+
+                    @@what_if_range_columns@@
+
+                    {% if rg.profit_chart -%}
+                    **@@what_if_chart@@ (@@valuta@@)**
+                    {% if rg.profit_chart.gradient %}
+
+                    @@what_if_chart_growth_legend@@
+                    {% endif %}
+                    {%- endif %}
+                    {%- endif %}
+                - type: custom:config-template-card
+                  entities:
+                    - sensor.battmind_what_if
+                  variables:
+                    chart: |
+                      (() => {
+                        const s = states['sensor.battmind_what_if'];
+                        const v = s && s.attributes && s.attributes.view;
+                        const c = v && v.range && v.range.profit_chart;
+                        const series = c ? c.series.map(x => Object.assign({ entity: 'sensor.battmind_what_if' }, x)) : [];
+                        return {
+                          days: c ? c.days : 3,
+                          series: series.length ? series : [{ entity: 'sensor.battmind_what_if', name: ' ', data_generator: 'return [];' }],
+                          apex: c ? c.apex_config : { chart: { height: '10px' }, legend: { show: false }, noData: { text: ' ' } },
+                        };
+                      })()
+                  card:
+                    type: custom:apexcharts-card
+                    header:
+                      show: false
+                    graph_span: ${vars.chart.days + "d"}
+                    span:
+                      start: day
+                    now:
+                      show: false
+                    yaxis:
+                      - decimals: 2
+                    all_series_config:
+                      unit: ' @@valuta@@'
+                      float_precision: 2
+                      show:
+                        legend_value: false
+                        in_header: false
+                    apex_config: ${vars.chart.apex}
+                    series: ${vars.chart.series}
+                - type: markdown
+                  card_mod:
+                    style:
+                      .: |
+                        ha-card {
+                          --markdown-table-border-color: transparent
+                        }
+                      ha-markdown$: |
+                        table, th, td {
+                          border: none !important;
+                        }
+                        table {
+                          border-collapse: collapse;
+                        }
+                        table tbody tr:not(:only-child):nth-child(odd) td {
+                          background: rgba(127, 127, 127, 0.08);
+                        }
+                  content: |-
+                    {% set sensor = states.sensor.battmind_what_if %}
+                    {% set a = sensor.attributes if sensor else {} %}
+                    {% set v = a.get('view') %}
+                    {% set rg = v.range if v else none %}
+                    {% if rg and rg.interval_chart -%}
+                    **@@what_if_interval_chart@@ (@@valuta_kwh@@)**
+
+                    @@what_if_interval_explain@@
+
+                    @@what_if_interval_example@@
+                    {% if rg.interval_chart.gradient %}
+
+                    @@what_if_interval_color_legend@@
+                    {% endif %}
+                    {%- endif %}
+                - type: custom:config-template-card
+                  entities:
+                    - sensor.battmind_what_if
+                  variables:
+                    chart: |
+                      (() => {
+                        const s = states['sensor.battmind_what_if'];
+                        const v = s && s.attributes && s.attributes.view;
+                        const c = v && v.range && v.range.interval_chart;
+                        const series = c ? c.series.map(x => Object.assign({ entity: 'sensor.battmind_what_if' }, x)) : [];
+                        return {
+                          days: c ? c.days : 3,
+                          series: series.length ? series : [{ entity: 'sensor.battmind_what_if', name: ' ', data_generator: 'return [];' }],
+                          apex: c ? c.apex_config : { chart: { height: '10px' }, legend: { show: false }, noData: { text: ' ' } },
+                        };
+                      })()
+                  card:
+                    type: custom:apexcharts-card
+                    header:
+                      show: false
+                    graph_span: ${vars.chart.days + "d"}
+                    span:
+                      start: day
+                    now:
+                      show: false
+                    yaxis:
+                      - decimals: 2
+                    all_series_config:
+                      unit: ' @@valuta_kwh@@'
+                      float_precision: 2
+                      show:
+                        legend_value: false
+                        in_header: false
+                    apex_config: ${vars.chart.apex}
+                    series: ${vars.chart.series}
+                - type: markdown
+                  card_mod:
+                    style:
+                      .: |
+                        ha-card {
+                          --markdown-table-border-color: transparent
+                        }
+                      ha-markdown$: |
+                        table, th, td {
+                          border: none !important;
+                        }
+                        table {
+                          border-collapse: collapse;
+                        }
+                        table tbody tr:not(:only-child):nth-child(odd) td {
+                          background: rgba(127, 127, 127, 0.08);
+                        }
+                  content: |-
+                    {% macro money(x) -%}{{ ('%.2f' | format(x) ~ ' @@valuta@@') if x is number else '–' }}{%- endmacro %}
+                    {% macro cap(x) -%}{{ '%.1f' | format(x) }} kWh{%- endmacro %}
+                    {% set sensor = states.sensor.battmind_what_if %}
+                    {% set a = sensor.attributes if sensor else {} %}
+                    {% set v = a.get('view') %}
+                    {% set rg = v.range if v else none %}
+                    {% set mo = v.months if v else none %}
+                    {% if rg and rg.monthly and mo -%}
+                    **@@what_if_module_monthly_range_title@@ (@@valuta@@)**
+
+                    @@what_if_module_monthly_note@@
+
+                    | @@what_if_module_monthly_month@@ {% for item in rg.monthly %}| {{ cap(item.battery_size) }} {% endfor %}|
+                    |:---{% for item in rg.monthly %}|---:{% endfor %}|
+                    {% for k in mo.order -%}
+                    | {{ k }} {% for item in rg.monthly %}| {{ money(item.months.get(k)) }} {% endfor %}|
+                    {% endfor %}
+                    {%- endif %}
+                - type: conditional
+                  conditions:
+                    - condition: state
+                      entity: binary_sensor.battmind_what_if_has_months
+                      state: 'on'
+                  card:
+                    type: custom:config-template-card
+                    entities:
+                      - sensor.battmind_what_if
+                    variables:
+                      span_days: |
+                        (() => {
+                          const s = states['sensor.battmind_what_if'];
+                          const v = s && s.attributes && s.attributes.view;
+                          const order = (v && v.months && v.months.order) || [];
+                          const keys = order.filter(k => /^\d{4}-\d{2}$/.test(k)).sort();
+                          if (!keys.length) return 62;
+                          const now = new Date();
+                          const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                          const first = new Date(Number(keys[0].slice(0, 4)), Number(keys[0].slice(5, 7)) - 1, 1);
+                          return Math.max(Math.round((end - first) / 86400000), 62);
+                        })()
+                      series: |
+                        (() => {
+                          const s = states['sensor.battmind_what_if'];
+                          const v = s && s.attributes && s.attributes.view;
+                          const items = (v && v.range && v.range.monthly) || [];
+                          const colors = ['#03a9f4', '#e65100', '#388e3c', '#ad1457', '#6a1b9a', '#00838f'];
+                          return items.map((item, i) => ({
+                            entity: 'sensor.battmind_what_if',
+                            name: Number(item.battery_size).toFixed(1) + ' kWh',
+                            color: colors[i % colors.length],
+                            data_generator: 'const m = entity.attributes.view.months; const item = entity.attributes.view.range.monthly[' + i + ']; return m.order.filter(k => item.months[k] !== null && item.months[k] !== undefined).map(k => [new Date(k + "-15T12:00:00").getTime(), item.months[k]]);',
+                          }));
+                        })()
+                    card:
+                      type: custom:apexcharts-card
+                      header:
+                        show: true
+                        title: '@@what_if_module_monthly_range_title@@'
+                        show_states: false
+                      graph_span: ${vars.span_days + "d"}
+                      span:
+                        end: month
+                      now:
+                        show: false
+                      yaxis:
+                        - decimals: 2
+                      all_series_config:
+                        type: column
+                        unit: ' @@valuta@@'
+                        float_precision: 2
+                        show:
+                          legend_value: false
+                          in_header: false
+                      apex_config:
+                        tooltip:
+                          shared: true
+                          intersect: false
+                        chart:
+                          height: 420px
+                        dataLabels:
+                          enabled: false
+                        xaxis:
+                          labels:
+                            format: MMM yy
+                      series: ${vars.series}
+            grid_options:
+              columns: full
+      - type: grid
+        column_span: 2
+        visibility:
+          - condition: state
+            entity: sensor.battmind_what_if
+            state_not: unknown
+        cards:
+          # the rules and settings used by Current and the scenario
+          - type: markdown
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+            content: |-
+              {% set sensor = states.sensor.battmind_what_if %}
+              {% set a = sensor.attributes if sensor else {} %}
+              {% set v = a.get('view') %}
+              {% if v and v.rules -%}
+              ### @@what_if_rule_title@@
+
+              @@what_if_rule_note@@
+              {% if false in v.rules.known %}
+
+              <ha-alert alert-type="warning">@@what_if_rule_unavailable@@</ha-alert>
+              {% endif %}
+              {% if v.rules.groups %}
+
+              | @@what_if_rule_setting@@ | @@what_if_current@@ | @@what_if_scenario@@ |
+              |:---|:---|:---|
+              {% for group in v.rules.groups -%}
+              | **{{ group.title }}** | | |
+              {% for row in group.rows -%}
+              | {{ row[0] }} | {{ row[1] }} | {{ row[2] }} |
+              {% endfor -%}
+              {% endfor %}
+              {%- endif %}
+              {%- endif %}
+            grid_options:
+              columns: full
+              rows: auto
+      - type: grid
+        column_span: 4
         cards:
           - type: heading
             heading: '@@section_what_if@@'

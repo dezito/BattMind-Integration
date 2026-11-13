@@ -24,9 +24,30 @@
       },
       "analysis": {
         "default": "mdi:chart-box-outline"
+      },
+      "what_if": {
+        "default": "mdi:flask-outline"
+      },
+      "what_if_progress": {
+        "default": "mdi:progress-clock"
+      },
+      "what_if_status": {
+        "default": "mdi:flask-empty-outline",
+        "state": {
+          "running": "mdi:flask",
+          "stopping": "mdi:flask-minus-outline",
+          "stopped": "mdi:flask-off-outline",
+          "failed": "mdi:flask-empty-remove-outline"
+        }
       }
     },
     "switch": {
+      "what_if_run": {
+        "default": "mdi:play",
+        "state": {
+          "on": "mdi:stop"
+        }
+      },
       "solar_charging": {
         "default": "mdi:brain"
       },
@@ -80,6 +101,12 @@
       },
       "auto_forecast_type": {
         "default": "mdi:auto-mode"
+      },
+      "what_if_range": {
+        "default": "mdi:chart-line-variant"
+      },
+      "what_if_modules": {
+        "default": "mdi:battery-plus-variant"
       }
     },
     "number": {
@@ -106,15 +133,117 @@
       },
       "powerwall_max_hours_old": {
         "default": "mdi:clock-time-four-outline"
+      },
+      "what_if_history_days": {
+        "default": "mdi:calendar-range"
+      },
+      "what_if_battery_size": {
+        "default": "mdi:home-battery-outline"
+      },
+      "what_if_range_start": {
+        "default": "mdi:arrow-collapse-left"
+      },
+      "what_if_range_end": {
+        "default": "mdi:arrow-collapse-right"
+      },
+      "what_if_range_step": {
+        "default": "mdi:stairs"
+      },
+      "what_if_module_capacity": {
+        "default": "mdi:battery-plus"
+      },
+      "what_if_module_price": {
+        "default": "mdi:cash"
+      },
+      "what_if_module_count": {
+        "default": "mdi:counter"
+      },
+      "what_if_usage_reserve": {
+        "default": "mdi:battery-lock"
+      },
+      "what_if_min_profit_per_kwh": {
+        "default": "mdi:cash-plus"
+      },
+      "what_if_min_total_profit": {
+        "default": "mdi:hand-coin-outline"
+      },
+      "what_if_min_sell_kwh": {
+        "default": "mdi:wallet-outline"
+      },
+      "what_if_cheap_price_periods": {
+        "default": "mdi:counter"
+      },
+      "what_if_cheapest_price_rise_threshold": {
+        "default": "mdi:decimal-comma-increase"
+      },
+      "what_if_cheap_price_period_rise_threshold": {
+        "default": "mdi:decimal-comma-increase"
+      },
+      "what_if_powerwall_max_hours_old": {
+        "default": "mdi:clock-time-four-outline"
       }
     },
     "select": {
       "forecast_type": {
         "default": "mdi:form-select"
+      },
+      "what_if_optimizer_control": {
+        "default": "mdi:robot-outline"
+      },
+      "what_if_use_midnight_battery_level": {
+        "default": "mdi:chart-histogram"
+      },
+      "what_if_solar_charging": {
+        "default": "mdi:brain"
+      },
+      "what_if_enhance_battery_efficiency": {
+        "default": "mdi:battery-sync-outline"
+      },
+      "what_if_cheapest_hour_fill_planner": {
+        "default": "mdi:hand-coin"
+      },
+      "what_if_cheapest_hour_fill_up": {
+        "default": "mdi:power-plug-battery"
+      },
+      "what_if_most_expensive_planner": {
+        "default": "mdi:chart-bar"
+      },
+      "what_if_needed_before_max_level_planner": {
+        "default": "mdi:chart-bell-curve"
+      },
+      "what_if_negative_price_planner": {
+        "default": "mdi:cash-minus"
+      },
+      "what_if_grid_charge_to_sell": {
+        "default": "mdi:swap-horizontal"
+      },
+      "what_if_most_profit": {
+        "default": "mdi:cash-multiple"
+      },
+      "what_if_sell_excess_kwh_available": {
+        "default": "mdi:basket-unfill"
+      },
+      "what_if_force_powerwall_max_hours_old_discharge": {
+        "default": "mdi:clock-out"
+      },
+      "what_if_discharge_before_solar": {
+        "default": "mdi:weather-sunset-up"
+      },
+      "what_if_only_discharge_on_profit": {
+        "default": "mdi:cash-plus"
+      },
+      "what_if_prioritize_discharge_hours_by_energy_cost": {
+        "default": "mdi:chart-waterfall"
+      },
+      "what_if_optimize_solar_charging": {
+        "default": "mdi:solar-power"
       }
     },
     "text": {
       "exclude_sell_hours": {
+        "default": "mdi:timer-remove-outline"
+      },
+      "what_if_exclude_sell_hours": {
         "default": "mdi:timer-remove-outline"
       }
     },
@@ -130,6 +259,20 @@
       },
       "export_debug": {
         "default": "mdi:bug-outline"
+      },
+      "reset_what_if_settings": {
+        "default": "mdi:restore"
+      }
+    },
+    "binary_sensor": {
+      "what_if_has_months": {
+        "default": "mdi:calendar-month-outline"
+      },
+      "what_if_has_range": {
+        "default": "mdi:chart-line-variant"
+      },
+      "what_if_has_modules": {
+        "default": "mdi:battery-plus-variant"
       }
     }
   },

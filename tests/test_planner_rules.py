@@ -29,8 +29,10 @@ from custom_components.battmind.engine.planner.what_if import (
     _module_annualization,
     _module_dst_resets,
     _module_payback,
+    MAX_TARIFF_DISTANCE_DAYS,
     _nearest_eds_tariffs,
     _reference_months,
+    _same_hour_value,
 )
 from custom_components.battmind.prices.base import calculate_sell_price
 
@@ -345,6 +347,67 @@ def test_what_if_uses_nearest_historical_eds_tariff_and_live_sell_formula() -> N
         False,
     )
     assert calculate_sell_price(0.8, nearest[0], 0.03) == pytest.approx(-0.33)
+
+
+def test_eds_tariff_schedule_beyond_the_distance_limit_is_not_used() -> None:
+    schedule = {"additional_tariffs": {"transmissions_nettarif": 0.1, "systemtarif": 0.1, "elafgift": 0.5}, "tariffs": {"12": 0.2}}
+    day = 86400.0
+    assert _nearest_eds_tariffs([(0.0, schedule)], MAX_TARIFF_DISTANCE_DAYS * day, 12) is not None
+    assert _nearest_eds_tariffs([(0.0, schedule)], MAX_TARIFF_DISTANCE_DAYS * day + 1, 12) is None
+
+
+def test_tariff_of_another_hour_of_the_day_is_never_used() -> None:
+    """A tariff sensor that only has recent history gives older hours the tariff of the same time of day, not the first value."""
+    import zoneinfo
+
+    tz = zoneinfo.ZoneInfo("Europe/Copenhagen")
+    day = 86400.0
+    start = datetime.datetime(2026, 1, 10, tzinfo=tz).timestamp()  # local midnight
+    # recorded from 10 January: night 0.15 (hour 0) and peak 0.60 (hour 18) only
+    values = {start: 0.15, start + 18 * 3600: 0.60}
+    # 15 days earlier, the peak hour: the peak tariff (not the night value that is nearest in time)
+    assert _same_hour_value(values, start - 15 * day + 18 * 3600, tz) == (0.60, False)
+    assert _same_hour_value(values, start - 15 * day, tz) == (0.15, False)
+    # the exact hour is exact
+    assert _same_hour_value(values, start + 18 * 3600, tz) == (0.60, True)
+    # an hour of the day without any sample is unknown, never the value of another hour
+    assert _same_hour_value(values, start - 15 * day + 12 * 3600, tz) is None
+    # exactly at the limit is used, one day further away is unknown
+    assert _same_hour_value(values, start - MAX_TARIFF_DISTANCE_DAYS * day + 18 * 3600, tz) == (0.60, False)
+    assert _same_hour_value(values, start - (MAX_TARIFF_DISTANCE_DAYS + 1) * day + 18 * 3600, tz) is None
+    # the earlier day wins a tie
+    both = {start - day: 1.0, start + day: 2.0}
+    assert _same_hour_value(both, start, tz) == (1.0, False)
+    # across the change to summer time (29 March 2026) the same local hour is found
+    summer = datetime.datetime(2026, 3, 30, 18, tzinfo=tz).timestamp()
+    winter = datetime.datetime(2026, 3, 28, 18, tzinfo=tz).timestamp()
+    assert _same_hour_value({winter: 0.7}, summer, tz) == (0.7, False)
+    # across the change back to winter time (25 October 2026): 18:00 the day before and the day after
+    after = datetime.datetime(2026, 10, 26, 18, tzinfo=tz).timestamp()
+    before = datetime.datetime(2026, 10, 24, 18, tzinfo=tz).timestamp()
+    assert _same_hour_value({before: 0.8}, after, tz) == (0.8, False)
+    # the doubled 02:00 of that day: each of the two real hours finds a 02:00 sample of another day
+    second_two = datetime.datetime(2026, 10, 25, 2, fold=1, tzinfo=tz).timestamp()
+    assert datetime.datetime.fromtimestamp(second_two, tz).hour == 2
+    day_before = datetime.datetime(2026, 10, 24, 2, tzinfo=tz).timestamp()
+    assert _same_hour_value({day_before: 0.4}, second_two, tz) == (0.4, False)
+    # 02:00 does not exist on the day the clocks go forward (29 March 2026): the sample two days later is used
+    target = datetime.datetime(2026, 3, 28, 2, tzinfo=tz).timestamp()
+    two_days_later = datetime.datetime(2026, 3, 30, 2, tzinfo=tz).timestamp()
+    assert _same_hour_value({two_days_later: 0.9}, target, tz) == (0.9, False)
+    # without a time zone the local time of the machine is used
+    assert _same_hour_value({1000.0: 1.0}, 1000.0, None) == (1.0, True)
+
+
+def test_solar_charging_off_stops_the_solar_charging_of_the_executed_hours() -> None:
+    hour = OptimizerHour(0, 1.0, 0.2, 0.0, 3.0)
+    on_level, on_cost, _, _ = step_hour(hour, 50.0, "discharge_allowed", CFG)
+    off_cfg = OptimizerConfig(**{**CFG.__dict__, "solar_charging": False})
+    off_level, off_cost, _, _ = step_hour(hour, 50.0, "discharge_allowed", off_cfg)
+    assert on_level > 50.0
+    assert off_level == 50.0
+    assert off_cost == pytest.approx(-3.0 * 0.2)  # all of the surplus is sold
+    assert on_cost > off_cost
 
 
 def realistic_snapshot(
@@ -1209,6 +1272,23 @@ def test_what_if_simulator_does_not_change_the_active_plan() -> None:
     assert raw_eds.value["tariff_unavailable_hours"] == 0
     assert raw_eds.value["tariff_estimated_hours"] == 0
     assert raw_eds.value["current"]["without"]["solar_income"] != 0.0
+    # unknown selling costs are reported in the main result (not only for the modules), known ones are not
+    assert raw_eds.value["sell_cost_unknown_hours"] == len(timestamps)
+    known_costs = engine.run_job(
+        snap,
+        engine.what_if,
+        {
+            **eds_data,
+            "price_providers": [{
+                **no_eds_tariffs,
+                "sell_includes_tariffs": False,
+                "sell_costs": {"transmissions_nettarif": 0.1, "systemtarif": 0.1},
+            }],
+        },
+        {},
+    )
+    assert known_costs.error is None, known_costs.error
+    assert known_costs.value["sell_cost_unknown_hours"] == 0
     # A provider whose tariff sensors have no history falls back to the next provider.
     no_stromligning_tariffs = engine.run_job(
         snap,
@@ -1908,6 +1988,23 @@ def test_what_if_zero_battery_is_no_storage(optimizer_control: bool, monkeypatch
     assert (engine.plan, engine.charge_hours, engine.optimizer_shadow, engine.shadow_plan_actions) == live
 
 
+def test_what_if_without_solar_charging_never_charges_from_the_solar_surplus() -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    settings = {"optimizer_control": True}
+    engine, _ = planned(3, 40, settings, solar=True)
+    data = _what_if_data(engine)
+    # a low sell price: storing the midday sun for the expensive evening pays
+    data["stats"]["sensor.historical_sell"] = [(ts, 0.3) for ts, _ in data["stats"]["sensor.historical_sell"]]
+    result = engine.run_job(realistic_snapshot(now, 40, settings), engine.what_if, data, {"solar_charging": False})
+    assert result.error is None, result.error
+    simulation = result.value
+    # the current setup charges from the midday sun, the scenario sells all of the surplus
+    assert simulation["current"]["charged_solar_kwh"] > 0
+    assert simulation["scenario"]["charged_solar_kwh"] == 0
+    assert simulation["scenario"]["with"]["solar_kwh"] == simulation["scenario"]["without"]["solar_kwh"]
+    assert simulation["scenario"]["with"]["solar_income"] == simulation["scenario"]["without"]["solar_income"]
+
+
 @pytest.mark.parametrize("action", ["grid_charging", "force_discharge", "discharge_allowed"])
 @pytest.mark.parametrize("sell,expected", [(1.0, 4.0), (-1.0, 8.0)])
 def test_what_if_zero_battery_hour_uses_actual_prices(action: str, sell: float, expected: float) -> None:
@@ -2092,7 +2189,8 @@ def test_module_full_year_annualization_uses_matched_utc_hours(
         }
         if pricing == "estimated":
             provider["sell_tariff_entity_ids"] = {"systemtarif": "sensor.tariff"}
-            data["stats"]["sensor.tariff"] = [(start, 0.1)]
+            # every hour but the first has a sample: the first takes the same time of day from the next day
+            data["stats"]["sensor.tariff"] = [(start + i * 3600, 0.1) for i in range(1, 365 * 24)]
         else:
             provider["sell_includes_tariffs"] = False
             provider["sell_costs"] = {"systemtarif": 0.0, "transmissions_nettarif": 0.0} if pricing == "known_zero_cost" else None
@@ -2125,7 +2223,7 @@ def test_module_full_year_annualization_uses_matched_utc_hours(
         assert module["rows"][1]["annualized_incremental_gain"] == module["rows"][1]["incremental_gain"]
         assert module["rows"][1]["payback_years"] == _module_payback(1000, module["rows"][1]["incremental_gain"])
     if pricing == "estimated":
-        assert module["warnings"]["tariff_estimated_hours"] == 8759
+        assert module["warnings"]["tariff_estimated_hours"] == 1
 
 
 @pytest.mark.parametrize("sell_costs,expected_current,expected_unknown", [
@@ -2202,8 +2300,8 @@ def test_module_mixed_provider_sell_data_gates(fallback, expected_reason, unknow
 def test_module_warnings_report_estimated_tariffs() -> None:
     engine, _ = planned(3, 40, {"optimizer_control": True}, solar=True)
     data = _what_if_data(engine)
-    first = data["stats"][data["buy_entity_id"]][0][0]
-    data["stats"]["sensor.tariff"] = [(first, 0.1)]
+    # the tariff sensor lacks the first hour only: it takes the same time of day from the next day
+    data["stats"]["sensor.tariff"] = [(ts, 0.1) for ts, _ in data["stats"][data["buy_entity_id"]][1:]]
     data["price_providers"] = [{
         "name": "historical",
         "buy_entity_id": data["buy_entity_id"],
@@ -2216,8 +2314,18 @@ def test_module_warnings_report_estimated_tariffs() -> None:
         module_comparison={"module_capacity": 2.5, "module_price": 1000, "module_count": 1},
     )
     assert result.error is None, result.error
-    assert result.value["module_comparison"]["warnings"]["tariff_estimated_hours"] == 47
-    assert result.value["tariff_estimated_hours"] == 47
+    assert result.value["module_comparison"]["warnings"]["tariff_estimated_hours"] == 1
+    assert result.value["tariff_estimated_hours"] == 1
+    assert result.value["tariff_unavailable_hours"] == 0
+
+    # a tariff sensor that only has the first hour: the other hours of the day have no tariff of their own and are
+    # left out instead of taking the value of another time of day
+    data["stats"]["sensor.tariff"] = [(data["stats"][data["buy_entity_id"]][0][0], 0.1)]
+    sparse = engine.run_job(snap, engine.what_if, data, {})
+    assert sparse.error is None, sparse.error
+    assert sparse.value["tariff_estimated_hours"] == 1
+    assert sparse.value["tariff_unavailable_hours"] == 46
+    assert sparse.value["period"]["hours"] == 2
 
 
 @pytest.mark.parametrize("optimizer_control", [True, False])

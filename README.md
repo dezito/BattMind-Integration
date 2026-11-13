@@ -286,7 +286,8 @@ e.g. `/battmind-dashboard`, with four views. You choose its sidebar icon when ad
 - **Settings:** the planners and their limits, grouped (control, profit, charging, discharging, selling,
   solar), each with a "Read more"
 - **Analysis:** what the battery earns and how well BattMind plans
-- **What-if:** compare historical results with alternative battery sizes and view the last saved calculation
+- **What-if:** run the what-if simulator from entities (battery size, a range of sizes, battery modules and
+  scenario rules and settings) and view the last saved calculation with tables and charts
 
 Every card is explained in [Dashboard and analysis](docs/dashboard-analysis.md). Once you save your own
 changes to the dashboard, your version is kept. Press **Reset dashboard** (on the integration's device) to

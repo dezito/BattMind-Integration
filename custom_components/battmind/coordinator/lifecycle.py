@@ -13,7 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import translation
 
-from ..const import DOMAIN, ENTITY_UNAVAILABLE_STATES, normalize_language
+from ..const import DOMAIN, ENTITY_UNAVAILABLE_STATES
 from ..engine import BattMindEngine
 from ..utils.formatting import load_texts
 from ..management.backup import async_load_backup, async_restore_databases, pending_restores
@@ -28,7 +28,7 @@ class CoordinatorLifecycle:
     async def async_setup(self) -> None:
         # texts for the overview, history, charging rule and notifications (texts/<language>.json,
         # English is the fallback for missing keys) with the currency of Home Assistant
-        language = normalize_language(self.config.get("language"), normalize_language(self.hass.config.language))
+        language = self.language
         self.texts = await self.hass.async_add_executor_job(load_texts, language, self.hass.config.currency)
         # entity names in the same language (HA would name translation_key entities in its own UI
         # language), English is the fallback for missing keys

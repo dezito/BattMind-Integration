@@ -4,13 +4,28 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL
 from homeassistant.components.lovelace.const import LOVELACE_DATA
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.battmind.const import ACTION_SWITCHES, CONTROLLABLE_ACTIONS, LANGUAGES, NUMBER_SETTINGS, SELECT_SETTINGS, SWITCH_SETTINGS, TEXT_SETTINGS, build_config
-from custom_components.battmind.management.dashboard_build import WHAT_IF_CARD_URL, render_dashboard
+from custom_components.battmind.const import (
+    ACTION_SWITCHES,
+    CONTROLLABLE_ACTIONS,
+    LANGUAGES,
+    NUMBER_SETTINGS,
+    SELECT_SETTINGS,
+    SWITCH_SETTINGS,
+    TEXT_SETTINGS,
+    WHAT_IF_BUTTON_KEYS,
+    WHAT_IF_FLAGS,
+    WHAT_IF_INPUT_NUMBERS,
+    WHAT_IF_INPUT_SWITCHES,
+    WHAT_IF_OVERRIDE_NUMBERS,
+    WHAT_IF_OVERRIDE_TEXTS,
+    WHAT_IF_RULE_SELECTS,
+    build_config,
+)
+from custom_components.battmind.management.dashboard_build import render_dashboard
 from custom_components.battmind.utils.formatting import format_analysis_help_text, format_help_text, load_texts
 
 from .conftest import MOCK_OPTIONS, PREFIX, async_unload_and_join, set_source_states
@@ -39,31 +54,245 @@ def test_every_language_renders_without_placeholders(language: str) -> None:
     assert [view["path"] for view in views] == ["overview", "settings", "analysis", "what-if"]
 
 
-@pytest.mark.parametrize("language", list(LANGUAGES))
-def test_what_if_card_targets_its_config_entry(language: str) -> None:
-    config = build_config({**OPTIONS, "language": language})
-    for entry_id, prefix in (("first-entry", "battmind"), ("second-entry", "other_battery")):
-        dashboard = yaml.safe_load(render_dashboard(config, prefix, entry_id=entry_id))
-        card = dashboard["views"][-1]["sections"][0]["cards"][0]
-        assert card["type"] == "custom:battmind-what-if"
-        assert card["config_entry_id"] == entry_id
-        assert all(card["labels"].values())
-        assert "sensor." not in yaml.safe_dump(card)
-        views = {view["path"]: view for view in dashboard["views"]}
-        action_url = "/config/tools/action?service=battmind.what_if"
-        assert action_url not in yaml.safe_dump(views["analysis"])
-        assert action_url in yaml.safe_dump(views["what-if"])
+def _what_if_view(language: str, prefix: str = "battmind", **options) -> dict:
+    content = render_dashboard(build_config({**OPTIONS, "language": language, **options}), prefix)
+    return next(view for view in yaml.safe_load(content)["views"] if view["path"] == "what-if")
+
+
+def _what_if_entities(view: dict) -> set[str]:
+    """Every entity the view shows: entity rows, chart series and visibility conditions."""
+    entities = {node["entity"] for node in walk(view) if isinstance(node.get("entity"), str)}
+    for node in walk(view):
+        if node.get("type") == "custom:config-template-card":
+            entities |= set(node.get("entities", ()))
+    return entities
 
 
 @pytest.mark.parametrize("language", list(LANGUAGES))
-def test_what_if_dashboard_translations_have_no_corrupted_characters(language: str) -> None:
-    config = build_config({**OPTIONS, "language": language})
-    dashboard = yaml.safe_load(render_dashboard(config, "battmind", entry_id="test-entry"))
-    labels = dashboard["views"][-1]["sections"][0]["cards"][0]["labels"]
-    assert all("?" not in value and "\ufffd" not in value for value in labels.values())
+def test_what_if_view_is_made_of_standard_cards_and_entities(language: str) -> None:
+    """The view has no custom card of BattMind: entities for the inputs, markdown and charts for the result."""
+    view = _what_if_view(language, "house")
+    text = yaml.safe_dump(view)
+    assert "custom:battmind-what-if" not in text and "config_entry_id" not in text
+    assert "/config/tools/action?service=battmind.what_if" in text
+
+    expected = {
+        *(f"number.house_{key}" for key in WHAT_IF_INPUT_NUMBERS),
+        *(f"switch.house_{key}" for key in WHAT_IF_INPUT_SWITCHES),
+        *(f"select.house_{key}" for key in WHAT_IF_RULE_SELECTS),
+        *(f"number.house_{key}" for key in WHAT_IF_OVERRIDE_NUMBERS),
+        *(f"text.house_{key}" for key in WHAT_IF_OVERRIDE_TEXTS),
+        *(f"button.house_{key}" for key in WHAT_IF_BUTTON_KEYS),
+        *(f"binary_sensor.house_{key}" for key in WHAT_IF_FLAGS),
+        "sensor.house_what_if",
+        "sensor.house_what_if_status",
+    }
+    assert _what_if_entities(view) >= expected
+    # the progress sensor is read in the template of the progress card
+    assert "sensor.house_what_if_progress" in text
+    # no card for another instance or the default prefix is left behind
+    assert not {entity for entity in _what_if_entities(view) if ".battmind_" in entity}
+    other = yaml.safe_dump(_what_if_view(language))
+    assert "sensor.battmind_what_if" in other and "house_" not in other
+
+
+@pytest.mark.parametrize("language", list(LANGUAGES))
+def test_what_if_view_texts_have_no_corrupted_characters(language: str) -> None:
+    view = _what_if_view(language)
+    strings = [value for node in walk(view) for value in node.values() if isinstance(value, str)]
+    assert strings
+    assert all("\ufffd" not in value and "Ã" not in value for value in strings)
     if language == "da":
-        assert labels["battery"] == "Batteristørrelse (kWh)"
-        assert "planlægningen" in labels["help"]
+        text = yaml.safe_dump(view, allow_unicode=True)
+        assert "Batteristørrelse (kWh)" in text or "Nuværende" in text
+
+
+def _entity_names(language: str) -> dict[str, str]:
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).parents[1] / "custom_components" / "battmind" / "translations" / f"{language}.json"
+    entity = json.loads(path.read_text(encoding="utf-8"))["entity"]
+    return {f"{platform}.{key}": value["name"] for platform, items in entity.items() for key, value in items.items()}
+
+
+@pytest.mark.parametrize("language", list(LANGUAGES))
+def test_what_if_read_more_covers_the_entities_shown_beneath_it(language: str) -> None:
+    """Each "Read more" names every control of the card it belongs to (the entity name without its prefix)."""
+    names = _entity_names(language)
+    texts = load_texts(language)
+    inputs_help = texts["dashboard.what_if_inputs_explain"]
+    rules_help = texts["dashboard.what_if_rules_explain"]
+    prefix = "What-if – "
+    for platform, keys in (
+        ("number", WHAT_IF_INPUT_NUMBERS), ("switch", WHAT_IF_INPUT_SWITCHES),
+    ):
+        for key in keys:
+            label = names[f"{platform}.{key}"].removeprefix(prefix)
+            assert label in inputs_help, (language, key, label)
+    assert names["switch.what_if_run"] in inputs_help  # one switch: on runs, off stops
+    # the rules card: the rule selectors and settings are explained as groups, the text and the reset by name
+    assert names["text.what_if_exclude_sell_hours"].removeprefix(prefix) in rules_help
+    assert names["button.reset_what_if_settings"].removeprefix(prefix) in rules_help
+    view = _what_if_view(language)
+    markdown = [node["content"] for node in walk(view) if node.get("type") == "markdown"]
+    assert any(inputs_help in content for content in markdown)
+    assert any(rules_help in content for content in markdown)
+
+
+def test_what_if_view_hides_the_scenario_values_of_unsupported_rules() -> None:
+    all_entities = _what_if_entities(_what_if_view("en"))
+    for action in CONTROLLABLE_ACTIONS:
+        entities = _what_if_entities(_what_if_view("en", unsupported_actions=[action]))
+        hidden = {f"select.battmind_what_if_{key}" for key in ACTION_SWITCHES[action]}
+        assert hidden <= all_entities
+        assert not hidden & entities
+        if action == "grid_charging":
+            assert "number.battmind_what_if_cheap_price_periods" in all_entities
+            assert not any(entity.startswith("number.battmind_what_if_cheap") for entity in entities)
+        else:
+            assert {entity for entity in all_entities - entities if entity.startswith("number.")} == set()
+
+
+def _entities_by_heading(view: dict) -> dict[str, set[str]]:
+    """The entity ids (without domain, prefix and what-if) shown beneath each heading of a view's sections."""
+    groups: dict[str, set[str]] = {}
+    for section in view["sections"]:
+        heading = None
+        for card in section.get("cards", ()):
+            if card.get("type") == "heading":
+                heading = card["heading"]
+            elif card.get("type") == "entities" and heading:
+                for row in card["entities"]:
+                    if isinstance(row, dict) and "entity" in row:
+                        key = row["entity"].split(".", 1)[1].removeprefix("battmind_").removeprefix("what_if_")
+                        groups.setdefault(heading, set()).add(key)
+    return groups
+
+
+def test_what_if_rules_are_in_the_sections_of_the_settings_view() -> None:
+    """Each scenario rule and setting is beneath the same heading as the rule or setting it overrides."""
+    what_if = _entities_by_heading(_what_if_view("en"))
+    settings = _entities_by_heading(yaml.safe_load(rendered("en"))["views"][1])
+    sections = {"Control", "Profit requirements (all rules)", "Charging from the grid", "Discharging", "Selling", "Solar"}
+    assert sections <= set(what_if) and sections <= set(settings)
+    for heading in sections:
+        assert what_if[heading] <= settings[heading], (heading, what_if[heading] - settings[heading])
+    grouped = set().union(*(what_if[heading] for heading in sections))
+    assert grouped == {key.removeprefix("what_if_") for key in (*WHAT_IF_RULE_SELECTS, *WHAT_IF_OVERRIDE_NUMBERS, *WHAT_IF_OVERRIDE_TEXTS)}
+
+
+def test_what_if_rule_sections_leave_no_orphan_heading_when_their_rules_are_unsupported() -> None:
+    """A section whose rules the battery cannot run is removed with its heading."""
+    headings = lambda view: [card["heading"] for section in view["sections"] for card in section.get("cards", ()) if card.get("type") == "heading"]  # noqa: E731
+    full = headings(_what_if_view("en"))
+    reduced = headings(_what_if_view("en", unsupported_actions=["grid_charging"]))
+    assert "Charging from the grid" in full and "Charging from the grid" not in reduced
+    assert [heading for heading in full if heading != "Charging from the grid"] == reduced
+    for section in _what_if_view("en", unsupported_actions=["grid_charging"])["sections"]:
+        assert section.get("cards")
+    # no entity is shown twice
+    rows = [node["entity"] for node in walk(_what_if_view("en")) if isinstance(node.get("entity"), str) and node["entity"].startswith(("select.", "number.", "text.", "button.", "switch."))]
+    assert len(rows) == len(set(rows))
+
+
+def test_what_if_view_has_the_layout_of_the_dev_environment() -> None:
+    """Controls first (inputs and the rules in the sections of the settings view), then the results in two columns."""
+    view = _what_if_view("en")
+    assert view["max_columns"] == 4 and view["dense_section_placement"] is True
+    sections = view["sections"]
+    assert [section.get("column_span", 1) for section in sections] == [4, 1, 1, 1, 1, 4, 4, 2, 2, 2, 2, 4]
+    assert [card["type"] for card in sections[0]["cards"]] == ["heading", "markdown"]
+    inputs = sections[1]["cards"][0]
+    assert inputs["type"] == "entities" and inputs["entities"][0]["entity"] == "number.battmind_what_if_history_days"
+    # the rules: the explanation and the reset button, then the sections of the settings view
+    assert [card["type"] for card in sections[2]["cards"][:3]] == ["heading", "markdown", "entities"]
+    headings = lambda section: [card["heading"] for card in section["cards"] if card["type"] == "heading"]  # noqa: E731
+    assert headings(sections[2])[1:] == ["Control", "Profit requirements (all rules)"]
+    assert headings(sections[3]) == ["Charging from the grid", "Solar"] and headings(sections[4]) == ["Discharging", "Selling"]
+    # the progress of a running simulation (below the Selling section), then the heading above the results
+    progress = sections[5]
+    message, bar = progress["cards"]
+    assert message["type"] == "markdown" and "progress" in message["content"]
+    # the timer bar card: the sensor is the time left (1 second = 1 %) of 100 seconds, inverted, shown as "42 %"
+    assert bar["type"] == "custom:timer-bar-card" and bar["entity"] == "sensor.battmind_what_if_progress"
+    assert (bar["state_attribute"], bar["active_state"]) == ("status", ["running", "stopping"])
+    assert bar["duration"] == {"fixed": 100, "units": "seconds"} and bar["remain_time"] == {"state": True, "units": "seconds"}
+    assert bar["invert"] is True and bar["format"] == "%s %"
+    assert {c["entity"] for cond in progress["visibility"] for c in cond["conditions"]} == {"sensor.battmind_what_if_status"}
+    assert {c["state"] for cond in progress["visibility"] for c in cond["conditions"]} == {"running", "stopping"}
+    assert [card["type"] for card in sections[6]["cards"]] == ["heading"] and sections[6]["cards"][0]["heading"] == "Results"
+
+    # the status and the result with the monthly chart, then the module comparison, the capacity interval and the rules table
+    result = sections[7]["cards"]
+    assert [card["type"] for card in result] == ["markdown", "conditional"]
+    assert "█" not in result[0]["content"]  # the bar is in its own card
+    assert "sensor.battmind_what_if_status" in result[0]["content"] and result[0]["grid_options"]["columns"] == "full"
+
+    def conditions(section: dict) -> set[str]:
+        return {c["entity"] for node in walk(section) if node.get("type") == "conditional" for c in node["conditions"]}
+
+    assert conditions(sections[8]) == {"binary_sensor.battmind_what_if_has_modules", "binary_sensor.battmind_what_if_has_months"}
+    assert conditions(sections[9]) == {"binary_sensor.battmind_what_if_has_range", "binary_sensor.battmind_what_if_has_months"}
+    assert "v.rules" in sections[10]["cards"][0]["content"]
+    # a section that only holds a part of the result is hidden until the result has that part
+    assert [section["visibility"][0]["entity"] for section in sections[8:11]] == [
+        "binary_sensor.battmind_what_if_has_modules", "binary_sensor.battmind_what_if_has_range", "sensor.battmind_what_if",
+    ]
+    # no card option was lost in the layout: nothing in the view is empty (null)
+    assert [node for node in walk(view) for value in node.values() if value is None] == []
+
+
+def test_the_charts_of_the_range_and_the_modules_are_higher() -> None:
+    """The monthly charts under the range and the module tables are 50 % higher than the others, the payback chart 100 %."""
+    texts = load_texts("en")
+    titles = {texts["dashboard.what_if_module_monthly_range_title"], texts["dashboard.what_if_module_monthly_modules_title"]}
+    charts = [node for node in walk(_what_if_view("en")) if node.get("type") == "custom:apexcharts-card" and isinstance(node.get("header"), dict)]
+    halves = [node for node in charts if " ".join(str(node["header"].get("title", "")).split()) in titles]
+    assert len(halves) == 2
+    assert {node["apex_config"]["chart"]["height"] for node in halves} == {"420px"}
+    # the other what-if charts (results by month, profit, interval, payback) stay at 280 px
+    from custom_components.battmind.engine.planner.what_if_charts import CHART_HEIGHT, PAYBACK_HEIGHT
+
+    assert (CHART_HEIGHT, PAYBACK_HEIGHT) == ("280px", "560px")
+    others = [node for node in walk(_what_if_view("en")) if node.get("type") == "custom:apexcharts-card" and node not in halves]
+    assert all(node["apex_config"] == "${vars.chart.apex}" or node["apex_config"]["chart"]["height"] == "280px" for node in others)
+
+
+def test_what_if_page_shows_money_with_two_decimals_and_kwh_with_one() -> None:
+    view = _what_if_view("en")
+    for node in walk(view):
+        if isinstance(node.get("content"), str) and "{% macro" in node["content"]:
+            assert "kWh{%- endmacro" not in node["content"].replace("'%.1f' | format(x) }} kWh{%- endmacro", "")
+            assert "'%g'" not in node["content"]
+    charts = [node for node in walk(view) if node.get("type") == "custom:apexcharts-card"]
+    assert charts
+    for chart in charts:  # every chart of the page is in the currency (or the currency per kWh)
+        assert chart["yaxis"] == [{"decimals": 2}] and chart["all_series_config"]["float_precision"] == 2
+
+
+@pytest.mark.parametrize("language", list(LANGUAGES))
+def test_the_colour_notes_of_the_charts_are_only_shown_when_the_chart_is_coloured(language: str) -> None:
+    texts = load_texts(language)
+    markdown = [node["content"] for node in walk(_what_if_view(language)) if node.get("type") == "markdown" and "content" in node]
+    for flag, key in (("rg.profit_chart.gradient", "what_if_chart_growth_legend"), ("rg.interval_chart.gradient", "what_if_interval_color_legend")):
+        note = texts[f"dashboard.{key}"]
+        card = next(content for content in markdown if note in content)
+        assert card.split(note)[0].rstrip().endswith("{% if " + flag + " %}")
+
+
+def test_what_if_charts_only_show_when_the_result_has_their_part() -> None:
+    """A chart of a capacity interval, a module comparison or months is behind the binary sensor of that part."""
+    view = _what_if_view("en")
+    for node in walk(view):
+        if node.get("type") != "conditional":
+            continue
+        entities = {condition["entity"] for condition in node["conditions"]}
+        assert entities <= {f"binary_sensor.battmind_{key}" for key in WHAT_IF_FLAGS}
+    sections = [section for section in walk(view) if section.get("type") == "conditional"]
+    assert {condition["entity"] for node in sections for condition in node["conditions"]} == {
+        f"binary_sensor.battmind_{key}" for key in WHAT_IF_FLAGS
+    }
 
 
 def test_texts_follow_the_language() -> None:
@@ -109,6 +338,7 @@ def test_chart_span_follows_days_to_predict(days: int, span: str) -> None:
     spans = [
         value for node in walk(content) for key, value in node.items()
         if key in ("graph_span", "selection_span") and "d" in str(value) and value not in ("400d", "31d", "6d")
+        and not str(value).startswith("${")  # the what-if charts follow their result
     ]
     assert len(spans) == 4 and set(spans) == {span}
 
@@ -197,7 +427,12 @@ def test_own_entity_rows_show_the_entity_name() -> None:
 
 def _price_charts(**options) -> list[str]:
     content = yaml.safe_load(render_dashboard(build_config({**OPTIONS, **options}), "battmind"))
-    return [node["series"][0]["entity"] for node in walk(content) if node.get("type") == "custom:apexcharts-card" and node["series"][0].get("yaxis_id") == "price"]
+    # (the series of a what-if chart is a template string, those charts have no price axis)
+    return [
+        node["series"][0]["entity"] for node in walk(content)
+        if node.get("type") == "custom:apexcharts-card" and isinstance(node["series"], list)
+        and node["series"][0].get("yaxis_id") == "price"
+    ]
 
 
 def test_one_price_chart_stromligning_preferred() -> None:
@@ -249,6 +484,10 @@ def test_every_chart_has_a_shared_non_intersecting_tooltip() -> None:
     charts = [node for node in walk(content) if node.get("type") == "custom:apexcharts-card"]
     assert charts
     for chart in charts:
+        if isinstance(chart["apex_config"], str):
+            # the options come from the what-if result (what_if_charts.py, tested in test_what_if_charts.py)
+            assert chart["apex_config"].startswith("${vars.")
+            continue
         tooltip = chart["apex_config"]["tooltip"]
         assert tooltip["shared"] is True
         assert tooltip["intersect"] is False
@@ -401,7 +640,7 @@ def test_consumption_forecast_is_aligned_and_visually_distinguishes_totals() -> 
 
 
 async def test_sidebar_dashboard_can_be_edited_and_reset(
-    hass: HomeAssistant, hass_ws_client, hass_client_no_auth, mock_entry: MockConfigEntry, tmp_path
+    hass: HomeAssistant, hass_ws_client, mock_entry: MockConfigEntry, tmp_path
 ) -> None:
     hass.config.config_dir = str(tmp_path)
     set_source_states(hass)
@@ -409,11 +648,6 @@ async def test_sidebar_dashboard_can_be_edited_and_reset(
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert WHAT_IF_CARD_URL in hass.data[DATA_EXTRA_MODULE_URL].urls
-    http_client = await hass_client_no_auth()
-    response = await http_client.get(WHAT_IF_CARD_URL)
-    assert response.status == 200
-    assert 'customElements.define("battmind-what-if"' in await response.text()
     client = await hass_ws_client(hass)
 
     async def command(message: dict) -> dict:
@@ -430,26 +664,23 @@ async def test_sidebar_dashboard_can_be_edited_and_reset(
     await command({"type": "lovelace/config/save", "config": {"views": [{"title": "Mine"}]}})
     assert await command({"type": "lovelace/config"}) == {"views": [{"title": "Mine"}]}
 
-    original_card = next(node for node in walk(generated) if node.get("type") == "custom:battmind-what-if")
-    saved_card = {
-        "type": original_card["type"],
-        "config_entry_id": entry.entry_id,
-        "labels": {"title": "My custom title", "help": "My custom help"},
-    }
-    other_card = {
-        "type": original_card["type"],
-        "config_entry_id": "another-entry",
-        "labels": {"title": "Other"},
-    }
-    missing_card = {"type": original_card["type"], "config_entry_id": entry.entry_id}
-    custom = {"views": [{"title": "Mine", "cards": [saved_card, other_card, missing_card]}]}
+    # the generated what-if view has no custom card, only entities and standard cards
+    assert "custom:battmind-what-if" not in yaml.safe_dump(generated)
+    custom = {"views": [{"title": "Mine", "cards": [{"type": "markdown", "content": "My own card"}]}]}
     await command({"type": "lovelace/config/save", "config": custom})
     restored = await command({"type": "lovelace/config"})
-    actual_card, actual_other, actual_missing = restored["views"][0]["cards"]
-    assert actual_card["labels"] == {**original_card["labels"], **saved_card["labels"]}
-    assert actual_other == other_card
-    assert actual_missing["labels"] == original_card["labels"]
-    assert saved_card["labels"] == {"title": "My custom title", "help": "My custom help"}
+    assert restored == custom
+
+    # a saved dashboard with the removed custom what-if card gets the generated What-if view instead of that view
+    legacy = {"views": [
+        {"title": "Mine", "cards": [{"type": "markdown", "content": "My own card"}]},
+        {"title": "Old what-if", "cards": [{"type": "custom:battmind-what-if", "config_entry_id": entry.entry_id, "labels": {}}]},
+    ]}
+    await command({"type": "lovelace/config/save", "config": legacy})
+    migrated = await command({"type": "lovelace/config"})
+    assert migrated["views"][0] == legacy["views"][0]
+    assert migrated["views"][1]["path"] == "what-if" and "custom:battmind-what-if" not in yaml.safe_dump(migrated)
+    await command({"type": "lovelace/config/save", "config": custom})
 
     # the edits survive a reload, the generated dashboard is not shown over them
     await hass.config_entries.async_reload(entry.entry_id)

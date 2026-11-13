@@ -659,6 +659,9 @@
   },
   "entity": {
     "switch": {
+      "what_if_run": {
+        "name": "Start simulering"
+      },
       "solar_charging": {
         "name": "Solcelleoverskud til opladning"
       },
@@ -715,6 +718,12 @@
       },
       "auto_forecast_type": {
         "name": "Vælg prognosetype automatisk"
+      },
+      "what_if_range": {
+        "name": "What-if – Sammenlign et interval af batteristørrelser"
+      },
+      "what_if_modules": {
+        "name": "What-if – Sammenlign batterimoduler"
       }
     },
     "number": {
@@ -737,20 +746,207 @@
         "name": "Min. overskydende kWh til salg"
       },
       "usage_reserve": {
-        "name": "Reserve til huset (s\u00e6lges ikke)"
+        "name": "Reserve til huset (sælges ikke)"
       },
       "powerwall_max_hours_old": {
         "name": "Maks. timer gamle kWh i husbatteri"
+      },
+      "what_if_history_days": {
+        "name": "What-if – Historik (dage)"
+      },
+      "what_if_battery_size": {
+        "name": "What-if – Batteristørrelse (kWh)"
+      },
+      "what_if_range_start": {
+        "name": "What-if – Fra (kWh)"
+      },
+      "what_if_range_end": {
+        "name": "What-if – Til (kWh)"
+      },
+      "what_if_range_step": {
+        "name": "What-if – Trin (kWh)"
+      },
+      "what_if_module_capacity": {
+        "name": "What-if – Modulkapacitet (kWh)"
+      },
+      "what_if_module_price": {
+        "name": "What-if – Pris pr. modul"
+      },
+      "what_if_module_count": {
+        "name": "What-if – Ekstra moduler"
+      },
+      "what_if_usage_reserve": {
+        "name": "What-if – Reserve til huset (sælges ikke)"
+      },
+      "what_if_min_profit_per_kwh": {
+        "name": "What-if – Min. profit per kWh (afladning)"
+      },
+      "what_if_min_total_profit": {
+        "name": "What-if – Min. total profit (salg til nettet)"
+      },
+      "what_if_min_sell_kwh": {
+        "name": "What-if – Min. overskydende kWh til salg"
+      },
+      "what_if_cheap_price_periods": {
+        "name": "What-if – Billige prisperioder"
+      },
+      "what_if_cheapest_price_rise_threshold": {
+        "name": "What-if – Stigning for billigste pris"
+      },
+      "what_if_cheap_price_period_rise_threshold": {
+        "name": "What-if – Stigning for billige prisperioder"
+      },
+      "what_if_powerwall_max_hours_old": {
+        "name": "What-if – Maks. timer gamle kWh i husbatteri"
       }
     },
     "select": {
       "forecast_type": {
         "name": "Vælg prognose type"
+      },
+      "what_if_optimizer_control": {
+        "name": "What-if – Styr batteriet med optimering af hele perioden",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_use_midnight_battery_level": {
+        "name": "What-if – Brug midnat batteriniveau",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_solar_charging": {
+        "name": "What-if – Solcelleoverskud til opladning",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_enhance_battery_efficiency": {
+        "name": "What-if – Forbedr batteriets virkningsgrad",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_cheapest_hour_fill_planner": {
+        "name": "What-if – Ladning: Billigste perioder planlægger",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_cheapest_hour_fill_up": {
+        "name": "What-if – Ladning: Fyld op i billigste periode",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_most_expensive_planner": {
+        "name": "What-if – Ladning: Dyreste perioder planlægger",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_needed_before_max_level_planner": {
+        "name": "What-if – Ladning: Nødvendig før max niveau planlægger",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_negative_price_planner": {
+        "name": "What-if – Ladning: Negative priser",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_grid_charge_to_sell": {
+        "name": "What-if – Ladning: Køb for at sælge",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_most_profit": {
+        "name": "What-if – Afladning: Maksimer profit",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_sell_excess_kwh_available": {
+        "name": "What-if – Afladning: Sælg overskydende kWh tilgængelig",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_force_powerwall_max_hours_old_discharge": {
+        "name": "What-if – Tvangsafladning: Maks. timer gamle kwh",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_discharge_before_solar": {
+        "name": "What-if – Afladning: Før solen",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_only_discharge_on_profit": {
+        "name": "What-if – Afladning: Kun ved profit",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_prioritize_discharge_hours_by_energy_cost": {
+        "name": "What-if – Afladning: Prioriter efter energikost",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
+      },
+      "what_if_optimize_solar_charging": {
+        "name": "What-if – Optimer solcelleopladning",
+        "state": {
+          "current": "Nuværende",
+          "on": "Til",
+          "off": "Fra"
+        }
       }
     },
     "text": {
       "exclude_sell_hours": {
         "name": "Ekskluder salgstimer"
+      },
+      "what_if_exclude_sell_hours": {
+        "name": "What-if – Ekskluder salgstimer"
       }
     },
     "button": {
@@ -765,6 +961,9 @@
       },
       "export_debug": {
         "name": "Eksportér debug-info"
+      },
+      "reset_what_if_settings": {
+        "name": "What-if – Nulstil til nuværende"
       }
     },
     "sensor": {
@@ -791,6 +990,33 @@
       },
       "analysis": {
         "name": "Besparelse denne måned"
+      },
+      "what_if": {
+        "name": "What-if-resultat"
+      },
+      "what_if_status": {
+        "name": "What-if-status",
+        "state": {
+          "idle": "Inaktiv",
+          "running": "Kører",
+          "stopping": "Stopper",
+          "stopped": "Stoppet",
+          "failed": "Mislykket"
+        }
+      },
+      "what_if_progress": {
+        "name": "What-if-fremskridt"
+      }
+    },
+    "binary_sensor": {
+      "what_if_has_months": {
+        "name": "What-if-resultatet har månedsdata"
+      },
+      "what_if_has_range": {
+        "name": "What-if-resultatet har et kapacitetsinterval"
+      },
+      "what_if_has_modules": {
+        "name": "What-if-resultatet har en modulsammenligning"
       }
     }
   },

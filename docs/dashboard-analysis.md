@@ -322,114 +322,117 @@ consumption forecast per hour with the three forecast types.
 
 ### What-if simulator
 
-A short description and a link on the What-if tab to **Settings → Developer tools → Actions**
-with the **battmind.what_if** action preselected (requires an administrator). See
-[What-if simulator](what-if-simulator.md).
+The **What-if** tab runs the [What-if simulator](what-if-simulator.md) from entities and standard cards
+(no custom card). A short note on current versus scenario and a **Read more** explain the controls. The
+controls come first: the inputs, and the scenario rules in the same sections as on the Settings tab
+(Control, Profit requirements, Charging, Discharging, Selling and Solar). Under the **Results** heading
+follow the status and result with the monthly chart, the module comparison, the capacity interval and the
+rules table; the last three are hidden until the result has that part. The charts of a battery size,
+the profit per added kWh and the payback show their values when you hover over them. A
+link at the bottom opens **Settings → Developer tools → Actions** with the **battmind.what_if** action
+preselected (requires an administrator) for the settings the tab does not have.
 
-The **What-if** dashboard tab also compares a selected battery capacity against the current
-configuration, or plots a range of capacities. Current is an estimate assuming the current setup
-throughout the historical period, not the actual historical result. Focus on the difference between
-current and scenario; it too is an estimate. A summary highlights the current and scenario
-profits and their difference, followed by detailed tables and charts. It also shows net bill, data
-coverage and tariff warnings. The result also includes a compact table of enabled rules and their
-saved current/scenario settings.
-The form also has a collapsible **Rules and settings in the scenario** section with the entity names
-of the rule switches and numbers, plus excluded sell hours. It defaults to the current state of
-those entities; only values you change are sent and applied to the scenario, while Current always
-uses the current settings. Switches the inverter cannot support are disabled.
-Enabled rules are permitted but do not necessarily execute; a dash marks an inactive rule or a
-zero-capacity case. Rule values come from the completed simulation, not live settings. Older saved
-results without rule assumptions must be run again. The table shows the configured control mode;
-an optimizer that does not converge can fall back to rules for individual planning windows.
-The optional module comparison shows historical gains alongside annual estimates and simple
-payback when sufficient history and selling data are available. Missing hours can be estimated
-from the same or nearest reference months; missing seasons increase uncertainty. It answers two
-different questions, and the section keeps them apart:
+Current is an estimate assuming the current setup throughout the historical period, not the actual
+historical result. Focus on the difference between current and scenario; it too is an estimate.
+
+- **Inputs:** *What-if – History (days)*, *Battery size (kWh)*, the switch **Compare a range of battery
+  sizes** with *From*, *To* and *Step*, and the switch **Compare battery modules** with *Module capacity*,
+  *Price per module* and *Additional modules*. The two switches decide whether the range and the module
+  entities are used; a range has at most 12 sizes. The switch **Run simulation** starts a calculation (one at a time) when it is
+  turned on and requests cancellation when it is turned off, and the status entity shows *idle*, *running*, *stopping*,
+  *stopped* or *failed*. Only these entities and the scenario entities below are used by a new
+  calculation; they never change the planner's settings, are not part of a backup and do not trigger a
+  planning run.
+- **Rules and settings in the scenario:** one *current / on / off* selector for each rule switch, one
+  number for each setting (reserve, minimum profit per kWh, minimum total profit, minimum kWh to sell,
+  cheap price periods, rise thresholds, maximum age of kWh) and a text for the excluded selling hours.
+  A selector on *current* and a number or text with no value (*unknown*) use the current setting, so only
+  what you change is applied to the scenario; Current always uses the current settings. A number set to 0
+  is a real value, not "current". **Reset to current** clears all of them. Rules the inverter cannot support
+  are not shown, and a rule that needs an action the battery cannot run is never a scenario value.
+- **Progress:** while a simulation runs, a section between the Selling section and the **Results** heading
+  shows the message (loading phases, the real simulation progress and a remaining-time estimate once
+  enough progress has been measured) and a bar of [Timer Bar Card](https://github.com/rianadon/timer-bar-card)
+  (HACS, required for this card) that follows the *What-if progress* sensor. The sensor is 0 when nothing runs
+  and 1 to 100 while it runs (1 while the history loads, because that card takes 0 as finished); the card
+  reads it as 100 seconds with the percent as the time left, inverted, and shows "42 %".
+- **Result:** a status line while it runs, stopping, failed or stopped, the completion time and selected
+  values, the simulated period, warnings for missing hours, estimated or unavailable tariffs, unknown
+  selling costs and missing sell prices, a summary of the Current and Scenario profit and their
+  difference, and a table of profit and net bill. The calculated bill includes wear and the value of the
+  energy remaining in the battery; battery purchase cost and fixed fees are excluded. The result is
+  historical hindsight, not a forecast.
+- **Months:** for periods longer than three months, a table and a bar chart show the gain per calendar
+  month for Current, Scenario and the difference, so you can see when in the year it pays most. Bold marks
+  the best month; months with few hours are incomplete and the figures are not a forecast. A range and a
+  module comparison add the same monthly view for up to six sizes or module counts (gain versus zero extra
+  modules). These charts are only shown when the last result has them (three binary sensors tell the
+  dashboard).
+- **Charts:** all charts are charts of ApexCharts Card, so the values show when you hover over them. The
+  profit by battery size, the profit per added kWh and the payback charts do not have a time axis: BattMind
+  places each battery size (or year) on one day of the chart and replaces the axis and tooltip labels, so
+  the chart shows sizes and years. Currency is shown with two decimals and kWh with one decimal on the whole
+  tab. The line patterns tell the payback lines apart without colour.
+- **Range:** the table shows each simulated size with its profit, bill, the change in profit from the
+  previous size and the change per added kWh, and highlights the highest total profit and the highest
+  profit per added kWh (including ties); these are historical comparisons, not a recommendation or a
+  measure of investment return. The profit chart plots the profit of each size; each point of the
+  per-kWh chart is the average of the interval named under it, not the profit of a battery size. The
+  colours are relative to the shown values, red for the lowest and green for the highest (green can be
+  negative): the profit line is coloured segment by segment by the profit per added kWh of that segment,
+  the per-kWh line and its dots by their value. A note under the chart explains the colours; there are no
+  colours (a plain line) when the values are all equal or one is missing. Values
+  between points are estimates. The per-kWh figures use rounded profits and can be imprecise for very
+  small steps.
+- **Rules table:** the rules and values used by Current and the scenario, taken from the completed
+  simulation (not from the live settings). Enabled rules are permitted but do not necessarily execute; a
+  dash marks an inactive rule or a zero-capacity case. Older saved results without rule values must be run
+  again. The table shows the configured control mode; an optimizer that does not converge can fall back
+  to rules for individual planning windows.
+
+The optional module comparison shows historical gains alongside annual estimates and simple payback when
+sufficient history and selling data are available. Missing hours can be estimated from the same or
+nearest reference months; missing seasons increase uncertainty. It answers two different questions, and
+the section keeps them apart:
 
 - **What does the last added module earn on its own?** This is what matters when deciding whether to
   buy more: the module's price divided by the extra yearly gain it adds on top of the previous size
   ("module alone" columns of the table, and the last-module time in the graph legend).
 - **What does the whole battery earn against no battery at all?** The current battery plus the added
-  modules, priced together, against having no home battery ("whole battery" columns, and the dot in the
-  graph). This time is an average of the current battery and the added modules, so it is shorter than
-  the module-alone time only when the current battery pays back faster than the module does (the summary
-  says so only then). It only answers how long the whole battery would take to pay back if bought today.
+  modules, priced together, against having no home battery ("whole battery" columns, and the total time in
+  the graph legend). This time is an average of the current battery and the added modules, so it is
+  shorter than the module-alone time only when the current battery pays back faster than the module does
+  (the summary says so only then). It only answers how long the whole battery would take to pay back if
+  bought today.
 
-At the top, a short plain-language summary fills in the numbers of the run: the current battery's
-price, yearly saving and payback; what the first extra module costs, earns and pays back on its own;
-and the whole battery's payback with a reminder to use the module-alone time when considering buying
-more. A sentence is left out unless every number in it is known (never replaced by 0). The table has
-one row per battery size, with the historical gain from the previous size, then the module-alone
-columns (extra yearly gain, module price, simple payback) and the whole-battery columns (total price,
-saving per year against no battery, payback). The whole-battery columns are "—" when the current
-battery's price or the yearly bills are unknown. The current battery is priced at the same price per
-kWh as a module.
+A short plain-language summary fills in the numbers of the run: the current battery's price, yearly
+saving and payback; what the first extra module costs, earns and pays back on its own; and the whole
+battery's payback with a reminder to use the module-alone time when considering buying more. A sentence
+is left out unless every number in it is known (never replaced by 0). The table has one row per battery
+size, with the historical gain from the previous size, then the module-alone columns (extra yearly gain,
+module price, simple payback) and the whole-battery columns (total price, saving per year against no
+battery, payback). The whole-battery columns are "—" when the current battery's price or the yearly bills
+are unknown. The current battery is priced at the same price per kWh as a module.
 
-The responsive payback graph shows the accumulated cost over time at a constant yearly bill, on an axis
-that starts at 0 (lower only if a yearly bill is negative) and is rounded to an even step (10k, 20k,
-...) with gridlines and an axis title. A grey line is without a battery: it starts at 0 and rises with
-the whole estimated yearly bill. The current battery and each extra module count have one line each: it
-starts at the purchase price (the current battery plus the added modules) and rises with the yearly bill
-with that setup; each line has its own stroke pattern as well as colour. A dot on the grey line,
-labelled with the battery size and "total" and its time counted from the start, and joined by a thin
-line down to the time axis, marks where each line crosses it, i.e. when the whole battery has paid back.
-The legend names each line with its battery size in kWh: the current battery has one time; each extra
-module count has the whole battery's time ("total") and the last module alone, also counted from the
-start so nothing has to be added up, where its line crosses the line before it (the table's simple
-payback; with a strict one-year window the graph can be slightly longer). The graph shows at most 30 years; a dot beyond that is not drawn. It is not
-drawn when the current battery's price or the bill without a battery is unknown, or when the module
-price is 0 (a missing price is never treated as 0); without a current battery only the grey line and the
-extra module lines are drawn. These are historical estimates, not predictions, and exclude installation
-and other investment costs.
-The graph is 2.25 times as tall as the other charts, extends the period beyond the last point to show the
-development, and hovering shows dots on every line with the elapsed years and months.
-For periods longer than three months, monthly tables and bar charts show the gain per calendar
-month for Current/Scenario/difference and, when used, for up to six range sizes and module counts
-(gain versus zero extra modules), so you can see when in the year it pays most. Bold marks the best
-month; months with few hours are incomplete and the figures are not a forecast.
-For a range, it shows the change in profit between adjacent sizes and the change per added kWh of
-battery capacity over the simulated period. The fixed scenario and
-capacity range have separate sections. The range table explains its columns and highlights the
-highest total profit and highest incremental profit per added kWh (including ties); these are
-historical comparisons, not a recommendation or a measure of investment return. Each point in the
-incremental chart represents the capacity interval shown below it, not total battery profit.
-Move the pointer across the total-profit chart or tap it to see a shape-preserving curve estimate
-between simulated sizes. It is not a new simulation or forecast, and a smooth curve is not necessarily
-more accurate than a straight line. The incremental chart's curve represents a trend between interval
-averages plotted at their midpoints, not a calculated profit at a particular battery size. Its values
-between points are estimates, and outside the midpoint range it shows the nearest interval average.
-On the total-profit chart, each segment's color indicates the interval's average change in profit
-per added kWh, not the height or instantaneous slope of the interpolated curve. Green and red
-indicate higher and lower rates relative to the displayed intervals, and colors change at simulated
-sizes. On the incremental chart, colors indicate the interval averages and interpolated trend.
-Even the green value can be negative. When all rates are equal, the respective chart uses its normal color.
-The table still provides the calculated values and text labels without relying on color.
-Its selection list provides keyboard access to calculated points. Pointer estimates normally
-use whole kWh; fractional positions are retained when rounding would fall outside the plotted range.
-Simulated fractional capacities are shown accurately. Currency values are shown
-to two decimals. The curve also has a keyboard-accessible capacity input.
-The interval figures use
-rounded profits and can be imprecise for very small capacity steps. The calculated bill includes
-wear and the value of energy remaining in the battery; battery purchase cost and fixed fees are
-excluded. The results are historical hindsight, not a forecast. A range takes longer
-and can delay planning. The last successful calculation for each BattMind instance is saved with its
-completion time and selected values. The dashboard reloads it when you return, including after a page
-refresh or Home Assistant restart; no extra entities are created. A failed or stopped dashboard
-calculation does not replace the previous result. Dashboard runs show their status and errors in the
-card instead of persistent notifications; the **Stop simulation** button requests cancellation.
-Cancellation can take time while an ongoing history query or planning step finishes. Runs started
-through the action continue to use persistent notifications.
-The form starts a new calculation using only its displayed fields and current settings. Other
-overrides from a saved action or automation are displayed with that result but are not reused;
-missing values in the form use its defaults. The action in Developer tools remains available for
-changing other settings.
-If an edited BattMind dashboard has an older What-if card configuration, missing card labels are
-filled from the current translation when the dashboard is loaded. Existing labels and other edits
-are preserved; older customized text is not automatically replaced.
+The payback chart shows the accumulated cost over time at a constant yearly bill. A grey dashed line is
+without a battery: it starts at 0 and rises with the whole estimated yearly bill. The current battery and
+each extra module count have one line each: it starts at the purchase price (the current battery plus the
+added modules) and rises with the yearly bill with that setup. The legend names each line with its battery
+size in kWh: the current battery has one time; each extra module count has the whole battery's time
+("total", where its line crosses the grey line) and the last module on its own (where its line crosses the
+line before it, the table's simple payback; with a strict one-year window the chart can be slightly
+longer), both counted from the start. The chart shows at most 30 years. It is not drawn when the current
+battery's price or the bill without a battery is unknown, or when the module price is 0 (a missing price
+is never treated as 0); without a current battery only the grey line and the extra module lines are drawn.
+These are historical estimates, not predictions, and exclude installation and other investment costs.
 
-<p align="center">
-  <img src="../images/what-if-simulator.png" alt="The What-if simulator card in the analysis" width="100%">
-</p>
+A range takes longer and can delay planning. The last successful calculation for each BattMind instance is
+saved with its completion time and selected values, shown by the **What-if** result sensor and kept
+after a page refresh or Home Assistant restart, whether it was started from the tab, Developer tools or an
+automation. A failed or stopped calculation does not replace the previous result, and the dashboard shows
+its status and the reason instead of persistent notifications (calculations started through the action
+still use persistent notifications). Cancellation can take time while an ongoing history query or
+planning step finishes.
 
 ## Editing the dashboard
 
