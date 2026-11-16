@@ -513,8 +513,13 @@ The seed data and simulator entities are in `../ha-dev/devcontainer/seed.py`
 Run the suite with `../ha-dev/run_tests_windows.ps1 battmind
 [pytest args]`. The first run installs Python 3.14 and the test requirements
 in `%LOCALAPPDATA%\ha-dev-tests\venv`; the shims in `../ha-dev/windows`
-(fcntl, resource, a pytest plugin that disables the socket guard) must be on
-`PYTHONPATH` when calling that venv directly. The system Python 3.11 lacks
+(fcntl, resource, a pytest plugin that disables the socket guard and linecache's
+file-staleness check) must be on `PYTHONPATH` when calling that venv directly.
+The runner executes the suite in parallel with pytest-xdist; pass `'-n' '0'`
+(quoted, otherwise PowerShell reads it as a script parameter) to debug in one
+process with `-x`, `-s` or `--pdb`. Tests must not depend on the run being slow:
+wait for real conditions or real time, not a fixed number of `sleep(0)` yields.
+The system Python 3.11 lacks
 HA/astral. Do not create the venv on a network drive; it installs extremely
 slowly. The Docker run `../ha-dev/dev.ps1 test battmind [pytest args]` is the
 reference. The dev HA runs locally in Docker Desktop, not on a remote server;
