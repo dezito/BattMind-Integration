@@ -900,7 +900,7 @@
       "message": "Für den historischen What-if-Vergleich wird eine Kaufpreis-Entität benötigt"
     },
     "what_if_no_recorder": {
-      "message": "Für den historischen What-if-Vergleich wird der Recorder benötigt"
+      "message": "Der What-if-Vergleich benötigt den Verlauf von Home Assistant (Recorder)"
     },
     "what_if_range_incomplete": {
       "message": "range_start, range_end und range_step müssen zusammen angegeben werden"

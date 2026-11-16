@@ -164,11 +164,6 @@ def _what_if_notification(coordinator: BattMindCoordinator, simulation: dict, ov
         days=simulation["period"]["days"],
         hours=simulation["period"]["hours"],
     )
-    data_sources = coordinator.t(
-        "ui.what_if.data_sources",
-        statistics=simulation["data_sources"]["long_term_statistics_samples"],
-        recorder=simulation["data_sources"]["recorder_history_fallback_samples"],
-    )
     price_provider = simulation.get("price_provider")
     price_provider_hours = simulation.get("price_provider_hours") or {}
     if len(price_provider_hours) > 1:
@@ -215,7 +210,6 @@ def _what_if_notification(coordinator: BattMindCoordinator, simulation: dict, ov
             )
         if coverage.get("gap_hours"):
             lines.append(coordinator.t("ui.what_if.gap_hours", hours=coverage["gap_hours"]))
-    lines.append(data_sources)
     if price_provider:
         lines.append(coordinator.t("ui.what_if.price_provider", provider=price_provider))
     if tariff_estimated_hours:

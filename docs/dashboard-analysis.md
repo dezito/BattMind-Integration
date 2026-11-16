@@ -161,7 +161,7 @@ measurements, but planning uses the round-trip loss.
 <details>
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/battery-efficiency.png" alt="Charging and discharging efficiency by AC power" width="760"></p>
+<p align="center"><img src="../images/battery-efficiency.png" alt="Charging and discharging efficiency by power" width="760"></p>
 
 </details>
 

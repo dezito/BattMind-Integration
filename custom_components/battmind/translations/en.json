@@ -1049,7 +1049,7 @@
       "message": "A buy-price entity is required for the historical what-if comparison"
     },
     "what_if_no_recorder": {
-      "message": "The Recorder is required for the historical what-if comparison"
+      "message": "The what-if comparison needs Home Assistant's history (Recorder)"
     },
     "what_if_range_incomplete": {
       "message": "Provide range_start, range_end, and range_step together"

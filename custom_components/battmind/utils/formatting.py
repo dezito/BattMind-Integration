@@ -10,7 +10,7 @@ from ..const import CHARGING_TYPES, currency_symbol
 _HELP_ITEM = re.compile(r"^(?P<indent>\s*)[*•-]\s+(?P<label>.+?):\s*(?P<description>.*)$")
 _ANALYSIS_HELP_KEYS = {"cycles_explain", "forecast_explain", "loss_explain", "rules_explain", "score_explain"}
 _ABBREVIATIONS = re.compile(
-    r"\b(?:[a-zæøåäöü]\.)+[a-zæøåäöü]\.|\b(?:avg|bl|ca|dvs|gns|inkl|kl|max|min|nr|pr|śr|сер)\.",
+    r"\b(?:[a-zæøåäöü]\.)+[a-zæøåäöü]\.|\b(?:avg|bl|ca|dvs|gns|inkl|kl|max|min|nr|pr|est|gesch|szac|śr|сер|оцін)\.",
     re.IGNORECASE,
 )
 

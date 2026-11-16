@@ -66,7 +66,7 @@ receive a persistent notification with a two-column comparison of the configured
 scenario; only values and rule switches that differ from the current setup are listed. The action also
 keeps returning the full simulation response for automations and scripts. A progress notification is shown
 while history is loaded and the simulation runs. While the history is loaded it shows the current step
-(long-term statistics, raw Recorder history, Energi Data Service tariffs, hourly values, preparing the
+(long-term history, detailed history, Energi Data Service tariffs, hourly values, preparing the
 simulation) and the elapsed seconds, updated when the step changes and at least every 10 seconds. When
 the simulation starts it is updated at most every 10 seconds with the percentage done and the simulated
 days, and the finished result (or an error) replaces that same notification. The action has more fields
@@ -238,7 +238,7 @@ the current value beside the scenario value for each setting you changed.
 | Part | Meaning |
 |---|---|
 | **period** | first/last hour and the amount of historical data actually used |
-| **data_sources** | counts of used entity-hour samples from long-term statistics and raw Recorder fallback |
+| **data_sources** | counts of used entity-hour samples from long-term statistics and raw Recorder fallback (only in the response, not shown in the notification) |
 | **price_provider** | the provider(s) that supplied the used hours, comma separated (**price_provider_hours** counts the hours of each) |
 | **tariff_estimated_hours** | hours where the tariff of the same time of day on the nearest recorded day was used instead of an exact-hour value (never a value of another hour of the day, and about 31 days away at most) |
 | **tariff_unavailable_hours** | hours left out of the simulation because required tariff history was unavailable, or only available further than 31 days from the hour |
