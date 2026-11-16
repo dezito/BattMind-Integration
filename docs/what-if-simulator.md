@@ -113,9 +113,11 @@ the additional **range** response list contains one entry per capacity, with pro
 differences measured against **current**. If **battery_size** is also supplied, it still controls the
 ordinary **scenario** comparison; each **range** entry uses its own capacity. Interval parameters
 are not planner settings; they are saved only with the latest successful calculation. The capacity
-replays run sequentially in the worker using separate
-replay engines, so a range takes longer than one scenario but never runs concurrent calculations on
-the live engine.
+replays run sequentially in a what-if thread of their own, on an engine of their own, using separate
+replay engines, so a range takes longer than one scenario. The simulation never runs on, or holds
+up, BattMind's planning worker: the plan, the optimizer and the live engine keep running while a
+what-if calculates. It only reads the live round trip loss and the measured efficiency curves from
+the live engine, in a short job at the start.
 
 For an optional module comparison, provide **module_capacity** and **module_price** together;
 **module_count** is optional (defaults to 5 and is limited to 12). The comparison starts with the

@@ -21,7 +21,7 @@ from custom_components.battmind.management import backup
 from custom_components.battmind.management.backup import BACKUP_DIR, async_get_stored_state
 from custom_components.battmind.const import CONF_ENTITY_PREFIX, DOMAIN
 
-from .conftest import PREFIX, async_unload_and_join, form_defaults
+from .conftest import PREFIX, async_join_workers, async_unload_and_join, form_defaults
 
 SWITCH = f"switch.{PREFIX}_cheapest_hour_fill_up"
 NUMBER = f"number.{PREFIX}_cheap_price_periods"
@@ -77,7 +77,7 @@ async def test_export_and_import_service(hass: HomeAssistant, config_dir: Path, 
         DOMAIN, "import_data", {"config_entry_id": entry_id, "file": file}, blocking=True
     )
     await _settle(hass)
-    await hass.async_add_executor_job(old_coordinator._executor.shutdown, True)
+    await async_join_workers(hass, old_coordinator)
 
     assert loaded_entry.state is ConfigEntryState.LOADED
     assert loaded_entry.runtime_data is not old_coordinator
@@ -123,7 +123,7 @@ async def test_deleted_entry_is_restored_by_the_config_flow(
     coordinator = loaded_entry.runtime_data
     await hass.config_entries.async_remove(entry_id)
     await _settle(hass)
-    await hass.async_add_executor_job(coordinator._executor.shutdown, True)
+    await async_join_workers(hass, coordinator)
 
     backups = [p.name for p in config_dir.iterdir()]
     assert len(backups) == 1 and backups[0].endswith("_deleted.json")
@@ -166,7 +166,7 @@ async def test_options_flow_export_and_import(hass: HomeAssistant, config_dir: P
     result = await hass.config_entries.options.async_configure(result["flow_id"], {"backup": name})
     assert result["type"] is FlowResultType.ABORT and result["reason"] == "backup_imported"
     await _settle(hass)
-    await hass.async_add_executor_job(old_coordinator._executor.shutdown, True)
+    await async_join_workers(hass, old_coordinator)
     assert hass.states.get(NUMBER).state == exported != "5.0"
 
 

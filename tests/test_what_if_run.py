@@ -4,23 +4,26 @@ from __future__ import annotations
 import asyncio
 import datetime
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from threading import Event
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 import yaml
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.template import Template
 
 from custom_components.battmind.const import DOMAIN, WHAT_IF_FLAGS, WHAT_IF_OVERRIDE_NUMBERS, WHAT_IF_RULE_SELECTS
-from custom_components.battmind.engine import JobResult
+from custom_components.battmind.engine import BattMindEngine, JobResult, Snapshot
 from custom_components.battmind.engine.planner.replay import WhatIfCancelled, replay_history
 from custom_components.battmind.management.backup import _collect_settings
 from custom_components.battmind.management.dashboard_build import render_dashboard
 from custom_components.battmind.management.what_if_storage import DashboardJob
-from .conftest import PREFIX
+from .conftest import PREFIX, async_join_workers
+from .test_analysis import _measured_engine
+from .test_engine import snapshot as analysis_snapshot
 from .test_planner_rules import DAY, _what_if_data, planned, realistic_snapshot
 from .test_what_if_view import module_comparison, simulation
 
@@ -369,7 +372,7 @@ async def test_the_progress_sensor_is_zero_when_idle_and_at_least_one_while_it_r
         assert progress().state == "0.0" and progress().attributes["status"] == status_name
 
 
-async def test_stop_stops_the_worker_and_keeps_the_previous_result(hass, loaded_entry):
+async def test_stop_stops_the_simulation_and_keeps_the_previous_result(hass, loaded_entry):
     coordinator = loaded_entry.runtime_data
     coordinator.async_what_if = AsyncMock(return_value=JobResult(value=simulation()))
     await run(hass)
@@ -386,7 +389,7 @@ async def test_stop_stops_the_worker_and_keeps_the_previous_result(hass, loaded_
             finished.set()
 
     async def simulate(_overrides, _days, _progress, *, cancel_check):
-        return await hass.loop.run_in_executor(coordinator._executor, worker, cancel_check)
+        return await hass.loop.run_in_executor(coordinator._what_if_executor, worker, cancel_check)
 
     coordinator.async_what_if = simulate
     await press(hass, "run_what_if")
@@ -656,42 +659,268 @@ async def test_unload_waits_for_service_and_preserves_its_save(hass, loaded_entr
     assert (await store.load())["simulation"] == {"service": True}
 
 
-async def test_worker_lock_stays_held_until_cancelled_worker_exits(hass, loaded_entry):
+async def test_a_running_what_if_does_not_hold_up_the_worker(hass, loaded_entry):
+    """The simulation runs on a thread and an engine of its own: the live worker keeps planning meanwhile."""
     coordinator = loaded_entry.runtime_data
-    entered, release, other_entered = Event(), Event(), Event()
-    job = DashboardJob("00000000-0000-4000-8000-000000000000")
+    entered, release = Event(), Event()
+    engines = []
 
-    def run_job(_snapshot, func, *args, **kwargs):
-        return func(*args, **kwargs)
-
-    def replay(*, cancel_check):
+    def blocked_what_if(self, data, overrides, **kwargs):
+        engines.append((self, kwargs))
         entered.set()
-        release.wait(5)
-        cancel_check()
-        return JobResult()
+        release.wait(10)
+        return {"simulated": True}
 
-    def other():
-        other_entered.set()
-        return JobResult()
+    try:
+        with patch.object(BattMindEngine, "what_if", blocked_what_if):
+            running = asyncio.create_task(coordinator._async_run_what_if_job({}, {}))
+            assert await hass.async_add_executor_job(entered.wait, 5)
+            assert not running.done()
 
-    fake_engine = SimpleNamespace(run_job=run_job, what_if=replay, debug_info=other)
-    with (
-        patch.object(coordinator, "engine", fake_engine),
-        patch.object(coordinator, "_async_snapshot", new=AsyncMock(return_value=object())),
-        patch.object(coordinator, "_async_publish", new=AsyncMock()),
-        patch.object(coordinator.debug, "record"),
-    ):
-        running = asyncio.create_task(coordinator.async_run_job("what_if", cancel_check=job.check))
-        assert await hass.async_add_executor_job(entered.wait, 5)
-        job.cancelled.set()
-        waiting = asyncio.create_task(coordinator.async_run_job("debug_info"))
-        await asyncio.sleep(0)
-        assert not other_entered.is_set()
+            # a job of the live engine needs neither the lock nor the thread the simulation is on
+            other = await asyncio.wait_for(coordinator.async_run_job("update_grid_prices", include_prices=True), 5)
+            assert other.error is None
+            assert not running.done()
+
+            release.set()
+            result_ = await asyncio.wait_for(running, 5)
+    finally:
         release.set()
+
+    assert result_.error is None and result_.value == {"simulated": True}
+    assert "_what_if_" in result_.worker_thread and "_worker_" in other.worker_thread
+    assert result_.worker_thread != other.worker_thread
+    # it is not the live engine, and it was given the live engine's values instead of reading its databases
+    (engine, kwargs), = engines
+    assert engine is not coordinator.engine
+    assert set(kwargs["live"]) == {"charging_loss", "learned_efficiency"}
+    # nothing of it is published or saved (its databases are empty), and the short live job is not shown as the
+    # last job of the plan either
+    assert result_.db_saves == {} and not result_.states and not result_.attributes
+    assert coordinator.last_job["job"] == "update_grid_prices"
+
+
+async def test_a_failing_live_inputs_job_is_the_error_of_the_result_and_is_not_published(hass, loaded_entry):
+    coordinator = loaded_entry.runtime_data
+    last_job = dict(coordinator.last_job)
+    started = Event()
+
+    def what_if(self, *_args, **_kwargs):
+        started.set()
+        return {}
+
+    def failing(_self):
+        raise RuntimeError("boom")
+
+    with (
+        patch.object(BattMindEngine, "what_if_live_inputs", failing),
+        patch.object(BattMindEngine, "what_if", what_if),
+    ):
+        result_ = await coordinator._async_run_what_if_job({}, {})
+
+    assert isinstance(result_.error, RuntimeError) and result_.value is None
+    assert not started.is_set()
+    assert coordinator.last_job == last_job
+
+
+async def test_what_if_cancelled_before_it_starts_never_asks_the_worker(hass, loaded_entry):
+    coordinator = loaded_entry.runtime_data
+    job = DashboardJob("00000000-0000-4000-8000-000000000000")
+    job.cancelled.set()
+
+    with patch.object(coordinator, "async_run_job", new=AsyncMock()) as run_job:
+        with pytest.raises(WhatIfCancelled):
+            await coordinator._async_run_what_if_job({}, {}, cancel_check=job.check)
+    run_job.assert_not_called()
+
+
+async def test_a_what_if_running_on_its_thread_stops_at_the_next_check(hass, loaded_entry):
+    coordinator = loaded_entry.runtime_data
+    job = DashboardJob("00000000-0000-4000-8000-000000000000")
+    entered = Event()
+
+    def looping(_self, _data, _overrides, *, cancel_check, **_kwargs):
+        entered.set()
+        while True:
+            cancel_check()
+            Event().wait(0.01)
+
+    with patch.object(BattMindEngine, "what_if", looping):
+        running = asyncio.create_task(coordinator._async_run_what_if_job({}, {}, cancel_check=job.check))
+        assert await hass.async_add_executor_job(entered.wait, 5)
+        assert not running.done()
+        job.cancelled.set()
         with pytest.raises(WhatIfCancelled):
             await asyncio.wait_for(running, 5)
-        await asyncio.wait_for(waiting, 5)
-        assert other_entered.is_set()
+
+
+async def test_home_assistant_stopping_stops_every_running_what_if_and_closes_the_store(hass, loaded_entry):
+    """Stopping Home Assistant does not unload the entry: a simulation with hours left would hold up the stop."""
+    coordinator = loaded_entry.runtime_data
+    dashboard = DashboardJob("00000000-0000-4000-8000-000000000000")
+    coordinator.what_if_store.dashboard_job = dashboard
+    entered = Event()
+
+    def looping(_self, _data, _overrides, *, cancel_check, **_kwargs):
+        entered.set()
+        while True:
+            cancel_check()
+            Event().wait(0.01)
+
+    with patch.object(BattMindEngine, "what_if", looping):
+        # no cancel_check of its own, like a simulation started by the action
+        running = asyncio.create_task(
+            coordinator._async_run_what_if_job({}, {}, cancel_check=coordinator._what_if_cancel_check(None))
+        )
+        assert await hass.async_add_executor_job(entered.wait, 5)
+        assert not running.done()
+        hass.bus.async_fire(EVENT_HOMEASSISTANT_STOP)
+        with pytest.raises(WhatIfCancelled):
+            await asyncio.wait_for(running, 5)
+
+    assert dashboard.cancelled.is_set()
+    assert coordinator.what_if_store.closed
+    # a result that is being saved is kept
+    committing = DashboardJob("00000000-0000-4000-8000-000000000001")
+    committing.committing = True
+    coordinator.what_if_store.dashboard_job = committing
+    coordinator.what_if_store.stop()
+    assert not committing.cancelled.is_set()
+
+
+async def test_unloading_stops_a_what_if_started_by_the_action_instead_of_waiting_for_it(hass, loaded_entry):
+    """The action's run has no dashboard job for the store to cancel: the unload stops it, or waits for hours."""
+    coordinator = loaded_entry.runtime_data
+    entered = Event()
+
+    def looping(_self, _data, _overrides, *, cancel_check, **_kwargs):
+        entered.set()
+        while True:
+            cancel_check()
+            Event().wait(0.01)
+
+    with patch.object(BattMindEngine, "what_if", looping):
+        running = asyncio.create_task(
+            coordinator._async_run_what_if_job({}, {}, cancel_check=coordinator._what_if_cancel_check(None))
+        )
+        coordinator.what_if_store.track(running)  # as the action does
+        assert coordinator.what_if_store.dashboard_job is None
+        assert await hass.async_add_executor_job(entered.wait, 5)
+
+        assert await asyncio.wait_for(hass.config_entries.async_unload(loaded_entry.entry_id), 10)
+        assert running.done() and isinstance(running.exception(), WhatIfCancelled)
+    await async_join_workers(hass, coordinator)
+
+
+async def test_the_stop_of_home_assistant_is_added_to_the_cancel_check_of_a_run(hass, loaded_entry):
+    coordinator = loaded_entry.runtime_data
+    job = DashboardJob("00000000-0000-4000-8000-000000000000")
+    check = coordinator._what_if_cancel_check(job.check)
+    check()
+    job.cancelled.set()
+    with pytest.raises(WhatIfCancelled):
+        check()
+    job.cancelled.clear()
+    check()
+    coordinator._what_if_stopping.set()
+    with pytest.raises(WhatIfCancelled):
+        check()
+
+
+async def test_a_second_what_if_waits_for_the_running_one_on_the_what_if_thread(hass, loaded_entry):
+    coordinator = loaded_entry.runtime_data
+    entered, release = Event(), Event()
+    started = []
+
+    def what_if(_self, data, _overrides, **_kwargs):
+        started.append(data["n"])
+        entered.set()
+        release.wait(10)
+        return {}
+
+    try:
+        with patch.object(BattMindEngine, "what_if", what_if):
+            first = asyncio.create_task(coordinator._async_run_what_if_job({"n": 1}, {}))
+            assert await hass.async_add_executor_job(entered.wait, 5)
+            second = asyncio.create_task(coordinator._async_run_what_if_job({"n": 2}, {}))
+            # the second has its live inputs and is queued on the what-if thread, which is busy with the first
+            for _ in range(500):
+                if coordinator._what_if_executor._work_queue.qsize() == 1:
+                    break
+                await asyncio.sleep(0.01)
+            assert coordinator._what_if_executor._work_queue.qsize() == 1
+            assert started == [1] and not second.done()
+            release.set()
+            await asyncio.wait_for(asyncio.gather(first, second), 5)
+    finally:
+        release.set()
+    assert started == [1, 2]
+
+
+async def test_the_what_if_snapshot_has_the_units_of_every_statistic(hass, loaded_entry):
+    """A missing unit would read a kW sensor as W."""
+    coordinator = loaded_entry.runtime_data
+    consumption = coordinator.config["home"]["entity_ids"]["power_consumption_entity_id"]
+    hass.states.async_set(consumption, "1.5", {"unit_of_measurement": "kW"})
+
+    snapshot = coordinator._what_if_snapshot()
+
+    assert set(snapshot.units) == set(coordinator.statistics_entities)
+    assert snapshot.units[consumption] == "kW"
+    assert snapshot.settings == coordinator.settings
+    assert snapshot.tz is not None
+
+
+def test_the_what_if_engine_of_its_own_gets_the_same_setup_as_the_live_engine() -> None:
+    """The live round trip loss and measured curves reach the replay: a fresh engine has neither."""
+    engine, now, _, _ = _measured_engine()
+    engine.config["solar"]["use_charge_discharge_loss_from_history"] = True
+    engine.charging_history_total = {"charged_kwh": 1000.0, "discharged_kwh": 800.0}
+    snap = analysis_snapshot(now, 50)
+    overrides = {"battery_size": 30.0, "round_trip_loss": 12.0}
+    expected = engine.run_job(snap, engine._what_if_setup, overrides).value
+    live = engine.run_job(snap, engine.what_if_live_inputs).value
+
+    fresh = BattMindEngine(deepcopy(engine.config), engine.name, engine.texts)
+    assert fresh.run_job(analysis_snapshot(now, 50), fresh._what_if_setup, overrides, live).value == expected
+    # without them the fresh engine's empty databases would silently be used
+    without = fresh.run_job(analysis_snapshot(now, 50), fresh._what_if_setup, {}).value[0]["solar"]
+    current = engine.run_job(snap, engine._what_if_setup, {}).value[0]["solar"]
+    assert current["battery_charging_efficiency_curve"] == {"3250": 90.0}
+    assert without["battery_charging_efficiency_curve"] == {}
+    assert current["powerwall_charge_discharge_loss"] != without["powerwall_charge_discharge_loss"]
+    assert current["use_charge_discharge_loss_from_history"] is False
+
+
+@pytest.mark.parametrize(
+    ("optimizer_control", "extra"),
+    [
+        (True, {}),
+        (False, {}),
+        # the capacity range and the module comparison set up more cases: each of them needs the live values too
+        (True, {"capacity_range": [0.0, 30.0]}),
+        (False, {"module_comparison": {"module_capacity": 5.0, "module_price": 1000.0, "module_count": 2}}),
+    ],
+)
+def test_the_simulation_gives_the_same_result_on_an_engine_of_its_own(optimizer_control: bool, extra: dict) -> None:
+    settings = {"optimizer_control": optimizer_control}
+    engine, _ = planned(3, 40, settings, solar=True)
+    data = _what_if_data(engine, days=2)
+    snap = realistic_snapshot(datetime.datetime.combine(DAY, datetime.time(3, 30)), 40, settings)
+    # the live engine has measured values of its own
+    engine.charging_history_total = {"charged_kwh": 1000.0, "discharged_kwh": 800.0}
+    engine.config["solar"]["use_charge_discharge_loss_from_history"] = True
+
+    old = engine.run_job(snap, engine.what_if, data, {"battery_size": 25.0}, **extra)
+    assert old.error is None, old.error
+    live = engine.run_job(snap, engine.what_if_live_inputs).value
+
+    fresh = BattMindEngine(deepcopy(engine.config), engine.name, engine.texts)
+    own = Snapshot(now=snap.now, tz=snap.tz, settings=dict(snap.settings), units=dict(snap.units))
+    new = fresh.run_job(own, fresh.what_if, data, {"battery_size": 25.0}, live=live, **extra)
+    assert new.error is None, new.error
+    assert new.value == old.value
+    assert new.db_saves == {}
 
 
 def test_replay_checks_cancellation_before_constructing_engine():

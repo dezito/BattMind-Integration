@@ -107,12 +107,19 @@ def mock_entry() -> MockConfigEntry:
     )
 
 
+async def async_join_workers(hass: HomeAssistant, coordinator) -> None:
+    """Wait for the worker thread and the what-if thread of an unloaded coordinator (the HA test harness fails on
+    lingering threads)."""
+    for name in ("_executor", "_what_if_executor"):
+        await hass.async_add_executor_job(getattr(coordinator, name).shutdown, True)
+
+
 async def async_unload_and_join(hass: HomeAssistant, entry: MockConfigEntry) -> None:
-    """Unload and wait for the worker thread (the HA test harness fails on lingering threads)."""
+    """Unload and wait for the worker threads (the HA test harness fails on lingering threads)."""
     coordinator = entry.runtime_data
     await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
-    await hass.async_add_executor_job(coordinator._executor.shutdown, True)
+    await async_join_workers(hass, coordinator)
 
 
 @pytest.fixture

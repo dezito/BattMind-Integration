@@ -132,8 +132,8 @@ every rule explained with examples, [inverter setups](docs/inverters/huawei.md) 
   hours, and then planning falls back to the database
 - **Multiple instances:** each instance has its own prefix (e.g. one per battery)
 - **Languages:** Danish, English, German, Polish and Ukrainian
-- **Does not run in Home Assistant's main thread:** all calculations run in BattMind's own worker thread, so
-  Home Assistant is not blocked while the plan is calculated
+- **Does not run in Home Assistant's main thread:** all calculations run in BattMind's own worker threads (the what-if
+  simulator has a thread of its own), so Home Assistant is not blocked while the plan is calculated
 
 | Battery level costs and plan | Bill with and without battery | Charging history |
 | --- | --- | --- |

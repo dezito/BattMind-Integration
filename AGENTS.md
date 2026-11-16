@@ -182,7 +182,18 @@ Agents record lasting decisions and findings for this repository here (not in
 private agent memory). Update or remove a note when it stops being true.
 
 - Keep the worker-thread design so calculations never block HA:
-  single-thread executor, snapshot -> job result.
+  single-thread executor, snapshot -> job result. The what-if simulation is
+  the exception: it runs on its own `BattMindEngine` in `_what_if_executor`,
+  outside `_job_lock`, so it never holds up planning. An engine has one job at
+  a time (`run_job` keeps per-job state on the instance), so never run two jobs
+  on one engine from two threads. The what-if engine has empty databases: it
+  gets the live round trip loss and measured curves only through the short
+  `what_if_live_inputs` job on the worker (`what_if(live=...)`); a what-if
+  engine without `live` would silently use empty defaults. Its result is not
+  published or saved by the coordinator. `stop_what_ifs()` stops every running
+  what-if (`_what_if_stopping`, also one started by the action, which has no
+  dashboard job); it runs when the entry unloads and from `_on_ha_stop`,
+  because Home Assistant stopping does not unload entries.
 - Database fail-safe lives in `management/storage.py` (same code in CJP): every
   save goes through `BattMindStorage.async_save`, which first copies the valid
   current file to `battmind_backups/storage/` (one copy a day, 3 kept; the

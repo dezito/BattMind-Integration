@@ -40,7 +40,7 @@ from custom_components.battmind.coordinator import BattMindCoordinator
 from custom_components.battmind.engine import BattMindEngine, JobResult
 from custom_components.battmind.prices import create_price_provider
 
-from .conftest import CONSUMPTION, PREFIX, async_advance, async_unload_and_join, set_source_states
+from .conftest import CONSUMPTION, PREFIX, async_advance, async_join_workers, async_unload_and_join, set_source_states
 
 
 def test_what_if_battery_size_accepts_zero_and_rejects_negative() -> None:
@@ -298,15 +298,15 @@ async def test_what_if_reads_statistics_and_raw_recorder_history(
     coordinator.engine.price_provider = create_price_provider(coordinator.config)
     recorder = AsyncMock()
     recorder.async_add_executor_job.side_effect = [{}, {}, {}]
-    coordinator.async_run_job = AsyncMock(return_value=JobResult(value={}))
+    # the simulation itself (its own engine and thread) is tested in test_what_if_run.py
+    coordinator._async_run_what_if_job = AsyncMock(return_value=JobResult(value={}))
 
     with patch("homeassistant.components.recorder.get_instance", return_value=recorder):
         await coordinator.async_what_if({}, 1, capacity_range=[0, 5])
 
     assert recorder.async_add_executor_job.await_count == 3
-    job_name, data, overrides = coordinator.async_run_job.await_args.args
-    assert job_name == "what_if"
-    assert coordinator.async_run_job.await_args.kwargs["capacity_range"] == [0, 5]
+    data, overrides = coordinator._async_run_what_if_job.await_args.args
+    assert coordinator._async_run_what_if_job.await_args.kwargs["capacity_range"] == [0, 5]
     assert "stats" in data
     assert "long_term_statistics_timestamps" in data
     assert data["price_providers"] == [
@@ -357,7 +357,7 @@ async def test_what_if_reads_statistics_and_raw_recorder_history(
     with patch("homeassistant.components.recorder.get_instance", return_value=recorder):
         await coordinator.async_what_if({}, 1)
     assert recorder.async_add_executor_job.await_count == 2
-    _, data, _ = coordinator.async_run_job.await_args.args
+    data, _ = coordinator._async_run_what_if_job.await_args.args
     assert data["price_providers"][1]["sell_includes_tariffs"] is False
 
 
@@ -375,13 +375,13 @@ async def test_what_if_reports_the_loading_phases_until_the_simulation_starts(
             await release.wait()  # a slow long-term statistics query
         return {}
 
-    async def run_job(job, data, overrides, progress=None):
+    async def run_job(data, overrides, progress=None, **_kwargs):
         progress({"percent": 50, "step": 1, "steps": 1, "hours": 12, "total_hours": 24})
         return JobResult(value={})
 
     recorder = AsyncMock()
     recorder.async_add_executor_job.side_effect = recorder_job
-    coordinator.async_run_job = run_job
+    coordinator._async_run_what_if_job = run_job
     reports: list[dict] = []
     with patch("homeassistant.components.recorder.get_instance", return_value=recorder):
         # not a Home Assistant task: async_block_till_done() would wait for the blocked query
@@ -834,7 +834,7 @@ async def test_settings_and_databases_survive_reload(hass: HomeAssistant, loaded
     old_coordinator = loaded_entry.runtime_data
     assert await hass.config_entries.async_reload(entry_id)
     await hass.async_block_till_done(wait_background_tasks=True)
-    await hass.async_add_executor_job(old_coordinator._executor.shutdown, True)
+    await async_join_workers(hass, old_coordinator)
 
     coordinator = loaded_entry.runtime_data
     assert coordinator is not old_coordinator and coordinator.started
@@ -853,7 +853,7 @@ async def test_entity_names_follow_the_language_of_the_entry(hass: HomeAssistant
     old_coordinator = loaded_entry.runtime_data
     hass.config_entries.async_update_entry(loaded_entry, options={**loaded_entry.options, "language": "en"})
     await hass.async_block_till_done(wait_background_tasks=True)
-    await hass.async_add_executor_job(old_coordinator._executor.shutdown, True)
+    await async_join_workers(hass, old_coordinator)
 
     assert loaded_entry.runtime_data is not old_coordinator
     assert er.async_get(hass).async_get(entity_id).original_name == "Solar surplus charging"
