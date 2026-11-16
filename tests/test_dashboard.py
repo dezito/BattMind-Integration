@@ -386,6 +386,16 @@ def test_read_more_text_uses_spaced_bold_italic_labels() -> None:
     assert format_analysis_help_text("Minimum target level: next line. Following sentence.") == (
         "Minimum target level:\nNext line.\nFollowing sentence."
     )
+    # only the first letter after a colon or semicolon is raised; the rest keeps its case
+    assert format_analysis_help_text("Sparet i alt: Gennemsnit af Månedens Priser.") == "Sparet i alt:\nGennemsnit af Månedens Priser."
+    # the score text names its columns with the labels of the table, in every language
+    for language in LANGUAGES:
+        score = load_texts(language)
+        assert f"**{score['dashboard.saved']}**" in score["dashboard.score_explain"], language
+        assert f"**{score['dashboard.possible']}**" in format_analysis_help_text(score["dashboard.score_explain"]), language
+    # Polish and Ukrainian abbreviations in a bold label do not split the label over two lines
+    assert "Śr. kWh/godz." in format_analysis_help_text("Pierwsze zdanie. **Śr. kWh/godz.** to zużycie.")
+    assert "Сер. кВт·год/год" in format_analysis_help_text("Перше речення. **Сер. кВт·год/год** — споживання.")
     assert load_texts("da")["dashboard.rules_explain"].startswith("Ladning pr. regel:")
     assert "***Ladet (☀️)***\n" in load_texts("da")["dashboard.economy_explain"]
 

@@ -118,7 +118,7 @@ every rule explained with examples, [inverter setups](docs/inverters/huawei.md) 
 - **Detailed charging history and overview** as markdown
 - **[Analysis](docs/dashboard-analysis.md#analysis)** of what the battery earns and how well BattMind plans
 - **[What-if simulator](docs/what-if-simulator.md):** replay the BattMind planner (rules or optimisation) on your history and compare battery capacity, power, loss, wear, reserve, the controller and every planning setting without changing the active plan; it skips incomplete hours, uses available Recorder/statistics history, restarts each data segment at the battery's minimum level, and applies historical sell tariffs conservatively
-  - economy per month: charged (grid/solar), discharged, charge price, value of a discharged kWh, spread and savings
+  - economy per month: charged (grid/solar), discharged, charge price, value of a discharged kWh, margin per kWh and savings
   - charged and discharged per rule, cycles and wear
   - measured round trip loss against the configured loss, and self-sufficiency (solar, battery, grid)
   - the error of each consumption forecast type against the actual consumption, and why another type is suggested when it is more accurate; optionally the most accurate type is chosen automatically

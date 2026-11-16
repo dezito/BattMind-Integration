@@ -11,8 +11,8 @@ The battery only moves energy from cheap to expensive hours.
 - The solar rules (*Optimise solar charging*, *Before the sun*) don't do anything and can stay on.
 - Set the **wear** realistically: without solar, every kWh in the battery is bought, and the price
   difference between night and evening has to pay for loss and wear.
-- Look at **Spread** and **Savings** in the [economy analysis](dashboard-analysis.md#economy-per-month)
-  after a month. If the spread is small, raise **min. profit per kWh** so the battery only cycles on days
+- Look at **Margin/kWh** and **Savings** in the [economy analysis](dashboard-analysis.md#economy-per-month)
+  after a month. If the margin is small, raise **min. profit per kWh** so the battery only cycles on days
   that pay.
 
 ## Solar panels with the hourly sell price

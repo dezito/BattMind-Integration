@@ -10,7 +10,7 @@ from ..const import CHARGING_TYPES, currency_symbol
 _HELP_ITEM = re.compile(r"^(?P<indent>\s*)[*•-]\s+(?P<label>.+?):\s*(?P<description>.*)$")
 _ANALYSIS_HELP_KEYS = {"cycles_explain", "forecast_explain", "loss_explain", "rules_explain", "score_explain"}
 _ABBREVIATIONS = re.compile(
-    r"\b(?:[a-zæøåäöü]\.)+[a-zæøåäöü]\.|\b(?:avg|bl|ca|dvs|gns|inkl|kl|max|min|nr|pr)\.",
+    r"\b(?:[a-zæøåäöü]\.)+[a-zæøåäöü]\.|\b(?:avg|bl|ca|dvs|gns|inkl|kl|max|min|nr|pr|śr|сер)\.",
     re.IGNORECASE,
 )
 
@@ -57,7 +57,8 @@ def format_analysis_help_text(text: str) -> str:
         if ":" in sentence or ";" in sentence:
             separator = ":" if ":" in sentence else ";"
             label, description = sentence.split(separator, 1)
-            points.extend((f"{label.strip()}{separator}", description.strip().capitalize()))
+            description = description.strip()  # only the first letter is raised: capitalize() would lower the rest (German nouns, labels)
+            points.extend((f"{label.strip()}{separator}", description[:1].upper() + description[1:]))
         else:
             points.append(sentence.replace("\u0001", ":"))
     return "\n".join(points)
