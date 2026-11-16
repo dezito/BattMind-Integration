@@ -508,7 +508,7 @@ def test_missing_hours_are_filled_from_the_price_history() -> None:
     snap = snapshot(now, 50)
     attributes = snap.price_data["attributes"]["sensor.price"]
     attributes.update(raw_tomorrow=[], tomorrow_valid=False, forecast=[])
-    engine = BattMindEngine(build_config(OPTIONS), "test", TEXTS)
+    engine = BattMindEngine(build_config({**OPTIONS, "days_to_predict": 3}), "test", TEXTS)
     assert engine.run_job(snap, engine.startup, {"power_values": _power_values_db(), "kwh_avg_prices": _price_history()}).error is None
     result = engine.run_job(snap, engine.charge_if_needed, True)
     assert result.error is None, result.error

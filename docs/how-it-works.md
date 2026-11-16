@@ -10,7 +10,7 @@ Every few minutes (the **interval**, default 5 min) BattMind:
 2. recalculates the plan – but only when one of these has changed since the last time
 3. sets `sensor.<prefix>_powerwall_action` to what the battery should do **right now**
 
-The plan covers **days to plan** (default 3: today and the next two days). It is shown on the dashboard
+The plan covers **days to plan** (default 7: today and the next six days). It is shown on the dashboard
 with a reason for every hour: first the key figures of the period (the gain, what the battery is charged from the grid and from solar,
 and what it sells) with the full bill one click away, then a section for each day with something planned,
 with the hours of the day as coloured squares (see [Emojis](emojis.md)), the kWh charged from the grid and sold from the battery that

@@ -134,13 +134,11 @@
     },
     "entity_unavailable": {
       "title": "Entity unavailable",
-      "message": "Entity ’{entity}’ unavailable since {timestamp}",
-      "restart_integration": "Restarting integration"
+      "message": "Entity ’{entity}’ unavailable since {timestamp}"
     },
     "validation_procedure": {
       "entity_validation": "Validating entities",
       "entity_missing_try_again": "Some entities are missing\nRetrying in 2 minutes",
-      "entity_ids_missing": "Some entity IDs are missing\n- {entity_ids}",
       "entity_unavailable_try_again": "Some entities are unavailable\nRetrying in 2 minutes",
       "unavailable_entity_ids_title": "Some entity IDs are unavailable",
       "check_entity_ids": "Check entity IDs"
@@ -186,12 +184,9 @@
       },
       "offline_prices": "Using offline prices for some hours",
       "no_upcoming_charging_planned": "No upcoming charging planned",
-      "enough_solar_production": "Sufficient solar production for charging",
       "solar_production_title": "Excess solar production available",
       "no_solar_production": "No excess solar production available",
       "last_scheduled": "Last scheduled",
-      "no_charging_sessions": "No charging sessions planned",
-      "no_blocked_discharging_planned": "No blocked discharging planned",
       "plan_title": "Charge/discharge plan",
       "show_all_days": "Show all days",
       "today": "Today",
@@ -245,7 +240,6 @@
     "charge_if_needed": {
       "temperature_unavailable": "Battery stopped: temperature unavailable",
       "temperature_safety_stop": "Battery stopped: {temperature} °C outside {minimum}-{maximum} °C",
-      "no_charging_modes_active": "No charging modes active\nCharging {watt}W",
       "planned_charging": "Charging up to {emoji}",
       "not_charging": "Not charging",
       "force_solar_only_charging": "Solar-only charging allowed",
@@ -266,10 +260,8 @@
         "configured": "Yes",
         "not_configured": "No"
       },
-      "setting_entities": "Setting up entities",
       "loading_db": "Loading databases",
       "loading_history": "Loading charging history",
-      "almost_ready": "Almost ready",
       "calc_charging_plan": "Calculating charging plan"
     },
     "what_if": {
