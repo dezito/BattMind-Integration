@@ -30,7 +30,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "enable_diagnostic_file_log": False,
     # number of days (incl. today) the charging plan covers
-    "days_to_predict": 3,
+    "days_to_predict": 7,
     # show the generated BattMind dashboard in the sidebar
     "dashboard": True,
     # sidebar icon of the dashboard (mdi:... or another icon set known to the frontend)
@@ -211,9 +211,20 @@ FLOW_STEPS: dict[str, list[str]] = {
         "stromligning_sell_surcharge",
     ],
     "price_fees": ["refund", "sell_fee"],
-    "solar": ["production_entity_id", "inverter_discharging_power_limit", "production_price", "forecast_entity_id"],
+    "solar": [
+        "production_entity_id",
+        "inverter_discharging_power_limit",
+        "production_price",
+        "forecast_entity_id",
+    ],
     "weather": ["hourly_service_entity_id", "daily_service_entity_id"],
-    "advanced": ["days_to_predict", "cron_interval", "dashboard", "enable_diagnostic_file_log", "testing_mode"],
+    "advanced": [
+        "days_to_predict",
+        "cron_interval",
+        "dashboard",
+        "enable_diagnostic_file_log",
+        "testing_mode",
+    ],
     "database": [
         "power_values_db_data_to_save",
         "solar_available_db_data_to_save",
@@ -225,7 +236,8 @@ FLOW_STEPS: dict[str, list[str]] = {
 # Price provider -> option keys belonging to it (cleared when the provider is deselected)
 PRICE_PROVIDER_KEYS: dict[str, list[str]] = {
     "energidataservice": FLOW_STEPS["prices_energidataservice"],
-    "stromligning": FLOW_STEPS["prices_stromligning"] + FLOW_STEPS["prices_stromligning_tariffs"],
+    "stromligning": FLOW_STEPS["prices_stromligning"]
+    + FLOW_STEPS["prices_stromligning_tariffs"],
 }
 
 # Options flow menu -> pages walked through in order
@@ -233,7 +245,13 @@ OPTIONS_MENU: dict[str, list[str]] = {
     "general": ["general"],
     "battery": ["battery_entities", "battery_specs", "battery_actions"],
     "consumption": ["consumption"],
-    "prices": ["price_provider", "prices_energidataservice", "prices_stromligning", "prices_stromligning_tariffs", "price_fees"],
+    "prices": [
+        "price_provider",
+        "prices_energidataservice",
+        "prices_stromligning",
+        "prices_stromligning_tariffs",
+        "price_fees",
+    ],
     "solar": ["solar", "weather"],
     "advanced": ["advanced", "database"],
 }

@@ -134,13 +134,11 @@
     },
     "entity_unavailable": {
       "title": "Сутність недоступна",
-      "message": "Сутність ’{entity}’ недоступна з {timestamp}",
-      "restart_integration": "Перезапуск інтеграції"
+      "message": "Сутність ’{entity}’ недоступна з {timestamp}"
     },
     "validation_procedure": {
       "entity_validation": "Перевірка сутностей",
       "entity_missing_try_again": "Деякі сутності відсутні\nПовторна спроба через 2 хвилини",
-      "entity_ids_missing": "Відсутні деякі ідентифікатори сутностей\n- {entity_ids}",
       "entity_unavailable_try_again": "Деякі сутності недоступні\nПовторна спроба через 2 хвилини",
       "unavailable_entity_ids_title": "Деякі ідентифікатори сутностей недоступні",
       "check_entity_ids": "Перевірте ідентифікатори сутностей"
@@ -186,12 +184,9 @@
       },
       "offline_prices": "Використовуються офлайн-ціни для деяких годин",
       "no_upcoming_charging_planned": "Майбутнє заряджання не заплановано",
-      "enough_solar_production": "Достатня сонячна генерація для заряджання",
       "solar_production_title": "Доступний надлишок сонячної енергії",
       "no_solar_production": "Немає доступного надлишку сонячної енергії",
       "last_scheduled": "Останнє планування",
-      "no_charging_sessions": "Немає запланованих сеансів заряджання",
-      "no_blocked_discharging_planned": "Немає запланованого заблокованого розряджання",
       "plan_title": "План заряду/розряду",
       "show_all_days": "Показати всі дні",
       "today": "Сьогодні",
@@ -245,7 +240,6 @@
     "charge_if_needed": {
       "temperature_unavailable": "Батарею зупинено: температура недоступна",
       "temperature_safety_stop": "Батарею зупинено: {temperature} °C поза діапазоном {minimum}-{maximum} °C",
-      "no_charging_modes_active": "Немає активних режимів заряджання\nЗаряджання {watt}W",
       "planned_charging": "Заряджання до {emoji}",
       "not_charging": "Не заряджається",
       "force_solar_only_charging": "Дозволено лише заряджання від сонячної енергії",
@@ -266,10 +260,8 @@
         "configured": "Так",
         "not_configured": "Ні"
       },
-      "setting_entities": "Налаштування сутностей",
       "loading_db": "Завантаження баз даних",
       "loading_history": "Завантаження історії заряджання",
-      "almost_ready": "Майже готово",
       "calc_charging_plan": "Розрахунок плану заряджання"
     },
     "what_if": {

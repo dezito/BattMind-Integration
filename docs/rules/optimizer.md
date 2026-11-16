@@ -12,7 +12,7 @@ The rules decide one thing at a time: first what to charge, then what to sell. E
 own, but they can't see each other's consequences – a sale may make a charge later necessary, which costs
 more than the sale earned.
 
-The optimisation looks at the **whole plan at once** (days to plan, default 3). For every hour it picks one
+The optimisation looks at the **whole plan at once** (days to plan, default 7). For every hour it picks one
 of the five [actions](../actions.md), so the total electricity bill of the period is as low as possible:
 
 | Action | In the model |
