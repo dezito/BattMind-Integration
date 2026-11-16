@@ -62,7 +62,7 @@ From the charging history:
 | Charge price | what a kWh in the battery cost: grid at the buy price, solar at the sell price it would otherwise have earned |
 | Discharged | kWh out of the battery |
 | Value | what a discharged kWh was worth: the energy the house didn't buy, plus sales |
-| Spread | value minus charge price – the margin per kWh before loss and wear. The bigger, the better the battery moves energy from cheap to expensive hours |
+| Margin/kWh | value minus charge price – the margin per kWh before loss and wear. The bigger, the better the battery moves energy from cheap to expensive hours |
 | Avg. price | the month's average buy price over all hours |
 | Savings | what the battery saved, after loss and wear |
 

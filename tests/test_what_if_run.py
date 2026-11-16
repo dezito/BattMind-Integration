@@ -1049,4 +1049,4 @@ async def test_the_markdown_cards_render_the_published_result_and_status(hass, l
     coordinator.async_what_if = AsyncMock(side_effect=HomeAssistantError(translation_domain=DOMAIN, translation_key="what_if_no_recorder"))
     await run(hass)
     rendered = "\n".join(_render(hass, content) for content in cards)
-    assert "Recorder er påkrævet" in rendered
+    assert "Sammenligningen kræver Home Assistants historik (Recorder)" in rendered
