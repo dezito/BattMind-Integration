@@ -1049,7 +1049,7 @@
       "message": "Den historiske what-if-sammenligning kræver en købspris-entitet"
     },
     "what_if_no_recorder": {
-      "message": "Recorder skal være aktiv for den historiske what-if-sammenligning"
+      "message": "What-if-sammenligningen kræver Home Assistants historik (Recorder)"
     },
     "what_if_range_incomplete": {
       "message": "Angiv range_start, range_end og range_step sammen"

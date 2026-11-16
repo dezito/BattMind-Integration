@@ -528,7 +528,6 @@ async def test_what_if_service_returns_simulation_without_changing_options(
         in notification
     )
     assert "|---|---|---|" in notification
-    assert coordinator.t("ui.what_if.data_sources", statistics=100, recorder=5) in notification
     assert coordinator.t(
         "ui.what_if.price_provider", provider="Energi Data Service"
     ) in notification

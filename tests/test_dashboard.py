@@ -300,8 +300,8 @@ def test_texts_follow_the_language() -> None:
     en = yaml.safe_load(rendered("en"))
     assert da["views"][1]["title"] == "Indstillinger"
     assert en["views"][1]["title"] == "Settings"
-    assert da["views"][0]["sections"][0]["cards"][0]["header"]["title"] == "Husbatteri SOC prognose"
-    assert en["views"][0]["sections"][0]["cards"][0]["header"]["title"] == "Home battery SOC forecast"
+    assert da["views"][0]["sections"][0]["cards"][0]["header"]["title"] == "Prognose for husbatteriets niveau"
+    assert en["views"][0]["sections"][0]["cards"][0]["header"]["title"] == "Home battery level forecast"
 
 
 def test_currency_follows_home_assistant() -> None:
@@ -397,6 +397,11 @@ def test_read_more_text_uses_spaced_bold_italic_labels() -> None:
     assert "Śr. kWh/godz." in format_analysis_help_text("Pierwsze zdanie. **Śr. kWh/godz.** to zużycie.")
     assert "Сер. кВт·год/год" in format_analysis_help_text("Перше речення. **Сер. кВт·год/год** — споживання.")
     assert load_texts("da")["dashboard.rules_explain"].startswith("Ladning pr. regel:")
+    # the abbreviated "estimated gain" label of the rules table stays in one piece in every language
+    for language, label in {"da": "anslået gevinst", "de": "gesch. Gewinn", "en": "est. gain", "pl": "szac. zysk", "uk": "оцін. виграш"}.items():
+        rules = format_analysis_help_text(load_texts(language)["dashboard.rules_explain"])
+        assert f"**{label}** =" in rules, language
+        assert len(rules.splitlines()) == 6, (language, rules)
     assert "***Ladet (☀️)***\n" in load_texts("da")["dashboard.economy_explain"]
 
 
@@ -587,7 +592,7 @@ def test_efficiency_curve_chart_keeps_points_inside_its_time_window() -> None:
     chart = next(
         node for node in walk(content)
         if node.get("type") == "custom:apexcharts-card"
-        and node.get("header", {}).get("title") == "Efficiency by AC power"
+        and node.get("header", {}).get("title") == "Efficiency by power"
     )
     assert chart["graph_span"] == "24h"
     assert chart["span"] == {"end": "minute"}

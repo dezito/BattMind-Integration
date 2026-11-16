@@ -900,7 +900,7 @@
       "message": "Для історичного порівняння what-if потрібна сутність ціни купівлі"
     },
     "what_if_no_recorder": {
-      "message": "Для історичного порівняння what-if потрібен Recorder"
+      "message": "Порівняння what-if потребує історії Home Assistant (Recorder)"
     },
     "what_if_range_incomplete": {
       "message": "Укажіть range_start, range_end і range_step разом"

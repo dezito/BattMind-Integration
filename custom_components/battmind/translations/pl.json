@@ -900,7 +900,7 @@
       "message": "Historyczne porównanie what-if wymaga encji ceny zakupu"
     },
     "what_if_no_recorder": {
-      "message": "Historyczne porównanie what-if wymaga Recordera"
+      "message": "Porównanie what-if wymaga historii Home Assistant (Recorder)"
     },
     "what_if_range_incomplete": {
       "message": "Podaj razem wartości range_start, range_end i range_step"
