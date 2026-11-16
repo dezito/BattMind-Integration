@@ -13,6 +13,8 @@ from homeassistant.util import dt as dt_util
 from custom_components.battmind.const import DOMAIN
 from custom_components.battmind.engine import JobResult
 
+from .conftest import async_join_workers
+
 
 async def _run_what_if(hass, entry, **inputs):
     """Call the public service while suppressing its presentation-only notification."""
@@ -189,7 +191,7 @@ async def test_unload_waits_for_pending_persistence(
         await asyncio.wait_for(asyncio.gather(caller, return_exceptions=True), timeout=5)
         assert caller.done()
 
-    await hass.async_add_executor_job(coordinator._executor.shutdown, True)
+    await async_join_workers(hass, coordinator)
 
 
 async def test_same_entry_persistence_writes_are_serialized(

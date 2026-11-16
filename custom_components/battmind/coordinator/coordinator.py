@@ -3,15 +3,18 @@
 The coordinator only does light work on the event loop: it collects a plain
 :class:`Snapshot` of Home Assistant data, sends the calculation to the BattMind worker
 thread and publishes the result. All heavy work (planning, history, predictions,
-markdown) runs in the worker.
+markdown) runs in the worker. The what-if simulation is the exception: it runs on a thread
+and an engine of its own (see CoordinatorWhatIf), so it never holds up the worker.
 """
 from __future__ import annotations
 
 import asyncio
 import datetime
 import logging
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from functools import partial
 from logging.handlers import QueueHandler, QueueListener
 from typing import Any, Callable
@@ -25,7 +28,7 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
 from ..const import CONF_ENTITY_PREFIX, DOMAIN, SIGNAL_UPDATE, build_config, default_options, normalize_language
-from ..engine import BattMindEngine, JobResult
+from ..engine import BattMindEngine, JobResult, Snapshot
 from ..engine.planner.what_if import PROGRESS_INTERVAL
 from ..engine.planner.replay import WhatIfCancelled
 from ..utils.formatting import translate
@@ -41,7 +44,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorData, CoordinatorWhatIf):
-    """Owns the engine, the worker thread and all scheduling for one config entry."""
+    """Owns the engine, the worker thread (and the what-if thread) and all scheduling for one config entry."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
@@ -65,6 +68,11 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self.started = False
 
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"battmind_{self.prefix}_worker")
+        # the what-if simulation (minutes to hours) runs on a thread of its own, on an engine of its own, so the worker
+        # above, which the planning and the optimizer run on, is never held up by it (no _job_lock either)
+        self._what_if_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"battmind_{self.prefix}_what_if")
+        # set when Home Assistant stops: every running what-if (also one started by the action) stops at its next check
+        self._what_if_stopping = threading.Event()
         self._job_lock = asyncio.Lock()
         self._unsubs: list[Callable[[], None]] = []
         self._started_unsub: Callable[[], None] | None = None
@@ -198,11 +206,14 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
     # ------------------------------------------------------------------ #
 
     async def async_run_job(
-        self, job_name: str, *args, include_prices: bool = False, include_forecast: bool = False, **job_kwargs
+        self, job_name: str, *args, include_prices: bool = False, include_forecast: bool = False, publish: bool = True,
+        **job_kwargs
     ) -> JobResult:
         """Collect a snapshot on the event loop and run the job in the worker thread.
 
         job_kwargs are passed to the job but not kept in the debug export (e.g. callbacks).
+        publish=False is for a job that only reads (a question to the live engine): its result is returned, but not
+        published (no sensor, no last_job) and not recorded for the debug export.
         """
         async with self._job_lock:
             cancel_check = job_kwargs.get("cancel_check")
@@ -217,8 +228,12 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
             )
             if cancel_check:
                 cancel_check()
-            await self._async_publish(result, job_name)
-            self.debug.record(job_name, args, snapshot, result, self.data.get("current_charging_rule"))
+            if publish:
+                await self._async_publish(result, job_name)
+                self.debug.record(job_name, args, snapshot, result, self.data.get("current_charging_rule"))
+            elif result.db_saves or result.states or result.attributes or result.notifications or result.request_reload:
+                # a job that only reads must not have anything to publish: it would be lost without a trace
+                _LOGGER.error("Job %s was run without publishing but returned output that is discarded", job_name)
             _LOGGER.debug("Job %s ran in %s for %.3fs", job_name, result.worker_thread, result.duration)
             return result
 
@@ -249,6 +264,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         """
         if "recorder" not in self.hass.config.components:
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="what_if_no_recorder")
+        cancel_check = self._what_if_cancel_check(cancel_check)
         # in PRICE_PROVIDER_PRIORITY order: the what-if uses the first provider with price
         # history for each hour and falls back to the next one
         provider = self.price_provider
@@ -301,7 +317,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
             progress({**info, "seconds": int(time.monotonic() - started)})
 
         def report(info: dict) -> None:
-            # called in the worker thread
+            # called in the thread the simulation runs on
             self.hass.loop.call_soon_threadsafe(simulation_progress, info)
 
         cancel_ticker = async_track_time_interval(self.hass, tick, datetime.timedelta(seconds=PROGRESS_INTERVAL))
@@ -327,7 +343,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         cancel_check: Callable[[], None] | None = None,
         module_comparison: dict | None = None,
     ) -> JobResult:
-        """Read the Recorder history of the what-if comparison and run it in the worker."""
+        """Read the Recorder history of the what-if comparison and run it on the what-if thread."""
         from homeassistant.components.recorder import get_instance, history
         from homeassistant.components.recorder.statistics import statistics_during_period
 
@@ -422,7 +438,53 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
             job_kwargs["module_comparison"] = module_comparison
         if cancel_check:
             job_kwargs["cancel_check"] = cancel_check
-        return await self.async_run_job("what_if", data, overrides, **job_kwargs)
+        return await self._async_run_what_if_job(data, overrides, **job_kwargs)
+
+    def _what_if_cancel_check(self, cancel_check: Callable[[], None] | None) -> Callable[[], None]:
+        """cancel_check of a run, extended with the stop of Home Assistant (safe to call from the what-if thread)."""
+        def check() -> None:
+            if self._what_if_stopping.is_set():
+                raise WhatIfCancelled()
+            if cancel_check is not None:
+                cancel_check()
+
+        return check
+
+    async def _async_run_what_if_job(self, data: dict, overrides: dict, **job_kwargs) -> JobResult:
+        """Run the simulation on its own engine and thread; the live worker is only used for a short job.
+
+        The live engine hands over the values the simulation needs from its databases (what_if_live_inputs) in a short
+        job on its worker. The simulation then runs on a new engine with a copy of the configuration, in the what-if
+        thread, without _job_lock: the live engine's per-job state (snapshot, caches) is never shared, and nothing it
+        returns is published or saved (the databases of that engine are empty and are never marked as changed).
+        """
+        cancel_check = job_kwargs.get("cancel_check")
+        if cancel_check:
+            cancel_check()
+        # a question to the live engine: nothing of it is published or recorded
+        live = await self.async_run_job("what_if_live_inputs", publish=False)
+        if live.error:
+            # like any failed job: the caller sees it as the error of the result
+            return live
+        if cancel_check:
+            cancel_check()
+        engine = BattMindEngine(deepcopy(self.config), self.prefix, self.texts)
+        result: JobResult = await self.hass.loop.run_in_executor(
+            self._what_if_executor,
+            partial(engine.run_job, self._what_if_snapshot(), engine.what_if, data, overrides, live=live.value, **job_kwargs),
+        )
+        if cancel_check:
+            cancel_check()
+        _LOGGER.debug("The what-if ran in %s for %.3fs", result.worker_thread, result.duration)
+        return result
+
+    def _what_if_snapshot(self) -> Snapshot:
+        """What the simulation reads from Home Assistant: the time zone, the settings and the units of the statistics."""
+        units = {}
+        for entity_id in self.statistics_entities:
+            state = self.hass.states.get(entity_id)
+            units[entity_id] = state.attributes.get("unit_of_measurement") if state else None
+        return Snapshot(now=self._local_now(), tz=dt_util.get_default_time_zone(), settings=dict(self.settings), units=units)
 
     async def async_debug_info(self) -> str:
         extra = {

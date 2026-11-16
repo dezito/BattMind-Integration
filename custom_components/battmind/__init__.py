@@ -41,6 +41,7 @@ from .management.what_if_request import (
     what_if_range_values as _what_if_range_values,
 )
 from .management.what_if_storage import WhatIfStorage
+from .engine.planner.replay import WhatIfCancelled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -433,6 +434,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                     notification_id=notification_id,
                 )
                 raise _validation_error(err) from err
+            except WhatIfCancelled as err:
+                # Home Assistant is stopping: nothing to show, nothing is saved
+                raise _validation_error("The what-if simulation was stopped") from err
             except Exception as err:
                 _LOGGER.exception("Unexpected error while running the BattMind what-if simulation")
                 persistent_notification.async_create(
@@ -594,6 +598,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: BattMindConfigEntry) -> 
 async def async_unload_entry(hass: HomeAssistant, entry: BattMindConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
+        # a what-if started by the action has no dashboard job for close() to cancel: stop it, or the unload waits for it
+        entry.runtime_data.stop_what_ifs()
         await entry.runtime_data.what_if_store.close()
         await entry.runtime_data.async_unload()
     return unloaded

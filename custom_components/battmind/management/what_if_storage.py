@@ -13,7 +13,7 @@ from ..engine.planner.replay import WhatIfCancelled
 
 
 class DashboardJob:
-    """Entry-owned dashboard job; cancellation is safe from the worker thread."""
+    """Entry-owned dashboard job; cancellation is safe from the what-if thread."""
 
     def __init__(self, job_id: str) -> None:
         self.job_id = job_id
@@ -72,10 +72,14 @@ class WhatIfStorage:
                 await write
                 raise
 
-    async def close(self) -> None:
+    def stop(self) -> None:
+        """No run can be started any more, and a running dashboard run stops (unless its result is being saved)."""
         self.closed = True
         if self.dashboard_job is not None and not self.dashboard_job.committing:
             self.dashboard_job.cancelled.set()
+
+    async def close(self) -> None:
+        self.stop()
         tasks = list(self.tasks)
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)

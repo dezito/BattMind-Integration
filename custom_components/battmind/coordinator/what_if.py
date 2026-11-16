@@ -1,8 +1,9 @@
 """The what-if view: its inputs, running and stopping a simulation, and the published result.
 
 The inputs are entities (numbers, switches, selects and a text) whose values are kept here. A button starts the
-simulation in a background task: the live plan, the live settings and the inverter are never touched, and a changed
-input never triggers a planning run. The progress is published on the what_if_status sensor, the last successful
+simulation in a background task on a thread and an engine of its own (the worker of the live plan is never held up by
+it): the live plan, the live settings and the inverter are never touched, and a changed input never triggers a
+planning run. The progress is published on the what_if_status sensor, the last successful
 result (kept in .storage, so it survives a restart) on the what_if sensor.
 """
 from __future__ import annotations
@@ -189,7 +190,7 @@ class CoordinatorWhatIf:
 
     @callback
     def async_stop_what_if(self) -> None:
-        """Switch what_if_run off: the worker stops at the next hour; a result that is being saved is kept."""
+        """Switch what_if_run off: the what-if thread stops at the next hour; a result that is being saved is kept."""
         job = self.what_if_job
         if job is None or job.committing or job.cancelled.is_set():
             return

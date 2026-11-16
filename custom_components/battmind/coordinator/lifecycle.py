@@ -7,7 +7,7 @@ from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 from queue import SimpleQueue
 
 from homeassistant.components import persistent_notification
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import CoreState, Event, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
@@ -43,6 +43,9 @@ class CoordinatorLifecycle:
 
         if self.config.get("enable_diagnostic_file_log"):
             await self._async_enable_file_log()
+        # Home Assistant stopping does not unload the entries, and the what-if thread (a worker thread of an executor) is
+        # waited for when the process exits: a simulation with hours left would hold up the stop or the restart
+        self.entry.async_on_unload(self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self._on_ha_stop))
 
         ent_reg = er.async_get(self.hass)
         for entity_id in self.configured_entities:
@@ -87,6 +90,17 @@ class CoordinatorLifecycle:
             self._started_unsub = self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, self._start_background)
 
     @callback
+    def stop_what_ifs(self) -> None:
+        """Every running what-if (also one started by the action) stops at its next check, and no new one is started."""
+        self._what_if_stopping.set()
+        self.what_if_store.stop()
+
+    @callback
+    def _on_ha_stop(self, _event: Event) -> None:
+        """Home Assistant is stopping (the entries are not unloaded): stop the what-ifs."""
+        self.stop_what_ifs()
+
+    @callback
     def _start_background(self, _event: Event | None = None) -> None:
         self._started_unsub = None
         self.entry.async_create_background_task(self.hass, self._async_startup(), name=f"battmind_{self.prefix}_startup")
@@ -101,6 +115,7 @@ class CoordinatorLifecycle:
             self._settings_debounce()
         if self._charge_task and not self._charge_task.done():
             self._charge_task.cancel()
+        self._what_if_executor.shutdown(wait=False, cancel_futures=True)
         self._executor.shutdown(wait=False, cancel_futures=True)
         await self._async_disable_file_log()
 

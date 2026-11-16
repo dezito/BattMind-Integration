@@ -2,7 +2,9 @@
 
 The engine owns all runtime state (databases, charging plan, price cache, ...) and runs
 in the BattMind worker thread. Each call goes through :meth:`BattMindEngine.run_job`
-with a :class:`Snapshot` of Home Assistant data collected on the event loop. Nothing in
+with a :class:`Snapshot` of Home Assistant data collected on the event loop. One engine
+runs one job at a time (run_job keeps the per-job state on the instance): the what-if
+simulation therefore runs on an engine of its own, in a thread of its own. Nothing in
 the engine touches Home Assistant; outputs (states, attributes, notifications, database
 saves) are returned in a :class:`JobResult` and published by the coordinator.
 
@@ -128,7 +130,7 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
     # ------------------------------------------------------------------ #
 
     def run_job(self, snapshot: Snapshot, func: Callable, *args, **kwargs) -> JobResult:
-        """Run func with snapshot as input. Called in the (single) worker thread."""
+        """Run func with snapshot as input. Called in the engine's own single thread (one job at a time per engine)."""
         started = time.perf_counter()
         self._snap = snapshot
         self._out = result = JobResult(worker_thread=threading.current_thread().name)

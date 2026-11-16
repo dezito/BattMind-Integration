@@ -435,14 +435,29 @@ def _module_annual_estimate(
 class WhatIf:
     """The what-if calculation of the planner."""
 
+    def what_if_live_inputs(self) -> dict:
+        """What the what-if needs from the live engine's own databases: the round trip loss and the measured curves.
+
+        Runs as a short job on the live engine's worker. The simulation itself runs on an engine of its own, in a thread
+        of its own (see what_if(live=...)), so it never holds up the live worker and never reads the live state.
+        """
+        return {
+            "charging_loss": self.get_charging_loss(),
+            "learned_efficiency": {
+                direction: self.learned_efficiency_curve(direction) for direction in ("charging", "discharging")
+            },
+        }
+
     def what_if(
         self, data: dict, overrides: dict, progress=None, capacity_range: list[float] | None = None,
-        cancel_check=None, module_comparison: dict | None = None,
+        cancel_check=None, module_comparison: dict | None = None, live: dict | None = None,
     ) -> dict:
         """Compare battery assumptions against historical hourly statistics.
 
-        progress (optional) is called from the worker thread after the first plan and then at most
+        progress (optional) is called from the thread the simulation runs on after the first plan and then at most
         every PROGRESS_INTERVAL seconds with {"percent", "step", "steps", "hours", "total_hours"}.
+        live: what_if_live_inputs() of the live engine. Without it the values come from this engine's own databases,
+        which is only right on the live engine; an engine that runs the what-if on its own thread must be given it.
         """
         stats = data.get("stats") or {}
         units = self._snap.units if self._snap else {}
@@ -647,8 +662,8 @@ class WhatIf:
         if not hours:
             raise ValueError("No matching hourly consumption and price statistics were found")
 
-        current_config, current_settings = self._what_if_setup({})
-        scenario_config, scenario_settings = self._what_if_setup(overrides)
+        current_config, current_settings = self._what_if_setup({}, live)
+        scenario_config, scenario_settings = self._what_if_setup(overrides, live)
         requested_start = overrides.get("starting_level")
 
         def initial_level(config: dict) -> float:
@@ -679,7 +694,7 @@ class WhatIf:
         scenario_case = add_case(scenario_config, scenario_settings, start_level)
         range_cases = []
         for capacity in capacity_range or []:
-            range_config, range_settings = self._what_if_setup({**overrides, "battery_size": capacity})
+            range_config, range_settings = self._what_if_setup({**overrides, "battery_size": capacity}, live)
             range_start_level = initial_level(range_config)
             if range_config["solar"]["powerwall_battery_size"] == 0:
                 range_start_level = 0.0
@@ -705,7 +720,7 @@ class WhatIf:
                 if not math.isfinite(capacity) or capacity > 1000:
                     raise ValueError("Battery module comparison exceeds 1000 kWh")
                 module_config, module_settings = self._what_if_setup(
-                    {**overrides, "battery_size": capacity}
+                    {**overrides, "battery_size": capacity}, live
                 )
                 module_start_level = initial_level(module_config)
                 if module_config["solar"]["powerwall_battery_size"] == 0:
@@ -1006,18 +1021,22 @@ class WhatIf:
         }
         return coverage, estimate
 
-    def _what_if_setup(self, overrides: dict) -> tuple[dict, dict]:
-        """Configuration and settings of a replay: the current ones with the what-if values."""
+    def _what_if_setup(self, overrides: dict, live: dict | None = None) -> tuple[dict, dict]:
+        """Configuration and settings of a replay: the current ones with the what-if values.
+
+        live: what_if_live_inputs() of the live engine, for an engine that has none of the live databases.
+        """
         config = deepcopy(self.config)
         solar = config["solar"]
         # the replay has no charging history: the measured round trip loss is used as configured
-        solar["powerwall_charge_discharge_loss"] = self.get_charging_loss()
+        solar["powerwall_charge_discharge_loss"] = self.get_charging_loss() if live is None else live["charging_loss"]
         solar["use_charge_discharge_loss_from_history"] = False
         # nor the analysis: measured efficiency curves are used as configured
         for direction in ("charging", "discharging"):
             key = f"battery_{direction}_efficiency_curve"
             if not parse_efficiency_curve(solar.get(key)):
-                solar[key] = efficiency_curve_mapping(self.learned_efficiency_curve(direction))
+                curve = self.learned_efficiency_curve(direction) if live is None else live["learned_efficiency"][direction]
+                solar[key] = efficiency_curve_mapping(curve)
         settings = {key: self.setting(key) for key in (*SWITCH_SETTINGS, *NUMBER_SETTINGS, *SELECT_SETTINGS, *TEXT_SETTINGS)}
         for input_key, config_key in _CONFIG_OVERRIDES.items():
             if input_key in overrides:

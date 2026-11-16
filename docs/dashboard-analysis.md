@@ -426,7 +426,7 @@ battery's price or the bill without a battery is unknown, or when the module pri
 is never treated as 0); without a current battery only the grey line and the extra module lines are drawn.
 These are historical estimates, not predictions, and exclude installation and other investment costs.
 
-A range takes longer and can delay planning. The last successful calculation for each BattMind instance is
+The last successful calculation for each BattMind instance is
 saved with its completion time and selected values, shown by the **What-if** result sensor and kept
 after a page refresh or Home Assistant restart, whether it was started from the tab, Developer tools or an
 automation. A failed or stopped calculation does not replace the previous result, and the dashboard shows
