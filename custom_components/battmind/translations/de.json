@@ -64,15 +64,17 @@
           "power_consumption_entity_id": "Hausverbrauch (Watt-Entität), nicht Netzverbrauch",
           "power_consumption_entity_id_include_powerwall_charging": "Hausverbrauch inkl. Batteriespeicher-Ladung (Watt-Entität)",
           "power_consumption_entity_id_include_powerwall_discharging": "Hausverbrauch inkl. Batteriespeicher-Entladung (Watt-Entität)",
-          "ignore_consumption_from_entity_ids": "Liste der zu ignorierenden Leistungssensoren"
+          "ignore_consumption_from_entity_ids": "Liste der zu ignorierenden Leistungssensoren",
+          "ignore_cjp_chargers": "Zieht die Ladeleistung der Ladestationen Ihrer Cable-Juice-Planner-Autos vom Hausverbrauch ab, auch für später hinzugefügte Autos. Eine Ladestation, die auch in der Liste oben steht, wird nur einmal abgezogen. Ausschalten, wenn Ihr Hausverbrauchssensor die Ladestationen nicht enthält."
         },
         "data": {
           "ignore_consumption_from_entity_ids": "Verbrauch ignorieren von",
+          "ignore_cjp_chargers": "Cable-Juice-Planner-Ladestationen ignorieren",
           "power_consumption_entity_id": "Hausverbrauch",
           "power_consumption_entity_id_include_powerwall_charging": "Enthält das Laden des Akkus",
           "power_consumption_entity_id_include_powerwall_discharging": "Enthält das Entladen des Akkus"
         },
-        "description": "BattMind speichert den Verbrauch pro Stunde und sagt voraus, wie viel der Akku in den nächsten Tagen decken muss.",
+        "description": "BattMind speichert den Verbrauch pro Stunde und sagt voraus, wie viel der Akku in den nächsten Tagen decken muss.\n\nGefundene Cable-Juice-Planner-Ladestationen: {cjp_chargers}",
         "title": "Hausverbrauch"
       },
       "prices_energidataservice": {
@@ -312,15 +314,17 @@
           "power_consumption_entity_id": "Hausverbrauch (Watt-Entität), nicht Netzverbrauch",
           "power_consumption_entity_id_include_powerwall_charging": "Hausverbrauch inkl. Batteriespeicher-Ladung (Watt-Entität)",
           "power_consumption_entity_id_include_powerwall_discharging": "Hausverbrauch inkl. Batteriespeicher-Entladung (Watt-Entität)",
-          "ignore_consumption_from_entity_ids": "Liste der zu ignorierenden Leistungssensoren"
+          "ignore_consumption_from_entity_ids": "Liste der zu ignorierenden Leistungssensoren",
+          "ignore_cjp_chargers": "Zieht die Ladeleistung der Ladestationen Ihrer Cable-Juice-Planner-Autos vom Hausverbrauch ab, auch für später hinzugefügte Autos. Eine Ladestation, die auch in der Liste oben steht, wird nur einmal abgezogen. Ausschalten, wenn Ihr Hausverbrauchssensor die Ladestationen nicht enthält."
         },
         "data": {
           "ignore_consumption_from_entity_ids": "Verbrauch ignorieren von",
+          "ignore_cjp_chargers": "Cable-Juice-Planner-Ladestationen ignorieren",
           "power_consumption_entity_id": "Hausverbrauch",
           "power_consumption_entity_id_include_powerwall_charging": "Enthält das Laden des Akkus",
           "power_consumption_entity_id_include_powerwall_discharging": "Enthält das Entladen des Akkus"
         },
-        "description": "BattMind speichert den Verbrauch pro Stunde und sagt voraus, wie viel der Akku in den nächsten Tagen decken muss.",
+        "description": "BattMind speichert den Verbrauch pro Stunde und sagt voraus, wie viel der Akku in den nächsten Tagen decken muss.\n\nGefundene Cable-Juice-Planner-Ladestationen: {cjp_chargers}",
         "title": "Hausverbrauch"
       },
       "prices_energidataservice": {

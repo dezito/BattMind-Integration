@@ -31,7 +31,9 @@ from ..const import CONF_ENTITY_PREFIX, DOMAIN, SIGNAL_UPDATE, build_config, def
 from ..engine import BattMindEngine, JobResult, Snapshot
 from ..engine.planner.what_if import PROGRESS_INTERVAL
 from ..engine.planner.replay import WhatIfCancelled
+from ..utils.cjp import cjp_charger_power_entities
 from ..utils.formatting import translate
+from ..utils.power import unique_entity_ids
 from ..management.debug_export import DebugRecorder
 from ..management.storage import BattMindStorage
 from ..prices import CombinedPriceProvider
@@ -86,6 +88,16 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self._entity_platforms: dict[str, str | None] = {}
         self._sun_cache: dict[datetime.date, dict] = {}
 
+        # The ignored consumption: the sensors the user listed plus (unless switched off) the chargers of the CJP cars, once
+        # each. The engine reads this list, so every place that subtracts it sees the same one.
+        listed = unique_entity_ids(self.config["home"]["entity_ids"]["ignore_consumption_from_entity_ids"])
+        self.cjp_chargers: list[str] = cjp_charger_power_entities(hass) if self.config["home"]["ignore_cjp_chargers"] else []
+        # not required to exist or be available at start: a CJP car that is not set up yet must not hold BattMind up
+        self.auto_ignored_entities = [entity_id for entity_id in self.cjp_chargers if entity_id not in listed]
+        self.config["home"]["entity_ids"]["ignore_consumption_from_entity_ids"] = [*listed, *self.auto_ignored_entities]
+        self.config["home"]["auto_ignored_entity_ids"] = list(self.auto_ignored_entities)
+        self._cjp_reload_scheduled = False
+
         home = self.config["home"]["entity_ids"]
         solar = self.config["solar"]["entity_ids"]
         battery_level = home["powerwall_battery_level_entity_id"]
@@ -101,12 +113,15 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         })
         # hourly mean statistics are used for the power averages, not for the battery level
         self.statistics_entities = [e for e in self.buffered_entities if e != battery_level]
+        # what the user configured: it must exist and be available before BattMind starts
         self.configured_entities = sorted({
             *self.buffered_entities,
             *self.config["prices"]["entity_ids"].values(),
             *self.config["forecast"]["entity_ids"].values(),
             solar["forecast_entity_id"],
-        } - {""})
+        } - {""} - set(self.auto_ignored_entities))
+        # the states and units of the snapshot also cover the chargers found by BattMind (they are read in the right unit)
+        self.snapshot_entities = sorted({*self.configured_entities, *self.auto_ignored_entities})
 
         self._log_listener: QueueListener | None = None
         self._log_handler: QueueHandler | None = None

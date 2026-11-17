@@ -30,6 +30,11 @@ _POWER_FACTORS_TO_W = {
 }
 
 
+def unique_entity_ids(entity_ids: Iterable[str | None] | None) -> list[str]:
+    """The entity ids in order, without empty values and repeats (a sensor listed twice is counted once)."""
+    return list(dict.fromkeys(entity_id for entity_id in entity_ids or [] if entity_id))
+
+
 def unit_factor_to_w(unit: str | None) -> float:
     """Factor converting a power unit (kWh is treated as kW like power_convert) to W."""
     if not unit:

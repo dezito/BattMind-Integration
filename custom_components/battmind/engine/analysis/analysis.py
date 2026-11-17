@@ -32,7 +32,7 @@ import datetime
 import logging
 
 from ..energy.energy import derive_power_values
-from ...utils.power import unit_factor_to_w
+from ...utils.power import unique_entity_ids, unit_factor_to_w
 from .publishing import AnalysisPublishing
 from .recording import AnalysisRecording
 from .helpers import ANALYSIS_DAYS, ANALYSIS_BACKFILL_VERSION, FORECAST_AUTO_DAYS, FORECAST_AUTO_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_CORRECTION_MAX, _num, _is_num, _r, auto_forecast_choice, forecast_errors, summarize_day
@@ -117,7 +117,7 @@ class Analysis(AnalysisRecording, AnalysisPublishing):
         consumption = series(ids["power_consumption_entity_id"])
         flow = series(ids["powerwall_watt_flow_entity_id"])
         solar = series(self.config["solar"]["entity_ids"]["production_entity_id"])
-        ignored = [series(entity_id) for entity_id in ids["ignore_consumption_from_entity_ids"] or [] if entity_id]
+        ignored = [series(entity_id) for entity_id in unique_entity_ids(ids["ignore_consumption_from_entity_ids"])]
         soc = series(ids["powerwall_battery_level_entity_id"], power=False)
         # the buy price history: per hour the first price provider with a price (PRICE_PROVIDER_PRIORITY)
         provider = self.price_provider

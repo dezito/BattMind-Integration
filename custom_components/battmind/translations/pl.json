@@ -64,15 +64,17 @@
           "power_consumption_entity_id": "Zużycie domu (encja w watach), nie zużycie z sieci",
           "power_consumption_entity_id_include_powerwall_charging": "Zużycie domu z uwzględnieniem ładowania magazynu (W)",
           "power_consumption_entity_id_include_powerwall_discharging": "Zużycie domu z uwzględnieniem rozładowania magazynu (W)",
-          "ignore_consumption_from_entity_ids": "Lista czujników mocy do ignorowania"
+          "ignore_consumption_from_entity_ids": "Lista czujników mocy do ignorowania",
+          "ignore_cjp_chargers": "Odejmuje moc ładowania ładowarek samochodów Cable Juice Planner od zużycia domu, także dla samochodów dodanych później. Ładowarka, która jest też na liście powyżej, jest odejmowana tylko raz. Wyłącz, jeśli czujnik zużycia domu nie obejmuje ładowarek."
         },
         "data": {
           "ignore_consumption_from_entity_ids": "Ignoruj zużycie z",
+          "ignore_cjp_chargers": "Ignoruj ładowarki Cable Juice Planner",
           "power_consumption_entity_id": "Zużycie domu",
           "power_consumption_entity_id_include_powerwall_charging": "Obejmuje ładowanie baterii",
           "power_consumption_entity_id_include_powerwall_discharging": "Obejmuje rozładowanie baterii"
         },
-        "description": "BattMind zapisuje zużycie na godzinę i przewiduje, ile bateria musi pokryć w najbliższych dniach.",
+        "description": "BattMind zapisuje zużycie na godzinę i przewiduje, ile bateria musi pokryć w najbliższych dniach.\n\nZnalezione ładowarki Cable Juice Planner: {cjp_chargers}",
         "title": "Zużycie domu"
       },
       "prices_energidataservice": {
@@ -312,15 +314,17 @@
           "power_consumption_entity_id": "Zużycie domu (encja w watach), nie zużycie z sieci",
           "power_consumption_entity_id_include_powerwall_charging": "Zużycie domu z uwzględnieniem ładowania magazynu (W)",
           "power_consumption_entity_id_include_powerwall_discharging": "Zużycie domu z uwzględnieniem rozładowania magazynu (W)",
-          "ignore_consumption_from_entity_ids": "Lista czujników mocy do ignorowania"
+          "ignore_consumption_from_entity_ids": "Lista czujników mocy do ignorowania",
+          "ignore_cjp_chargers": "Odejmuje moc ładowania ładowarek samochodów Cable Juice Planner od zużycia domu, także dla samochodów dodanych później. Ładowarka, która jest też na liście powyżej, jest odejmowana tylko raz. Wyłącz, jeśli czujnik zużycia domu nie obejmuje ładowarek."
         },
         "data": {
           "ignore_consumption_from_entity_ids": "Ignoruj zużycie z",
+          "ignore_cjp_chargers": "Ignoruj ładowarki Cable Juice Planner",
           "power_consumption_entity_id": "Zużycie domu",
           "power_consumption_entity_id_include_powerwall_charging": "Obejmuje ładowanie baterii",
           "power_consumption_entity_id_include_powerwall_discharging": "Obejmuje rozładowanie baterii"
         },
-        "description": "BattMind zapisuje zużycie na godzinę i przewiduje, ile bateria musi pokryć w najbliższych dniach.",
+        "description": "BattMind zapisuje zużycie na godzinę i przewiduje, ile bateria musi pokryć w najbliższych dniach.\n\nZnalezione ładowarki Cable Juice Planner: {cjp_chargers}",
         "title": "Zużycie domu"
       },
       "prices_energidataservice": {

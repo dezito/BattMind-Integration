@@ -52,6 +52,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "power_consumption_entity_id_include_powerwall_charging": False,
         "power_consumption_entity_id_include_powerwall_discharging": False,
         "invert_powerwall_watt_flow_entity_id": False,
+        # also leave out the power of the chargers of Cable Juice Planner (found at start, see utils/cjp.py)
+        "ignore_cjp_chargers": True,
+        # the chargers added by it (set by the coordinator, not an option)
+        "auto_ignored_entity_ids": [],
         # battery actions the inverter can't run (CONTROLLABLE_ACTIONS); their rules are off
         "unsupported_actions": [],
     },
@@ -111,6 +115,7 @@ OPTION_PATHS: dict[str, str] = {
     "power_consumption_entity_id_include_powerwall_charging": "home.power_consumption_entity_id_include_powerwall_charging",
     "power_consumption_entity_id_include_powerwall_discharging": "home.power_consumption_entity_id_include_powerwall_discharging",
     "ignore_consumption_from_entity_ids": "home.entity_ids.ignore_consumption_from_entity_ids",
+    "ignore_cjp_chargers": "home.ignore_cjp_chargers",
     "powerwall_battery_size": "solar.powerwall_battery_size",
     "powerwall_battery_level_min": "solar.powerwall_battery_level_min",
     "powerwall_battery_level_max": "solar.powerwall_battery_level_max",
@@ -188,6 +193,7 @@ FLOW_STEPS: dict[str, list[str]] = {
         "power_consumption_entity_id_include_powerwall_charging",
         "power_consumption_entity_id_include_powerwall_discharging",
         "ignore_consumption_from_entity_ids",
+        "ignore_cjp_chargers",
     ],
     "prices_energidataservice": [
         "energidataservice_buy_entity_id",

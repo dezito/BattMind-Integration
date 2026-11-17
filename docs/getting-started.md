@@ -97,6 +97,12 @@ off and are hidden on the dashboard. See [When the inverter can't run an action]
   charging or discharging, so it isn't counted twice.
 - **Ignored consumers:** power sensors subtracted from the house, e.g. the EV charger. They aren't in the
   forecast, so the battery isn't planned to cover them.
+- **Ignore Cable Juice Planner chargers** (on by default): with [Cable Juice Planner](cookbook.md#together-with-cable-juice-planner-ev)
+  installed, BattMind also subtracts the charger power of every car you have set up there, so you don't add
+  them to the list yourself. The page shows the chargers it found. A car added later is picked up
+  automatically (BattMind reloads once), and a charger that is also in your list is subtracted once. Turn it off if the
+  house consumption sensor does not include the chargers, e.g. a separate meter: subtracting them would
+  then take consumption that was never there out of the forecast.
 
 ### Prices
 

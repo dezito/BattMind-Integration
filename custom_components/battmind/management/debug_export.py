@@ -543,7 +543,7 @@ async def async_debug_data(
     blueprints, referenced = await _async_blueprint_data(hass, coordinator.entry.entry_id, services)
     entities = {
         entity_id: _entity_info(hass, entity_id, coordinator._entity_platforms.get(entity_id))
-        for entity_id in coordinator.configured_entities
+        for entity_id in coordinator.snapshot_entities  # incl. the chargers BattMind found itself
     }
     for entity_id in sorted(referenced["entities"] - set(entities)):
         entities[entity_id] = {**_entity_info(hass, entity_id), "blueprint": True}

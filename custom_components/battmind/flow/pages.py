@@ -9,6 +9,7 @@ from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.helpers import selector
 
 from ..const import FLOW_STEPS, PRICE_PROVIDER_KEYS
+from ..utils.cjp import cjp_charger_power_entities
 from .schema import ENERGIDATASERVICE_URL, PRICE_PROVIDERS, build_schema, normalize_input, validate_step
 
 
@@ -62,7 +63,12 @@ class BattMindFlowPages:
             step_id=step,
             data_schema=build_schema(keys, values_for_form, self.hass.config.currency),  # type: ignore[attr-defined]
             errors=errors,
-            description_placeholders={**self._placeholders(), "eds_url": ENERGIDATASERVICE_URL},
+            description_placeholders={
+                **self._placeholders(),
+                "eds_url": ENERGIDATASERVICE_URL,
+                # the chargers BattMind leaves out of the house consumption by itself (the consumption page)
+                "cjp_chargers": ", ".join(cjp_charger_power_entities(self.hass)) or "–",  # type: ignore[attr-defined]
+            },
         )
 
     async def async_step_price_provider(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:

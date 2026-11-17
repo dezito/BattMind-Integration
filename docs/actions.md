@@ -107,8 +107,9 @@ If you don't want that:
 | Allow discharging into the car when | while this entity is on, *Discharge allowed* runs as normal, e.g. Cable Juice Planner's `switch.cjp_<car>_powerwall_discharge_above_needed` |
 | Only above this battery level | together with the battery level sensor: only allowed while the battery is above this value, e.g. `number.cjp_<car>_ev_charge_after_powerwall_battery_level` |
 
-Tip: also add the charger's power sensor under **Ignored consumers** in the BattMind setup, so the car
-isn't in the consumption forecast.
+Tip: with Cable Juice Planner, BattMind leaves the car's charger out of the consumption forecast by itself
+(**Ignore Cable Juice Planner chargers** on the consumption page, on by default). For any other charger, add its
+power sensor under **Ignored consumers** in the BattMind setup.
 
 ### Repeat interval
 

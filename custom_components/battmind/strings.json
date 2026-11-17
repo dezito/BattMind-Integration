@@ -89,18 +89,20 @@
       },
       "consumption": {
         "title": "House consumption",
-        "description": "BattMind stores the consumption per hour and predicts how much the battery must cover the next days.",
+        "description": "BattMind stores the consumption per hour and predicts how much the battery must cover the next days.\n\nCable Juice Planner chargers found: {cjp_chargers}",
         "data": {
           "power_consumption_entity_id": "House consumption",
           "power_consumption_entity_id_include_powerwall_charging": "Includes battery charging",
           "power_consumption_entity_id_include_powerwall_discharging": "Includes battery discharging",
-          "ignore_consumption_from_entity_ids": "Ignore consumption from"
+          "ignore_consumption_from_entity_ids": "Ignore consumption from",
+          "ignore_cjp_chargers": "Ignore Cable Juice Planner chargers"
         },
         "data_description": {
           "power_consumption_entity_id": "Sensor with the house consumption (W/kW) - not the grid import. The history is used to predict the consumption per hour.",
           "power_consumption_entity_id_include_powerwall_charging": "Enable if the consumption sensor includes the power used to charge the battery.",
           "power_consumption_entity_id_include_powerwall_discharging": "Enable if the consumption sensor already includes the consumption covered by the battery.",
-          "ignore_consumption_from_entity_ids": "Power sensors that are subtracted from the house consumption, e.g. EV chargers that should not be covered by the battery."
+          "ignore_consumption_from_entity_ids": "Power sensors that are subtracted from the house consumption, e.g. EV chargers that should not be covered by the battery.",
+          "ignore_cjp_chargers": "Subtracts the charging power of the chargers of your Cable Juice Planner cars from the house consumption, also for cars added later. A charger that is also in the list above is only subtracted once. Turn off if your house consumption sensor does not include the chargers."
         }
       },
       "prices_energidataservice": {
@@ -340,18 +342,20 @@
       },
       "consumption": {
         "title": "House consumption",
-        "description": "BattMind stores the consumption per hour and predicts how much the battery must cover the next days.",
+        "description": "BattMind stores the consumption per hour and predicts how much the battery must cover the next days.\n\nCable Juice Planner chargers found: {cjp_chargers}",
         "data": {
           "power_consumption_entity_id": "House consumption",
           "power_consumption_entity_id_include_powerwall_charging": "Includes battery charging",
           "power_consumption_entity_id_include_powerwall_discharging": "Includes battery discharging",
-          "ignore_consumption_from_entity_ids": "Ignore consumption from"
+          "ignore_consumption_from_entity_ids": "Ignore consumption from",
+          "ignore_cjp_chargers": "Ignore Cable Juice Planner chargers"
         },
         "data_description": {
           "power_consumption_entity_id": "Sensor with the house consumption (W/kW) - not the grid import. The history is used to predict the consumption per hour.",
           "power_consumption_entity_id_include_powerwall_charging": "Enable if the consumption sensor includes the power used to charge the battery.",
           "power_consumption_entity_id_include_powerwall_discharging": "Enable if the consumption sensor already includes the consumption covered by the battery.",
-          "ignore_consumption_from_entity_ids": "Power sensors that are subtracted from the house consumption, e.g. EV chargers that should not be covered by the battery."
+          "ignore_consumption_from_entity_ids": "Power sensors that are subtracted from the house consumption, e.g. EV chargers that should not be covered by the battery.",
+          "ignore_cjp_chargers": "Subtracts the charging power of the chargers of your Cable Juice Planner cars from the house consumption, also for cars added later. A charger that is also in the list above is only subtracted once. Turn off if your house consumption sensor does not include the chargers."
         }
       },
       "prices_energidataservice": {

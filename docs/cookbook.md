@@ -40,8 +40,9 @@ is worth `fixed price − spot price` – negative when the spot price is above 
 
 The home battery shouldn't be drained into the car – unless there is energy to spare.
 
-1. BattMind setup → **Consumption → Ignored consumers**: add the charger's power sensor, so the car isn't
-   in the consumption forecast.
+1. BattMind setup → **Consumption**: leave **Ignore Cable Juice Planner chargers** on (the default), so the
+   cars' chargers aren't in the consumption forecast. A charger that is not set up in Cable Juice Planner goes
+   under **Ignored consumers**.
 2. Blueprint → **EV (optional)**:
    - **EV charger power:** the charger's power sensor
    - **While the car is charging:** set the battery's discharge power to 0
