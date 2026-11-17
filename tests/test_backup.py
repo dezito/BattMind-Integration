@@ -170,6 +170,23 @@ async def test_options_flow_export_and_import(hass: HomeAssistant, config_dir: P
     assert hass.states.get(NUMBER).state == exported != "5.0"
 
 
+async def test_restoring_an_old_backup_does_not_bring_back_the_removed_testing_mode(hass: HomeAssistant, config_dir: Path, loaded_entry) -> None:
+    """The configuration of a backup from before the removal may hold testing_mode; it is not restored."""
+    response = await hass.services.async_call(DOMAIN, "export_data", {}, blocking=True, return_response=True)
+    path = config_dir.parent / response["files"][PREFIX]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert isinstance(data["options"], dict)
+    data["options"]["testing_mode"] = True
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    old_coordinator = loaded_entry.runtime_data
+    await backup.async_import(hass, loaded_entry, path.name, restore_configuration=True)
+    await _settle(hass)
+    await async_join_workers(hass, old_coordinator)
+    assert loaded_entry.state is ConfigEntryState.LOADED
+    assert "testing_mode" not in loaded_entry.options
+
+
 MAX_AGE = f"number.{PREFIX}_powerwall_max_hours_old"
 
 
