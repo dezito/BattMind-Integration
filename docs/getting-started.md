@@ -117,6 +117,11 @@ every hour it has one, and Energi Data Service fills the gaps (also in the what-
   sell price: Strømligning's sell price includes every tariff, so the distribution (transport) tariff,
   net tariff, system tariff, electricity tax and surcharge are all subtracted. The distribution sensor
   only has today's tariffs; other days use the same time of day from the latest known day.
+  Strømligning switches its sensors excl. VAT (which the sell sensors and the tariffs use) off by default,
+  and a disabled sensor can't be selected: enable them first under **Settings → Devices & services →
+  Entities** (*Show disabled entities*). The price forecasts also need *Include price forecasts for the next week?* in
+  the Strømligning options. If a sensor BattMind uses is disabled later, or Strømligning stops providing it, a
+  **repair** names it. Until it is fixed a missing tariff counts as 0, which makes the sell price too high.
 - **Refund** is subtracted from the buy price. Selling costs the **sell fee** plus Energinet's net
   and system tariff:
   sell price = price − the tariffs and taxes in it − (sell fee + net tariff + system tariff).
@@ -129,7 +134,12 @@ Leave the page empty without solar. With solar:
 - **Inverter's max. power:** limits solar and battery power together.
 - **Fixed solar sell price:** −1 uses the hourly sell price. Set a price if your production agreement pays
   a fixed price and settles the difference to the spot price – see [Fixed solar sell price](rules/solar.md#fixed-solar-sell-price).
-- **Solcast:** select e.g. `sensor.solcast_pv_forecast_forecast_today`. The other days are found automatically.
+- **Solcast:** select e.g. `sensor.solcast_pv_forecast_forecast_today`. The other days are found automatically,
+  but Solcast switches the forecast sensors of day 3 and on off by default: enable `…_forecast_day_3` and on
+  for as many days as you plan (**Settings → Devices & services → Entities**, *Show disabled entities*), and keep
+  *Hourly detail* on under *Forecast attributes breakdown* in the Solcast options. A **repair** lists the sensors that are disabled, named
+  differently or without hourly detail; the days without Solcast are planned from the weather forecast and
+  the stored solar history.
 - **Weather:** the hourly and daily forecast. Together with the stored solar history per weather type it
   gives a solar forecast that learns your roof – also without Solcast.
 

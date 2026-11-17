@@ -106,7 +106,7 @@
           "stromligning_sell_forecasts": "Prognozy ceny sprzedaży (opcjonalnie)",
           "stromligning_sell_tomorrow_available": "Cena sprzedaży jutro (opcjonalnie)"
         },
-        "description": "Czujniki z integracji Strømligning. Cena zakupu jest wymagana; czujniki sprzedaży są potrzebne do dokładnej ceny sprzedaży.",
+        "description": "Czujniki z integracji Strømligning. Cena zakupu jest wymagana; czujniki sprzedaży są potrzebne do dokładnej ceny sprzedaży.\n\nStrømligning domyślnie wyłącza czujniki bez VAT, a wyłączonego czujnika nie można tu wybrać: najpierw włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*). Prognozy cen wymagają też opcji *Include price forecasts for the next week?* w ustawieniach Strømligning.\nWyłączone teraz w Strømligning: {stromligning_disabled}",
         "title": "Strømligning"
       },
       "prices_stromligning_tariffs": {
@@ -124,7 +124,7 @@
           "stromligning_sell_surcharge": "Marża dostawcy",
           "stromligning_sell_systemtariff": "Taryfa systemowa"
         },
-        "description": "Przy sprzedaży taryfy i podatki są odejmowane od ceny, a taryfa przesyłowa/systemowa i opłata za sprzedaż są dodawane. Zostaw pole puste, aby użyć 0.",
+        "description": "Przy sprzedaży taryfy i podatki są odejmowane od ceny, a taryfa przesyłowa/systemowa i opłata za sprzedaż są dodawane. Zostaw pole puste, aby użyć 0.\n\nCzujniki taryf mogą być wyłączone w Strømligning i wtedy nie można ich tu wybrać: najpierw włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*).\nWyłączone teraz w Strømligning: {stromligning_disabled}",
         "title": "Strømligning - taryfy przy sprzedaży"
       },
       "price_fees": {
@@ -152,7 +152,7 @@
           "production_entity_id": "Produkcja słoneczna",
           "production_price": "Stała cena sprzedaży nadwyżki słonecznej"
         },
-        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.",
+        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.\n\nSolcast domyślnie wyłącza czujniki prognozy od dnia 3: włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*) i włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast, w przeciwnym razie te dni są planowane bez Solcast.\nWyłączone teraz czujniki Solcast: {solcast_disabled}",
         "title": "Panele słoneczne"
       },
       "weather": {
@@ -356,7 +356,7 @@
           "stromligning_sell_forecasts": "Prognozy ceny sprzedaży (opcjonalnie)",
           "stromligning_sell_tomorrow_available": "Cena sprzedaży jutro (opcjonalnie)"
         },
-        "description": "Czujniki z integracji Strømligning. Cena zakupu jest wymagana; czujniki sprzedaży są potrzebne do dokładnej ceny sprzedaży.",
+        "description": "Czujniki z integracji Strømligning. Cena zakupu jest wymagana; czujniki sprzedaży są potrzebne do dokładnej ceny sprzedaży.\n\nStrømligning domyślnie wyłącza czujniki bez VAT, a wyłączonego czujnika nie można tu wybrać: najpierw włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*). Prognozy cen wymagają też opcji *Include price forecasts for the next week?* w ustawieniach Strømligning.\nWyłączone teraz w Strømligning: {stromligning_disabled}",
         "title": "Strømligning"
       },
       "prices_stromligning_tariffs": {
@@ -374,7 +374,7 @@
           "stromligning_sell_surcharge": "Marża dostawcy",
           "stromligning_sell_systemtariff": "Taryfa systemowa"
         },
-        "description": "Przy sprzedaży taryfy i podatki są odejmowane od ceny, a taryfa przesyłowa/systemowa i opłata za sprzedaż są dodawane. Zostaw pole puste, aby użyć 0.",
+        "description": "Przy sprzedaży taryfy i podatki są odejmowane od ceny, a taryfa przesyłowa/systemowa i opłata za sprzedaż są dodawane. Zostaw pole puste, aby użyć 0.\n\nCzujniki taryf mogą być wyłączone w Strømligning i wtedy nie można ich tu wybrać: najpierw włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*).\nWyłączone teraz w Strømligning: {stromligning_disabled}",
         "title": "Strømligning - taryfy przy sprzedaży"
       },
       "price_fees": {
@@ -402,7 +402,7 @@
           "production_entity_id": "Produkcja słoneczna",
           "production_price": "Stała cena sprzedaży nadwyżki słonecznej"
         },
-        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.",
+        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.\n\nSolcast domyślnie wyłącza czujniki prognozy od dnia 3: włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*) i włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast, w przeciwnym razie te dni są planowane bez Solcast.\nWyłączone teraz czujniki Solcast: {solcast_disabled}",
         "title": "Panele słoneczne"
       },
       "weather": {
@@ -926,6 +926,14 @@
           }
         }
       }
+    },
+    "stromligning_entities": {
+      "title": "Czujniki Strømligning potrzebne dla BattMind są niedostępne ({prefix})",
+      "description": "BattMind ({prefix}) używa czujników Strømligning, które są wyłączone lub których Strømligning nie udostępnia. Brakująca taryfa sprzedaży liczy się jako 0, przez co obliczona cena sprzedaży jest za wysoka, a bez czujników cen używane są zapisane ceny.\n\nWyłączone w Home Assistant (Strømligning domyślnie wyłącza czujniki bez VAT – włącz je w **Ustawienia → Urządzenia i usługi → Encje** z opcją *Pokaż wyłączone encje*):\n{disabled}\n\nNiedostarczane przez Strømligning (np. prognozy cen są wyłączone w jego opcjach):\n{not_provided}\n\nTa naprawa zniknie sama, gdy czujniki znów będą działać."
+    },
+    "solcast_entities": {
+      "title": "Czujniki prognozy Solcast potrzebne dla BattMind są niedostępne ({prefix})",
+      "description": "BattMind ({prefix}) nie może użyć wszystkich potrzebnych czujników prognozy Solcast, więc dni bez nich są planowane na podstawie prognozy pogody i zapisanej historii produkcji słonecznej. Solcast domyślnie wyłącza czujniki prognozy od dnia 3.\n\nWyłączone w Home Assistant (włącz je w **Ustawienia → Urządzenia i usługi → Encje** z opcją *Pokaż wyłączone encje*):\n{disabled}\n\nNazwane inaczej, niż oczekuje BattMind (identyfikator encji musi kończyć się na _today, _tomorrow lub _day_3 …):\n{renamed}\n\nBez szczegółów godzinowych (włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast):\n{no_detail}\n\nTa naprawa zniknie sama po poprawieniu czujników."
     }
   },
   "selector": {

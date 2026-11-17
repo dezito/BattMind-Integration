@@ -24,21 +24,10 @@ from ..utils.efficiency import EFFICIENCY_BACKFILL_DAYS
 from ..utils.cjp import CJP_DOMAIN
 from ..utils.helpers import float_or_none
 from ..utils.power import merge_rows
+from ..utils.solcast import SOLCAST_ENDINGS, strip_forecast_suffix
 from .constants import FORECAST_TIMEOUT, STATISTICS_REFRESH_SECONDS
 
 _LOGGER = logging.getLogger(__name__)
-
-
-SOLCAST_ENDINGS =["today", "tomorrow", "day_3", "day_4", "day_5", "day_6", "day_7"]
-
-
-def _strip_forecast_suffix(entity_id: str) -> str:
-    parts = entity_id.split("_")
-    if parts[-1] in SOLCAST_ENDINGS:
-        return "_".join(parts[:-1])
-    if len(parts) >= 2 and parts[-2] == "day" and parts[-1].isdigit():
-        return "_".join(parts[:-2])
-    return entity_id
 
 
 class CoordinatorData:
@@ -209,7 +198,7 @@ class CoordinatorData:
         forecast_entity = self.config["solar"]["entity_ids"]["forecast_entity_id"]
         if not forecast_entity or self._entity_platforms.get(forecast_entity) != "solcast_solar":
             return {}
-        base = _strip_forecast_suffix(forecast_entity)
+        base = strip_forecast_suffix(forecast_entity)
         result = {}
         for ending in SOLCAST_ENDINGS:
             state = self.hass.states.get(f"{base}_{ending}")
