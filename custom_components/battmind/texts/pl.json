@@ -438,6 +438,12 @@
       "solar_sold_for": "Nadwyżka z PV sprzedawana za",
       "no_data": "Brak danych",
       "no_charging_history": "**Brak historii ładowania**"
+    },
+    "dashboard_cards": {
+      "title": "Brakujące karty dashboardu",
+      "intro": "Dashboard na pasku bocznym używa niestandardowych kart z HACS, których Home Assistant nie znalazł. Bez nich części dashboardu pokazują błędy lub tracą stylizację:",
+      "optional": "opcjonalna, tylko wygląd",
+      "footer": "Zainstaluj je w HACS i odśwież stronę w przeglądarce. To powiadomienie zniknie automatycznie, gdy karty zostaną znalezione, a sprawdzenie zostanie powtórzone po ponownym wczytaniu integracji. Jeśli karta jest zainstalowana w inny sposób, możesz zamknąć to powiadomienie."
     }
   },
   "dashboard": {

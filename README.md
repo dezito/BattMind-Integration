@@ -193,8 +193,10 @@ reloaded. If the file is deleted, the latest version is put back on the next res
     [OpenWeather](https://www.home-assistant.io/integrations/openweathermap/)
 - For the dashboard (install these HACS frontend cards): [ApexCharts Card](https://github.com/RomRider/apexcharts-card),
   [Mushroom](https://github.com/piitaya/lovelace-mushroom),
-  [Config Template Card](https://github.com/iantrich/config-template-card) and
-  [card-mod](https://github.com/thomasloven/lovelace-card-mod)
+  [Config Template Card](https://github.com/iantrich/config-template-card),
+  [Timer Bar Card](https://github.com/rianadon/timer-bar-card) and
+  [card-mod](https://github.com/thomasloven/lovelace-card-mod) (only styling). If Home Assistant can't find
+  some of them, a persistent notification lists them with links
 
 ---
 

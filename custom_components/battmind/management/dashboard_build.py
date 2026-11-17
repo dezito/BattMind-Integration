@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,7 @@ from homeassistant.helpers.storage import Store
 
 from ..const import DOMAIN, dashboard_icon, normalize_language, unsupported_actions, unsupported_switches
 from ..utils.formatting import load_texts
+from .dashboard_cards import async_update_card_notification, async_watch_card_resources
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -318,7 +320,13 @@ def _write_if_changed(path: Path, content: str) -> bool:
     return True
 
 
-async def async_setup_dashboard(hass: HomeAssistant, entry: ConfigEntry, config: dict[str, Any], prefix: str) -> None:
+async def async_setup_dashboard(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    config: dict[str, Any],
+    prefix: str,
+    translate: Callable[..., str] | None = None,
+) -> None:
     """Render the dashboard and add it to the sidebar until the entry unloads."""
     lovelace = hass.data.get(LOVELACE_DATA)
     if lovelace is None:
@@ -376,6 +384,14 @@ async def async_setup_dashboard(hass: HomeAssistant, entry: ConfigEntry, config:
             frontend.async_remove_panel(hass, url_path)
 
     entry.async_on_unload(_remove)
+
+    if translate is not None:
+        # with the coordinator's ``t`` a persistent notification lists the HACS cards that are missing
+        try:
+            await async_update_card_notification(hass, translate)
+            async_watch_card_resources(hass, entry, translate)
+        except Exception:  # noqa: BLE001 - the card check must never keep the dashboard from working
+            _LOGGER.exception("Could not check the dashboard cards")
 
 
 async def async_reset_dashboard(hass: HomeAssistant, prefix: str) -> None:

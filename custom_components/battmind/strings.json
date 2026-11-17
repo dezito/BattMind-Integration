@@ -206,7 +206,7 @@
         "data_description": {
           "days_to_predict": "Number of days (incl. today) the charging plan, the consumption prediction and the solar prediction cover. More days give better decisions about storing energy, but cost more CPU and depend on price forecasts.",
           "cron_interval": "Minutes between each check of the plan. The plan is only recalculated when prices, battery level or settings changed.",
-          "dashboard": "Adds a ready-made BattMind dashboard to the sidebar with the plan, prices, history and all settings for this instance. Needs the HACS cards apexcharts-card, mushroom, config-template-card and card-mod.",
+          "dashboard": "Adds a ready-made BattMind dashboard to the sidebar with the plan, prices, history and all settings for this instance. Needs the HACS cards apexcharts-card, mushroom, config-template-card, timer-bar-card and card-mod (optional). A notification lists missing cards.",
           "enable_diagnostic_file_log": "Write a detailed log to battmind_{prefix}.log in the config folder (2 MB per file, 3 rotations). For troubleshooting.",
           "testing_mode": "Marks the charging rule with 🧪 so a test instance can be told apart from the real one."
         }
@@ -459,7 +459,7 @@
         "data_description": {
           "days_to_predict": "Number of days (incl. today) the charging plan, the consumption prediction and the solar prediction cover. More days give better decisions about storing energy, but cost more CPU and depend on price forecasts.",
           "cron_interval": "Minutes between each check of the plan. The plan is only recalculated when prices, battery level or settings changed.",
-          "dashboard": "Adds a ready-made BattMind dashboard to the sidebar with the plan, prices, history and all settings for this instance. Needs the HACS cards apexcharts-card, mushroom, config-template-card and card-mod.",
+          "dashboard": "Adds a ready-made BattMind dashboard to the sidebar with the plan, prices, history and all settings for this instance. Needs the HACS cards apexcharts-card, mushroom, config-template-card, timer-bar-card and card-mod (optional). A notification lists missing cards.",
           "enable_diagnostic_file_log": "Write a detailed log to battmind_{prefix}.log in the config folder (2 MB per file, 3 rotations). For troubleshooting.",
           "testing_mode": "Marks the charging rule with 🧪 so a test instance can be told apart from the real one."
         }
