@@ -19,7 +19,9 @@ Optional, but recommended with solar panels:
 - [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar)
 - a weather integration with `weather.get_forecasts` (Met.no, AccuWeather, OpenWeather …)
 
-For the dashboard you need the HACS frontend cards `apexcharts-card`, `mushroom`, `config-template-card` and `card-mod`.
+For the dashboard you need the HACS frontend cards `apexcharts-card`, `mushroom`, `config-template-card`, `timer-bar-card`
+and `card-mod`. If Home Assistant can't find some of them, a notification lists the missing ones with links to install
+them (see [the cards are missing](faq-troubleshooting.md#the-dashboard-shows-errors-or-a-notification-says-cards-are-missing)).
 
 > [!TIP]
 > Before you start, find out how your inverter is controlled: which entities or services set forced charging,

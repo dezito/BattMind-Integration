@@ -438,6 +438,12 @@
       "solar_sold_for": "Solarüberschuss verkauft für",
       "no_data": "Keine Daten",
       "no_charging_history": "**Kein Ladeverlauf**"
+    },
+    "dashboard_cards": {
+      "title": "Dashboard-Karten fehlen",
+      "intro": "Das Seitenleisten-Dashboard verwendet benutzerdefinierte Karten aus HACS, die Home Assistant nicht finden konnte. Ohne sie zeigen Teile des Dashboards Fehler an oder verlieren ihr Styling:",
+      "optional": "optional, nur Optik",
+      "footer": "Installiere sie in HACS und lade die Browserseite neu. Diese Benachrichtigung verschwindet automatisch, sobald die Karten gefunden werden, und die Prüfung läuft erneut, wenn die Integration neu geladen wird. Wenn eine Karte auf andere Weise installiert ist, kannst du diese Benachrichtigung schließen."
     }
   },
   "dashboard": {

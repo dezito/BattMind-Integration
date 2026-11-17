@@ -7,8 +7,11 @@ forecast you don't use are removed. You choose the **Sidebar icon** of each inst
 
 It needs these HACS frontend cards: [ApexCharts Card](https://github.com/RomRider/apexcharts-card),
 [Mushroom](https://github.com/piitaya/lovelace-mushroom),
-[Config Template Card](https://github.com/iantrich/config-template-card) and
-[card-mod](https://github.com/thomasloven/lovelace-card-mod).
+[Config Template Card](https://github.com/iantrich/config-template-card),
+[Timer Bar Card](https://github.com/rianadon/timer-bar-card) and
+[card-mod](https://github.com/thomasloven/lovelace-card-mod) (only for styling). If Home Assistant can't find
+some of them, a persistent notification lists the missing cards with links to them, see
+[the cards are missing](faq-troubleshooting.md#the-dashboard-shows-errors-or-a-notification-says-cards-are-missing).
 With card-mod, tables on the overview and analysis pages have no visible row or column borders, and every other table row is slightly shaded, starting with the first
 row (not in a table with a single row), also inside a group of hours.
 

@@ -35,6 +35,7 @@ from .management.blueprint_install import async_install_blueprints
 from .coordinator import BattMindCoordinator
 from .management.debug_export import DEBUG_DIR, DebugDownloadView, async_export_debug, async_notify_debug, install_log_buffer
 from .management.dashboard_build import async_remove_dashboard_file, async_setup_dashboard
+from .management.dashboard_cards import async_dismiss_card_notification
 from .management.what_if_request import (
     WHAT_IF_SCHEMA,
     what_if_module_options as _what_if_module_options,
@@ -582,9 +583,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: BattMindConfigEntry) -> 
         await _async_run_after_home_assistant_started(
             hass,
             entry,
-            lambda: async_setup_dashboard(hass, entry, coordinator.config, coordinator.prefix),
+            lambda: async_setup_dashboard(hass, entry, coordinator.config, coordinator.prefix, coordinator.t),
             f"battmind_{coordinator.prefix}_dashboard_startup",
         )
+    else:
+        async_dismiss_card_notification(hass, entry)
     coordinator.async_start()
     return True
 
@@ -596,12 +599,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: BattMindConfigEntry) ->
         entry.runtime_data.stop_what_ifs()
         await entry.runtime_data.what_if_store.close()
         await entry.runtime_data.async_unload()
+        # the panel goes away with the entry; a reload creates the notification again if cards are still missing
+        async_dismiss_card_notification(hass, entry)
     return unloaded
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: BattMindConfigEntry) -> None:
     from .management.storage import BattMindStorage
 
+    async_dismiss_card_notification(hass, entry)
     # the data can be imported again (config flow of a new entry, or import_data)
     try:
         await async_export(hass, entry, "deleted")

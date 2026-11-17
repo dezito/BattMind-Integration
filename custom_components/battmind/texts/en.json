@@ -438,6 +438,12 @@
       "solar_sold_for": "Solar surplus sold for",
       "no_data": "No data",
       "no_charging_history": "**No charging history**"
+    },
+    "dashboard_cards": {
+      "title": "Dashboard cards missing",
+      "intro": "The sidebar dashboard uses custom cards from HACS that Home Assistant could not find. Without them, parts of the dashboard show errors or lose their styling:",
+      "optional": "optional, only styling",
+      "footer": "Install them in HACS and reload the browser page. This notification is removed automatically once the cards are found, and the check runs again when the integration reloads. If a card is installed in another way, you can dismiss this notification."
     }
   },
   "dashboard": {

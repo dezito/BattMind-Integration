@@ -169,7 +169,7 @@
         "data_description": {
           "cron_interval": "Intervall zwischen Statusprüfungen und Funktionsausführungen",
           "enable_diagnostic_file_log": "Aktiviert die diagnostische Datei-Protokollierung zur Fehlersuche. Protokolle werden in eine separate Datei mit automatischer Rotation geschrieben (2 MB pro Datei, 3 rotierte Dateien).",
-          "dashboard": "Fügt der Seitenleiste ein fertiges BattMind-Dashboard mit Plan, Preisen, Verlauf und allen Einstellungen dieser Instanz hinzu. Braucht die HACS-Karten apexcharts-card, mushroom, config-template-card und card-mod.",
+          "dashboard": "Fügt der Seitenleiste ein fertiges BattMind-Dashboard mit Plan, Preisen, Verlauf und allen Einstellungen dieser Instanz hinzu. Braucht die HACS-Karten apexcharts-card, mushroom, config-template-card, timer-bar-card und card-mod (optional). Eine Benachrichtigung listet fehlende Karten auf.",
           "days_to_predict": "Anzahl der Tage (inkl. heute), die Ladeplan, Verbrauchs- und Solarprognose abdecken. Mehr Tage geben bessere Entscheidungen über das Speichern von Energie, kosten aber mehr CPU und hängen von Preisprognosen ab.",
           "testing_mode": "Markiert die Laderegel mit 🧪, damit eine Testinstanz von der echten unterschieden werden kann."
         },
@@ -419,7 +419,7 @@
         "data_description": {
           "cron_interval": "Intervall zwischen Statusprüfungen und Funktionsausführungen",
           "enable_diagnostic_file_log": "Aktiviert die diagnostische Datei-Protokollierung zur Fehlersuche. Protokolle werden in eine separate Datei mit automatischer Rotation geschrieben (2 MB pro Datei, 3 rotierte Dateien).",
-          "dashboard": "Fügt der Seitenleiste ein fertiges BattMind-Dashboard mit Plan, Preisen, Verlauf und allen Einstellungen dieser Instanz hinzu. Braucht die HACS-Karten apexcharts-card, mushroom, config-template-card und card-mod.",
+          "dashboard": "Fügt der Seitenleiste ein fertiges BattMind-Dashboard mit Plan, Preisen, Verlauf und allen Einstellungen dieser Instanz hinzu. Braucht die HACS-Karten apexcharts-card, mushroom, config-template-card, timer-bar-card und card-mod (optional). Eine Benachrichtigung listet fehlende Karten auf.",
           "days_to_predict": "Anzahl der Tage (inkl. heute), die Ladeplan, Verbrauchs- und Solarprognose abdecken. Mehr Tage geben bessere Entscheidungen über das Speichern von Energie, kosten aber mehr CPU und hängen von Preisprognosen ab.",
           "testing_mode": "Markiert die Laderegel mit 🧪, damit eine Testinstanz von der echten unterschieden werden kann."
         },

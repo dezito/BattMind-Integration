@@ -107,6 +107,22 @@ If the inverter can't run the action at all (e.g. it can't block solar charging)
 Call `battmind.recalc_charging_history_today` (or the button on the dashboard) to recalculate it from the
 power values.
 
+## The dashboard shows errors, or a notification says cards are missing
+
+The dashboard uses HACS frontend cards (ApexCharts Card, Mushroom, Config Template Card, Timer Bar Card and, for
+styling only, card-mod). When **Dashboard in the sidebar** is on, BattMind looks at the Lovelace resources and
+the extra modules of Home Assistant, and a persistent notification lists the cards it can't find, with a link
+to GitHub and to the card in HACS.
+
+1. Install the listed cards in HACS and reload the browser page.
+2. The notification goes away by itself when the cards are found. The check runs at startup, when the
+   integration reloads and when the Lovelace resources change.
+
+If a card is loaded under a name that doesn't contain the card's name (for example a renamed file or a
+bundle), the notification can be wrong: dismiss it. It comes back when the list of missing cards changes, the integration reloads or Home Assistant restarts. The
+check only reads the resources of your Home Assistant, it never contacts HACS or GitHub. If the resources
+can't be read, nothing is reported.
+
 ## A database file was corrupt
 
 Before BattMind saves a database, it checks the current file in `/config/.storage/` and copies it to

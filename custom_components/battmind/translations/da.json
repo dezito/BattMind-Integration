@@ -206,7 +206,7 @@
         "data_description": {
           "days_to_predict": "Antal dage (inkl. i dag) som ladeplanen, forbrugsprognosen og solprognosen dækker. Flere dage giver bedre beslutninger om at gemme energi, men koster mere CPU og afhænger af prisprognoser.",
           "cron_interval": "Minutter mellem hvert tjek af planen. Planen genberegnes kun når priser, batteriniveau eller indstillinger er ændret.",
-          "dashboard": "Tilføjer et færdigt BattMind dashboard i sidepanelet med plan, priser, historik og alle indstillinger for denne instans. Kræver HACS-kortene apexcharts-card, mushroom, config-template-card og card-mod.",
+          "dashboard": "Tilføjer et færdigt BattMind dashboard i sidepanelet med plan, priser, historik og alle indstillinger for denne instans. Kræver HACS-kortene apexcharts-card, mushroom, config-template-card, timer-bar-card og card-mod (valgfrit). En notifikation viser manglende kort.",
           "enable_diagnostic_file_log": "Skriv en detaljeret log til battmind_{prefix}.log i konfigurationsmappen (2 MB pr. fil, 3 rotationer). Til fejlfinding.",
           "testing_mode": "Markerer ladereglen med 🧪, så en testinstans kan skelnes fra den rigtige."
         }
@@ -459,7 +459,7 @@
         "data_description": {
           "days_to_predict": "Antal dage (inkl. i dag) som ladeplanen, forbrugsprognosen og solprognosen dækker. Flere dage giver bedre beslutninger om at gemme energi, men koster mere CPU og afhænger af prisprognoser.",
           "cron_interval": "Minutter mellem hvert tjek af planen. Planen genberegnes kun når priser, batteriniveau eller indstillinger er ændret.",
-          "dashboard": "Tilføjer et færdigt BattMind dashboard i sidepanelet med plan, priser, historik og alle indstillinger for denne instans. Kræver HACS-kortene apexcharts-card, mushroom, config-template-card og card-mod.",
+          "dashboard": "Tilføjer et færdigt BattMind dashboard i sidepanelet med plan, priser, historik og alle indstillinger for denne instans. Kræver HACS-kortene apexcharts-card, mushroom, config-template-card, timer-bar-card og card-mod (valgfrit). En notifikation viser manglende kort.",
           "enable_diagnostic_file_log": "Skriv en detaljeret log til battmind_{prefix}.log i konfigurationsmappen (2 MB pr. fil, 3 rotationer). Til fejlfinding.",
           "testing_mode": "Markerer ladereglen med 🧪, så en testinstans kan skelnes fra den rigtige."
         }
