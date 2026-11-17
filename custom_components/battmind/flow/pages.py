@@ -9,7 +9,9 @@ from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.helpers import selector
 
 from ..const import FLOW_STEPS, PRICE_PROVIDER_KEYS
+from ..management.dependency_checks import STROMLIGNING_PLATFORM, STROMLIGNING_UNIQUE_ID_PREFIXES, disabled_sensors
 from ..utils.cjp import cjp_charger_power_entities
+from ..utils.solcast import SOLCAST_PLATFORM
 from .schema import ENERGIDATASERVICE_URL, PRICE_PROVIDERS, build_schema, normalize_input, validate_step
 
 
@@ -68,6 +70,9 @@ class BattMindFlowPages:
                 "eds_url": ENERGIDATASERVICE_URL,
                 # the chargers BattMind leaves out of the house consumption by itself (the consumption page)
                 "cjp_chargers": ", ".join(cjp_charger_power_entities(self.hass)) or "–",  # type: ignore[attr-defined]
+                # the sensors of Strømligning and Solcast that are disabled (the entity picker can't offer them)
+                "stromligning_disabled": disabled_sensors(self.hass, STROMLIGNING_PLATFORM, STROMLIGNING_UNIQUE_ID_PREFIXES),  # type: ignore[attr-defined]
+                "solcast_disabled": disabled_sensors(self.hass, SOLCAST_PLATFORM, "total_kwh_forecast"),  # type: ignore[attr-defined]
             },
         )
 

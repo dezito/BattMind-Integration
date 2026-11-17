@@ -106,7 +106,7 @@
           "stromligning_sell_forecasts": "Verkaufspreis-Prognosen (optional)",
           "stromligning_sell_tomorrow_available": "Verkaufspreis morgen (optional)"
         },
-        "description": "Sensoren der Integration Strømligning. Der Kaufpreis ist Pflicht; die Verkaufssensoren werden für einen genauen Verkaufspreis gebraucht.",
+        "description": "Sensoren der Integration Strømligning. Der Kaufpreis ist Pflicht; die Verkaufssensoren werden für einen genauen Verkaufspreis gebraucht.\n\nStrømligning schaltet seine Sensoren ohne MwSt. standardmäßig aus, und ein deaktivierter Sensor kann hier nicht gewählt werden: aktiviere sie zuerst unter **Einstellungen → Geräte & Dienste → Entitäten** (*Deaktivierte Entitäten anzeigen*). Die Preisprognosen brauchen außerdem *Include price forecasts for the next week?* in den Strømligning-Optionen.\nJetzt in Strømligning deaktiviert: {stromligning_disabled}",
         "title": "Strømligning"
       },
       "prices_stromligning_tariffs": {
@@ -124,7 +124,7 @@
           "stromligning_sell_surcharge": "Aufschlag des Anbieters",
           "stromligning_sell_systemtariff": "Systemtarif"
         },
-        "description": "Beim Verkaufen werden Tarife und Steuern vom Preis abgezogen und Übertragungs-/Systemtarif und Verkaufsgebühr addiert. Lass ein Feld leer, um 0 zu nutzen.",
+        "description": "Beim Verkaufen werden Tarife und Steuern vom Preis abgezogen und Übertragungs-/Systemtarif und Verkaufsgebühr addiert. Lass ein Feld leer, um 0 zu nutzen.\n\nDie Tarifsensoren können in Strømligning deaktiviert sein und lassen sich dann hier nicht wählen: aktiviere sie zuerst unter **Einstellungen → Geräte & Dienste → Entitäten** (*Deaktivierte Entitäten anzeigen*).\nJetzt in Strømligning deaktiviert: {stromligning_disabled}",
         "title": "Strømligning - Tarife beim Verkaufen"
       },
       "price_fees": {
@@ -152,7 +152,7 @@
           "production_entity_id": "Solarproduktion",
           "production_price": "Fester Verkaufspreis für den Solarüberschuss"
         },
-        "description": "Optional. Mit Solar sagt BattMind den Überschuss voraus, der den Akku kostenlos lädt, kann das Solarladen in günstigere Stunden verschieben und summiert `sensor.{prefix}_kwh_charged_by_solar`. Ohne Solar leer lassen.",
+        "description": "Optional. Mit Solar sagt BattMind den Überschuss voraus, der den Akku kostenlos lädt, kann das Solarladen in günstigere Stunden verschieben und summiert `sensor.{prefix}_kwh_charged_by_solar`. Ohne Solar leer lassen.\n\nSolcast schaltet die Prognosesensoren ab Tag 3 standardmäßig aus: aktiviere sie unter **Einstellungen → Geräte & Dienste → Entitäten** (*Deaktivierte Entitäten anzeigen*) und schalte *Stündliche Details* unter *Aufschlüsselung der Prognoseattribute* in den Solcast-Optionen ein, sonst werden diese Tage ohne Solcast geplant.\nJetzt deaktivierte Solcast-Sensoren: {solcast_disabled}",
         "title": "Solaranlage"
       },
       "weather": {
@@ -356,7 +356,7 @@
           "stromligning_sell_forecasts": "Verkaufspreis-Prognosen (optional)",
           "stromligning_sell_tomorrow_available": "Verkaufspreis morgen (optional)"
         },
-        "description": "Sensoren der Integration Strømligning. Der Kaufpreis ist Pflicht; die Verkaufssensoren werden für einen genauen Verkaufspreis gebraucht.",
+        "description": "Sensoren der Integration Strømligning. Der Kaufpreis ist Pflicht; die Verkaufssensoren werden für einen genauen Verkaufspreis gebraucht.\n\nStrømligning schaltet seine Sensoren ohne MwSt. standardmäßig aus, und ein deaktivierter Sensor kann hier nicht gewählt werden: aktiviere sie zuerst unter **Einstellungen → Geräte & Dienste → Entitäten** (*Deaktivierte Entitäten anzeigen*). Die Preisprognosen brauchen außerdem *Include price forecasts for the next week?* in den Strømligning-Optionen.\nJetzt in Strømligning deaktiviert: {stromligning_disabled}",
         "title": "Strømligning"
       },
       "prices_stromligning_tariffs": {
@@ -374,7 +374,7 @@
           "stromligning_sell_surcharge": "Aufschlag des Anbieters",
           "stromligning_sell_systemtariff": "Systemtarif"
         },
-        "description": "Beim Verkaufen werden Tarife und Steuern vom Preis abgezogen und Übertragungs-/Systemtarif und Verkaufsgebühr addiert. Lass ein Feld leer, um 0 zu nutzen.",
+        "description": "Beim Verkaufen werden Tarife und Steuern vom Preis abgezogen und Übertragungs-/Systemtarif und Verkaufsgebühr addiert. Lass ein Feld leer, um 0 zu nutzen.\n\nDie Tarifsensoren können in Strømligning deaktiviert sein und lassen sich dann hier nicht wählen: aktiviere sie zuerst unter **Einstellungen → Geräte & Dienste → Entitäten** (*Deaktivierte Entitäten anzeigen*).\nJetzt in Strømligning deaktiviert: {stromligning_disabled}",
         "title": "Strømligning - Tarife beim Verkaufen"
       },
       "price_fees": {
@@ -402,7 +402,7 @@
           "production_entity_id": "Solarproduktion",
           "production_price": "Fester Verkaufspreis für den Solarüberschuss"
         },
-        "description": "Optional. Mit Solar sagt BattMind den Überschuss voraus, der den Akku kostenlos lädt, kann das Solarladen in günstigere Stunden verschieben und summiert `sensor.{prefix}_kwh_charged_by_solar`. Ohne Solar leer lassen.",
+        "description": "Optional. Mit Solar sagt BattMind den Überschuss voraus, der den Akku kostenlos lädt, kann das Solarladen in günstigere Stunden verschieben und summiert `sensor.{prefix}_kwh_charged_by_solar`. Ohne Solar leer lassen.\n\nSolcast schaltet die Prognosesensoren ab Tag 3 standardmäßig aus: aktiviere sie unter **Einstellungen → Geräte & Dienste → Entitäten** (*Deaktivierte Entitäten anzeigen*) und schalte *Stündliche Details* unter *Aufschlüsselung der Prognoseattribute* in den Solcast-Optionen ein, sonst werden diese Tage ohne Solcast geplant.\nJetzt deaktivierte Solcast-Sensoren: {solcast_disabled}",
         "title": "Solaranlage"
       },
       "weather": {
@@ -926,6 +926,14 @@
           }
         }
       }
+    },
+    "stromligning_entities": {
+      "title": "Strømligning-Sensoren, die BattMind braucht, sind nicht verfügbar ({prefix})",
+      "description": "BattMind ({prefix}) nutzt Strømligning-Sensoren, die deaktiviert sind oder die Strømligning nicht liefert. Ein fehlender Verkaufstarif zählt als 0, wodurch der berechnete Verkaufspreis zu hoch wird; ohne die Preissensoren werden die gespeicherten Preise genutzt.\n\nIn Home Assistant deaktiviert (Strømligning deaktiviert seine Sensoren ohne MwSt. standardmäßig – aktiviere sie unter **Einstellungen → Geräte & Dienste → Entitäten** mit *Deaktivierte Entitäten anzeigen*):\n{disabled}\n\nNicht von Strømligning geliefert (z. B. sind die Preisprognosen in dessen Optionen ausgeschaltet):\n{not_provided}\n\nDiese Reparatur verschwindet von selbst, wenn die Sensoren wieder funktionieren."
+    },
+    "solcast_entities": {
+      "title": "Solcast-Prognosesensoren, die BattMind braucht, sind nicht verfügbar ({prefix})",
+      "description": "BattMind ({prefix}) kann nicht alle benötigten Solcast-Prognosesensoren nutzen; die Tage ohne Sensor werden stattdessen aus der Wettervorhersage und dem gespeicherten Solarverlauf geplant. Solcast deaktiviert die Prognosesensoren ab Tag 3 standardmäßig.\n\nIn Home Assistant deaktiviert (aktiviere sie unter **Einstellungen → Geräte & Dienste → Entitäten** mit *Deaktivierte Entitäten anzeigen*):\n{disabled}\n\nNicht so benannt, wie BattMind es erwartet (die Entity-ID muss auf _today, _tomorrow oder _day_3 … enden):\n{renamed}\n\nOhne Stundendetails (schalte *Stündliche Details* unter *Aufschlüsselung der Prognoseattribute* in den Solcast-Optionen ein):\n{no_detail}\n\nDiese Reparatur verschwindet von selbst, wenn die Sensoren korrigiert sind."
     }
   },
   "selector": {
