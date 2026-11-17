@@ -69,7 +69,6 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self.config = config
         self.name = prefix
         self.texts = texts  # runtime texts, see formatting.translate
-        self.testing = bool(config.get("testing_mode"))
         self.title = f"BattMind ({prefix})"
 
         solar = config["solar"]
@@ -275,7 +274,7 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
             self._out.notifications.append((message, title, notification_id or f"{self.name}_notification"))
 
     def set_charging_rule(self, text: str = "") -> None:
-        self.set_state("current_charging_rule", format_charging_rule(text, self.testing))
+        self.set_state("current_charging_rule", format_charging_rule(text))
 
     # ------------------------------------------------------------------ #
     # Configuration and settings

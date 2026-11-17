@@ -10,7 +10,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import selector
 
 from ..management.backup import BACKUP_DIR, async_export, async_import, backup_dir, list_backups
-from ..const import CONF_ENTITY_PREFIX, OPTIONS_MENU, default_options, normalize_language
+from ..const import CONF_ENTITY_PREFIX, OPTIONS_MENU, default_options, normalize_language, strip_removed_options
 from .schema import BACKUP_EXPORT, providers_from_options
 from .pages import BattMindFlowPages
 
@@ -88,4 +88,4 @@ class BattMindOptionsFlow(BattMindFlowPages, OptionsFlow):
         return await self._async_menu("advanced")
 
     async def _async_finish(self) -> ConfigFlowResult:
-        return self.async_create_entry(data=self._options)
+        return self.async_create_entry(data=strip_removed_options(self._options))

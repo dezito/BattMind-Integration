@@ -11,6 +11,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 
 from custom_components.battmind.const import CONF_ENTITY_PREFIX, DOMAIN
+from custom_components.battmind.const.config import build_config, default_options
+from custom_components.battmind.utils.formatting import format_charging_rule
 
 from .conftest import BATTERY_FLOW, BATTERY_LEVEL, CONSUMPTION, PRICE, PRODUCTION, form_defaults
 
@@ -208,6 +210,16 @@ async def test_import_legacy_pyscript_config(hass: HomeAssistant, tmp_path: Path
     assert options["ignore_consumption_from_entity_ids"] == ["sensor.bil_lader_power"]
     assert options["energidataservice_sell_entity_id"] == "sensor.energi_data_service_salg"
     assert options["language"] == "da"
+    # the removed testing mode in the legacy file (testing_mode: true) is ignored, not imported
+    assert "testing_mode" not in options
+
+
+def test_removed_testing_mode_is_ignored() -> None:
+    """A testing_mode left in stored options (or the legacy file) changes nothing: no marker, no config key."""
+    config = build_config({**default_options(), "testing_mode": True})
+    assert "testing_mode" not in config
+    assert "testing_mode" not in default_options()
+    assert format_charging_rule("  Charge \n\nSell  ") == "Charge\nSell"
 
 
 async def test_options_flow_changes_battery_size(hass: HomeAssistant, loaded_entry) -> None:
@@ -226,6 +238,20 @@ async def test_options_flow_changes_battery_size(hass: HomeAssistant, loaded_ent
     assert loaded_entry.options["powerwall_battery_size"] == 20.0
     # the update listener reloads the entry with the new configuration
     assert loaded_entry.runtime_data.config["solar"]["powerwall_battery_size"] == 20.0
+
+
+async def test_options_flow_drops_a_stored_testing_mode(hass: HomeAssistant, loaded_entry) -> None:
+    """A removed option that the stored options still hold (old backup) is not saved again."""
+    hass.config_entries.async_update_entry(loaded_entry, options={**loaded_entry.options, "testing_mode": True})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    result = await hass.config_entries.options.async_init(loaded_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "menu_battery"})
+    for _ in range(3):  # battery_entities, battery_specs, battery_actions
+        result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert "testing_mode" not in result["data"]
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert "testing_mode" not in loaded_entry.options
 
 
 async def test_options_flow_switches_off_the_rules_of_an_unsupported_action(hass: HomeAssistant, loaded_entry) -> None:

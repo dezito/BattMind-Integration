@@ -565,7 +565,7 @@ async def async_debug_data(
         "python": platform.python_version(),
         "time_zone": hass.config.time_zone,
         "prefix": prefix,
-        "status": {"started": coordinator.started, "testing": coordinator.testing, "last_job": dict(coordinator.last_job)},
+        "status": {"started": coordinator.started, "last_job": dict(coordinator.last_job)},
         "options": dict(coordinator.entry.options),
         "config": config,
         "entities": entities,

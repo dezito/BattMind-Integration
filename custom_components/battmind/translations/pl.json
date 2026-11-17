@@ -170,15 +170,13 @@
           "cron_interval": "Interwał między sprawdzaniem statusu a wykonywaniem funkcji",
           "enable_diagnostic_file_log": "Włącza diagnostyczne logowanie do pliku w celu debugowania. Logi są zapisywane do osobnego pliku z automatyczną rotacją (2 MB na plik, 3 rotowane pliki).",
           "dashboard": "Dodaje do paska bocznego gotowy dashboard BattMind z planem, cenami, historią i wszystkimi ustawieniami tej instancji. Wymaga kart HACS apexcharts-card, mushroom, config-template-card, timer-bar-card i card-mod (opcjonalnie). Powiadomienie wymienia brakujące karty.",
-          "days_to_predict": "Liczba dni (łącznie z dzisiaj), które obejmuje plan ładowania, prognoza zużycia i prognoza słoneczna. Więcej dni daje lepsze decyzje o magazynowaniu energii, ale kosztuje więcej CPU i zależy od prognoz cen.",
-          "testing_mode": "Oznacza regułę ładowania symbolem 🧪, aby odróżnić instancję testową od prawdziwej."
+          "days_to_predict": "Liczba dni (łącznie z dzisiaj), które obejmuje plan ładowania, prognoza zużycia i prognoza słoneczna. Więcej dni daje lepsze decyzje o magazynowaniu energii, ale kosztuje więcej CPU i zależy od prognoz cen."
         },
         "data": {
           "cron_interval": "Interwał planowania",
           "dashboard": "Dashboard w pasku bocznym",
           "days_to_predict": "Dni do zaplanowania",
-          "enable_diagnostic_file_log": "Plik dziennika diagnostycznego",
-          "testing_mode": "Tryb testowy"
+          "enable_diagnostic_file_log": "Plik dziennika diagnostycznego"
         },
         "description": "Planista, reguły i progi są sterowane encjami BattMind (przełączniki i liczby) - to są ustawienia techniczne.",
         "title": "Planowanie"
@@ -420,15 +418,13 @@
           "cron_interval": "Interwał między sprawdzaniem statusu a wykonywaniem funkcji",
           "enable_diagnostic_file_log": "Włącza diagnostyczne logowanie do pliku w celu debugowania. Logi są zapisywane do osobnego pliku z automatyczną rotacją (2 MB na plik, 3 rotowane pliki).",
           "dashboard": "Dodaje do paska bocznego gotowy dashboard BattMind z planem, cenami, historią i wszystkimi ustawieniami tej instancji. Wymaga kart HACS apexcharts-card, mushroom, config-template-card, timer-bar-card i card-mod (opcjonalnie). Powiadomienie wymienia brakujące karty.",
-          "days_to_predict": "Liczba dni (łącznie z dzisiaj), które obejmuje plan ładowania, prognoza zużycia i prognoza słoneczna. Więcej dni daje lepsze decyzje o magazynowaniu energii, ale kosztuje więcej CPU i zależy od prognoz cen.",
-          "testing_mode": "Oznacza regułę ładowania symbolem 🧪, aby odróżnić instancję testową od prawdziwej."
+          "days_to_predict": "Liczba dni (łącznie z dzisiaj), które obejmuje plan ładowania, prognoza zużycia i prognoza słoneczna. Więcej dni daje lepsze decyzje o magazynowaniu energii, ale kosztuje więcej CPU i zależy od prognoz cen."
         },
         "data": {
           "cron_interval": "Interwał planowania",
           "dashboard": "Dashboard w pasku bocznym",
           "days_to_predict": "Dni do zaplanowania",
-          "enable_diagnostic_file_log": "Plik dziennika diagnostycznego",
-          "testing_mode": "Tryb testowy"
+          "enable_diagnostic_file_log": "Plik dziennika diagnostycznego"
         },
         "description": "Planista, reguły i progi są sterowane encjami BattMind (przełączniki i liczby) - to są ustawienia techniczne.",
         "title": "Planowanie"

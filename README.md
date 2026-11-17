@@ -237,7 +237,7 @@ Setup is done in the UI, split into small pages with help texts:
 4. **Price providers:** Energi Data Service and/or Strømligning (buy, sell and tariffs), refund and selling fee
 5. **Solar panels:** production, the inverter's max. power, fixed sell price or hourly price, and Solcast
 6. **Weather:** hourly and daily forecast (only with solar panels)
-7. **Advanced:** number of days to plan, interval, dashboard, diagnostic file log and testing mode
+7. **Advanced:** number of days to plan, interval, dashboard and diagnostic file log
 8. **Database:** how much history is stored
 
 Everything can be changed afterwards under **Configure** on the integration. The integration reloads when you save.

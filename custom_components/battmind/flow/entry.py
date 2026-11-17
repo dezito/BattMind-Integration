@@ -11,7 +11,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
 from ..management.backup import BACKUP_DIR, async_load_backup, backup_dir, list_backups
-from ..const import CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX, DOMAIN, SENSOR_KEYS, dashboard_icon, default_options, normalize_language
+from ..const import CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX, DOMAIN, SENSOR_KEYS, dashboard_icon, default_options, normalize_language, strip_removed_options
 from ..management.storage import find_legacy_sources, load_legacy_config
 from .pages import BattMindFlowPages
 from .options import BattMindOptionsFlow
@@ -102,7 +102,7 @@ class BattMindConfigFlow(BattMindFlowPages, ConfigFlow, domain=DOMAIN):
             backup = await async_load_backup(self.hass, name)
             self._restore_backup = name
             language, icon = self._options["language"], self._options["dashboard_icon"]
-            self._options = {**default_options(), **(backup.get("options") or {}), "language": language, "dashboard_icon": icon}
+            self._options = {**default_options(), **strip_removed_options(backup.get("options") or {}), "language": language, "dashboard_icon": icon}
             self._providers = providers_from_options(self._options)
             return await self._async_next()
 

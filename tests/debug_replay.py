@@ -30,7 +30,7 @@ from custom_components.battmind.engine import BattMindEngine, JobResult, Snapsho
 from custom_components.battmind.utils.formatting import load_texts
 
 # engine attributes that are rebuilt from the configuration instead of the export
-_REBUILT = {"name", "title", "testing", "max_kwh_charging", "max_kwh_discharging", "price_provider"}
+_REBUILT = {"name", "title", "max_kwh_charging", "max_kwh_discharging", "price_provider"}
 
 
 def load_export(path: str) -> dict[str, Any]:
