@@ -26,7 +26,6 @@ class Diagnostics:
         sections = {
             "Status": (
                 {
-                    "testing": self.testing,
                     "solar_configured": self.is_solar_configured(),
                     "forecast_type": self.forecast_type,
                     "forecast_type_manual": self.forecast_type_manual,

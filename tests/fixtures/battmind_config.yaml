@@ -44,4 +44,4 @@ solar:
   powerwall_wear_cost_per_kwh: 0.1
   production_price: -1.0
   use_charge_discharge_loss_from_history: true
-testing_mode: false
+testing_mode: true

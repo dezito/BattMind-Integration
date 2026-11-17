@@ -16,8 +16,6 @@ emoji always means the same rule.
 | The analysis → *Per rule* | charged and discharged kWh per rule |
 | The emoji explanation (dashboard sidebar) | `sensor.<prefix>_emoji_description` – the list below in your language |
 
-In testing mode (setup → *Advanced*), the current rule is wrapped in 🧪, so a test instance can be told apart.
-
 <details>
 <summary>Screenshot of the emoji explanation</summary>
 

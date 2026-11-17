@@ -51,7 +51,6 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self.entry = entry
         self.prefix: str = entry.data[CONF_ENTITY_PREFIX]
         self.config = build_config({**default_options(), **entry.options})
-        self.testing = bool(self.config.get("testing_mode"))
         self.texts: dict[str, str] = {}  # runtime texts, loaded in async_setup
         self.entity_names: dict[str, str] = {}  # '<platform>.<key>' -> name, loaded in async_setup
         self.engine: BattMindEngine | None = None

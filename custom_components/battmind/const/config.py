@@ -96,7 +96,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "battery_discharging_efficiency_curve": {},
         "powerwall_wear_cost_per_kwh": 0.1,
     },
-    "testing_mode": False,
 }
 
 # Config flow option key -> path in DEFAULT_CONFIG
@@ -158,7 +157,6 @@ OPTION_PATHS: dict[str, str] = {
     "days_to_predict": "days_to_predict",
     "dashboard": "dashboard",
     "dashboard_icon": "dashboard_icon",
-    "testing_mode": "testing_mode",
 }
 
 # Config/options flow pages: step id -> option keys shown on that page
@@ -223,7 +221,6 @@ FLOW_STEPS: dict[str, list[str]] = {
         "cron_interval",
         "dashboard",
         "enable_diagnostic_file_log",
-        "testing_mode",
     ],
     "database": [
         "power_values_db_data_to_save",
@@ -268,6 +265,15 @@ def default_options() -> dict[str, Any]:
         key: deepcopy(get_dict_value_with_path(DEFAULT_CONFIG, path))
         for key, path in OPTION_PATHS.items()
     }
+
+
+# Options that no longer exist; old backups and stored options may still hold them
+REMOVED_OPTION_KEYS = ("testing_mode",)
+
+
+def strip_removed_options(options: dict[str, Any]) -> dict[str, Any]:
+    """The options without the keys of removed settings (they are never read, so they would only linger)."""
+    return {key: value for key, value in options.items() if key not in REMOVED_OPTION_KEYS}
 
 
 def build_config(options: dict[str, Any]) -> dict[str, Any]:

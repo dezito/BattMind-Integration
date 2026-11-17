@@ -102,10 +102,9 @@ def emoji_rules(emojis: str) -> dict:
     return {key: True for key, entry in CHARGING_TYPES.items() if entry["emoji"] in found}
 
 
-def format_charging_rule(text: str, testing: bool) -> str:
-    marker = "🧪" if testing else ""
+def format_charging_rule(text: str) -> str:
     return "\n".join(
-        f"{marker}{line.strip()}{marker}" for line in str(text).split("\n") if isinstance(line, str) and line.strip()
+        line.strip() for line in str(text).split("\n") if isinstance(line, str) and line.strip()
     )
 
 
