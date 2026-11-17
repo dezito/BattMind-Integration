@@ -46,6 +46,8 @@ statistics (as many days as the consumption history keeps). A new installation t
 house's real consumption right away, and hours where Home Assistant wasn't running are filled in later.
 Days already in the history are kept. This needs statistics (`state_class: measurement`) for the house
 consumption, the ignored consumers and the battery power; an hour where one of them is missing is left out.
+The Cable Juice Planner chargers that BattMind adds by itself count as ignored consumers too, but one without
+any statistics is simply left out, so it doesn't stop the whole backfill.
 The battery power is the average of the hour, so an hour that both charged and discharged only counts the
 difference.
 

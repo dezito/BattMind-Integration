@@ -89,18 +89,20 @@
       },
       "consumption": {
         "title": "Husets forbrug",
-        "description": "BattMind gemmer forbruget time for time og forudsiger hvor meget batteriet skal dække de næste dage.",
+        "description": "BattMind gemmer forbruget time for time og forudsiger hvor meget batteriet skal dække de næste dage.\n\nCable Juice Planner-ladere fundet: {cjp_chargers}",
         "data": {
           "power_consumption_entity_id": "Husets forbrug",
           "power_consumption_entity_id_include_powerwall_charging": "Indeholder batteriopladning",
           "power_consumption_entity_id_include_powerwall_discharging": "Indeholder batteriafladning",
-          "ignore_consumption_from_entity_ids": "Ignorer forbrug fra"
+          "ignore_consumption_from_entity_ids": "Ignorer forbrug fra",
+          "ignore_cjp_chargers": "Ignorer Cable Juice Planner-ladere"
         },
         "data_description": {
           "power_consumption_entity_id": "Sensor med husets forbrug (W/kW) - ikke forbruget fra nettet. Historikken bruges til at forudsige forbruget time for time.",
           "power_consumption_entity_id_include_powerwall_charging": "Slå til hvis forbrugssensoren også tæller den effekt der bruges til at lade batteriet.",
           "power_consumption_entity_id_include_powerwall_discharging": "Slå til hvis forbrugssensoren allerede indeholder det forbrug batteriet dækker.",
-          "ignore_consumption_from_entity_ids": "Effekt-sensorer der trækkes fra husets forbrug, f.eks. elbilladere som batteriet ikke skal dække."
+          "ignore_consumption_from_entity_ids": "Effekt-sensorer der trækkes fra husets forbrug, f.eks. elbilladere som batteriet ikke skal dække.",
+          "ignore_cjp_chargers": "Trækker ladeeffekten fra laderne til dine Cable Juice Planner-biler fra husets forbrug, også for biler der tilføjes senere. En lader der også står på listen ovenfor, trækkes kun fra én gang. Slå fra hvis din forbrugssensor ikke indeholder laderne."
         }
       },
       "prices_energidataservice": {
@@ -340,18 +342,20 @@
       },
       "consumption": {
         "title": "Husets forbrug",
-        "description": "BattMind gemmer forbruget time for time og forudsiger hvor meget batteriet skal dække de næste dage.",
+        "description": "BattMind gemmer forbruget time for time og forudsiger hvor meget batteriet skal dække de næste dage.\n\nCable Juice Planner-ladere fundet: {cjp_chargers}",
         "data": {
           "power_consumption_entity_id": "Husets forbrug",
           "power_consumption_entity_id_include_powerwall_charging": "Indeholder batteriopladning",
           "power_consumption_entity_id_include_powerwall_discharging": "Indeholder batteriafladning",
-          "ignore_consumption_from_entity_ids": "Ignorer forbrug fra"
+          "ignore_consumption_from_entity_ids": "Ignorer forbrug fra",
+          "ignore_cjp_chargers": "Ignorer Cable Juice Planner-ladere"
         },
         "data_description": {
           "power_consumption_entity_id": "Sensor med husets forbrug (W/kW) - ikke forbruget fra nettet. Historikken bruges til at forudsige forbruget time for time.",
           "power_consumption_entity_id_include_powerwall_charging": "Slå til hvis forbrugssensoren også tæller den effekt der bruges til at lade batteriet.",
           "power_consumption_entity_id_include_powerwall_discharging": "Slå til hvis forbrugssensoren allerede indeholder det forbrug batteriet dækker.",
-          "ignore_consumption_from_entity_ids": "Effekt-sensorer der trækkes fra husets forbrug, f.eks. elbilladere som batteriet ikke skal dække."
+          "ignore_consumption_from_entity_ids": "Effekt-sensorer der trækkes fra husets forbrug, f.eks. elbilladere som batteriet ikke skal dække.",
+          "ignore_cjp_chargers": "Trækker ladeeffekten fra laderne til dine Cable Juice Planner-biler fra husets forbrug, også for biler der tilføjes senere. En lader der også står på listen ovenfor, trækkes kun fra én gang. Slå fra hvis din forbrugssensor ikke indeholder laderne."
         }
       },
       "prices_energidataservice": {

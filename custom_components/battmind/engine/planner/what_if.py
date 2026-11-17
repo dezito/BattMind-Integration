@@ -21,7 +21,7 @@ from ..optimizer import OptimizerConfig, OptimizerHour
 from ..energy.energy import derive_power_values
 from ...prices.base import calculate_sell_price, is_number
 from ...utils.efficiency import efficiency_curve_mapping, parse_efficiency_curve
-from ...utils.power import unit_factor_to_w
+from ...utils.power import unique_entity_ids, unit_factor_to_w
 from ...utils.helpers import float_or_none
 from .replay import replay_history
 
@@ -475,7 +475,10 @@ class WhatIf:
         consumption_id = ids["power_consumption_entity_id"]
         flow_id = ids["powerwall_watt_flow_entity_id"]
         solar_id = self.config["solar"]["entity_ids"]["production_entity_id"]
-        ignored_ids = [entity_id for entity_id in ids["ignore_consumption_from_entity_ids"] or [] if entity_id]
+        # a charger BattMind added itself (Cable Juice Planner) with no statistics at all is left out, so the simulation
+        # does not fail or shrink to its history; a sensor the user listed is still required
+        auto_ids = self.config["home"].get("auto_ignored_entity_ids") or []
+        ignored_ids = [entity_id for entity_id in unique_entity_ids(ids["ignore_consumption_from_entity_ids"]) if entity_id not in auto_ids or series(entity_id)]
         consumption = series(consumption_id)
         flow = series(flow_id)
         solar = series(solar_id)

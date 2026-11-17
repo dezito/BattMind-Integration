@@ -7,14 +7,17 @@ from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 from queue import SimpleQueue
 
 from homeassistant.components import persistent_notification
+from homeassistant.config_entries import SIGNAL_CONFIG_ENTRY_CHANGED, ConfigEntry, ConfigEntryChange
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import CoreState, Event, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import translation
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from ..const import DOMAIN, ENTITY_UNAVAILABLE_STATES
 from ..engine import BattMindEngine
+from ..utils.cjp import CJP_DOMAIN, cjp_charger_power_entities
 from ..utils.formatting import load_texts
 from ..management.backup import async_load_backup, async_restore_databases, pending_restores
 from ..management.storage import DB_NAMES, load_legacy_databases
@@ -46,6 +49,10 @@ class CoordinatorLifecycle:
         # Home Assistant stopping does not unload the entries, and the what-if thread (a worker thread of an executor) is
         # waited for when the process exits: a simulation with hours left would hold up the stop or the restart
         self.entry.async_on_unload(self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self._on_ha_stop))
+        if self.auto_ignored_entities:
+            _LOGGER.info("Leaving the consumption of the Cable Juice Planner chargers out of the house consumption: %s", ", ".join(self.auto_ignored_entities))
+        if self.config["home"]["ignore_cjp_chargers"]:
+            self.entry.async_on_unload(async_dispatcher_connect(self.hass, SIGNAL_CONFIG_ENTRY_CHANGED, self._on_config_entry_changed))
 
         ent_reg = er.async_get(self.hass)
         for entity_id in self.configured_entities:
@@ -54,6 +61,21 @@ class CoordinatorLifecycle:
 
         await self._async_apply_restore()
         self.set_charging_rule(f"📟{self.t('ui.init.script_starting')}")
+
+    @callback
+    def _on_config_entry_changed(self, change: ConfigEntryChange, entry: ConfigEntry) -> None:
+        """A CJP car was added, removed, enabled, disabled or got another charger: start again with the new list.
+
+        The signal also comes for every state change of a CJP entry (loading, reloading), so the chargers are
+        compared with the ones this start used; only a real difference reloads, and only once.
+        """
+        if entry.domain != CJP_DOMAIN or self._cjp_reload_scheduled:
+            return
+        if cjp_charger_power_entities(self.hass) == self.cjp_chargers:
+            return
+        self._cjp_reload_scheduled = True
+        _LOGGER.info("The chargers of Cable Juice Planner changed, reloading BattMind to leave out their consumption")
+        self.hass.config_entries.async_schedule_reload(self.entry.entry_id)
 
     async def _async_apply_restore(self) -> None:
         """Databases and settings of a backup imported or chosen in the config flow (management/backup.py)."""

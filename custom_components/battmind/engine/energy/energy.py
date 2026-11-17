@@ -8,7 +8,7 @@ from copy import deepcopy
 
 from ...const import LEARNING_MIN_DAYS
 from ...utils.helpers import average, get_specific_values, reset_time_to_hour, start_of_day
-from ...utils.power import unit_factor_to_w
+from ...utils.power import unique_entity_ids, unit_factor_to_w
 
 from .forecast import EnergyForecast
 from .price import EnergyPrice
@@ -95,8 +95,7 @@ class Energy(EnergyForecast, EnergySolar, EnergyPrice):
             consumption = abs(round(float(average_w(home["entity_ids"]["power_consumption_entity_id"], from_timestamp, to_timestamp)), 2))
             ignored = abs(round(sum(
                 float(average_w(entity_id, from_timestamp, to_timestamp))
-                for entity_id in home["entity_ids"]["ignore_consumption_from_entity_ids"] or []
-                if entity_id
+                for entity_id in unique_entity_ids(home["entity_ids"]["ignore_consumption_from_entity_ids"])
             ), 2))
             powerwall_values = self.get_powerwall_values(from_timestamp, to_timestamp)
             charging = self._charging_watt(powerwall_values)
@@ -169,8 +168,7 @@ class Energy(EnergyForecast, EnergySolar, EnergyPrice):
             return 0
         flow_id = ids["powerwall_watt_flow_entity_id"]
         solar_id = self.config["solar"]["entity_ids"]["production_entity_id"]
-        ignored_ids = [entity_id for entity_id in ids["ignore_consumption_from_entity_ids"] or [] if entity_id]
-        required = [consumption_id, *ignored_ids, *([flow_id] if flow_id else [])]
+        ignored_ids = unique_entity_ids(ids["ignore_consumption_from_entity_ids"])
 
         means: dict[str, dict[datetime.datetime, float]] = {}
         for entity_id, rows in (statistics or {}).items():
@@ -180,6 +178,10 @@ class Energy(EnergyForecast, EnergySolar, EnergyPrice):
                 for timestamp, mean in rows
                 if isinstance(mean, (int, float)) and math.isfinite(mean)
             }
+        # a charger BattMind added itself (Cable Juice Planner) that has no statistics at all is left out, so it
+        # does not stop every hour; one the user listed is still required
+        ignored_ids = [entity_id for entity_id in ignored_ids if entity_id not in (home.get("auto_ignored_entity_ids") or []) or means.get(entity_id)]
+        required = [consumption_id, *ignored_ids, *([flow_id] if flow_id else [])]
 
         if not self.power_values_db:
             self.load_power_values_db({})

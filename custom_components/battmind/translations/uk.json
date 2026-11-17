@@ -64,15 +64,17 @@
           "power_consumption_entity_id": "Споживання будинку (сутність у ватах), не споживання з мережі",
           "power_consumption_entity_id_include_powerwall_charging": "Споживання будинку з урахуванням заряджання батареї (Вт)",
           "power_consumption_entity_id_include_powerwall_discharging": "Споживання будинку з урахуванням розряджання батареї (Вт)",
-          "ignore_consumption_from_entity_ids": "Список датчиків потужності, які слід ігнорувати"
+          "ignore_consumption_from_entity_ids": "Список датчиків потужності, які слід ігнорувати",
+          "ignore_cjp_chargers": "Віднімає потужність зарядки станцій автомобілів Cable Juice Planner від споживання будинку, також для автомобілів, доданих пізніше. Станція, яка є і в списку вище, віднімається лише один раз. Вимкніть, якщо датчик споживання будинку не включає зарядні станції."
         },
         "data": {
           "ignore_consumption_from_entity_ids": "Ігнорувати споживання від",
+          "ignore_cjp_chargers": "Ігнорувати зарядні станції Cable Juice Planner",
           "power_consumption_entity_id": "Споживання будинку",
           "power_consumption_entity_id_include_powerwall_charging": "Включає заряджання батареї",
           "power_consumption_entity_id_include_powerwall_discharging": "Включає розряд батареї"
         },
-        "description": "BattMind зберігає погодинне споживання і прогнозує, скільки батарея має покрити в найближчі дні.",
+        "description": "BattMind зберігає погодинне споживання і прогнозує, скільки батарея має покрити в найближчі дні.\n\nЗнайдені зарядні станції Cable Juice Planner: {cjp_chargers}",
         "title": "Споживання будинку"
       },
       "prices_energidataservice": {
@@ -312,15 +314,17 @@
           "power_consumption_entity_id": "Споживання будинку (сутність у ватах), не споживання з мережі",
           "power_consumption_entity_id_include_powerwall_charging": "Споживання будинку з урахуванням заряджання батареї (Вт)",
           "power_consumption_entity_id_include_powerwall_discharging": "Споживання будинку з урахуванням розряджання батареї (Вт)",
-          "ignore_consumption_from_entity_ids": "Список датчиків потужності, які слід ігнорувати"
+          "ignore_consumption_from_entity_ids": "Список датчиків потужності, які слід ігнорувати",
+          "ignore_cjp_chargers": "Віднімає потужність зарядки станцій автомобілів Cable Juice Planner від споживання будинку, також для автомобілів, доданих пізніше. Станція, яка є і в списку вище, віднімається лише один раз. Вимкніть, якщо датчик споживання будинку не включає зарядні станції."
         },
         "data": {
           "ignore_consumption_from_entity_ids": "Ігнорувати споживання від",
+          "ignore_cjp_chargers": "Ігнорувати зарядні станції Cable Juice Planner",
           "power_consumption_entity_id": "Споживання будинку",
           "power_consumption_entity_id_include_powerwall_charging": "Включає заряджання батареї",
           "power_consumption_entity_id_include_powerwall_discharging": "Включає розряд батареї"
         },
-        "description": "BattMind зберігає погодинне споживання і прогнозує, скільки батарея має покрити в найближчі дні.",
+        "description": "BattMind зберігає погодинне споживання і прогнозує, скільки батарея має покрити в найближчі дні.\n\nЗнайдені зарядні станції Cable Juice Planner: {cjp_chargers}",
         "title": "Споживання будинку"
       },
       "prices_energidataservice": {

@@ -21,6 +21,7 @@ from ..const import HISTORY_BUFFER_HOURS
 from ..engine import Snapshot
 from ..engine.analysis.helpers import ANALYSIS_DAYS
 from ..utils.efficiency import EFFICIENCY_BACKFILL_DAYS
+from ..utils.cjp import CJP_DOMAIN
 from ..utils.helpers import float_or_none
 from ..utils.power import merge_rows
 from .constants import FORECAST_TIMEOUT, STATISTICS_REFRESH_SECONDS
@@ -28,7 +29,6 @@ from .constants import FORECAST_TIMEOUT, STATISTICS_REFRESH_SECONDS
 _LOGGER = logging.getLogger(__name__)
 
 
-CJP_DOMAIN = "cable_juice_planner"
 SOLCAST_ENDINGS =["today", "tomorrow", "day_3", "day_4", "day_5", "day_6", "day_7"]
 
 
@@ -160,7 +160,7 @@ class CoordinatorData:
 
         entity_states = {}
         units = {}
-        for entity_id in self.configured_entities:
+        for entity_id in self.snapshot_entities:
             state = self.hass.states.get(entity_id)
             entity_states[entity_id] = state.state if state else None
             units[entity_id] = state.attributes.get("unit_of_measurement") if state else None
