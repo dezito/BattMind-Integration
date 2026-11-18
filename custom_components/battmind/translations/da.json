@@ -35,14 +35,12 @@
         "data": {
           "powerwall_battery_level_entity_id": "Batteriniveau",
           "powerwall_watt_flow_entity_id": "Batteriets effekt (watt-flow)",
-          "battery_temperature_entity_id": "Battery temperature (optional)",
-          "invert_powerwall_watt_flow_entity_id": "Vend fortegn på effekten"
+          "battery_temperature_entity_id": "Battery temperature (optional)"
         },
         "data_description": {
           "powerwall_battery_level_entity_id": "Sensor med husbatteriets opladningsniveau i procent (0-100 %).",
           "powerwall_watt_flow_entity_id": "Sensor med effekten ind/ud af batteriet (W eller kW). Forventet: positiv ved afladning, negativ ved opladning. Tip: Deaktiver afladning af husbatteriet når bilen lader.",
-          "battery_temperature_entity_id": "Optional temperature sensor. BattMind stops the battery outside the safe range or while the sensor is unavailable.",
-          "invert_powerwall_watt_flow_entity_id": "Slå til hvis din sensor er positiv ved opladning og negativ ved afladning."
+          "battery_temperature_entity_id": "Optional temperature sensor. BattMind stops the battery outside the safe range or while the sensor is unavailable."
         }
       },
       "battery_specs": {
@@ -92,17 +90,29 @@
         "description": "BattMind gemmer forbruget time for time og forudsiger hvor meget batteriet skal dække de næste dage.\n\nCable Juice Planner-ladere fundet: {cjp_chargers}",
         "data": {
           "power_consumption_entity_id": "Husets forbrug",
-          "power_consumption_entity_id_include_powerwall_charging": "Indeholder batteriopladning",
-          "power_consumption_entity_id_include_powerwall_discharging": "Indeholder batteriafladning",
           "ignore_consumption_from_entity_ids": "Ignorer forbrug fra",
           "ignore_cjp_chargers": "Ignorer Cable Juice Planner-ladere"
         },
         "data_description": {
           "power_consumption_entity_id": "Sensor med husets forbrug (W/kW) - ikke forbruget fra nettet. Historikken bruges til at forudsige forbruget time for time.",
-          "power_consumption_entity_id_include_powerwall_charging": "Slå til hvis forbrugssensoren også tæller den effekt der bruges til at lade batteriet.",
-          "power_consumption_entity_id_include_powerwall_discharging": "Slå til hvis forbrugssensoren allerede indeholder det forbrug batteriet dækker.",
           "ignore_consumption_from_entity_ids": "Effekt-sensorer der trækkes fra husets forbrug, f.eks. elbilladere som batteriet ikke skal dække.",
           "ignore_cjp_chargers": "Trækker ladeeffekten fra laderne til dine Cable Juice Planner-biler fra husets forbrug, også for biler der tilføjes senere. En lader der også står på listen ovenfor, trækkes kun fra én gang. Slå fra hvis din forbrugssensor ikke indeholder laderne."
+        }
+      },
+      "detection_review": {
+        "title": "Tjek indstillingerne for batteri og forbrug",
+        "description": "Foreslået ud fra de optagede data fra batteriets og husforbrugets sensorer, så langt tilbage som det er nødvendigt. Tjek tallene – du kan ændre alt.\n\nI parenteserne: h = timer med sammenhængende data, n = sammenlignede skift i batteriets effekt, og hvor langt tilbage det blev fundet.\n\n✅ = til, ⬜ = fra, ❔ = kunne ikke afgøres: den nuværende værdi beholdes. Der slås ikke op igen, så længe sensorerne er uændrede; sæt kryds i *Find igen* for at gøre det.\n\n**Batteriets effektfortegn** {invert_mark} ({invert_window})\nBatteriniveauet gik fra {soc_start} til {soc_end} % mens den gennemsnitlige batterieffekt var {power_avg} W. Et stigende niveau med positiv effekt betyder at positiv = opladning: slå *Vend fortegn på effekten* til.\n\n**Forbruget indeholder opladning** {charging_mark} ({charging_window})\nOmkring de tidspunkter hvor batteriet begyndte eller holdt op med at lade var husforbruget {c_charging} W mens det ladede {p_charging} W, mod {c_idle_charging} W lige før eller efter, i hvile. Et spring på omtrent ladeeffekten betyder at det indeholder den; intet spring betyder at det ikke gør.\n\n**Forbruget indeholder afladning** {discharging_mark} ({discharging_window})\nOmkring de tidspunkter hvor batteriet begyndte eller holdt op med at aflade var husforbruget {c_discharging} W mens det afladede {p_discharging} W, mod {c_idle_discharging} W lige før eller efter, i hvile. Et fald på omtrent afladeeffekten betyder at det ikke indeholder den; intet fald betyder at det gør (hvis huset bruger mindst lige så meget som batteriet leverer).",
+        "data": {
+          "invert_powerwall_watt_flow_entity_id": "Vend fortegn på effekten",
+          "power_consumption_entity_id_include_powerwall_charging": "Indeholder batteriopladning",
+          "power_consumption_entity_id_include_powerwall_discharging": "Indeholder batteriafladning",
+          "redetect": "Find igen"
+        },
+        "data_description": {
+          "invert_powerwall_watt_flow_entity_id": "Slå til hvis din sensor er positiv ved opladning og negativ ved afladning.",
+          "power_consumption_entity_id_include_powerwall_charging": "Slå til hvis forbrugssensoren også tæller den effekt der bruges til at lade batteriet.",
+          "power_consumption_entity_id_include_powerwall_discharging": "Slå til hvis forbrugssensoren allerede indeholder det forbrug batteriet dækker.",
+          "redetect": "Slår op i recorderen igen for de tre sensorer og lægger det fundne ind i indstillingerne ovenfor. Intet gemmes, før du fortsætter uden det."
         }
       },
       "prices_energidataservice": {
@@ -288,14 +298,12 @@
         "data": {
           "powerwall_battery_level_entity_id": "Batteriniveau",
           "powerwall_watt_flow_entity_id": "Batteriets effekt (watt-flow)",
-          "battery_temperature_entity_id": "Battery temperature (optional)",
-          "invert_powerwall_watt_flow_entity_id": "Vend fortegn på effekten"
+          "battery_temperature_entity_id": "Battery temperature (optional)"
         },
         "data_description": {
           "powerwall_battery_level_entity_id": "Sensor med husbatteriets opladningsniveau i procent (0-100 %).",
           "powerwall_watt_flow_entity_id": "Sensor med effekten ind/ud af batteriet (W eller kW). Forventet: positiv ved afladning, negativ ved opladning. Tip: Deaktiver afladning af husbatteriet når bilen lader.",
-          "battery_temperature_entity_id": "Optional temperature sensor. BattMind stops the battery outside the safe range or while the sensor is unavailable.",
-          "invert_powerwall_watt_flow_entity_id": "Slå til hvis din sensor er positiv ved opladning og negativ ved afladning."
+          "battery_temperature_entity_id": "Optional temperature sensor. BattMind stops the battery outside the safe range or while the sensor is unavailable."
         }
       },
       "battery_specs": {
@@ -345,17 +353,29 @@
         "description": "BattMind gemmer forbruget time for time og forudsiger hvor meget batteriet skal dække de næste dage.\n\nCable Juice Planner-ladere fundet: {cjp_chargers}",
         "data": {
           "power_consumption_entity_id": "Husets forbrug",
-          "power_consumption_entity_id_include_powerwall_charging": "Indeholder batteriopladning",
-          "power_consumption_entity_id_include_powerwall_discharging": "Indeholder batteriafladning",
           "ignore_consumption_from_entity_ids": "Ignorer forbrug fra",
           "ignore_cjp_chargers": "Ignorer Cable Juice Planner-ladere"
         },
         "data_description": {
           "power_consumption_entity_id": "Sensor med husets forbrug (W/kW) - ikke forbruget fra nettet. Historikken bruges til at forudsige forbruget time for time.",
-          "power_consumption_entity_id_include_powerwall_charging": "Slå til hvis forbrugssensoren også tæller den effekt der bruges til at lade batteriet.",
-          "power_consumption_entity_id_include_powerwall_discharging": "Slå til hvis forbrugssensoren allerede indeholder det forbrug batteriet dækker.",
           "ignore_consumption_from_entity_ids": "Effekt-sensorer der trækkes fra husets forbrug, f.eks. elbilladere som batteriet ikke skal dække.",
           "ignore_cjp_chargers": "Trækker ladeeffekten fra laderne til dine Cable Juice Planner-biler fra husets forbrug, også for biler der tilføjes senere. En lader der også står på listen ovenfor, trækkes kun fra én gang. Slå fra hvis din forbrugssensor ikke indeholder laderne."
+        }
+      },
+      "detection_review": {
+        "title": "Tjek indstillingerne for batteri og forbrug",
+        "description": "Foreslået ud fra de optagede data fra batteriets og husforbrugets sensorer, så langt tilbage som det er nødvendigt. Tjek tallene – du kan ændre alt.\n\nI parenteserne: h = timer med sammenhængende data, n = sammenlignede skift i batteriets effekt, og hvor langt tilbage det blev fundet.\n\n✅ = til, ⬜ = fra, ❔ = kunne ikke afgøres: den nuværende værdi beholdes. Der slås ikke op igen, så længe sensorerne er uændrede; sæt kryds i *Find igen* for at gøre det.\n\n**Batteriets effektfortegn** {invert_mark} ({invert_window})\nBatteriniveauet gik fra {soc_start} til {soc_end} % mens den gennemsnitlige batterieffekt var {power_avg} W. Et stigende niveau med positiv effekt betyder at positiv = opladning: slå *Vend fortegn på effekten* til.\n\n**Forbruget indeholder opladning** {charging_mark} ({charging_window})\nOmkring de tidspunkter hvor batteriet begyndte eller holdt op med at lade var husforbruget {c_charging} W mens det ladede {p_charging} W, mod {c_idle_charging} W lige før eller efter, i hvile. Et spring på omtrent ladeeffekten betyder at det indeholder den; intet spring betyder at det ikke gør.\n\n**Forbruget indeholder afladning** {discharging_mark} ({discharging_window})\nOmkring de tidspunkter hvor batteriet begyndte eller holdt op med at aflade var husforbruget {c_discharging} W mens det afladede {p_discharging} W, mod {c_idle_discharging} W lige før eller efter, i hvile. Et fald på omtrent afladeeffekten betyder at det ikke indeholder den; intet fald betyder at det gør (hvis huset bruger mindst lige så meget som batteriet leverer).",
+        "data": {
+          "invert_powerwall_watt_flow_entity_id": "Vend fortegn på effekten",
+          "power_consumption_entity_id_include_powerwall_charging": "Indeholder batteriopladning",
+          "power_consumption_entity_id_include_powerwall_discharging": "Indeholder batteriafladning",
+          "redetect": "Find igen"
+        },
+        "data_description": {
+          "invert_powerwall_watt_flow_entity_id": "Slå til hvis din sensor er positiv ved opladning og negativ ved afladning.",
+          "power_consumption_entity_id_include_powerwall_charging": "Slå til hvis forbrugssensoren også tæller den effekt der bruges til at lade batteriet.",
+          "power_consumption_entity_id_include_powerwall_discharging": "Slå til hvis forbrugssensoren allerede indeholder det forbrug batteriet dækker.",
+          "redetect": "Slår op i recorderen igen for de tre sensorer og lægger det fundne ind i indstillingerne ovenfor. Intet gemmes, før du fortsætter uden det."
         }
       },
       "prices_energidataservice": {

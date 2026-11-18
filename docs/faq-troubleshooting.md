@@ -57,7 +57,8 @@ using it now wouldn't pay for what it cost. The reason is in the plan (⏳ or �
 
 - Check the sign of the **battery power** sensor: positive while discharging. Otherwise enable **Invert**.
 - Check whether the **house consumption** sensor includes the battery's charging/discharging, and tell the
-  setup.
+  setup. Under *Configure → Home battery* the last page (*check page*) suggests all three from the recorder's
+  history: tick *Detect again* to look again after a change.
 - In the first days the consumption and solar history is thin. Without long-term statistics for the house
   consumption (`state_class: measurement`) the consumption history starts from the installation. See
   [Forecast accuracy](dashboard-analysis.md#forecast-accuracy) after a week.

@@ -35,6 +35,7 @@ CONFIG_FLOW_STEPS = [
     "battery_specs",
     "battery_actions",
     "consumption",
+    "detection_review",
     "price_provider",
     "prices_energidataservice",
     "prices_stromligning",

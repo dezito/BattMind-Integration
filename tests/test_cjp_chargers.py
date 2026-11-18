@@ -235,6 +235,8 @@ async def test_the_consumption_page_shows_the_chargers_and_the_switch(hass: Home
     assert form_defaults(result)["ignore_cjp_chargers"] is True
     # saved as given
     result = await hass.config_entries.options.async_configure(result["flow_id"], {**form_defaults(result), "ignore_cjp_chargers": False})
+    assert result["step_id"] == "detection_review"  # the consumption flags are on their own page
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert loaded_entry.options["ignore_cjp_chargers"] is False
     await _settle(hass)
