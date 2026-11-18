@@ -35,14 +35,12 @@
         "data": {
           "powerwall_battery_level_entity_id": "Battery level",
           "powerwall_watt_flow_entity_id": "Battery power flow",
-          "battery_temperature_entity_id": "Battery temperature (optional)",
-          "invert_powerwall_watt_flow_entity_id": "Invert power flow"
+          "battery_temperature_entity_id": "Battery temperature (optional)"
         },
         "data_description": {
           "powerwall_battery_level_entity_id": "Sensor with the home battery state of charge in percent (0-100 %).",
           "powerwall_watt_flow_entity_id": "Sensor with the power into/out of the battery (W or kW). Expected: positive when discharging, negative when charging. Tip: block battery discharging while the EV is charging.",
-          "battery_temperature_entity_id": "Optional temperature sensor. When configured, BattMind stops the battery outside the safe range or while the sensor is unavailable.",
-          "invert_powerwall_watt_flow_entity_id": "Enable if your sensor is positive when charging and negative when discharging."
+          "battery_temperature_entity_id": "Optional temperature sensor. When configured, BattMind stops the battery outside the safe range or while the sensor is unavailable."
         }
       },
       "battery_specs": {
@@ -92,17 +90,29 @@
         "description": "BattMind stores the consumption per hour and predicts how much the battery must cover the next days.\n\nCable Juice Planner chargers found: {cjp_chargers}",
         "data": {
           "power_consumption_entity_id": "House consumption",
-          "power_consumption_entity_id_include_powerwall_charging": "Includes battery charging",
-          "power_consumption_entity_id_include_powerwall_discharging": "Includes battery discharging",
           "ignore_consumption_from_entity_ids": "Ignore consumption from",
           "ignore_cjp_chargers": "Ignore Cable Juice Planner chargers"
         },
         "data_description": {
           "power_consumption_entity_id": "Sensor with the house consumption (W/kW) - not the grid import. The history is used to predict the consumption per hour.",
-          "power_consumption_entity_id_include_powerwall_charging": "Enable if the consumption sensor includes the power used to charge the battery.",
-          "power_consumption_entity_id_include_powerwall_discharging": "Enable if the consumption sensor already includes the consumption covered by the battery.",
           "ignore_consumption_from_entity_ids": "Power sensors that are subtracted from the house consumption, e.g. EV chargers that should not be covered by the battery.",
           "ignore_cjp_chargers": "Subtracts the charging power of the chargers of your Cable Juice Planner cars from the house consumption, also for cars added later. A charger that is also in the list above is only subtracted once. Turn off if your house consumption sensor does not include the chargers."
+        }
+      },
+      "detection_review": {
+        "title": "Check the battery and consumption settings",
+        "description": "Suggested from the recorded history of the battery and house consumption sensors, as far back as needed. Check the numbers – you can change everything.\n\nIn the brackets: h = hours of unbroken data, n = battery switch-overs compared, and how far back it was found.\n\n✅ = on, ⬜ = off, ❔ = could not be determined: the current value is kept. Nothing is looked up again while the sensors are unchanged; tick *Detect again* to do it.\n\n**Battery power sign** {invert_mark} ({invert_window})\nThe battery level went from {soc_start} to {soc_end} % while the average battery power was {power_avg} W. A rising level with positive power means positive = charging: turn *Invert power flow* on.\n\n**Consumption includes charging** {charging_mark} ({charging_window})\nAround the moments the battery started or stopped charging, the house consumption was {c_charging} W while it charged {p_charging} W, against {c_idle_charging} W just before or after, when it was idle. A step of about the charging power means it includes it; no step means it does not.\n\n**Consumption includes discharging** {discharging_mark} ({discharging_window})\nAround the moments the battery started or stopped discharging, the house consumption was {c_discharging} W while it discharged {p_discharging} W, against {c_idle_discharging} W just before or after, when it was idle. A fall of about the discharge power means it does not include it; no fall means it does (if the house uses at least as much as the battery gives).",
+        "data": {
+          "invert_powerwall_watt_flow_entity_id": "Invert power flow",
+          "power_consumption_entity_id_include_powerwall_charging": "Includes battery charging",
+          "power_consumption_entity_id_include_powerwall_discharging": "Includes battery discharging",
+          "redetect": "Detect again"
+        },
+        "data_description": {
+          "invert_powerwall_watt_flow_entity_id": "Enable if your sensor is positive when charging and negative when discharging.",
+          "power_consumption_entity_id_include_powerwall_charging": "Enable if the consumption sensor includes the power used to charge the battery.",
+          "power_consumption_entity_id_include_powerwall_discharging": "Enable if the consumption sensor already includes the consumption covered by the battery.",
+          "redetect": "Looks at the recorder again for the three sensors and puts what it finds in the settings above. Nothing is saved until you continue without it."
         }
       },
       "prices_energidataservice": {
@@ -288,14 +298,12 @@
         "data": {
           "powerwall_battery_level_entity_id": "Battery level",
           "powerwall_watt_flow_entity_id": "Battery power flow",
-          "battery_temperature_entity_id": "Battery temperature (optional)",
-          "invert_powerwall_watt_flow_entity_id": "Invert power flow"
+          "battery_temperature_entity_id": "Battery temperature (optional)"
         },
         "data_description": {
           "powerwall_battery_level_entity_id": "Sensor with the home battery state of charge in percent (0-100 %).",
           "powerwall_watt_flow_entity_id": "Sensor with the power into/out of the battery (W or kW). Expected: positive when discharging, negative when charging. Tip: block battery discharging while the EV is charging.",
-          "battery_temperature_entity_id": "Optional temperature sensor. When configured, BattMind stops the battery outside the safe range or while the sensor is unavailable.",
-          "invert_powerwall_watt_flow_entity_id": "Enable if your sensor is positive when charging and negative when discharging."
+          "battery_temperature_entity_id": "Optional temperature sensor. When configured, BattMind stops the battery outside the safe range or while the sensor is unavailable."
         }
       },
       "battery_specs": {
@@ -345,17 +353,29 @@
         "description": "BattMind stores the consumption per hour and predicts how much the battery must cover the next days.\n\nCable Juice Planner chargers found: {cjp_chargers}",
         "data": {
           "power_consumption_entity_id": "House consumption",
-          "power_consumption_entity_id_include_powerwall_charging": "Includes battery charging",
-          "power_consumption_entity_id_include_powerwall_discharging": "Includes battery discharging",
           "ignore_consumption_from_entity_ids": "Ignore consumption from",
           "ignore_cjp_chargers": "Ignore Cable Juice Planner chargers"
         },
         "data_description": {
           "power_consumption_entity_id": "Sensor with the house consumption (W/kW) - not the grid import. The history is used to predict the consumption per hour.",
-          "power_consumption_entity_id_include_powerwall_charging": "Enable if the consumption sensor includes the power used to charge the battery.",
-          "power_consumption_entity_id_include_powerwall_discharging": "Enable if the consumption sensor already includes the consumption covered by the battery.",
           "ignore_consumption_from_entity_ids": "Power sensors that are subtracted from the house consumption, e.g. EV chargers that should not be covered by the battery.",
           "ignore_cjp_chargers": "Subtracts the charging power of the chargers of your Cable Juice Planner cars from the house consumption, also for cars added later. A charger that is also in the list above is only subtracted once. Turn off if your house consumption sensor does not include the chargers."
+        }
+      },
+      "detection_review": {
+        "title": "Check the battery and consumption settings",
+        "description": "Suggested from the recorded history of the battery and house consumption sensors, as far back as needed. Check the numbers – you can change everything.\n\nIn the brackets: h = hours of unbroken data, n = battery switch-overs compared, and how far back it was found.\n\n✅ = on, ⬜ = off, ❔ = could not be determined: the current value is kept. Nothing is looked up again while the sensors are unchanged; tick *Detect again* to do it.\n\n**Battery power sign** {invert_mark} ({invert_window})\nThe battery level went from {soc_start} to {soc_end} % while the average battery power was {power_avg} W. A rising level with positive power means positive = charging: turn *Invert power flow* on.\n\n**Consumption includes charging** {charging_mark} ({charging_window})\nAround the moments the battery started or stopped charging, the house consumption was {c_charging} W while it charged {p_charging} W, against {c_idle_charging} W just before or after, when it was idle. A step of about the charging power means it includes it; no step means it does not.\n\n**Consumption includes discharging** {discharging_mark} ({discharging_window})\nAround the moments the battery started or stopped discharging, the house consumption was {c_discharging} W while it discharged {p_discharging} W, against {c_idle_discharging} W just before or after, when it was idle. A fall of about the discharge power means it does not include it; no fall means it does (if the house uses at least as much as the battery gives).",
+        "data": {
+          "invert_powerwall_watt_flow_entity_id": "Invert power flow",
+          "power_consumption_entity_id_include_powerwall_charging": "Includes battery charging",
+          "power_consumption_entity_id_include_powerwall_discharging": "Includes battery discharging",
+          "redetect": "Detect again"
+        },
+        "data_description": {
+          "invert_powerwall_watt_flow_entity_id": "Enable if your sensor is positive when charging and negative when discharging.",
+          "power_consumption_entity_id_include_powerwall_charging": "Enable if the consumption sensor includes the power used to charge the battery.",
+          "power_consumption_entity_id_include_powerwall_discharging": "Enable if the consumption sensor already includes the consumption covered by the battery.",
+          "redetect": "Looks at the recorder again for the three sensors and puts what it finds in the settings above. Nothing is saved until you continue without it."
         }
       },
       "prices_energidataservice": {

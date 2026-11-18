@@ -49,11 +49,13 @@ async def _to_price_provider(hass: HomeAssistant, **extra):
     result = await _start(hass, **extra)
     result = await _configure(
         hass, result, "battery_entities",
-        {"powerwall_battery_level_entity_id": BATTERY_LEVEL, "powerwall_watt_flow_entity_id": BATTERY_FLOW, "invert_powerwall_watt_flow_entity_id": True},
+        {"powerwall_battery_level_entity_id": BATTERY_LEVEL, "powerwall_watt_flow_entity_id": BATTERY_FLOW},
     )
     result = await _configure(hass, result, "battery_specs", BATTERY_SPECS)
     result = await _configure(hass, result, "battery_actions", {"unsupported_actions": ["blocked_solar_charge"]})
-    return await _configure(hass, result, "consumption", {"power_consumption_entity_id": CONSUMPTION})
+    result = await _configure(hass, result, "consumption", {"power_consumption_entity_id": CONSUMPTION})
+    # no recorder in the tests: nothing is suggested, the user decides
+    return await _configure(hass, result, "detection_review", {"invert_powerwall_watt_flow_entity_id": True})
 
 
 async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
@@ -233,6 +235,8 @@ async def test_options_flow_changes_battery_size(hass: HomeAssistant, loaded_ent
     result = await hass.config_entries.options.async_configure(result["flow_id"], {**form_defaults(result), "powerwall_battery_size": 20.0})
     assert result["step_id"] == "battery_actions"
     result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
+    assert result["step_id"] == "detection_review"
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done(wait_background_tasks=True)
     assert loaded_entry.options["powerwall_battery_size"] == 20.0
@@ -246,7 +250,7 @@ async def test_options_flow_drops_a_stored_testing_mode(hass: HomeAssistant, loa
     await hass.async_block_till_done(wait_background_tasks=True)
     result = await hass.config_entries.options.async_init(loaded_entry.entry_id)
     result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "menu_battery"})
-    for _ in range(3):  # battery_entities, battery_specs, battery_actions
+    for _ in range(4):  # battery_entities, battery_specs, battery_actions, detection_review
         result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert "testing_mode" not in result["data"]
@@ -266,6 +270,8 @@ async def test_options_flow_switches_off_the_rules_of_an_unsupported_action(hass
     with pytest.raises(InvalidData):
         await hass.config_entries.options.async_configure(result["flow_id"], {"unsupported_actions": ["discharge_allowed"]})
     result = await hass.config_entries.options.async_configure(result["flow_id"], {"unsupported_actions": ["force_discharge"]})
+    assert result["step_id"] == "detection_review"
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done(wait_background_tasks=True)
     assert loaded_entry.options["unsupported_actions"] == ["force_discharge"]

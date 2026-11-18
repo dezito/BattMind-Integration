@@ -171,7 +171,6 @@ FLOW_STEPS: dict[str, list[str]] = {
         "powerwall_battery_level_entity_id",
         "powerwall_watt_flow_entity_id",
         "battery_temperature_entity_id",
-        "invert_powerwall_watt_flow_entity_id",
     ],
     "battery_specs": [
         "powerwall_battery_size",
@@ -190,10 +189,14 @@ FLOW_STEPS: dict[str, list[str]] = {
     "battery_actions": ["unsupported_actions"],
     "consumption": [
         "power_consumption_entity_id",
-        "power_consumption_entity_id_include_powerwall_charging",
-        "power_consumption_entity_id_include_powerwall_discharging",
         "ignore_consumption_from_entity_ids",
         "ignore_cjp_chargers",
+    ],
+    # suggested from the recorder after the battery and the consumption sensors were chosen (flow/detection.py)
+    "detection_review": [
+        "invert_powerwall_watt_flow_entity_id",
+        "power_consumption_entity_id_include_powerwall_charging",
+        "power_consumption_entity_id_include_powerwall_discharging",
     ],
     "prices_energidataservice": [
         "energidataservice_buy_entity_id",
@@ -246,8 +249,8 @@ PRICE_PROVIDER_KEYS: dict[str, list[str]] = {
 # Options flow menu -> pages walked through in order
 OPTIONS_MENU: dict[str, list[str]] = {
     "general": ["general"],
-    "battery": ["battery_entities", "battery_specs", "battery_actions"],
-    "consumption": ["consumption"],
+    "battery": ["battery_entities", "battery_specs", "battery_actions", "detection_review"],
+    "consumption": ["consumption", "detection_review"],
     "prices": [
         "price_provider",
         "prices_energidataservice",

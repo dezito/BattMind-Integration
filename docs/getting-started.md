@@ -61,8 +61,8 @@ leave the field empty for the default icon.
 ### Home battery – sensors
 
 - **Battery power:** BattMind expects **positive while discharging, negative while charging**. If your
-  sensor is the other way round, enable **Invert**. Check it in *Developer tools → States* while the
-  battery charges.
+  sensor is the other way round, **Invert** should be on; the [check page](#check-the-battery-and-consumption-settings)
+  suggests it from the recorder.
 - **Battery temperature:** optional. When selected, BattMind requests `battery_stopped` outside the safe
   range and while the sensor is unavailable. Configure **Stop battery** in the control blueprint first.
 
@@ -93,8 +93,8 @@ off and are hidden on the dashboard. See [When the inverter can't run an action]
 
 ### Consumption
 
-- **House consumption:** the house's own consumption. Tell BattMind if the sensor includes the battery's
-  charging or discharging, so it isn't counted twice.
+- **House consumption:** the house's own consumption. Whether the sensor includes the battery's charging or
+  discharging is set on the [check page](#check-the-battery-and-consumption-settings), so it isn't counted twice.
 - **Ignored consumers:** power sensors subtracted from the house, e.g. the EV charger. They aren't in the
   forecast, so the battery isn't planned to cover them.
 - **Ignore Cable Juice Planner chargers** (on by default): with [Cable Juice Planner](cookbook.md#together-with-cable-juice-planner-ev)
@@ -103,6 +103,31 @@ off and are hidden on the dashboard. See [When the inverter can't run an action]
   automatically (BattMind reloads once), and a charger that is also in your list is subtracted once. Turn it off if the
   house consumption sensor does not include the chargers, e.g. a separate meter: subtracting them would
   then take consumption that was never there out of the forecast.
+
+### Check the battery and consumption settings
+
+After the sensors for the battery and the house consumption, BattMind looks at the history the recorder has for the battery and the house consumption – as far back as it takes,
+up to a few weeks – and suggests three settings, with the numbers it used so you can see that they fit:
+
+| Setting | How it is found |
+|---|---|
+| **Invert** (battery power sign) | an unbroken stretch of 1–3 hours in which the battery level rises while the power has one sign: that sign means charging |
+| **Consumption includes charging** | at the moments the battery starts or stops charging, the house consumption steps by about the charging power (a sensor from grid and solar) or does not step (the total load of the house) |
+| **Consumption includes discharging** | at the moments the battery starts or stops discharging, the consumption does not step (the total load, which the battery covers) or falls by about the discharge power (a sensor from grid and solar) |
+
+Only the minutes around each start and stop are compared, so a load that is different in the evening than at night, or an
+EV that charges in the same hours, does not count. One start or stop is not enough: at least four of the latest must
+agree, and in practice a few days of history are needed. Each answer needs only a short stretch of unbroken history – a
+stretch of an hour or two, or about 25 minutes around a start or stop – but it may be days or weeks back if that is where
+the history is clear. A battery that sells to the grid, a load that follows the battery, or a sensor that never changes
+leaves the answer open.
+
+The brackets show what an answer rests on: **h** = hours of unbroken data, **n** = the number of starts and stops
+compared, and how far back it was found (for example `n=4, -2 d`). ✅ means on, ⬜ off and ❔ that the history could not
+decide it: the current value is then kept, never a guess. Everything can be changed, and nothing is saved before you
+continue. The suggestions are only made when you have chosen or changed one of the three sensors in the flow, so a
+restored backup, an import from PyScript and the stored settings keep their values; tick *Detect again* to look again
+(the page is the last one of *Home battery* and of *House consumption* under *Configure*). The numbers are only suggestions – check that they fit before you continue.
 
 ### Prices
 

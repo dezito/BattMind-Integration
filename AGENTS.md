@@ -99,6 +99,15 @@ Read the relevant documentation before changing behavior. In particular:
   stored data, backups, and migration from the PyScript version. Changes to
   these formats or identifiers require a migration/compatibility path and
   documentation.
+- The config-flow suggestions (`flow/detection.py`: battery power sign and
+  whether the consumption includes charging/discharging, read from recorder
+  history) are the same file as in Cable Juice Planner. Change both together
+  and keep `tests/test_detection.py` in sync. What the history cannot decide
+  stays unknown and keeps the current value; never turn unknown into a default.
+- BattMind reads the option `charger_power_entity_id` of Cable Juice Planner
+  config entries to leave their chargers out of the house consumption.
+  Renaming or moving that option in Cable Juice Planner needs a matching
+  change here.
 - The integration supports Home Assistant from the `hacs.json` minimum
   version up to the newest release. Use a fallback when a Home Assistant API
   changes. For example, read stored restore states only through

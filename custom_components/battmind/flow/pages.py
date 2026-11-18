@@ -12,7 +12,12 @@ from ..const import FLOW_STEPS, PRICE_PROVIDER_KEYS
 from ..management.dependency_checks import STROMLIGNING_PLATFORM, STROMLIGNING_UNIQUE_ID_PREFIXES, disabled_sensors
 from ..utils.cjp import cjp_charger_power_entities
 from ..utils.solcast import SOLCAST_PLATFORM
-from .schema import ENERGIDATASERVICE_URL, PRICE_PROVIDERS, build_schema, normalize_input, validate_step
+from .detection import Detection, async_detect, evidence_placeholders, verdict_values
+from .schema import BOOLEAN, ENERGIDATASERVICE_URL, PRICE_PROVIDERS, build_schema, normalize_input, validate_step
+
+# the sensors the suggestions are made from; they are only made again when one of them was changed in this session
+DETECTION_SENSORS = ("power_consumption_entity_id", "powerwall_watt_flow_entity_id", "powerwall_battery_level_entity_id")
+REDETECT = "redetect"  # a switch of the review page, not an option
 
 
 class BattMindFlowPages:
@@ -25,6 +30,18 @@ class BattMindFlowPages:
     _options: dict[str, Any]
     _queue: list[str]
     _providers: list[str]
+    # the three sensors as they were when the options were loaded (restored, imported, stored), and what was found for a set
+    _baseline: tuple[str, ...]
+    _baseline_sign: bool = False  # the sign the options had then: the stored one, not what the form says now
+    _detections: dict[tuple[str, ...], Detection]
+
+    def _detection_sensors(self) -> tuple[str, ...]:
+        return tuple(self._options.get(key) or "" for key in DETECTION_SENSORS)
+
+    def _set_baseline(self) -> None:
+        """The sensors in the options now are not 'changed': what was stored, restored or imported is not detected again."""
+        self._baseline = self._detection_sensors()
+        self._baseline_sign = bool(self._options.get("invert_powerwall_watt_flow_entity_id"))
 
     def _page_enabled(self, step: str) -> bool:
         if step == "prices_energidataservice":
@@ -74,6 +91,34 @@ class BattMindFlowPages:
                 "stromligning_disabled": disabled_sensors(self.hass, STROMLIGNING_PLATFORM, STROMLIGNING_UNIQUE_ID_PREFIXES),  # type: ignore[attr-defined]
                 "solcast_disabled": disabled_sensors(self.hass, SOLCAST_PLATFORM, "total_kwh_forecast"),  # type: ignore[attr-defined]
             },
+        )
+
+    async def async_step_detection_review(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """The battery sign and what the consumption includes, suggested from the recorder for the chosen sensors.
+
+        Only looked up when one of the three sensors was changed in this session (or the user asks), so an import, a
+        restored backup or stored options keep their values. What the history cannot decide keeps its current value.
+        """
+        keys = FLOW_STEPS["detection_review"]
+        if user_input is not None and not user_input.get(REDETECT):
+            self._options.update(normalize_input(keys, user_input))
+            return await self._async_next()
+        if user_input is not None:
+            self._options.update(normalize_input(keys, user_input))
+        sensors = self._detection_sensors()
+        changed = sensors != self._baseline
+        if all(sensors) and (user_input is not None or (changed and sensors not in self._detections)):
+            # a sign set before is only trusted for the sensor it was set for
+            trusted = self._baseline_sign if sensors[1] == self._baseline[1] and self._baseline[1] else None
+            detection = await async_detect(self.hass, sensors[0], sensors[1], sensors[2], trusted)
+            if detection.reason not in ("timeout", "error"):
+                self._detections[sensors] = detection
+            self._options.update(verdict_values(detection))
+        schema = build_schema(keys, self._options, self.hass.config.currency)  # type: ignore[attr-defined]
+        return self.async_show_form(  # type: ignore[attr-defined]
+            step_id="detection_review",
+            data_schema=vol.Schema({**schema.schema, vol.Optional(REDETECT, default=False): BOOLEAN}),
+            description_placeholders={**self._placeholders(), **evidence_placeholders(self._detections.get(sensors))},
         )
 
     async def async_step_price_provider(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
