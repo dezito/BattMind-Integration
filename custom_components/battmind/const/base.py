@@ -24,6 +24,7 @@ STORAGE_VERSION = 1
 PRICE_ADDER_DAY_BETWEEN_DIVIDER = 30
 CHARGING_HISTORY_COMBINE_AFTER = 24 * 3
 HISTORY_BUFFER_HOURS = 50
+CHARGING_HISTORY_CORRECT_HOURS = 48  # hours of the charging history that can be measured again from the buffers (within HISTORY_BUFFER_HOURS)
 
 # Learning: until every hour of the day has this many days of consumption history, the
 # consumption forecast is too uncertain to sell from the battery or to block solar charging

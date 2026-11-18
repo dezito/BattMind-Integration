@@ -55,6 +55,22 @@ The first time, the energy per hour of the last year is read from Home Assistant
 statistics** (the sensors need a `state_class`). Forecast errors, plans and scores only exist from the
 first start, so those sections fill up over the first days.
 
+The hourly energy BattMind records itself is the time weighted mean of the sensors: every state counts until
+the sensor writes the next one. A battery that blinks between 0 and 5 kW for a few seconds on a full battery
+is counted for those seconds only, not as an hour of charging. Days that were not measured this way are checked
+against the long-term statistics, where the mean of an hour is the net power (charging and discharging in the
+same hour count as their difference). Only a day with statistics of the consumption, the battery power, the solar
+production and the ignored consumers for every hour is checked. When its charged or discharged energy differs by
+more than 0.25 kWh, the sums of energy are replaced and the score of the day is removed: its hourly values are
+gone and the statistics have no sell prices, so it cannot be scored again, and a wrong score is not shown. Other
+days stay as they were recorded. The last two days still have their hourly values: those are corrected hour by
+hour (from the hours that have statistics) and yesterday is scored again.
+The hourly charging history of the last 48 hours is measured from the sensors' states in the same way, once
+(its rules, its buy and sell price and the price of the battery energy of the hour stay as recorded, an hour that
+cannot be measured is left, an hour that has no energy any more is removed, and the rules table of that day is
+made again from the hours). Older charging history, the economy per month
+for the older hours and the consumption history that forecasts are made from are not changed by this.
+
 ### Economy per month
 
 From the charging history:
@@ -224,7 +240,9 @@ same start and end level, power, loss and wear, and the same battery model as th
 at each hour's charge/discharge power (when the efficiency curves are used) and the profit requirements
 (*min. profit per kWh*, *min. total profit*, *min. kWh to sell*). A trade that would not have met them is
 not counted as a possible saving. Forecast errors still count against the score – 100 % would require
-knowing the future.
+knowing the future. The battery's own standby consumption (many batteries use tens of watts around the
+clock, which the battery power sensor shows as 0 W) is not part of the best possible cost either: energy
+that was charged and then used up this way counts in the actual cost only.
 
 <details>
 <summary>Screenshot</summary>
