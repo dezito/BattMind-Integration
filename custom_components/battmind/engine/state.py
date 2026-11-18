@@ -16,6 +16,8 @@ class Snapshot:
     entity_states: dict[str, Any] = field(default_factory=dict)
     entity_platforms: dict[str, str | None] = field(default_factory=dict)
     units: dict[str, str | None] = field(default_factory=dict)
+    # entity_id -> epoch seconds of the state's last_reported (None: unknown); the sensors that stopped reporting
+    reported: dict[str, float | None] = field(default_factory=dict)
     buffers: dict[str, list] = field(default_factory=dict)
     statistics: dict[str, list] = field(default_factory=dict)
     price_data: dict | None = None

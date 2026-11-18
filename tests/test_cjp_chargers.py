@@ -69,6 +69,8 @@ async def test_the_chargers_are_added_once_and_not_required(hass: HomeAssistant,
     # the user's sensors first, then the chargers they did not list, nothing twice
     assert coordinator.config["home"]["entity_ids"]["ignore_consumption_from_entity_ids"] == ["sensor.zoe_power", "sensor.pool", "sensor.tesla_power"]
     assert coordinator.auto_ignored_entities == ["sensor.tesla_power"]
+    # all the chargers (listed or found) are the ones checked for a hung reading
+    assert coordinator.config["home"]["charger_entity_ids"] == ["sensor.tesla_power", "sensor.zoe_power"]
     # the charger of a car that is not set up yet must not hold BattMind up, but its history is kept and its unit read
     assert "sensor.tesla_power" not in coordinator.configured_entities
     assert "sensor.tesla_power" in coordinator.buffered_entities and "sensor.tesla_power" in coordinator.statistics_entities
@@ -86,6 +88,7 @@ async def test_switched_off_adds_no_charger(hass: HomeAssistant, mock_entry) -> 
 
     assert coordinator.config["home"]["entity_ids"]["ignore_consumption_from_entity_ids"] == ["sensor.pool"]
     assert coordinator.auto_ignored_entities == [] and coordinator.cjp_chargers == []
+    assert coordinator.config["home"]["charger_entity_ids"] == ["sensor.zoe_power"]  # still a charger, so still checked for a hung reading
     await async_join_workers(hass, coordinator)
 
 

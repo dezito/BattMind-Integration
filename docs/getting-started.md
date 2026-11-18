@@ -96,13 +96,18 @@ off and are hidden on the dashboard. See [When the inverter can't run an action]
 - **House consumption:** the house's own consumption. Whether the sensor includes the battery's charging or
   discharging is set on the [check page](#check-the-battery-and-consumption-settings), so it isn't counted twice.
 - **Ignored consumers:** power sensors subtracted from the house, e.g. the EV charger. They aren't in the
-  forecast, so the battery isn't planned to cover them.
+  forecast, so the battery isn't planned to cover them. The house consumption used for the solar surplus is never below 0 W.
 - **Ignore Cable Juice Planner chargers** (on by default): with [Cable Juice Planner](cookbook.md#together-with-cable-juice-planner-ev)
   installed, BattMind also subtracts the charger power of every car you have set up there, so you don't add
   them to the list yourself. The page shows the chargers it found. A car added later is picked up
   automatically (BattMind reloads once), and a charger that is also in your list is subtracted once. Turn it off if the
   house consumption sensor does not include the chargers, e.g. a separate meter: subtracting them would
   then take consumption that was never there out of the forecast.
+- **A charger that hangs:** A Cable Juice Planner charger that has not reported for over 30 minutes while it still reads a number other
+  than 0 (a hung integration is not *unavailable*) is taken to be stuck: it is not subtracted, in the current hour and in the
+  hours since it got stuck, until it reports again, and a warning is logged. The higher consumption is the safe side. It is the
+  report time that counts, not the value, so a charger that holds a steady value is fine as long as it keeps reporting; the
+  other ignored sensors are always subtracted, whatever they report.
 
 ### Check the battery and consumption settings
 
@@ -116,8 +121,14 @@ up to a few weeks – and suggests three settings, with the numbers it used so y
 | **Consumption includes discharging** | at the moments the battery starts or stops discharging, the consumption does not step (the total load, which the battery covers) or falls by about the discharge power (a sensor from grid and solar) |
 
 Only the minutes around each start and stop are compared, so a load that is different in the evening than at night, or an
-EV that charges in the same hours, does not count. One start or stop is not enough: at least four of the latest must
-agree, and in practice a few days of history are needed. Each answer needs only a short stretch of unbroken history – a
+EV that charges in the same hours but starts and stops at other moments, does not count. One start or stop is not enough:
+at least four of the latest must agree, and in practice a few days of history are needed. A consumer that starts and
+stops in the same minutes as the battery and is about as big (an EV or a heat pump on the same cheap-hour schedule) can fake
+one direction: the charging and the discharging must therefore tell the same story – a sensor of the total load (does not
+include the charging, includes the discharging) or one from grid and solar (the opposite) – and both must be decided,
+otherwise nothing is suggested. Add such a consumer under *Ignored consumers* and look again to get a suggestion. Two
+such consumers, one for each direction, can still fake both – check the numbers. A sensor that includes both or
+neither direction is never suggested: set it by hand. Each answer needs only a short stretch of unbroken history – a
 stretch of an hour or two, or about 25 minutes around a start or stop – but it may be days or weeks back if that is where
 the history is clear. A battery that sells to the grid, a load that follows the battery, or a sensor that never changes
 leaves the answer open.
@@ -128,6 +139,11 @@ decide it: the current value is then kept, never a guess. Everything can be chan
 continue. The suggestions are only made when you have chosen or changed one of the three sensors in the flow, so a
 restored backup, an import from PyScript and the stored settings keep their values; tick *Detect again* to look again
 (the page is the last one of *Home battery* and of *House consumption* under *Configure*). The numbers are only suggestions – check that they fit before you continue.
+
+The consumption numbers are read after the consumers that the forecast itself leaves out are subtracted (the ignored ones and, when the switch above is on, the chargers of Cable Juice Planner), so
+the page compares what the planner works with. If the page shows a message instead of numbers (no recorder, the reading took
+too long, a power sensor with an unknown unit, no usable history), the current values are kept; tick *Detect again* to try
+again.
 
 ### Prices
 

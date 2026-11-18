@@ -13,9 +13,10 @@ from homeassistant.helpers import selector
 from ..management.backup import BACKUP_DIR, async_load_backup, backup_dir, list_backups
 from ..const import CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX, DOMAIN, SENSOR_KEYS, dashboard_icon, default_options, normalize_language, strip_removed_options
 from ..management.storage import find_legacy_sources, load_legacy_config
+from ..prices import providers_from_options
 from .pages import BattMindFlowPages
 from .options import BattMindOptionsFlow
-from .schema import CONFIG_FLOW_STEPS, normalize_input, validate_step, IMPORT_NONE, PREFIX_RE, SELECTORS, options_from_legacy, providers_from_options
+from .schema import CONFIG_FLOW_STEPS, normalize_input, validate_step, IMPORT_NONE, PREFIX_RE, SELECTORS, options_from_legacy
 
 
 class BattMindConfigFlow(BattMindFlowPages, ConfigFlow, domain=DOMAIN):

@@ -17,7 +17,8 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from ..const import DOMAIN, ENTITY_UNAVAILABLE_STATES
 from ..engine import BattMindEngine
-from ..management.dependency_checks import DependencyWatcher, stromligning_entities_to_watch
+from ..management.dependency_checks import DependencyWatcher
+from ..prices import stromligning_entities_to_watch
 from ..utils.cjp import CJP_DOMAIN, cjp_charger_power_entities
 from ..utils.solcast import solcast_endings_for_days
 from ..utils.formatting import load_texts

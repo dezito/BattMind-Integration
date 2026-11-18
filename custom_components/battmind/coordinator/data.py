@@ -149,10 +149,13 @@ class CoordinatorData:
 
         entity_states = {}
         units = {}
+        reported = {}
         for entity_id in self.snapshot_entities:
             state = self.hass.states.get(entity_id)
             entity_states[entity_id] = state.state if state else None
             units[entity_id] = state.attributes.get("unit_of_measurement") if state else None
+            last_reported = getattr(state, "last_reported", None) if state else None
+            reported[entity_id] = last_reported.timestamp() if last_reported else None
 
         self._prune_buffers()
         snapshot = Snapshot(
@@ -162,6 +165,7 @@ class CoordinatorData:
             entity_states=entity_states,
             entity_platforms=dict(self._entity_platforms),
             units=units,
+            reported=reported,
             buffers={entity_id: list(rows) for entity_id, rows in self._buffers.items()},
             statistics={entity_id: list(rows) for entity_id, rows in self._statistics.items()},
             sun_events=self._sun_events(now),

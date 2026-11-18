@@ -56,6 +56,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "ignore_cjp_chargers": True,
         # the chargers added by it (set by the coordinator, not an option)
         "auto_ignored_entity_ids": [],
+        # all the chargers of Cable Juice Planner, also when they are not added automatically (set by the coordinator, not an option):
+        # the only ignored sensors that are checked for a hung reading (engine/energy/energy.py)
+        "charger_entity_ids": [],
         # battery actions the inverter can't run (CONTROLLABLE_ACTIONS); their rules are off
         "unsupported_actions": [],
     },

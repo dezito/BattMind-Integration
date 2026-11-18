@@ -13,15 +13,30 @@ forecasts.
 """
 from .base import BasePriceProvider, CombinedPriceProvider, periods_in_hour, price_at
 from .energidataservice import EnergiDataServicePriceProvider
-from .factory import create_price_provider
-from .stromligning import StromligningPriceProvider
+from .dashboard import price_dashboard_entities
+from .factory import create_price_provider, providers_from_options
+from .stromligning import (
+    STROMLIGNING_PLATFORM,
+    STROMLIGNING_UNIQUE_ID_PREFIXES,
+    StromligningPriceProvider,
+    has_stromligning_sell_prices,
+    stromligning_entities_to_watch,
+    stromligning_problems,
+)
 
 __all__ = [
+    "STROMLIGNING_PLATFORM",
+    "STROMLIGNING_UNIQUE_ID_PREFIXES",
     "BasePriceProvider",
     "CombinedPriceProvider",
     "EnergiDataServicePriceProvider",
     "StromligningPriceProvider",
     "create_price_provider",
+    "has_stromligning_sell_prices",
+    "price_dashboard_entities",
+    "providers_from_options",
+    "stromligning_entities_to_watch",
+    "stromligning_problems",
     "periods_in_hour",
     "price_at",
 ]

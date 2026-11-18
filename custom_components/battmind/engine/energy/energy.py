@@ -26,6 +26,8 @@ POWER_VALUE_KEYS = (
     "power_consumption_without_ignored",
     "power_consumption_without_all_exclusion",
 )
+# an ignored consumer that has not reported for this long (and still shows a number other than 0) is stuck: it is not subtracted
+STALE_REPORT_AFTER = datetime.timedelta(minutes=30)
 # the key the consumption forecast is made from
 CONSUMPTION_KEY = "power_consumption_without_all_exclusion"
 
@@ -87,6 +89,45 @@ class Energy(EnergyForecast, EnergySolar, EnergyPrice):
             self._power_cache[key] = self._calculate_power_values(from_timestamp, to_timestamp)
         return self._power_cache[key]
 
+    def _ignored_watt(self, entity_id, from_timestamp, to_timestamp) -> float:
+        """The average power (W) of an ignored consumer in the window.
+
+        A CHARGER (of Cable Juice Planner) that has not been *reported* for STALE_REPORT_AFTER (a hung integration, the state is
+        not 'unavailable') and still SHOWS a number other than 0 is stuck - other ignored consumers are not checked, since a
+        plug or a template sensor of a steady load may only report when its value changes: it is not subtracted in a window that ends after it got
+        stuck (the live window, and the hours since, which are recomputed until they are cached), because counting it would
+        take its last value off the house consumption every hour, and a higher consumption is the conservative error.
+        last_reported is used, not last_changed, because a charger that keeps reporting a steady 11 kW is not frozen. The
+        number it shows now decides, not the average of the window (a charger that stopped and reads 0 W without writing
+        the unchanged 0 again is not stuck). Windows that ended before it got stuck and a sensor without a last_reported are
+        read as before.
+        """
+        value = float(self._wc.average(entity_id, from_timestamp, to_timestamp))
+        if self._snap is None or entity_id not in (self.config["home"].get("charger_entity_ids") or []):
+            return value  # only a charger is checked: a sensor that reports only when it changes can be steady for hours
+        reported = (self._snap.reported or {}).get(entity_id)
+        if reported is None:
+            return value
+        stuck_since = reported + STALE_REPORT_AFTER.total_seconds()
+        if self._wc._ts(self._snap.now) <= stuck_since:  # it reported within the limit
+            self._stale_warned.discard(entity_id)
+            return value
+        try:
+            reading = float(self._snap.entity_states.get(entity_id))
+        except (TypeError, ValueError):
+            return value  # not a number (unavailable ...): read as before
+        if reading == 0.0 or self._wc._ts(to_timestamp) <= stuck_since:
+            return value
+        if entity_id not in self._stale_warned:
+            self._stale_warned.add(entity_id)
+            _LOGGER.warning(
+                "%s has not reported for more than %d minutes and still shows %s: it is not subtracted from the house consumption until it reports again",
+                entity_id,
+                STALE_REPORT_AFTER.total_seconds() // 60,
+                self._snap.entity_states.get(entity_id),
+            )
+        return 0.0
+
     def _calculate_power_values(self, from_timestamp, to_timestamp) -> dict:
         home = self.config["home"]
         average_w = self._wc.average
@@ -94,7 +135,7 @@ class Energy(EnergyForecast, EnergySolar, EnergyPrice):
         try:
             consumption = abs(round(float(average_w(home["entity_ids"]["power_consumption_entity_id"], from_timestamp, to_timestamp)), 2))
             ignored = abs(round(sum(
-                float(average_w(entity_id, from_timestamp, to_timestamp))
+                self._ignored_watt(entity_id, from_timestamp, to_timestamp)
                 for entity_id in unique_entity_ids(home["entity_ids"]["ignore_consumption_from_entity_ids"])
             ), 2))
             powerwall_values = self.get_powerwall_values(from_timestamp, to_timestamp)

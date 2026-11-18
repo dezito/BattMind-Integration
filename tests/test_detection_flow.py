@@ -8,6 +8,7 @@ import pytest
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.battmind.const import CONF_ENTITY_PREFIX, DOMAIN
 from custom_components.battmind.flow import pages
@@ -33,9 +34,11 @@ class Detector:
     def __init__(self, answer: Detection = FOUND) -> None:
         self.answer = answer
         self.calls: list[tuple] = []
+        self.left_out: list[list[str]] = []
 
-    async def __call__(self, hass, consumption, power, level, trusted=None, now=None) -> Detection:
+    async def __call__(self, hass, consumption, power, level, trusted=None, now=None, ignored_entities=()) -> Detection:
         self.calls.append((consumption, power, level, trusted))
+        self.left_out.append(list(ignored_entities))
         return self.answer
 
 
@@ -70,6 +73,47 @@ async def test_new_sensors_are_looked_at_and_the_numbers_are_shown(hass: HomeAss
     defaults = form_defaults(result)
     assert defaults[INVERT] is True and defaults[CHARGING] is False and defaults[DISCHARGING] is False
     assert defaults["redetect"] is False
+
+
+async def test_a_failed_lookup_says_why_and_is_not_remembered(hass: HomeAssistant, detector: Detector) -> None:
+    detector.answer = Detection(reason="timeout")
+    result = await _to_review(hass)
+
+    assert result["step_id"] == "detection_review"
+    assert result["errors"] == {"base": "detection_timeout"}
+    assert {value for key, value in result["description_placeholders"].items() if key.endswith("mark")} == {"❔"}
+    assert hass.config_entries.flow._progress[result["flow_id"]]._detections == {}  # looked at again at the next visit
+
+    detector.answer = FOUND
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {**form_defaults(result), "redetect": True})
+    assert not result.get("errors") and form_defaults(result)[INVERT] is True
+    assert len(hass.config_entries.flow._progress[result["flow_id"]]._detections) == 1
+
+    # no history is also said, and kept
+    detector.answer = Detection(reason="data")
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {**form_defaults(result), "redetect": True})
+    assert result["errors"] == {"base": "detection_data"}
+    assert form_defaults(result)[INVERT] is True  # what was there stays
+
+
+@pytest.mark.parametrize(("switch", "expected"), [(True, ["sensor.pool_pump", "sensor.zoe_power"]), (False, ["sensor.pool_pump"])])
+async def test_the_consumers_the_engine_leaves_out_are_given_to_the_detector(hass: HomeAssistant, loaded_entry, detector: Detector, switch, expected) -> None:
+    """The chargers of Cable Juice Planner only when the option is on, like the engine (a separately metered charger is not in the house sensor)."""
+    hass.states.async_set("sensor.pool_pump", "0", {"unit_of_measurement": "W", "device_class": "power"})
+    hass.config_entries.async_update_entry(
+        loaded_entry, options={**loaded_entry.options, "ignore_consumption_from_entity_ids": ["sensor.pool_pump"], "ignore_cjp_chargers": switch}
+    )
+    MockConfigEntry(domain="cable_juice_planner", options={"charger_power_entity_id": "sensor.zoe_power"}).add_to_hass(hass)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    result = await hass.config_entries.options.async_init(loaded_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "menu_consumption"})
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
+    assert result["step_id"] == "detection_review"
+
+    await hass.config_entries.options.async_configure(result["flow_id"], {**form_defaults(result), "redetect": True})
+
+    assert detector.left_out[-1] == expected
+    hass.config_entries.options.async_abort(result["flow_id"])
 
 
 async def test_the_user_decides_and_the_switch_is_not_saved(hass: HomeAssistant, detector: Detector) -> None:
