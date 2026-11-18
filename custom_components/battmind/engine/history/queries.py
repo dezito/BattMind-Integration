@@ -11,7 +11,10 @@ _LOGGER = logging.getLogger(__name__)
 class HistoryQueries:
     """Charging history queries and the cost of the energy in the battery."""
 
-    def charging_history(self, timestamp=None, save_db=True) -> dict:
+    def charging_history(self, timestamp=None, save_db=True, rules=None, battery_kwh_price=None, recorded_prices=None) -> dict:
+        """The charging history of the hour of timestamp (rules: the rules of the hour, battery_kwh_price: the price of the
+        battery energy then, recorded_prices: the "prices" of the recorded hour (buy and sell price); they default to the
+        ones of now, a recalculation of an old hour passes the recorded ones)."""
         if not self.battery_expenses or save_db:
             self.current_battery_level_expenses()
 
@@ -48,13 +51,18 @@ class HistoryQueries:
         solar_discharge_share_pct /= discharge_normalization_factor
         powerwall_discharge_share_pct /= discharge_normalization_factor
 
-        buy_price = self.get_grid_prices().get(start)
-        sell_price = self.get_sell_prices().get(start)
-        powerwall_kwh_price = self.battery_expenses.get("unit_with_loss_and_wear")
+        powerwall_kwh_price = battery_kwh_price if isinstance(battery_kwh_price, (int, float)) else self.battery_expenses.get("unit_with_loss_and_wear")
 
-        if buy_price is None or sell_price is None:
-            raise ValueError(f"Buy or sell price not found for timestamp {start}. buy_price: {buy_price}, sell_price: {sell_price}")
-        sell_price = self.sell_value(sell_price)
+        if isinstance(recorded_prices, dict) and all(isinstance(recorded_prices.get(key), (int, float)) for key in ("buy_price", "sell_price")):
+            # the prices of the hour as recorded (the price lists only hold today and later); the recorded sell price is
+            # already what a sold kWh is worth (sell_value), so it is not converted again
+            buy_price, sell_price = recorded_prices["buy_price"], recorded_prices["sell_price"]
+        else:
+            buy_price = self.get_grid_prices().get(start)
+            sell_price = self.get_sell_prices().get(start)
+            if buy_price is None or sell_price is None:
+                raise ValueError(f"Buy or sell price not found for timestamp {start}. buy_price: {buy_price}, sell_price: {sell_price}")
+            sell_price = self.sell_value(sell_price)
         if not isinstance(powerwall_kwh_price, (int, float)):
             powerwall_kwh_price = self.get_powerwall_kwh_price()
 
@@ -88,7 +96,7 @@ class HistoryQueries:
             return round(value, decimals) if isinstance(value, (int, float)) else None
 
         session_dict = {
-            "rules": dict(self.session_rules),
+            "rules": dict(self.session_rules if rules is None else rules),
             "energy_summary": {
                 "home_consumption_kwh": _r(home_consumption_kwh),
                 "solar_production_kwh": _r(solar_production_kwh),

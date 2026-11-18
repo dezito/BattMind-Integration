@@ -67,7 +67,7 @@ class Energy(EnergyForecast, EnergySolar, EnergyPrice):
         return from_timestamp, to_timestamp
 
     def get_powerwall_values(self, from_timestamp, to_timestamp) -> list[float]:
-        """Interpolated battery power flow in W (100 points)."""
+        """Battery power flow in W at up to 100 points, every state held until the next one (none for the time it was lost)."""
         entity_id = self.config["home"]["entity_ids"]["powerwall_watt_flow_entity_id"]
         return self._wc.short_values(entity_id, from_timestamp, to_timestamp) or [0.0]
 

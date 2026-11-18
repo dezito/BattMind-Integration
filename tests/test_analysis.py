@@ -6,6 +6,8 @@ import datetime
 import pytest
 
 from custom_components.battmind.engine.analysis.helpers import (
+    ANALYSIS_BACKFILL_VERSION,
+    FLOWS_VERSION,
     SCORE_VERSION,
     evaluate_price_day,
     grid_cost,
@@ -373,6 +375,209 @@ def test_backfill_from_the_statistics() -> None:
     assert result.error is None, result.error
     assert engine.analysis_backfilled()
     assert engine.analysis_db["days"][(DAY - datetime.timedelta(days=5)).isoformat()]["price_sum"] == pytest.approx(48.0)
+
+
+def _flow_statistics(days: int = 10, skip=()) -> dict:
+    """Statistics of the last `days` days: 500 W in the house, 1 kWh charged in hour 2 and 1 kWh discharged in hour 18
+    (sensor.battery_power: + = discharging); the dates in skip have no battery power statistics."""
+    first = datetime.datetime.combine(DAY - datetime.timedelta(days=days), datetime.time(0), tzinfo=TZ)
+    hours = [(first + datetime.timedelta(hours=h)).timestamp() for h in range(days * 24 + 12)]
+    local = lambda ts: datetime.datetime.fromtimestamp(ts, TZ)  # noqa: E731
+    return {
+        "sensor.consumption": [(ts, 500.0) for ts in hours],
+        "sensor.battery_power": [
+            (ts, -1000.0 if local(ts).hour == 2 else 1000.0 if local(ts).hour == 18 else 0.0)
+            for ts in hours if local(ts).date().isoformat() not in skip
+        ],
+        "sensor.battery_level": [(ts, 50.0) for ts in hours],
+        "sensor.price": [(ts, 1.5) for ts in hours],
+    }
+
+
+def _recorded_day(charged: float, **extra) -> dict:
+    """A day as the hourly recording wrote it before the battery power was held between the changes."""
+    return {
+        "final": True, "hours": 24, "home": 12.0, "ignored": 0.0, "solar": 0.0, "charged": charged, "discharged": 1.0,
+        "soc_start": 50.0, "soc_end": 50.0, "price_hours": 24, "price_sum": 36.0,
+        "forecast": {"hours": 24, "use": 12.0, "ema": [1.0, 0.5], "trend": [1.0, 0.5], "average": [1.0, 0.5]},
+        "expensive": {"hours": 1, "kwh": 0.5, "cost": 1.0},
+        "score": {"actual": 20.0, "no_battery": 18.0, "optimal": 15.0, "v": SCORE_VERSION},
+        **extra,
+    }
+
+
+def test_backfill_corrects_the_energy_of_the_days_recorded_with_lines_between_the_rows() -> None:
+    """Recorded days get their charged / discharged from the statistics (the hourly mean is the time weighted mean)."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 5))
+    engine = started_engine(now, 50.0)
+    day = lambda back: (DAY - datetime.timedelta(days=back)).isoformat()  # noqa: E731
+    days = engine.analysis_db["days"]
+    days[day(3)] = _recorded_day(charged=6.0)  # a battery that blinked on a full battery: 5 kWh too much
+    days[day(4)] = _recorded_day(charged=1.1)  # right within the tolerance: its score is still valid
+    days[day(5)] = _recorded_day(charged=6.0)  # no battery power statistics for the day: left as recorded
+    days[day(6)] = _recorded_day(charged=6.0, flows=FLOWS_VERSION)  # recorded the right way: never replaced
+    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": _flow_statistics(skip={day(5)})})
+    assert result.error is None, result.error
+
+    fixed = days[day(3)]
+    assert (fixed["charged"], fixed["discharged"]) == (pytest.approx(1.0), pytest.approx(1.0))
+    assert fixed["grid_battery"] == pytest.approx(1.0)  # the sources of the energy follow
+    assert fixed["flows"] == FLOWS_VERSION
+    assert "score" not in fixed  # not comparable: its hours are gone and the statistics have no sell prices
+    # what the statistics do not know stays as recorded
+    assert fixed["forecast"]["ema"] == [1.0, 0.5] and fixed["expensive"]["kwh"] == 0.5
+    assert (fixed["soc_start"], fixed["soc_end"], fixed["final"]) == (50.0, 50.0, True)
+
+    # within the tolerance the day stays exactly as recorded (the statistics are net per hour, the recording gross)
+    assert days[day(4)]["charged"] == 1.1
+    assert days[day(4)]["score"]["actual"] == 20.0 and days[day(4)]["flows"] == FLOWS_VERSION
+
+    assert days[day(5)]["charged"] == 6.0 and "flows" not in days[day(5)] and "score" in days[day(5)]
+    assert days[day(6)]["charged"] == 6.0 and days[day(6)]["score"]["actual"] == 20.0
+
+    # the published analysis follows: the loss and the score of the days are from the corrected days
+    scores = {row["date"] for row in result.attributes["analysis"]["scores"]}
+    assert day(3) not in scores and day(4) in scores
+
+
+def test_backfill_corrects_the_hours_that_are_still_kept_and_scores_the_day_again() -> None:
+    """Yesterday's hours are kept: the hours that recorded charging that never happened get the statistics' values."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 5))
+    engine = started_engine(now, 50.0)
+    yesterday = DAY - datetime.timedelta(days=1)
+    for hour in range(24):
+        engine.analysis_db["hours"][f"{yesterday.isoformat()}T{hour:02d}"] = {
+            "home": 0.5, "ignored": 0.0, "use": 0.5, "solar": 0.0, "soc": 50.0, "buy": 1.5, "sell": 1.0, "pred": {},
+            "charge": 3.0 if hour == 2 else 0.0, "discharge": 1.0 if hour == 18 else 0.0,
+        }
+    # the night that never charged; home and use were calculated from the charging (consumption that includes it)
+    engine.analysis_db["hours"][f"{yesterday.isoformat()}T05"].update(charge=2.3, home=-1.8, use=0.0)
+    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": _flow_statistics()})
+    assert result.error is None, result.error
+    hours = engine.analysis_db["hours"]
+    assert hours[f"{yesterday.isoformat()}T05"]["charge"] == 0.0
+    assert hours[f"{yesterday.isoformat()}T05"]["home"] == pytest.approx(0.5)
+    assert hours[f"{yesterday.isoformat()}T05"]["use"] == pytest.approx(0.5)
+    assert hours[f"{yesterday.isoformat()}T02"]["charge"] == pytest.approx(1.0)
+    assert hours[f"{yesterday.isoformat()}T18"]["discharge"] == pytest.approx(1.0)
+    assert all(row["flows"] == FLOWS_VERSION for key, row in hours.items() if key.startswith(yesterday.isoformat()))
+    day = engine.analysis_db["days"][yesterday.isoformat()]
+    assert day["charged"] == pytest.approx(1.0) and day["discharged"] == pytest.approx(1.0)
+    assert day["flows"] == FLOWS_VERSION
+    assert day["score"]["v"] == SCORE_VERSION  # scored again from the corrected hours (they have sell prices)
+
+
+def _statistics_of_a_local_day(date: datetime.date, battery_hour: int = 1, missing_battery_hour: int | None = None) -> dict:
+    """Hourly statistics of one local day (absolute hours: 23 on the day summer time starts): 1 kWh charged at battery_hour."""
+    start = datetime.datetime.combine(date, datetime.time(0), tzinfo=TZ).timestamp()
+    end = datetime.datetime.combine(date + datetime.timedelta(days=1), datetime.time(0), tzinfo=TZ).timestamp()
+    hours = [start + 3600 * k for k in range(round((end - start) / 3600))]
+    local = lambda ts: datetime.datetime.fromtimestamp(ts, TZ)  # noqa: E731
+    return {
+        "sensor.consumption": [(ts, 500.0) for ts in hours],
+        "sensor.battery_power": [
+            (ts, -1000.0 if local(ts).hour == battery_hour else 0.0) for ts in hours if local(ts).hour != missing_battery_hour
+        ],
+        "sensor.battery_level": [(ts, 50.0) for ts in hours],
+        "sensor.price": [(ts, 1.5) for ts in hours],
+    }
+
+
+def test_backfill_corrects_a_day_with_23_hours_and_leaves_a_day_missing_an_hour() -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(12, 5))
+    engine = started_engine(now, 50.0)
+    summer_time = datetime.date(2026, 3, 29)  # the clocks went forward: 23 hours
+    ordinary = datetime.date(2026, 3, 30)
+    stats = _statistics_of_a_local_day(summer_time)
+    for key, rows in _statistics_of_a_local_day(ordinary, missing_battery_hour=1).items():
+        stats[key] = stats[key] + rows
+    days = engine.analysis_db["days"]
+    days[summer_time.isoformat()] = _recorded_day(charged=6.0)
+    days[ordinary.isoformat()] = _recorded_day(charged=6.0)  # one hour without battery power: it would be read as 0 W
+    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": stats})
+    assert result.error is None, result.error
+    assert days[summer_time.isoformat()]["charged"] == pytest.approx(1.0)
+    assert days[summer_time.isoformat()]["flows"] == FLOWS_VERSION
+    assert days[ordinary.isoformat()]["charged"] == 6.0 and "flows" not in days[ordinary.isoformat()]
+
+
+def test_a_second_backfill_changes_nothing() -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(12, 5))
+    engine = started_engine(now, 50.0)
+    day = (DAY - datetime.timedelta(days=3)).isoformat()
+    engine.analysis_db["days"][day] = _recorded_day(charged=6.0)
+    stats = _flow_statistics()
+    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": stats})
+    assert result.error is None, result.error
+    first = {key: dict(value) for key, value in engine.analysis_db["days"].items()}
+    first_hours = {key: dict(value) for key, value in engine.analysis_db["hours"].items()}
+    assert first[day]["charged"] == pytest.approx(1.0) and first[day]["flows"] == FLOWS_VERSION  # the first run did correct it
+    # a later version of the backfill reads the statistics again: the corrected day and the hours kept are left alone
+    engine.analysis_db["backfilled"] = ANALYSIS_BACKFILL_VERSION - 1
+    stats["sensor.battery_power"] = [(ts, 2000.0) for ts, _ in stats["sensor.battery_power"]]  # the statistics would now give something else
+    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": stats})
+    assert result.error is None, result.error
+    assert engine.analysis_db["days"][day] == first[day]
+    assert engine.analysis_db["hours"] == first_hours
+
+
+def test_backfill_never_reads_a_sensor_without_statistics_as_0() -> None:
+    """A solar sensor or an ignored consumer without long-term statistics: its recorded energy stays, the day is left."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 5))
+    engine = started_engine(
+        now, 50.0, options={"production_entity_id": "sensor.solar", "ignore_consumption_from_entity_ids": ["sensor.ignored"]},
+    )
+    yesterday = DAY - datetime.timedelta(days=1)
+    old_day = (DAY - datetime.timedelta(days=3)).isoformat()
+    engine.analysis_db["days"][old_day] = _recorded_day(charged=6.0, solar=4.0, ignored=2.0)
+    for hour in range(24):
+        engine.analysis_db["hours"][f"{yesterday.isoformat()}T{hour:02d}"] = {
+            "home": 0.5, "ignored": 0.2, "use": 0.9, "solar": 0.4, "soc": 50.0, "buy": 1.5, "sell": 1.0, "pred": {},
+            "charge": 3.0 if hour == 2 else 0.0, "discharge": 0.0,
+        }
+    stats = _flow_statistics()  # consumption, battery power, level and price; no solar and no ignored consumer
+    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": stats})
+    assert result.error is None, result.error
+    left = engine.analysis_db["days"][old_day]
+    assert (left["charged"], left["solar"], left["ignored"]) == (6.0, 4.0, 2.0) and "flows" not in left and "score" in left
+    hour = engine.analysis_db["hours"][f"{yesterday.isoformat()}T02"]
+    assert hour["charge"] == pytest.approx(1.0)  # the battery power has statistics
+    assert (hour["solar"], hour["ignored"]) == (0.4, 0.2)  # these have none: as recorded
+    assert hour["use"] == pytest.approx(0.3)  # use is the new home minus the recorded ignored
+
+    # with statistics of them all the day is corrected and the solar and the ignored energy are the measured ones
+    engine.analysis_db["backfilled"] = ANALYSIS_BACKFILL_VERSION - 1
+    stats["sensor.solar"] = [(ts, 0.0) for ts, _ in stats["sensor.consumption"]]
+    stats["sensor.ignored"] = [(ts, 100.0) for ts, _ in stats["sensor.consumption"]]
+    result = engine.run_job(snapshot(now, 50.0), engine.analysis_update, {"stats": stats})
+    assert result.error is None, result.error
+    fixed = engine.analysis_db["days"][old_day]
+    assert fixed["charged"] == pytest.approx(1.0) and fixed["solar"] == 0.0 and fixed["ignored"] == pytest.approx(2.4)
+
+
+def test_a_day_with_an_hour_recorded_the_old_way_is_not_marked() -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(12, 5))
+    engine = started_engine(now, 50.0)
+    yesterday = DAY - datetime.timedelta(days=1)
+    for hour in range(24):
+        engine.analysis_db["hours"][f"{yesterday.isoformat()}T{hour:02d}"] = {
+            "home": 0.5, "ignored": 0.0, "use": 0.5, "solar": 0.0, "soc": 50.0, "buy": 1.5, "sell": 1.0, "pred": {},
+            "charge": 0.0, "discharge": 0.0, "flows": FLOWS_VERSION,
+        }
+    del engine.analysis_db["hours"][f"{yesterday.isoformat()}T07"]["flows"]
+    engine._analysis_day(yesterday, final=True)
+    assert "flows" not in engine.analysis_db["days"][yesterday.isoformat()]
+    engine.analysis_db["hours"][f"{yesterday.isoformat()}T07"]["flows"] = FLOWS_VERSION
+    engine._analysis_day(yesterday, final=True)
+    assert engine.analysis_db["days"][yesterday.isoformat()]["flows"] == FLOWS_VERSION
+
+
+def test_hours_recorded_now_are_marked_so_a_later_backfill_leaves_them() -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(12, 5))
+    engine = started_engine(now, 50.0)
+    _run_day(engine)
+    assert all(row["flows"] == FLOWS_VERSION for row in engine.analysis_db["hours"].values())
+    assert engine.analysis_db["days"][DAY.isoformat()]["flows"] == FLOWS_VERSION
 
 
 def test_backfill_prefers_stromligning_per_hour() -> None:

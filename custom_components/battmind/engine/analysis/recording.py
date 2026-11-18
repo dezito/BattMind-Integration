@@ -8,7 +8,7 @@ from ...const import HISTORY_BUFFER_HOURS
 from ...utils.efficiency import EFFICIENCY_BACKFILL_VERSION, add_efficiency_measurement, measure_efficiency
 from ...utils.helpers import days_between, reset_time_to_hour
 from ...utils.power import unit_factor_to_w
-from .helpers import ANALYSIS_DAYS, FORECAST_TYPES, PRICE_FORECAST_DAYS, PRICE_HOURS_DAYS, SCORE_VERSION, _is_num, _num, _r, evaluate_price_day, grid_cost, hindsight_cost, hourly_prices, rules_of_entries, summarize_day
+from .helpers import ANALYSIS_DAYS, FLOWS_VERSION, FORECAST_TYPES, PRICE_FORECAST_DAYS, PRICE_HOURS_DAYS, SCORE_VERSION, _is_num, _num, _r, evaluate_price_day, grid_cost, hindsight_cost, hourly_prices, rules_of_entries, summarize_day
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ class AnalysisRecording:
     def _analysis_record_hour(self, start: datetime.datetime) -> None:
         end = start.replace(minute=59, second=59)
         row = self._analysis_row(self.power_values(start, end))
+        row["flows"] = FLOWS_VERSION
         row["soc"] = round(self.get_battery_level(), 1)
         row["buy"] = _r(self.get_grid_prices().get(start))
         row["sell"] = _r(self.get_sell_prices().get(start))
@@ -78,6 +79,8 @@ class AnalysisRecording:
         solar = self.config["solar"]
         previous = self.analysis_db["days"].get((date - datetime.timedelta(days=1)).isoformat(), {})
         day = summarize_day(rows, previous.get("soc_end"), solar["powerwall_battery_level_min"])
+        if all(row.get("flows") == FLOWS_VERSION for row in rows):
+            day["flows"] = FLOWS_VERSION  # an hour recorded the old way is left for the backfill to check
         if final:
             day["final"] = True
             if (score := self._analysis_score(rows, day)) is not None:

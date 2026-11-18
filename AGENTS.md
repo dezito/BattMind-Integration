@@ -190,6 +190,21 @@ These rules apply to code, tests, documentation, and the dashboard.
 Agents record lasting decisions and findings for this repository here (not in
 private agent memory). Update or remove a note when it stops being true.
 
+- Window values (`utils/power.py`, `WindowCalculator.short_values`) hold every sensor state until the next row
+  (`_hold`). Never draw lines between rows: a sensor writes a row only when its state changes, so lines turned a
+  battery power that blinks between 0 and 5 kW into hours of charging. A row that is no finite number ends the hold
+  and gives no value (an average counts only known time). The hourly statistics stay linearly interpolated.
+  Recorded analysis days and hours carry `flows` (`FLOWS_VERSION`); `analysis_update` checks older days with
+  statistics (consumption, battery power, solar and ignored consumers) for every hour of the day and, when charged
+  or discharged differ by more than `FLOWS_SCORE_TOLERANCE_KWH`, replaces the sums of energy from the statistics and
+  drops the score (it cannot be calculated again); the kept hours of the last two days are corrected per hour. A
+  sensor without statistics is never read as 0: its energy stays as recorded. The same job (once per `FLOWS_VERSION`,
+  marker `charging_history_flows`) measures the hourly charging history of the last `CHARGING_HISTORY_CORRECT_HOURS`
+  hours again from the buffers (`correct_recent_charging_history`): the rules, the buy and sell price (the price lists
+  only hold today and later) and the battery price of the hour are kept; hours that were not recorded, have no number
+  from every sensor in the buffers, or have the same energy within a tolerance are left alone; an hour with no energy
+  is removed; the rules table of the day is made again. Older charging history and `power_values_db` are not
+  migrated. Keep `History` in Cable Juice Planner in sync.
 - Keep the worker-thread design so calculations never block HA:
   single-thread executor, snapshot -> job result. The what-if simulation is
   the exception: it runs on its own `BattMindEngine` in `_what_if_executor`,

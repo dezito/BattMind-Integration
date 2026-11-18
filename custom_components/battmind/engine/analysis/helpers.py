@@ -11,8 +11,21 @@ from ...utils.helpers import reset_time_to_hour
 ANALYSIS_DAYS = 400  # days kept in the database
 
 
-# raised when the backfill reads more: the days from the statistics are read again (2: prices with state_class total)
-ANALYSIS_BACKFILL_VERSION = 2
+# raised when the backfill reads more: the days from the statistics are read again (2: prices with state_class total,
+# 3: the energy of the days recorded before FLOWS_VERSION is read again from the statistics)
+ANALYSIS_BACKFILL_VERSION = 3
+
+
+# the energy of a recorded day (charged, discharged ...) is measured with the states held until the next change;
+# days without this marker were measured with lines between the rows, which counted a battery that blinks on a
+# full battery as hours of charging: the backfill corrects them from the long-term statistics (the hourly means)
+FLOWS_VERSION = 2
+
+
+# a recorded day stays as it is (with its score) when the energy from the statistics differs less than this (kWh) in
+# charged and discharged: its hours are no longer there, and the score needs the sell prices, which the statistics
+# don't have
+FLOWS_SCORE_TOLERANCE_KWH = 0.25
 
 
 ANALYSIS_MONTHS = 13  # months published

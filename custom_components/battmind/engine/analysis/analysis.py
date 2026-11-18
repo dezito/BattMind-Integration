@@ -35,7 +35,7 @@ from ..energy.energy import derive_power_values
 from ...utils.power import unique_entity_ids, unit_factor_to_w
 from .publishing import AnalysisPublishing
 from .recording import AnalysisRecording
-from .helpers import ANALYSIS_DAYS, ANALYSIS_BACKFILL_VERSION, FORECAST_AUTO_DAYS, FORECAST_AUTO_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_CORRECTION_MAX, _num, _is_num, _r, auto_forecast_choice, forecast_errors, summarize_day
+from .helpers import ANALYSIS_DAYS, ANALYSIS_BACKFILL_VERSION, DAY_SUMS, FLOWS_SCORE_TOLERANCE_KWH, FLOWS_VERSION, FORECAST_AUTO_DAYS, FORECAST_AUTO_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_CORRECTION_MAX, _num, _is_num, _r, auto_forecast_choice, forecast_errors, summarize_day
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -127,8 +127,20 @@ class Analysis(AnalysisRecording, AnalysisPublishing):
         positive_is_charging = home["invert_powerwall_watt_flow_entity_id"]
 
         by_date: dict[str, dict[str, dict]] = {}
+        # the hours each sensor has statistics for: a missing hour is 0 W below, which is no measurement of the hour
+        flow_hours: set[str] = set()
+        solar_hours: set[str] = set()  # (also without a solar sensor: it is 0 in the recording as well)
+        ignored_hours: set[str] = set()  # every ignored consumer
+        solar_id = self.config["solar"]["entity_ids"]["production_entity_id"]
         for ts in sorted(consumption):
             hour = datetime.datetime.fromtimestamp(ts, tz).replace(tzinfo=None)
+            hour_key = hour.strftime("%Y-%m-%dT%H")
+            if ts in flow:
+                flow_hours.add(hour_key)
+            if not solar_id or ts in solar:
+                solar_hours.add(hour_key)
+            if all(ts in series_of_one for series_of_one in ignored):
+                ignored_hours.add(hour_key)
             battery = flow.get(ts, 0.0)
             charging = max(battery if positive_is_charging else -battery, 0.0)
             discharging = max(-battery if positive_is_charging else battery, 0.0)
@@ -146,6 +158,7 @@ class Analysis(AnalysisRecording, AnalysisPublishing):
         days = self.analysis_db["days"]
         minimum = self.config["solar"]["powerwall_battery_level_min"]
         previous_soc = None
+        corrected = unchanged = 0
         for date in sorted(by_date):
             rows = by_date[date]
             if date < oldest:
@@ -153,17 +166,82 @@ class Analysis(AnalysisRecording, AnalysisPublishing):
             if date >= recent:
                 for key, row in rows.items():
                     known = self.analysis_db["hours"].setdefault(key, row)
+                    if known is row:
+                        row["flows"] = FLOWS_VERSION  # read from the statistics: the time weighted mean
+                        continue
                     if known.get("buy") is None and row.get("buy") is not None:
                         known["buy"] = row["buy"]
+                    if key in flow_hours and known.get("flows") != FLOWS_VERSION:
+                        # an hour recorded before the battery power was measured with held states: the energy of the
+                        # hour again (home and use were calculated from the charging and discharging); the energy of a
+                        # sensor without statistics stays as recorded
+                        fields = ["home", "charge", "discharge"]
+                        fields += ["solar"] if key in solar_hours else []
+                        fields += ["ignored", "use"] if key in ignored_hours else []
+                        for field in fields:
+                            known[field] = row[field]
+                        if key not in ignored_hours:
+                            known["use"] = max(_num(known["home"]) - _num(known.get("ignored")), 0.0)  # of the new home
+                        known["flows"] = FLOWS_VERSION
+                        corrected += 1
             elif date not in days or days[date].get("statistics"):
                 days[date] = {**summarize_day([rows[key] for key in sorted(rows)], previous_soc, minimum), "final": True, "statistics": True}
+            elif days[date].get("flows") != FLOWS_VERSION:
+                if self._analysis_correct_flows(date, days[date], rows, flow_hours & solar_hours & ignored_hours, previous_soc, minimum, tz):
+                    corrected += 1
+                else:
+                    unchanged += 1
             previous_soc = days.get(date, {}).get("soc_end", previous_soc)
         for date in (today - datetime.timedelta(days=1), today):
             self._analysis_day(date, final=date < today)
         self.analysis_db["backfilled"] = ANALYSIS_BACKFILL_VERSION
         self.mark_dirty("analysis")
-        _LOGGER.info("Analysis: %s days read from the long-term statistics", len(by_date))
+        if self.analysis_db.get("charging_history_flows") != FLOWS_VERSION:
+            try:
+                # the hourly charging history of the last two days, measured again from the buffers (once per FLOWS_VERSION)
+                self.correct_recent_charging_history()
+                self.analysis_db["charging_history_flows"] = FLOWS_VERSION
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Charging history of the last hours could not be measured again")
+        _LOGGER.info(
+            "Analysis: %s days read from the long-term statistics, %s recorded days/hours checked against them, %s recorded days left as they are",
+            len(by_date), corrected, unchanged,
+        )
         self.publish_analysis()
+
+    @staticmethod
+    def _hour_keys(date: str, tz) -> set[str]:
+        """The hour keys of the local day (23 on the day summer time starts; the repeated hour of the 25 hour day is one key)."""
+        day = datetime.date.fromisoformat(date)
+        start = datetime.datetime.combine(day, datetime.time(0)).replace(tzinfo=tz).timestamp()
+        end = datetime.datetime.combine(day + datetime.timedelta(days=1), datetime.time(0)).replace(tzinfo=tz).timestamp()
+        keys = set()
+        while start < end:
+            keys.add(datetime.datetime.fromtimestamp(start, tz).strftime("%Y-%m-%dT%H"))
+            start += 3600
+        return keys
+
+    def _analysis_correct_flows(self, date: str, day: dict, rows: dict[str, dict], complete_hours: set[str], previous_soc: float | None, minimum: float, tz) -> bool:
+        """A day recorded before FLOWS_VERSION, checked against the hourly mean statistics (the mean of the hour is the time
+        weighted mean, whatever the states did in it). When charged or discharged differ by more than
+        FLOWS_SCORE_TOLERANCE_KWH, the sums of the energy are replaced and the score of the day removed (its hours are gone
+        and the statistics have no sell prices, so it can not be calculated again, and it is not shown wrong); within the
+        tolerance the day stays as recorded. The forecast errors, the levels and the hours with an empty battery stay as
+        recorded. The mean of an hour is the net power, so charging and discharging in the same hour count as their
+        difference. A day without statistics of the consumption, the battery power, the solar production and the ignored
+        consumers for every hour of the day (complete_hours: the hours that have them all), and a day that is not final,
+        stay as they are (False): a sensor without statistics would count as 0.
+        """
+        keys = self._hour_keys(date, tz)
+        if not day.get("final") or not keys <= rows.keys() or not keys <= complete_hours:
+            return False
+        fresh = summarize_day([rows[key] for key in sorted(rows)], previous_soc, minimum)
+        if any(abs(_num(fresh[key]) - _num(day.get(key))) > FLOWS_SCORE_TOLERANCE_KWH for key in ("charged", "discharged")):
+            for key in DAY_SUMS:
+                day[key] = fresh[key]
+            day.pop("score", None)
+        day["flows"] = FLOWS_VERSION
+        return True
 
     # rules ------------------------------------------------------------- #
 
