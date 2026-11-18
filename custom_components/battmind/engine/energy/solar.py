@@ -15,7 +15,8 @@ class EnergySolar:
     def _local_energy(self, from_timestamp, to_timestamp, without_all_exclusion: bool):
         """(local energy surplus W, solar only surplus W, solar W, local energy W) in a window."""
         values = self.power_values(from_timestamp, to_timestamp)
-        house = values["power_consumption_without_all_exclusion" if without_all_exclusion else "power_consumption_without_ignored"]
+        # never below zero: an ignored consumer that reads above the house sensor would otherwise count as extra surplus
+        house = max(values["power_consumption_without_all_exclusion" if without_all_exclusion else "power_consumption_without_ignored"], 0.0)
         solar = values["solar_production"]
         local = solar + values["powerwall_discharging_consumption"]
         surplus = round(min(max(local - house, 0.0), self.config["solar"]["inverter_discharging_power_limit"]), 2)

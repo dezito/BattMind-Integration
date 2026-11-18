@@ -123,6 +123,8 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self._job_cache: dict[str, Any] = {}
         # (from, to) -> power_values() result, kept between jobs for settled windows
         self._power_cache: dict[tuple[datetime.datetime, datetime.datetime], dict] = {}
+        # ignored consumers that have stopped reporting and were already warned about (until they report again)
+        self._stale_warned: set[str] = set()
 
     # ------------------------------------------------------------------ #
     # Jobs

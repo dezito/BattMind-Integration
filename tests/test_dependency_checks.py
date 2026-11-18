@@ -17,14 +17,12 @@ from custom_components.battmind.management.dependency_checks import (
     ISSUE_SOLCAST,
     ISSUE_STROMLIGNING,
     RECHECK_DELAY,
-    STROMLIGNING_UNIQUE_ID_PREFIXES,
     DependencyWatcher,
     disabled_sensors,
     remove_issues,
     solcast_problems,
-    stromligning_entities_to_watch,
-    stromligning_problems,
 )
+from custom_components.battmind.prices import STROMLIGNING_UNIQUE_ID_PREFIXES, stromligning_entities_to_watch, stromligning_problems
 from custom_components.battmind.utils.solcast import SOLCAST_UNIQUE_IDS, solcast_endings_for_days
 
 from .conftest import MOCK_OPTIONS, async_unload_and_join, form_defaults, set_source_states

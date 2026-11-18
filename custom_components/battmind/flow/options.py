@@ -11,7 +11,8 @@ from homeassistant.helpers import selector
 
 from ..management.backup import BACKUP_DIR, async_export, async_import, backup_dir, list_backups
 from ..const import CONF_ENTITY_PREFIX, OPTIONS_MENU, default_options, normalize_language, strip_removed_options
-from .schema import BACKUP_EXPORT, providers_from_options
+from ..prices import providers_from_options
+from .schema import BACKUP_EXPORT
 from .pages import BattMindFlowPages
 
 

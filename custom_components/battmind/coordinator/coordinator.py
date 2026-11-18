@@ -96,6 +96,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self.auto_ignored_entities = [entity_id for entity_id in self.cjp_chargers if entity_id not in listed]
         self.config["home"]["entity_ids"]["ignore_consumption_from_entity_ids"] = [*listed, *self.auto_ignored_entities]
         self.config["home"]["auto_ignored_entity_ids"] = list(self.auto_ignored_entities)
+        self.config["home"]["charger_entity_ids"] = cjp_charger_power_entities(hass)
         self._cjp_reload_scheduled = False
 
         home = self.config["home"]["entity_ids"]

@@ -36,6 +36,7 @@ from homeassistant.helpers.storage import Store
 
 from ..const import DOMAIN, dashboard_icon, normalize_language, unsupported_actions, unsupported_switches
 from ..utils.formatting import load_texts
+from ..prices import price_dashboard_entities
 from .dashboard_cards import async_update_card_notification, async_watch_card_resources
 
 _LOGGER = logging.getLogger(__name__)
@@ -135,7 +136,6 @@ def _has_legacy_what_if_card(node: Any) -> bool:
 def external_entities(config: dict[str, Any]) -> dict[str, str]:
     """Template entity id -> configured entity id ("" = not configured)."""
     prices = config["prices"]["entity_ids"]
-    sl_buy = prices["stromligning_buy_current_price"]
     home = config["home"]["entity_ids"]
     production = config["solar"]["entity_ids"]["production_entity_id"]
     mapping = {
@@ -146,25 +146,8 @@ def external_entities(config: dict[str, Any]) -> dict[str, str]:
         "sensor.solar_power_production": production,
         # only created with solar production (sensor.py); the prefix is replaced afterwards
         "sensor.battmind_kwh_charged_by_solar": "sensor.battmind_kwh_charged_by_solar" if production else "",
-        "sensor.energi_data_service": prices["energidataservice_buy_entity_id"],
-        "sensor.energi_data_service_salg": prices["energidataservice_sell_entity_id"],
-        "sensor.stromligning_current_price_vat": sl_buy,
-        "sensor.stromligning_forecasts_vat": prices["stromligning_buy_forecasts"],
-        "binary_sensor.stromligning_tomorrow_available_vat": prices["stromligning_buy_tomorrow_available"],
-        # the sell price chart uses the configured sell sensors and tariffs, like the planner
-        "sensor.stromligning_15min_current_price_ex_vat": prices["stromligning_sell_current_price"],
-        "sensor.stromligning_15min_forecasts_ex_vat": prices["stromligning_sell_forecasts"],
-        "binary_sensor.stromligning_15min_tomorrow_available_ex_vat": prices["stromligning_sell_tomorrow_available"],
-        "sensor.stromligning_15min_distribution_ex_vat": prices["stromligning_sell_distribution"],
-        "sensor.stromligning_15min_electricity_tax_ex_vat": prices["stromligning_sell_electricity_tax"],
-        "sensor.stromligning_15min_nettariff_ex_vat": prices["stromligning_sell_nettariff"],
-        "sensor.stromligning_15min_systemtariff_ex_vat": prices["stromligning_sell_systemtariff"],
-        "sensor.stromligning_15min_surcharge_ex_vat": prices["stromligning_sell_surcharge"],
+        **price_dashboard_entities(prices),
     }
-    if sl_buy:
-        # one price chart: Strømligning is preferred, the Energi Data Service chart is removed
-        mapping["sensor.energi_data_service"] = ""
-        mapping["sensor.energi_data_service_salg"] = ""
     # Solcast: forecast_today plus the per-day sensors next to it
     forecast = config["solar"]["entity_ids"]["forecast_entity_id"]
     base = forecast[: -len("today")] if forecast.endswith("_today") else ""
