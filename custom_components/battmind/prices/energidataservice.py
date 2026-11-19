@@ -71,6 +71,13 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
             if days_between(self.current_hour, ts) > 0
         }
 
+    @classmethod
+    def dashboard_entities(cls, prices: dict[str, str]) -> dict[str, str]:
+        return {
+            "sensor.energi_data_service": prices["energidataservice_buy_entity_id"],
+            "sensor.energi_data_service_salg": prices["energidataservice_sell_entity_id"],
+        }
+
     def _load_buy_real_prices(self):
         return self._real(self.buy_entity_id)
 

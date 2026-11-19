@@ -131,6 +131,13 @@ class BasePriceProvider:
     def _has(self, entity_id: str) -> bool:
         return bool(entity_id) and entity_id in self.attributes
 
+    @classmethod
+    def dashboard_entities(cls, prices: dict[str, str]) -> dict[str, str]:
+        """Template entity id -> configured entity id ("" = not configured) of this provider's price chart.
+
+        The chart is dashboard/prices/<source_name>.yaml; every external entity it uses is mapped here."""
+        return {}
+
     def _forecast_adder(self, timestamp: datetime.datetime, sell: bool = False) -> float:
         """Forecast prices get a small penalty per day ahead to prefer known prices.
 

@@ -1,7 +1,9 @@
 """Generated sidebar dashboard: the bundled template mapped onto one BattMind instance.
 
 The template (dashboard/battmind.yaml) is written for the prefix ``battmind`` and the
-author's price/solar entities. At setup it is rewritten for this config entry:
+author's price/solar entities. The price chart of each price integration is a file of its own
+(dashboard/prices/<provider>.yaml) that the template includes with a ``# @include`` line.
+At setup it is rewritten for this config entry:
 
 * own entities ``<platform>.battmind_*`` -> ``<platform>.<prefix>_*``
 * external entities (Energi Data Service, Strømligning, Solcast) -> the configured ones
@@ -43,11 +45,31 @@ _LOGGER = logging.getLogger(__name__)
 
 TEMPLATE = Path(__file__).parent.parent / "dashboard" / "battmind.yaml"
 
+_INCLUDE = re.compile(r"^(?P<indent> *)# @include (?P<name>\S+) *$", re.MULTILINE)
 _OWN_ENTITY = re.compile(r"\b(sensor|binary_sensor|switch|number|select|text|button)\.battmind_")
 _PLACEHOLDER = re.compile(r"@@(\w+)@@")
 _SOLCAST_DAYS = ("tomorrow", "day_3", "day_4", "day_5", "day_6", "day_7")
 _DROP = object()
 _GAP = object()  # where _prune removed a list item
+
+
+def expand_includes(text: str, directory: Path = TEMPLATE.parent) -> str:
+    """Replace every ``# @include <file>`` line by the lines of directory/<file>, indented like the marker.
+
+    The price chart of each price integration is a file of its own, dashboard/prices/<provider>.yaml
+    (<provider> is the key of ``PROVIDER_CLASSES``). A missing file raises: a card must never vanish silently.
+    """
+
+    def expand(match: re.Match[str]) -> str:
+        lines = (directory / match["name"]).read_text(encoding="utf-8").removesuffix("\n").split("\n")
+        return "\n".join(f"{match['indent']}{line}" if line else "" for line in lines)
+
+    return _INCLUDE.sub(expand, text)
+
+
+def template_text() -> str:
+    """The dashboard template with its included files (blocking file I/O). Everything reads the template through this."""
+    return expand_includes(TEMPLATE.read_text(encoding="utf-8"))
 
 
 def dashboard_url(prefix: str) -> str:
@@ -272,7 +294,7 @@ def render_dashboard(
     currency: hass.config.currency (None = the currency of the language's texts)
     """
     mapping = external_entities(config)
-    template = yaml.safe_load(TEMPLATE.read_text(encoding="utf-8"))
+    template = yaml.safe_load(template_text())
     texts = load_texts(normalize_language(config.get("language")), currency)
     # the charts show the forecast period: days_to_predict minus the half day already passed
     texts["dashboard.forecast_span"] = f"{max(float(config['days_to_predict']) - 0.5, 0.5):g}d"
