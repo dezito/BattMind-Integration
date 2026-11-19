@@ -9,8 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from ..const import FLOW_STEPS
-from ..utils.helpers import to_datetime
-from .base import BasePriceProvider, GetState, _naive, is_number, price_at
+from .base import BasePriceProvider, GetState, is_number, price_at, price_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,12 +38,13 @@ class StromligningPriceProvider(BasePriceProvider):
         self.sell_surcharge = get("stromligning_sell_surcharge", "")
         self._distribution_prices: dict = {}
 
-    def update(self, price_data: dict, now: datetime.datetime) -> None:
+    def update(self, price_data: dict, now: datetime.datetime, tz: datetime.tzinfo | None = None) -> None:
+        self.tz = tz  # before the distribution rows are read
         self.attributes = price_data.get("attributes", {})
         self._distribution_prices = {}
         if self._has(self.sell_distribution):
             self._distribution_prices = dict(self._rows(self.attributes[self.sell_distribution].get("prices")))
-        super().update(price_data, now)
+        super().update(price_data, now, tz)
 
     def history_source(self, get_state: GetState) -> dict | None:
         source = super().history_source(get_state)
@@ -62,10 +62,9 @@ class StromligningPriceProvider(BasePriceProvider):
             }
         return source
 
-    @staticmethod
-    def _rows(rows):
+    def _rows(self, rows):
         for raw in rows or []:
-            timestamp = _naive(to_datetime(raw.get("start")))
+            timestamp = price_timestamp(raw.get("start"), self.tz)
             price = raw.get("price")
             if isinstance(timestamp, datetime.datetime) and is_number(price):
                 yield timestamp, price

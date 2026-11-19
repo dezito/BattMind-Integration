@@ -123,6 +123,25 @@ def charge_hours(engine: BattMindEngine) -> list[datetime.datetime]:
     return sorted(ts for ts in engine.charge_hours if isinstance(ts, datetime.datetime))
 
 
+def test_the_engine_gives_the_price_provider_home_assistants_time_zone() -> None:
+    """Price rows in UTC give the same prices as the same rows in local time: the engine passes the snapshot's time zone on."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 30))
+
+    def buy_prices(utc: bool) -> dict:
+        snap = snapshot(now, 50)
+        if utc:
+            for key in ("raw_today", "raw_tomorrow", "forecast"):
+                for row in snap.price_data["attributes"]["sensor.price"][key]:
+                    row["hour"] = datetime.datetime.fromisoformat(row["hour"]).astimezone(datetime.timezone.utc).isoformat()
+        engine = BattMindEngine(build_config(OPTIONS), "test", TEXTS)
+        assert engine.run_job(snap, engine.startup, {}).error is None
+        assert engine.run_job(snap, engine.update_grid_prices).error is None
+        return dict(engine.price_provider.get_buy_prices())
+
+    local = buy_prices(False)
+    assert local and buy_prices(True) == local
+
+
 @pytest.mark.parametrize("hour", [1, 5, 10, 18, 23])
 @pytest.mark.parametrize("battery_level", [5, 50, 100])
 def test_action_is_always_valid(hour: int, battery_level: float) -> None:

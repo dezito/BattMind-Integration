@@ -19,7 +19,7 @@ class Pricing:
         if self.price_provider is None:
             return
         try:
-            self.price_provider.update_prices(self._snap.price_data if self._snap else None, self.now())
+            self.price_provider.update_prices(self._snap.price_data if self._snap else None, self.now(), self._snap.tz if self._snap else None)
             self.get_grid_prices(update_prices=True)
             self.get_sell_prices(update_prices=True)
             if not initial_run:

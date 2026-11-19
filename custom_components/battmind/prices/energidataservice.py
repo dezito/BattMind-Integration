@@ -7,8 +7,8 @@ import math
 
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 
-from ..utils.helpers import days_between, to_datetime
-from .base import BasePriceProvider, GetState, _ZERO_TARIFFS, _naive, is_number
+from ..utils.helpers import days_between
+from .base import BasePriceProvider, GetState, _ZERO_TARIFFS, is_number, price_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,10 +48,9 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
                 source["sell_costs"] = sell_costs
         return source
 
-    @staticmethod
-    def _rows(rows):
+    def _rows(self, rows):
         for raw in rows or []:
-            timestamp = _naive(to_datetime(raw["hour"] if "hour" in raw else raw["time"]))
+            timestamp = price_timestamp(raw["hour"] if "hour" in raw else raw["time"], self.tz)
             price = raw["price"]
             if isinstance(timestamp, datetime.datetime) and is_number(price):
                 yield timestamp, price

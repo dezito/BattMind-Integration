@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import datetime
 import math
+import zoneinfo
 
 import pytest
 
 from custom_components.battmind.const import build_config, default_options
 from custom_components.battmind.prices import CombinedPriceProvider, create_price_provider
-from custom_components.battmind.prices.base import calculate_sell_price, is_number
+from custom_components.battmind.prices.base import calculate_sell_price, is_number, price_timestamp
 from custom_components.battmind.prices.energidataservice import EnergiDataServicePriceProvider
 from custom_components.battmind.prices.stromligning import StromligningPriceProvider
 
@@ -282,3 +283,100 @@ def test_combined_provider_reads_the_price_entities_and_merges_the_prices() -> N
     assert provider.get_buy_forecast_prices()[tomorrow] > provider.get_buy_forecast_prices(adder=False)[tomorrow] == pytest.approx(2.0, abs=0.005)
     assert tomorrow not in provider.get_buy_real_prices()
     assert provider.buy_price_entity_id() == "sensor.stromligning, sensor.eds"
+
+
+# --- time zones: an offset is converted to Home Assistant's time zone, not just dropped ---
+
+COPENHAGEN = zoneinfo.ZoneInfo("Europe/Copenhagen")
+
+
+def _at(hour: int, minute: int = 0, day: datetime.date = TODAY) -> datetime.datetime:
+    return datetime.datetime.combine(day, datetime.time(hour, minute))
+
+
+@pytest.mark.parametrize(
+    ("value", "tz", "expected"),
+    [
+        ("2026-10-30T22:00:00+00:00", COPENHAGEN, _at(23)),  # UTC from Nord Pool / EPEX: 23:00 in CET
+        ("2026-10-30T22:00:00Z", COPENHAGEN, _at(23)),
+        ("2026-10-30T22:00:00+00:00", None, _at(22)),  # no tz: the offset is dropped as before
+        ("2026-10-30T23:00:00+01:00", COPENHAGEN, _at(23)),  # already local: unchanged
+        ("2026-10-30T23:00:00+01:00", zoneinfo.ZoneInfo("UTC"), _at(22)),  # another local time zone
+        ("2026-10-30T23:00:00", COPENHAGEN, _at(23)),  # no offset: local time already
+        (datetime.datetime(2026, 10, 30, 22, tzinfo=datetime.timezone.utc), COPENHAGEN, _at(23)),  # a datetime, not text
+        (_at(23), COPENHAGEN, _at(23)),
+        ("2026-03-29T00:30:00+00:00", COPENHAGEN, _at(1, 30, datetime.date(2026, 3, 29))),  # before the spring change
+        ("2026-03-29T01:00:00+00:00", COPENHAGEN, _at(3, 0, datetime.date(2026, 3, 29))),  # 02:00-03:00 does not exist
+    ],
+)
+def test_price_timestamp_converts_the_offset_to_local_time(value, tz, expected) -> None:
+    assert price_timestamp(value, tz) == expected
+
+
+@pytest.mark.parametrize("value", ["not a time", "", None, 5, [], {}])
+def test_price_timestamp_leaves_what_is_no_timestamp(value) -> None:
+    assert price_timestamp(value, COPENHAGEN) == value
+
+
+def test_the_repeated_autumn_hour_shares_one_key() -> None:
+    """02:00 CEST and 02:00 CET are the same wall-clock time: one price key (accepted twice a year)."""
+    first = price_timestamp("2026-10-25T00:00:00+00:00", COPENHAGEN)
+    second = price_timestamp("2026-10-25T01:00:00+00:00", COPENHAGEN)
+    assert first == second == _at(2, 0, datetime.date(2026, 10, 25))
+
+
+def _utc_rows(day: datetime.date, price, key: str) -> list[dict]:
+    """Every local hour of the day as a UTC timestamp, like a price integration that reports UTC."""
+    return [
+        {key: _at(hour, day=day).replace(tzinfo=COPENHAGEN).astimezone(datetime.timezone.utc).isoformat(), "price": price(hour)}
+        for hour in range(24)
+    ]
+
+
+def test_stromligning_rows_in_utc_land_on_the_local_hour() -> None:
+    provider = StromligningPriceProvider(build_config({**default_options(), "stromligning_buy_current_price": "sensor.buy"}))
+    data = {"attributes": {"sensor.buy": {"prices": _utc_rows(TODAY, lambda hour: 1.0 + hour, "start")}}, "values": {}}
+    provider.update(data, NOW, COPENHAGEN)
+    assert provider.buy_real_prices == {_at(hour): 1.0 + hour for hour in range(24)}
+    # without the time zone the UTC hours are taken as local time: one hour early
+    provider.update(data, NOW)
+    assert provider.buy_real_prices[_at(22)] == 1.0 + 23
+
+
+def test_energi_data_service_rows_in_utc_land_on_the_local_hour() -> None:
+    provider = EnergiDataServicePriceProvider(build_config({**default_options(), "energidataservice_buy_entity_id": "sensor.eds"}))
+    data = {"attributes": {"sensor.eds": {"raw_today": _utc_rows(TODAY, lambda hour: 1.0 + hour, "hour"), "tomorrow_valid": False}}, "values": {}}
+    provider.update(data, NOW, COPENHAGEN)
+    assert provider.buy_real_prices == {_at(hour): 1.0 + hour for hour in range(24)}
+
+
+def test_the_time_zone_reaches_every_provider() -> None:
+    combined = _both_providers()
+    seen = []
+    for provider in combined.providers:
+        provider.update = lambda data, now, tz=None, provider=provider: seen.append((provider.source_name, tz))
+    combined.update_prices({"attributes": {}, "values": {}}, NOW, COPENHAGEN)
+    assert seen == [("stromligning", COPENHAGEN), ("energidataservice", COPENHAGEN)]
+
+
+def test_price_timestamp_survives_the_edge_of_the_calendar() -> None:
+    """A conversion that leaves the calendar keeps the wall time of the row instead of stopping the update."""
+    assert price_timestamp("9999-12-31T23:59:59+00:00", COPENHAGEN) == datetime.datetime(9999, 12, 31, 23, 59, 59)
+
+
+def test_stromligning_tariff_rows_in_utc_follow_the_same_conversion() -> None:
+    """The sell price takes the distribution tariff of the same hour as the price: both rows are converted."""
+    config, _ = _stromligning()
+    provider = StromligningPriceProvider(config)
+    data = {
+        "attributes": {
+            "sensor.buy": {"prices": _utc_rows(TODAY, lambda hour: 4.0, "start")},
+            "sensor.sell": {"prices": _utc_rows(TODAY, _sell_with_tariffs(TODAY), "start")},
+            "sensor.sell_distribution": {"prices": _utc_rows(TODAY, DISTRIBUTION.get, "start")},
+            **{entity_id: {} for entity_id in FLAT_TARIFFS},
+        },
+        "values": dict(FLAT_TARIFFS),
+    }
+    provider.update(data, NOW, COPENHAGEN)
+    for hour in (3, 17, 20, 21):  # 17-20 have the high distribution tariff
+        assert provider.sell_real_prices[_at(hour)] == pytest.approx(round(SPOT[TODAY] - 0.03 - 0.043 - 0.072, 2))

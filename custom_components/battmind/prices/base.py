@@ -7,6 +7,8 @@ import math
 from collections.abc import Callable, Mapping
 from typing import Any
 
+from dateutil import parser as dateutil_parser
+
 from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER
 from ..utils.helpers import days_between, float_or_none, reset_time_to_hour
 
@@ -67,17 +69,35 @@ def sell_adder_sign(config: dict) -> float:
     return 1.0 if config["solar"]["production_price"] != -1.0 else -1.0
 
 
-def _naive(timestamp):
-    return timestamp.replace(tzinfo=None) if isinstance(timestamp, datetime.datetime) else timestamp
+def price_timestamp(value, tz: datetime.tzinfo | None = None):
+    """The start of a price row from an entity attribute (ISO string or datetime) as naive local time.
+
+    An aware timestamp, with any offset (UTC from Nord Pool, EPEX, ...), is converted to tz (Home Assistant's
+    time zone) before the offset is dropped; a naive one is taken as local time already. Without a tz the offset
+    is just dropped. Anything that is no timestamp is returned unchanged (the providers skip such rows).
+    """
+    if isinstance(value, str):
+        try:
+            value = dateutil_parser.isoparse(value)
+        except (ValueError, OverflowError):
+            return value
+    if isinstance(value, datetime.datetime):
+        if tz is not None and value.tzinfo is not None:
+            try:
+                value = value.astimezone(tz)
+            except OverflowError:  # a timestamp at the edge of the calendar: keep its own wall time
+                pass
+        return value.replace(tzinfo=None)
+    return value
 
 
 def price_at(prices: dict, timestamp: datetime.datetime):
     """(price timestamp, price) of the period containing timestamp (same day), else None."""
     best = None
-    for price_timestamp in prices:
-        if price_timestamp <= timestamp and price_timestamp.date() == timestamp.date():
-            if best is None or price_timestamp > best:
-                best = price_timestamp
+    for start in prices:
+        if start <= timestamp and start.date() == timestamp.date():
+            if best is None or start > best:
+                best = start
     return None if best is None else (best, prices[best])
 
 
@@ -106,13 +126,18 @@ class BasePriceProvider:
         self.attributes: dict[str, dict] = {}
         self.values: dict[str, float] = {}
         self.current_hour = reset_time_to_hour(datetime.datetime.now())
+        # Home Assistant's time zone (update): the offset of a price row is converted to it, see price_timestamp()
+        self.tz: datetime.tzinfo | None = None
         self.buy_real_prices: dict = {}
         self.buy_forecast_prices: dict = {}
         self.sell_real_prices: dict = {}
         self.sell_forecast_prices: dict = {}
 
-    def update(self, price_data: dict, now: datetime.datetime) -> None:
-        """Recalculate all prices. On error the previous prices are kept."""
+    def update(self, price_data: dict, now: datetime.datetime, tz: datetime.tzinfo | None = None) -> None:
+        """Recalculate all prices. On error the previous prices are kept.
+
+        now: local time without tzinfo; tz: Home Assistant's time zone (None = drop the offset of a price row as it is)."""
+        self.tz = tz
         self.attributes = price_data.get("attributes", {})
         self.values = price_data.get("values", {})
         self.current_hour = reset_time_to_hour(now)
@@ -252,11 +277,11 @@ class CombinedPriceProvider:
 
     # prices (worker) ----------------------------------------------------- #
 
-    def update_prices(self, price_data: dict | None, now: datetime.datetime) -> None:
+    def update_prices(self, price_data: dict | None, now: datetime.datetime, tz: datetime.tzinfo | None = None) -> None:
         self.current_hour = reset_time_to_hour(now)
         for provider in self.providers:
             try:
-                provider.update(price_data or {}, now)
+                provider.update(price_data or {}, now, tz)
             except Exception as err:  # noqa: BLE001
                 _LOGGER.warning("Can't update prices from %s: %s", provider.source_name, err)
         self.buy_prices, self.buy_real_prices, self.buy_price_sources = self._combine("buy")
