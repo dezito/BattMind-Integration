@@ -594,6 +594,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: BattMindConfigEntry) -> 
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: BattMindConfigEntry) -> bool:
+    # a running test of the automation puts BattMind's own action back first: with the entities gone nothing can publish it
+    if (coordinator := getattr(entry, "runtime_data", None)) is not None:
+        await coordinator.async_unload_automation_test()
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         # a what-if started by the action has no dashboard job for close() to cancel: stop it, or the unload waits for it

@@ -20,6 +20,10 @@ class AnalysisRecording:
         """hour_end: record the hour, tomorrow's plan (at 23) and publish. Never fails the hour."""
         try:
             self._analysis_record_hour(timestamp.replace(minute=0, second=0, microsecond=0))
+            try:
+                self._plan_check_record_hour(timestamp.replace(minute=0, second=0, microsecond=0))
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Plan check of the hour %s failed", timestamp)  # never fails the rest of the analysis
             self._analysis_record_prices()
             if timestamp.hour == 23:
                 self._analysis_record_plan(timestamp.date() + datetime.timedelta(days=1))

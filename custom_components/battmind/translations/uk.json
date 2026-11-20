@@ -542,6 +542,9 @@
   },
   "entity": {
     "switch": {
+      "automation_test_run": {
+        "name": "Перевірити мою автоматизацію"
+      },
       "what_if_run": {
         "name": "Запустити симуляцію"
       },
@@ -876,6 +879,16 @@
       },
       "what_if": {
         "name": "Результат what-if"
+      },
+      "automation_test": {
+        "name": "Тест автоматизації",
+        "state": {
+          "idle": "Неактивний",
+          "running": "Виконується",
+          "done": "Завершено",
+          "stopped": "Зупинено",
+          "failed": "Помилка"
+        }
       },
       "what_if_status": {
         "name": "Статус what-if",

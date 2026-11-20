@@ -34,6 +34,7 @@ from ..const import (
     unsupported_switches,
 )
 from .analysis.analysis import Analysis
+from .automation_test import AutomationTest
 from .energy.energy import Energy
 from .history.history import History
 from .planner.planner import Planner
@@ -62,7 +63,7 @@ POWER_CACHE_SETTLED = datetime.timedelta(hours=2)
 POWER_CACHE_MAX_AGE = datetime.timedelta(hours=52)
 
 
-class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Planning, Diagnostics):
+class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Planning, Diagnostics, AutomationTest):
     """Holds the BattMind state and implements the algorithm."""
 
     def __init__(self, config: dict, prefix: str, texts: dict[str, str]) -> None:
@@ -86,7 +87,7 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self.power_values_db: dict = {}
         self.kwh_avg_prices_db: dict = {}
         self.solar_available_db: dict = {}
-        self.analysis_db: dict = {"hours": {}, "days": {}, "plans": {}, "rule_days": {}, "price_hours": {}, "price_days": {}}
+        self.analysis_db: dict = {"hours": {}, "days": {}, "plans": {}, "rule_days": {}, "price_hours": {}, "price_days": {}, "plan_check": {}}
 
         # runtime state
         self.grid_price_cache: dict = {"using_offline_prices": False}
@@ -111,6 +112,13 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self.last_plan_hash: str | None = None
         self.last_overview = ""
         self.last_powerwall_action = ""
+        # the action the test of the user's automation holds on the action sensor for a while, and why one ended by itself
+        self._automation_hold: dict | None = None
+        self._automation_abort: str | None = None
+        # the action that last reached the action sensor (the held one during a test)
+        self._published_action: str | None = None
+        # the time each published action held per hour, until the hour is judged (engine/analysis/plan_check.py)
+        self._plan_tally: dict = {"last": None, "action": None, "hours": {}}
         # the hour in which the battery last ran something else than blocked_solar_charge
         self.unblocked_hour: datetime.datetime | None = None
         self.error_count = 0

@@ -228,7 +228,16 @@ yours. The easiest way is the blueprint that comes with the integration:
 
 > [!TIP]
 > Start with the automation **off** and watch `sensor.<prefix>_powerwall_action` for a day. When the actions
-> look right, turn it on.
+> look right, turn it on. After a day with the automation on, check the attribute `plan_check` of the action
+> sensor: it shows whether the battery did what the actions asked (see
+> [Does the battery follow the action?](actions.md#does-the-battery-follow-the-action)). The hours from the day
+> with the automation off count as mismatches for 14 days, so look at `latest_mismatches` and the hours since you
+> turned it on.
+>
+> Don't want to wait for the plan to use every action? Turn the automation on and run **Test my automation**
+> under *Settings* on the dashboard: it publishes each action in turn and shows which ones the battery follows
+> (see [Test your automation](actions.md#test-your-automation)). It charges the battery from the grid and
+> discharges it to the grid for a few minutes.
 
 ## 6. Next steps
 

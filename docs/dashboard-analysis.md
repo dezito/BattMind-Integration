@@ -44,6 +44,7 @@ All rules, grouped, each group with a **Read more**:
 | Discharging | [profit only, prioritise by energy cost, before the sun, max. age of kWh](rules/discharging.md) |
 | Selling | [maximise profit, sell excess kWh, use midnight battery level, buy to sell](rules/selling.md) |
 | Solar | [solar surplus charging, optimise solar charging](rules/solar.md) |
+| Test my automation | [a switch that publishes each action in turn and a table of which ones the battery follows](actions.md#test-your-automation) |
 
 The plan is recalculated 5 seconds after a change.
 

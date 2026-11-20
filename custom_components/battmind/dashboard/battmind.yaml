@@ -557,6 +557,28 @@ views:
             grid_options:
               columns: full
           - type: heading
+            heading: '@@section_automation_test@@'
+            icon: mdi:test-tube
+          - type: markdown
+            content: "<details><summary>@@read_more@@</summary>\n\n@@help_automation_test@@\n\n</details>"
+            grid_options:
+              columns: full
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: switch.battmind_automation_test_run
+                name:
+                  type: entity
+              - entity: sensor.battmind_automation_test
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+          - type: markdown
+            content: '{{ state_attr(''sensor.battmind_automation_test'', ''markdown'') or '''' }}'
+            grid_options:
+              columns: full
+          - type: heading
             heading: '@@section_problem@@'
             heading_style: subtitle
             icon: mdi:bug-outline

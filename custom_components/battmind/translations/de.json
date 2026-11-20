@@ -542,6 +542,9 @@
   },
   "entity": {
     "switch": {
+      "automation_test_run": {
+        "name": "Meine Automation testen"
+      },
       "what_if_run": {
         "name": "Simulation starten"
       },
@@ -876,6 +879,16 @@
       },
       "what_if": {
         "name": "What-if-Ergebnis"
+      },
+      "automation_test": {
+        "name": "Automationstest",
+        "state": {
+          "idle": "Inaktiv",
+          "running": "Läuft",
+          "done": "Fertig",
+          "stopped": "Gestoppt",
+          "failed": "Fehlgeschlagen"
+        }
       },
       "what_if_status": {
         "name": "What-if-Status",

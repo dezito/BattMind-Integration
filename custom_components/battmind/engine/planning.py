@@ -172,9 +172,17 @@ class Planning:
                 charging = (watt_flow if self.config["home"]["invert_powerwall_watt_flow_entity_id"] else -watt_flow) > 0
                 key = "charging_watt" if charging else "discharging_watt"
                 rule += f"\n{emoji_parse(current_rules)}{t(f'ui.charge_if_needed.{key}', watt=watt_flow)}{emoji_parse({'average': True})}"
-            self.session_rules.update(current_rules)
-            self.set_charging_rule(rule)
-            self.set_state("powerwall_action", action)
+            # the test of the user's automation (engine/automation_test.py) publishes another action for a while: the plan, the
+            # rules of the planner and the unblocked hour stay what the plan decided, only the published action is held
+            held = self.automation_hold_action(action)
+            if held is None:
+                self.session_rules.update(current_rules)
+                self.set_charging_rule(rule)
+            else:
+                self.set_charging_rule(f"🧪{t('ui.automation_test.rule', action=t(f'ui.automation_test.action.{held}'))}")
+            self.set_state("powerwall_action", held or action)
+            self._published_action = held or action
+            self.plan_check_note("test" if held else action)
             if action != "blocked_solar_charge":
                 self.unblocked_hour = reset_time_to_hour(self.now())
             if action != self.last_powerwall_action:
@@ -192,4 +200,11 @@ class Planning:
             if self.error_count >= 3 and self._out is not None:
                 self._out.request_reload = True
             self.set_charging_rule(f"{emoji_parse({'error': True})}Fejl: {err}")
+            try:
+                # an expired or dropped test action must not stay on the sensor because this calculation failed
+                if self._automation_hold is not None and self.now() >= self._automation_hold["until"]:
+                    self._automation_hold, self._automation_abort = None, "expired"
+                self.automation_test_settle()
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Could not put the real action back after a failed calculation")
         return self.last_powerwall_action

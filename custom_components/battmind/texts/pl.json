@@ -341,6 +341,74 @@
       "enhance_battery_efficiency": "Zwiększ wydajność baterii",
       "cheapest_hour_fill_up": "Ładowanie: Doładuj w najtańszym okresie"
     },
+    "automation_test": {
+      "rule": "Test Twojej automatyzacji: {action}",
+      "not_run": "Test nie został jeszcze uruchomiony. Włącz **Przetestuj moją automatyzację**, aby go rozpocząć.",
+      "status": {
+        "idle": "Test nie jest uruchomiony",
+        "running": "Test trwa…",
+        "done": "Test zakończony",
+        "stopped": "Test zatrzymano",
+        "failed": "Test nie mógł się uruchomić"
+      },
+      "column_action": "Akcja",
+      "column_result": "Wynik",
+      "action": {
+        "grid_charging": "Ładowanie z sieci",
+        "force_discharge": "Wymuszone rozładowanie",
+        "battery_stopped": "Zatrzymaj baterię",
+        "discharge_allowed": "Rozładowanie dozwolone",
+        "force_solar_only_charging": "Tylko ładowanie słoneczne",
+        "blocked_solar_charge": "Ładowanie słoneczne zablokowane"
+      },
+      "running_note": "Każda akcja jest publikowana do 5 minut i zalicza się, gdy tylko bateria pokaże, co powinna zrobić. Wyłącz przełącznik, aby zatrzymać; wtedy znów publikowana jest własna akcja BattMind.",
+      "summary": "{ok} z {total} akcji zadziałało, {fail} nie zadziałało, {skip} nie dało się przetestować.",
+      "stop_reason": {
+        "battery_stopped": "Test zakończono, ponieważ bateria jest zatrzymana z powodu temperatury. To zabezpieczenie, którego test nigdy nie omija.",
+        "expired": "Test zakończono, ponieważ opublikowana akcja wygasła przed końcem kroku.",
+        "stopped": "Test zatrzymano.",
+        "internal_error": "Test zakończył się błędem. Zobacz dziennik Home Assistant.",
+        "not_configured": "Test wymaga czujników mocy baterii, poziomu baterii i zużycia domu.",
+        "not_ready": "BattMind nie opublikował jeszcze akcji. Spróbuj ponownie po pierwszym obliczeniu.",
+        "no_level": "Czujnik poziomu baterii nie ma teraz wartości."
+      },
+      "fail_hint": "Gdy akcja nie zadziałała: otwórz ślad (trace) automatyzacji i sprawdź, czy wykonała kroki tej akcji oraz czy falownik przyjął polecenia.",
+      "put_back": "Własna akcja BattMind jest znów publikowana, a nic innego nie zostało zmienione.",
+      "legend": "✅ zadziałało · ❌ bateria nie zareagowała · 🔧 nie testowano",
+      "ev_hint": "Jeśli samochód się ładuje, blueprint uruchamia zamiast tego swoją akcję EV.",
+      "ok": {
+        "grid_charging": "Bateria ładowała się z sieci mocą {charge} W.",
+        "force_discharge": "Bateria rozładowywała się mocą {discharge} W, więcej niż zużywał dom.",
+        "battery_stopped": "Bateria stała w miejscu ({charge} W ładowania, {discharge} W rozładowania).",
+        "discharge_allowed": "Bateria rozładowywała się {discharge} W do domu.",
+        "force_solar_only_charging": "Bateria nie rozładowywała się ({discharge} W), gdy dom zużywał o {deficit} W więcej, niż dawało słońce.",
+        "blocked_solar_charge": "Bateria się nie ładowała ({charge} W), gdy słońce dawało o {surplus} W więcej, niż zużywał dom."
+      },
+      "fail": {
+        "grid_charging": "Bateria nie ładowała się z sieci (pokazała {charge} W).",
+        "force_discharge": "Bateria nie rozładowywała się mocniej, niż zużywał dom (pokazała {discharge} W).",
+        "battery_stopped": "Bateria nadal się poruszała ({charge} W ładowania, {discharge} W rozładowania).",
+        "discharge_allowed": "Bateria nie rozładowywała się do domu (pokazała {discharge} W).",
+        "force_solar_only_charging": "Bateria rozładowywała się {discharge} W.",
+        "blocked_solar_charge": "Bateria ładowała się {charge} W."
+      },
+      "skip": {
+        "unsupported": "Nie testowano: konfiguracja falownika mówi, że nie może wykonać tej akcji.",
+        "limit": "Nie testowano: bateria jest teraz zbyt pełna lub zbyt pusta, aby to pokazać.",
+        "no_load": "Nie testowano: wymaga to, aby dom zużywał więcej, niż daje słońce, a teraz tak nie jest.",
+        "no_surplus": "Nie testowano: wymaga to nadwyżki z paneli, a teraz jej nie ma.",
+        "unproven": "Nie udowodniono: to, co zaobserwowano, mogą tłumaczyć słońce lub zużycie domu.",
+        "ev": "Nie testowano: samochód się ładuje, a zamiast tej akcji może działać akcja EV blueprintu.",
+        "no_data": "Nie testowano: czujnik nie miał wartości.",
+        "not_reached": "Nie dotarto: test zakończył się przed tym krokiem.",
+        "battery_stopped": "Nie testowano: bateria była zatrzymana z powodu temperatury.",
+        "expired": "Nie ukończono: opublikowana akcja wygasła.",
+        "no_baseline": "Nie udowodniono: bateria już robiła to, o co prosi ta akcja, więc nie widać zmiany.",
+        "not_published": "Nie testowano: BattMind nie mógł opublikować akcji (zobacz dziennik).",
+        "no_steps": "Nie testowano: Twoja automatyzacja nie ma kroków dla tej akcji."
+      },
+      "automation_unknown": "BattMind nie znalazł Twojej automatyzacji w automations.yaml, więc nie widzi, które akcje mają kroki (automatyzacja w pakiecie lub w trybie YAML nie jest znajdowana)."
+    },
     "backup": {
       "exported": "Kopia zapasowa zapisana jako {file}",
       "imported": "Przywrócono kopię zapasową {file} (bazy danych: {databases})."
@@ -581,6 +649,8 @@
     "help_discharging": "* **Tylko z zyskiem**: blokuj rozładowanie w godzinach, gdy koszt kWh w baterii (ze stratami i zużyciem) jest wyższy od ceny.\n* **Priorytet najdroższych godzin**: oszczędzaj baterię na najdroższe godziny do kolejnego ładowania.\n* **Przed słońcem**: zużyj/sprzedaj energię przed słońcem, gdy bateria i tak napełni się z PV, a nadwyżka sprzedawana jest tanio.\n* **Maks. godzin starych kWh**: starsza energia jest zużywana nawet bez zysku i sprzedawana, gdy to się bardziej opłaca.",
     "help_selling": "* **Maksymalizuj zysk**: sprzedawaj w najdroższych okresach, gdy daje to więcej niż własne zużycie.\n* **Sprzedaj nadwyżkę kWh**: sprzedaj energię, która nie zostanie zużyta, zanim bateria będzie pusta lub znów pełna.\n* **Poziom baterii o północy**: patrz tylko do północy zamiast na cały okres prognozy.\n* **Kup, aby sprzedać**: ładuj tanio z sieci tylko po to, by sprzedać kWh, gdy opłaca się to po stratach i zużyciu.",
     "help_solar": "* **Ładowanie z PV**: uwzględnij nadwyżkę PV w planie.\n* **Optymalizuj ładowanie z PV**: sprzedawaj nadwyżkę PV w drogich godzinach, a baterię ładuj w tanich godzinach słonecznych. Tylko gdy słońce i tak później naładuje baterię.",
+    "section_automation_test": "Przetestuj moją automatyzację",
+    "help_automation_test": "BattMind nigdy sam nie steruje baterią: robi to Twoja własna automatyzacja, gdy zmienia się akcja BattMind. Test sprawdza, czy automatyzacja naprawdę robi to, czego wymaga każda akcja.\n\n* **Przetestuj moją automatyzację**: włącz, aby rozpocząć. BattMind publikuje akcje jedna po drugiej (Ładowanie z sieci, Wymuszone rozładowanie, Zatrzymaj baterię, Rozładowanie dozwolone, Tylko ładowanie słoneczne, Ładowanie słoneczne zablokowane) i mierzy baterię. Krok zalicza się, gdy tylko bateria pokaże, co powinna zrobić, i czeka najwyżej 5 minut. Wyłącz przełącznik, aby zatrzymać; wtedy znów publikowana jest własna akcja BattMind.\n* **Test automatyzacji**: stan testu: bezczynny, działa, zakończono, zatrzymano lub niepowodzenie.\n* Tabela poniżej pokazuje każdą akcję: ✅ zadziałało, ❌ bateria nie zareagowała, 🔧 nie testowano. Akcje zależne od słońca lub zużycia domu można udowodnić tylko wtedy, gdy warunki są odpowiednie (np. akcja blokująca ładowanie słoneczne wymaga nadwyżki z paneli), więc są pokazywane jako nietestowane z podaniem powodu, zamiast się zaliczyć.\n\n**Uwaga:** test przez kilka minut ładuje baterię z sieci i rozładowuje ją do sieci oraz zmienia to, co robi falownik. Gdy bateria jest zatrzymana z powodu temperatury, nic nie jest testowane; plan i ustawienia nie są zmieniane. Energia przeniesiona przez test jest liczona jak każda inna w historii godziny.",
     "consumption_forecast": "Prognoza zużycia",
     "history_title": "Historia",
     "section_economy": "Ekonomia miesięcznie",

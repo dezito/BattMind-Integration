@@ -40,12 +40,13 @@ from ..prices import CombinedPriceProvider
 from .data import CoordinatorData
 from .events import CoordinatorEvents
 from .lifecycle import CoordinatorLifecycle
+from .automation_test import CoordinatorAutomationTest
 from .what_if import CoordinatorWhatIf
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorData, CoordinatorWhatIf):
+class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorData, CoordinatorWhatIf, CoordinatorAutomationTest):
     """Owns the engine, the worker thread (and the what-if thread) and all scheduling for one config entry."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -59,6 +60,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self.storage = BattMindStorage(hass, entry.entry_id)
         self.language = normalize_language(self.config.get("language"), normalize_language(hass.config.language))
         self._init_what_if()
+        self._init_automation_test()
 
         self.data: dict[str, Any] = {}
         self.attributes: dict[str, dict[str, Any]] = {}

@@ -11,7 +11,15 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import DOMAIN, SWITCH_SETTINGS, WHAT_IF_INPUT_SWITCHES, WHAT_IF_RUN_SWITCH, unsupported_actions, unsupported_switches
+from .const import (
+    AUTOMATION_TEST_RUN_SWITCH,
+    DOMAIN,
+    SWITCH_SETTINGS,
+    WHAT_IF_INPUT_SWITCHES,
+    WHAT_IF_RUN_SWITCH,
+    unsupported_actions,
+    unsupported_switches,
+)
 from .coordinator import BattMindCoordinator
 from .entity import BattMindEntity, BattMindUpdatingEntity
 
@@ -30,6 +38,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
     async_add_entities(BattMindSwitch(coordinator, key, info) for key, info in SWITCH_SETTINGS.items())
     async_add_entities(BattMindWhatIfSwitch(coordinator, key, info) for key, info in WHAT_IF_INPUT_SWITCHES.items())
     async_add_entities([BattMindWhatIfRunSwitch(coordinator, "switch", WHAT_IF_RUN_SWITCH)])
+    async_add_entities([BattMindAutomationTestSwitch(coordinator, "switch", AUTOMATION_TEST_RUN_SWITCH)])
 
 
 class BattMindSwitch(BattMindEntity, SwitchEntity, RestoreEntity):
@@ -93,6 +102,31 @@ class BattMindWhatIfSwitch(BattMindEntity, SwitchEntity, RestoreEntity):
     async def async_turn_off(self, **kwargs: Any) -> None:
         self.coordinator.async_set_what_if_input(self._key, False)
         self.async_write_ha_state()
+
+
+class BattMindAutomationTestSwitch(BattMindUpdatingEntity, SwitchEntity):
+    """On while the test of the user's automation runs. Turn it on to run it, off to stop it.
+
+    The test publishes one BattMind action after the other (also forced charging from the grid and forced discharging) and
+    measures what the battery does. A stop puts BattMind's own action back. The result is on the automation_test sensor.
+    A configuration entity, so a voice assistant does not get it by default."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    @callback
+    def _handle_update(self, key: Any) -> None:
+        if key == "automation_test":
+            self.async_write_ha_state()
+
+    @property
+    def is_on(self) -> bool:
+        return self.coordinator.automation_test_state["status"] == "running"
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        self.coordinator.async_run_automation_test()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        self.coordinator.async_stop_automation_test()
 
 
 class BattMindWhatIfRunSwitch(BattMindUpdatingEntity, SwitchEntity):

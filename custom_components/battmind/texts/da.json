@@ -341,6 +341,74 @@
       "enhance_battery_efficiency": "Forbedr batteriets virkningsgrad",
       "cheapest_hour_fill_up": "Ladning: Fyld op i billigste periode"
     },
+    "automation_test": {
+      "rule": "Tester din automation: {action}",
+      "not_run": "Testen er ikke kørt endnu. Slå **Test min automation** til for at starte den.",
+      "status": {
+        "idle": "Testen kører ikke",
+        "running": "Testen kører…",
+        "done": "Testen er færdig",
+        "stopped": "Testen blev stoppet",
+        "failed": "Testen kunne ikke køre"
+      },
+      "column_action": "Handling",
+      "column_result": "Resultat",
+      "action": {
+        "grid_charging": "Lad fra nettet",
+        "force_discharge": "Tvungen afladning",
+        "battery_stopped": "Stop batteri",
+        "discharge_allowed": "Afladning tilladt",
+        "force_solar_only_charging": "Kun solopladning",
+        "blocked_solar_charge": "Solopladning blokeret"
+      },
+      "running_note": "Hver handling udsendes i op til 5 minutter og består, så snart batteriet har vist, hvad den skal. Slå kontakten fra for at stoppe; BattMinds egen handling udsendes så igen.",
+      "summary": "{ok} af {total} handlinger virkede, {fail} virkede ikke, {skip} kunne ikke testes.",
+      "stop_reason": {
+        "battery_stopped": "Testen sluttede, fordi batteriet er stoppet på grund af temperaturen. Det er en sikkerhed, som testen aldrig tilsidesætter.",
+        "expired": "Testen sluttede, fordi den udsendte handling løb ud, før trinnet var færdigt.",
+        "stopped": "Testen blev stoppet.",
+        "internal_error": "Testen fejlede. Se Home Assistant-loggen.",
+        "not_configured": "Testen kræver sensorer for batteriets effekt, batteriniveau og husets forbrug.",
+        "not_ready": "BattMind har ikke udsendt en handling endnu. Prøv igen efter den første beregning.",
+        "no_level": "Batteriniveau-sensoren har ikke et tal lige nu."
+      },
+      "fail_hint": "For en handling, der ikke virkede: åbn automationens trace og tjek, at den kørte trinnene for handlingen, og at inverteren tog imod kommandoerne.",
+      "put_back": "BattMinds egen handling udsendes igen, og intet andet er ændret.",
+      "legend": "✅ virkede · ❌ batteriet reagerede ikke · 🔧 ikke testet",
+      "ev_hint": "Hvis bilen lader, kører blueprintens EV-handling i stedet for denne.",
+      "ok": {
+        "grid_charging": "Batteriet ladede fra nettet med {charge} W.",
+        "force_discharge": "Batteriet afladede med {discharge} W, mere end huset brugte.",
+        "battery_stopped": "Batteriet stod stille ({charge} W opladning, {discharge} W afladning).",
+        "discharge_allowed": "Batteriet afladede {discharge} W til huset.",
+        "force_solar_only_charging": "Batteriet afladede ikke ({discharge} W), mens huset brugte {deficit} W mere, end solen gav.",
+        "blocked_solar_charge": "Batteriet ladede ikke ({charge} W), mens solen gav {surplus} W mere, end huset brugte."
+      },
+      "fail": {
+        "grid_charging": "Batteriet ladede ikke fra nettet (det viste {charge} W).",
+        "force_discharge": "Batteriet afladede ikke mere, end huset brugte (det viste {discharge} W).",
+        "battery_stopped": "Batteriet blev ved med at bevæge sig ({charge} W opladning, {discharge} W afladning).",
+        "discharge_allowed": "Batteriet afladede ikke til huset (det viste {discharge} W).",
+        "force_solar_only_charging": "Batteriet afladede {discharge} W.",
+        "blocked_solar_charge": "Batteriet ladede {charge} W."
+      },
+      "skip": {
+        "unsupported": "Ikke testet: din inverteropsætning siger, at den ikke kan køre denne handling.",
+        "limit": "Ikke testet: batteriet er for fuldt eller for tomt lige nu til at vise det.",
+        "no_load": "Ikke testet: det kræver, at huset bruger mere, end solen giver, og det gør det ikke lige nu.",
+        "no_surplus": "Ikke testet: det kræver solcelleoverskud, og der er intet lige nu.",
+        "unproven": "Ikke bevist: solen eller husets forbrug kan forklare det, der blev set.",
+        "ev": "Ikke testet: en bil lader, og blueprintens EV-handling kan køre i stedet.",
+        "no_data": "Ikke testet: en sensor havde ikke et tal.",
+        "not_reached": "Ikke nået: testen sluttede før dette trin.",
+        "battery_stopped": "Ikke testet: batteriet var stoppet på grund af temperaturen.",
+        "expired": "Ikke færdigt: den udsendte handling løb ud.",
+        "no_baseline": "Ikke bevist: batteriet gjorde allerede det, handlingen beder om, så en ændring kan ikke ses.",
+        "not_published": "Ikke testet: BattMind kunne ikke udsende handlingen (se loggen).",
+        "no_steps": "Ikke testet: din automation har ingen trin til denne handling."
+      },
+      "automation_unknown": "BattMind kunne ikke finde din automation i automations.yaml og kan derfor ikke se, hvilke handlinger der har trin (en automation i en package eller i YAML-tilstand findes ikke)."
+    },
     "backup": {
       "exported": "Backup gemt som {file}",
       "imported": "Backup {file} gendannet (databaser: {databases})."
@@ -581,6 +649,8 @@
     "help_discharging": "* **Kun ved profit**: bloker afladning i timer, hvor batteriets kWh-pris (inkl. tab og slid) er højere end elprisen.\n* **Prioriter dyreste timer**: gem batteriet til de dyreste timer, indtil det lades igen.\n* **Før solen**: brug/sælg batteriet før solen, når det alligevel bliver fuldt af sol, og overskuddet sælges billigt.\n* **Maks. timer gamle kWh**: strøm ældre end dette bruges selv uden fortjeneste og sælges, når det giver mere.",
     "help_selling": "* **Maksimer profit**: sælg i de dyreste perioder, når det giver mere end selv at bruge strømmen.\n* **Sælg overskydende kWh**: sælg den strøm, der ikke bruges, før batteriet er tomt eller fuldt igen.\n* **Brug batteriniveau ved midnat**: kig kun til midnat i stedet for hele prognoseperioden.\n* **Køb for at sælge**: lad billigt fra nettet kun for at sælge strømmen igen, når det betaler sig efter tab og slid.",
     "help_solar": "* **Solcelleopladning**: medtag soloverskuddet i planen.\n* **Optimer solcelleopladning**: sælg soloverskuddet i de dyre timer og fyld batteriet i de billige soltimer i stedet. Kun når solen alligevel fylder batteriet senere.",
+    "section_automation_test": "Test min automation",
+    "help_automation_test": "BattMind styrer aldrig dit batteri: det gør din egen automation, når BattMinds handling skifter. Testen tjekker, at din automation virkelig gør det, hver handling skal.\n\n* **Test min automation**: slå den til for at starte. BattMind udsender handlingerne én ad gangen (Lad fra nettet, Tvungen afladning, Stop batteri, Afladning tilladt, Kun solopladning, Solopladning blokeret) og måler batteriet. Et trin består, så snart batteriet har vist, hvad det skal, og venter højst 5 minutter. Slå kontakten fra for at stoppe; BattMinds egen handling udsendes så igen.\n* **Automationstest**: testens status: inaktiv, kører, færdig, stoppet eller mislykket.\n* Tabellen under viser hver handling: ✅ virkede, ❌ batteriet reagerede ikke, 🔧 ikke testet. Handlinger, der afhænger af solen eller husets forbrug, kan kun bevises, når forholdene passer (fx kræver handlingen, der blokerer solopladning, solcelleoverskud), så de vises som ikke testet med årsagen i stedet for at bestå.\n\n**Vær opmærksom:** testen lader batteriet fra nettet og aflader det til nettet i nogle minutter, og den ændrer, hvad inverteren gør. Intet testes, mens batteriet er stoppet på grund af temperaturen, og planen og indstillingerne ændres ikke. Energi, som testen flytter, tælles som al anden energi i timens historik.",
     "consumption_forecast": "Forbrugsprognose",
     "history_title": "Historik",
     "section_economy": "Økonomi pr. måned",
