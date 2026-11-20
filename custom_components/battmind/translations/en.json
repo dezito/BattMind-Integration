@@ -24,7 +24,7 @@
       },
       "price_provider": {
         "title": "Electricity prices",
-        "description": "Choose where the hourly prices come from. With both, Strømligning has priority: its price is used for every hour it has one, and Energi Data Service fills the gaps.",
+        "description": "Choose where the hourly prices come from. With several, the priority is Strømligning, then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour, and the next fills the gaps.",
         "data": {
           "price_providers": "Price providers"
         }
@@ -127,6 +127,18 @@
           "energidataservice_sell_entity_id": "A separate Energi Data Service sensor for the sell price. Empty = the buy price minus tariffs is used."
         }
       },
+      "prices_energypriceforecast": {
+        "title": "Energy Price Forecast",
+        "description": "Sensors of the Energy Price Forecast integration (prices and forecasts for most of Europe). Choose its retail price sensor as the buy price: it gives the published prices of today and tomorrow and the forecast after them. Choose its wholesale price sensor as the sell price. The prices must be per kWh in the currency (not in cents or pence); a price per MWh is converted to kWh.",
+        "data": {
+          "energypriceforecast_buy_entity_id": "Buy price (retail price sensor)",
+          "energypriceforecast_sell_entity_id": "Sell price"
+        },
+        "data_description": {
+          "energypriceforecast_buy_entity_id": "The Energy Price Forecast sensor with the retail price, including the supplier’s margin, taxes and network charge",
+          "energypriceforecast_sell_entity_id": "The Energy Price Forecast sensor with the wholesale price. The sell price is this price less the sell fee (the retail price is higher than what a sale pays, so it is not used as a sell price)"
+        }
+      },
       "prices_stromligning": {
         "title": "Strømligning",
         "description": "Sensors from the Strømligning integration. The buy price is required; the sell sensors are needed to calculate an accurate sell price.\n\nStrømligning switches its excl. VAT sensors off by default, and a disabled sensor can't be selected here: enable them first under **Settings → Devices & services → Entities** (*Show disabled entities*). The price forecasts also need *Include price forecasts for the next week?* in the Strømligning options.\nDisabled in Strømligning now: {stromligning_disabled}",
@@ -174,7 +186,7 @@
         },
         "data_description": {
           "refund": "Refund per kWh from state/grid company/supplier, subtracted from the buy price in the price history. 0 if none.",
-          "sell_fee": "Fee per kWh when selling to the grid. Subtracted from the sell price together with Energinet's net and system tariff, which selling also costs."
+          "sell_fee": "The fee per kWh that the buyer of your electricity takes for buying it. Subtracted from the sell price, with Energi Data Service and Strømligning together with Energinet's net and system tariff, which selling also costs."
         }
       },
       "solar": {
@@ -258,6 +270,10 @@
       "min_above_max": "The minimum level must be lower than the maximum level.",
       "invalid_icon": "Use an icon name like mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
+      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, per MWh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh).",
+      "price_sensor_not_retail": "This is not the retail price sensor. Choose the retail price sensor of Energy Price Forecast as the buy price (the wholesale price is the sell price).",
+      "price_sensor_not_wholesale": "This is the retail price sensor. Choose the wholesale price sensor of Energy Price Forecast as the sell price (the retail price is higher than what a sale pays).",
+      "price_currency_mismatch": "This sensor is in another currency than the other price sensors. Use price sensors in one currency (or deselect the other price provider).",
       "no_price_provider": "Choose at least one price provider.",
       "production_required": "A solar forecast requires a solar production sensor."
     },
@@ -282,7 +298,7 @@
       },
       "price_provider": {
         "title": "Electricity prices",
-        "description": "Choose where the hourly prices come from. With both, Strømligning has priority: its price is used for every hour it has one, and Energi Data Service fills the gaps.",
+        "description": "Choose where the hourly prices come from. With several, the priority is Strømligning, then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour, and the next fills the gaps.",
         "data": {
           "price_providers": "Price providers"
         }
@@ -396,6 +412,18 @@
           "energidataservice_sell_entity_id": "A separate Energi Data Service sensor for the sell price. Empty = the buy price minus tariffs is used."
         }
       },
+      "prices_energypriceforecast": {
+        "title": "Energy Price Forecast",
+        "description": "Sensors of the Energy Price Forecast integration (prices and forecasts for most of Europe). Choose its retail price sensor as the buy price: it gives the published prices of today and tomorrow and the forecast after them. Choose its wholesale price sensor as the sell price. The prices must be per kWh in the currency (not in cents or pence); a price per MWh is converted to kWh.",
+        "data": {
+          "energypriceforecast_buy_entity_id": "Buy price (retail price sensor)",
+          "energypriceforecast_sell_entity_id": "Sell price"
+        },
+        "data_description": {
+          "energypriceforecast_buy_entity_id": "The Energy Price Forecast sensor with the retail price, including the supplier’s margin, taxes and network charge",
+          "energypriceforecast_sell_entity_id": "The Energy Price Forecast sensor with the wholesale price. The sell price is this price less the sell fee (the retail price is higher than what a sale pays, so it is not used as a sell price)"
+        }
+      },
       "prices_stromligning": {
         "title": "Strømligning",
         "description": "Sensors from the Strømligning integration. The buy price is required; the sell sensors are needed to calculate an accurate sell price.\n\nStrømligning switches its excl. VAT sensors off by default, and a disabled sensor can't be selected here: enable them first under **Settings → Devices & services → Entities** (*Show disabled entities*). The price forecasts also need *Include price forecasts for the next week?* in the Strømligning options.\nDisabled in Strømligning now: {stromligning_disabled}",
@@ -443,7 +471,7 @@
         },
         "data_description": {
           "refund": "Refund per kWh from state/grid company/supplier, subtracted from the buy price in the price history. 0 if none.",
-          "sell_fee": "Fee per kWh when selling to the grid. Subtracted from the sell price together with Energinet's net and system tariff, which selling also costs."
+          "sell_fee": "The fee per kWh that the buyer of your electricity takes for buying it. Subtracted from the sell price, with Energi Data Service and Strømligning together with Energinet's net and system tariff, which selling also costs."
         }
       },
       "solar": {
@@ -531,6 +559,10 @@
       "min_above_max": "The minimum level must be lower than the maximum level.",
       "invalid_icon": "Use an icon name like mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
+      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, per MWh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh).",
+      "price_sensor_not_retail": "This is not the retail price sensor. Choose the retail price sensor of Energy Price Forecast as the buy price (the wholesale price is the sell price).",
+      "price_sensor_not_wholesale": "This is the retail price sensor. Choose the wholesale price sensor of Energy Price Forecast as the sell price (the retail price is higher than what a sale pays).",
+      "price_currency_mismatch": "This sensor is in another currency than the other price sensors. Use price sensors in one currency (or deselect the other price provider).",
       "no_price_provider": "Choose at least one price provider.",
       "production_required": "A solar forecast requires a solar production sensor."
     },
@@ -557,6 +589,7 @@
     "price_providers": {
       "options": {
         "energidataservice": "Energi Data Service",
+        "energypriceforecast": "Energy Price Forecast (Europe)",
         "stromligning": "Strømligning"
       }
     },

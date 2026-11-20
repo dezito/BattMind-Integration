@@ -10,7 +10,7 @@ from homeassistant.helpers import selector
 
 from ..const import FLOW_STEPS, PRICE_PROVIDER_KEYS, default_options, price_scale
 from ..management.dependency_checks import disabled_sensors
-from ..prices import STROMLIGNING_PLATFORM, STROMLIGNING_UNIQUE_ID_PREFIXES, detect_price_scale, has_stromligning_sell_prices
+from ..prices import STROMLIGNING_PLATFORM, STROMLIGNING_UNIQUE_ID_PREFIXES, detect_price_scale, has_stromligning_sell_prices, price_currency_errors, price_sensor_errors
 from ..utils.cjp import cjp_charger_power_entities
 from ..utils.solcast import SOLCAST_PLATFORM
 from .detection import Detection, async_detect, evidence_placeholders, verdict_values
@@ -47,6 +47,8 @@ class BattMindFlowPages:
     def _page_enabled(self, step: str) -> bool:
         if step == "prices_energidataservice":
             return "energidataservice" in self._providers
+        if step == "prices_energypriceforecast":
+            return "energypriceforecast" in self._providers
         if step == "prices_stromligning":
             return "stromligning" in self._providers
         if step == "prices_stromligning_tariffs":
@@ -101,6 +103,9 @@ class BattMindFlowPages:
         if user_input is not None:
             values = normalize_input(keys, user_input)
             errors = validate_step(step, values)
+            if step.startswith("prices_"):
+                get_state = self.hass.states.get  # type: ignore[attr-defined]
+                errors = {**price_currency_errors({**self._options, **values}, keys, get_state), **price_sensor_errors(values, get_state), **errors}
             if not errors:
                 self._options.update(values)
                 return await self._async_next()
@@ -203,6 +208,9 @@ class BattMindFlowPages:
 
     async def async_step_prices_energidataservice(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("prices_energidataservice", user_input)
+
+    async def async_step_prices_energypriceforecast(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_energypriceforecast", user_input)
 
     async def async_step_prices_stromligning(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("prices_stromligning", user_input)

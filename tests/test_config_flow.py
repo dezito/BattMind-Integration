@@ -107,7 +107,7 @@ async def _finish_after_the_price_pages(hass: HomeAssistant, result):
     [
         ("DKK/kWh", 1.0, 0.03, None),
         ("EUR/kWh", 0.134, 0.004, {"cheapest_price_rise_threshold": 0.067, "cheap_price_period_rise_threshold": 0.013}),
-        ("EUR/MWh", None, 0.03, None),
+        ("XYZ/kWh", None, 0.03, None),
         (None, None, 0.03, None),
     ],
 )
@@ -138,6 +138,54 @@ async def test_a_sell_fee_the_user_changed_is_kept_when_the_scale_is_found(hass:
     result = await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.05})
     result = await _finish_after_the_price_pages(hass, result)
     assert result["options"]["price_scale"] == 0.134 and result["options"]["sell_fee"] == 0.05
+
+
+async def test_energy_price_forecast_page_refuses_cents_a_wholesale_buy_sensor_and_two_currencies(hass: HomeAssistant) -> None:
+    retail = {"unit_of_measurement": "EUR/kWh", "raw_today": [], "retail_source": "estimate"}
+    hass.states.async_set("sensor.epf_retail", "0.2", retail)
+    hass.states.async_set("sensor.epf_cents", "20", {**retail, "unit_of_measurement": "ct/kWh"})
+    hass.states.async_set("sensor.epf_wholesale", "0.1", {"unit_of_measurement": "EUR/kWh", "raw_today": []})
+    hass.states.async_set("sensor.epf_wholesale_2", "0.1", {"unit_of_measurement": "EUR/kWh", "raw_today": []})
+    hass.states.async_set(PRICE, "1.2", {"unit_of_measurement": "DKK/kWh"})
+    result = await _to_price_provider(hass)
+    result = await _configure(hass, result, "price_provider", {"price_providers": ["energypriceforecast", "energidataservice"]})
+    result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
+    assert result["step_id"] == "prices_energypriceforecast"
+    sell = {"energypriceforecast_sell_entity_id": "sensor.epf_wholesale"}
+    # the sell sensor is required: a retail price is more than a sale pays, so it is not taken for one
+    with pytest.raises(InvalidData):
+        await hass.config_entries.flow.async_configure(result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_retail"})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_cents", **sell})
+    mismatch = {"energypriceforecast_sell_entity_id": "price_currency_mismatch"}  # the wholesale sell sensor is EUR, Energi Data Service DKK
+    assert result["errors"] == {"energypriceforecast_buy_entity_id": "price_unit_subunit", **mismatch}
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_wholesale", "energypriceforecast_sell_entity_id": "sensor.epf_wholesale_2"})
+    assert result["errors"] == {"energypriceforecast_buy_entity_id": "price_sensor_not_retail", **mismatch}
+    # the retail price is more than a sale pays: it is refused as the sell sensor (the sensor error comes before the currency one)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_retail", "energypriceforecast_sell_entity_id": "sensor.epf_retail"}
+    )
+    assert result["errors"] == {"energypriceforecast_buy_entity_id": "price_currency_mismatch", "energypriceforecast_sell_entity_id": "price_sensor_not_wholesale"}
+    # a backup provider in another currency (EUR next to the DKK of Energi Data Service) would be planned as kroner
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_retail", **sell})
+    assert result["errors"] == {"energypriceforecast_buy_entity_id": "price_currency_mismatch", **mismatch}
+
+
+async def test_energy_price_forecast_alone_sets_the_scale_from_its_retail_sensor(hass: HomeAssistant) -> None:
+    retail = {"unit_of_measurement": "EUR/kWh", "raw_today": [], "retail_source": "estimate"}
+    hass.states.async_set("sensor.epf_retail", "0.2", retail)
+    hass.states.async_set("sensor.epf_wholesale", "0.1", {"unit_of_measurement": "EUR/kWh", "raw_today": []})
+    result = await _to_price_provider(hass)
+    result = await _configure(hass, result, "price_provider", {"price_providers": ["energypriceforecast"]})
+    result = await _configure(
+        hass, result, "prices_energypriceforecast", {"energypriceforecast_buy_entity_id": "sensor.epf_retail", "energypriceforecast_sell_entity_id": "sensor.epf_wholesale"}
+    )
+    assert result["step_id"] == "price_fees" and form_defaults(result)["sell_fee"] == 0.004
+    result = await _configure(hass, result, "price_fees", form_defaults(result))
+    result = await _finish_after_the_price_pages(hass, result)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    options = result["options"]
+    assert options["price_scale"] == 0.134 and options["energidataservice_buy_entity_id"] == ""
+    assert options["energypriceforecast_buy_entity_id"] == "sensor.epf_retail" and options["energypriceforecast_sell_entity_id"] == "sensor.epf_wholesale"
 
 
 async def test_options_flow_finds_the_price_scale_and_keeps_it_without_a_unit(hass: HomeAssistant, loaded_entry) -> None:

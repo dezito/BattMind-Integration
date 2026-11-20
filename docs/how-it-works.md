@@ -82,8 +82,9 @@ In an hour with solar surplus the sun covers the house, so the battery isn't pla
 
 ### Prices
 
-Buy and sell prices per hour (or per 15 minutes) from Energi Data Service and/or Strømligning, incl.
-tariffs, refund and sell fee.
+Buy and sell prices per hour (or per 15 minutes) from Energi Data Service, Strømligning and/or Energy Price
+Forecast, incl. tariffs, refund and sell fee. Energy Price Forecast has no tariffs in its prices: the sell price is
+the price of its sell sensor (the wholesale price, required: the retail price is higher than what a sale pays) less the sell fee.
 
 A price that is not a usable number (text, NaN or infinity) is ignored, and so is a sell price whose tariffs are
 not usable numbers: the hour gets its price from the price history, or none, and is never planned with an
@@ -107,9 +108,11 @@ adder is about 0.0045 € per day, the correction limit about ±0.07 € and the
 prices are rounded to 3 decimals instead of 2. What you enter yourself, such as the *Wear cost*, is never
 changed. For a new installation the *Sell fee* suggested on the price page and the starting values of the two
 *price rise* thresholds follow the currency (an import or a restored backup keeps its own values), so after
-changing to prices in another currency, check the *Sell fee* and the thresholds yourself. A sensor without a known unit (or one in MWh or cents) leaves the scale as it is (kroner for a new
-installation), and Home Assistant's own currency setting is not used for this. The rates are rough: they only
-set the size of the limits, no price is ever converted. Currencies worth much less than a krone (CZK, HUF, ISK)
+changing to prices in another currency, check the *Sell fee* and the thresholds yourself. A sensor without a known unit leaves the scale as it is (kroner for a new
+installation), and Home Assistant's own currency setting is not used for this. The price pages of Energi Data
+Service and Energy Price Forecast refuse a sensor in cents or pence (and Energi Data Service one per MWh; Energy Price Forecast converts a price per MWh to kWh), and every price sensor must be in the same
+currency (a backup provider in another currency is refused). The rates are rough: they only
+set the size of the limits, no price is ever converted between currencies. Currencies worth much less than a krone (CZK, HUF, ISK)
 are not recognised yet.
 
 BattMind also keeps its **own price database**: every day the buy and sell prices from the price

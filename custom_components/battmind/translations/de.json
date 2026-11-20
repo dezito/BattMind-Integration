@@ -99,6 +99,18 @@
         "description": "Sensoren der Integration [Energi Data Service]({eds_url}). Aktiviere Carnot (KI-Preisprognose) in Energi Data Service, um über die veröffentlichten Preise hinaus zu planen.",
         "title": "Energi Data Service"
       },
+      "prices_energypriceforecast": {
+        "title": "Energy Price Forecast",
+        "description": "Sensoren der Integration Energy Price Forecast (Preise und Prognosen für große Teile Europas). Wähle ihren Sensor mit dem Endkundenpreis als Kaufpreis: Er liefert die veröffentlichten Preise von heute und morgen und die Prognose danach. Wähle ihren Sensor mit dem Großhandelspreis als Verkaufspreis. Die Preise müssen pro kWh in der Währung angegeben sein (nicht in Cent oder Pence); ein Preis pro MWh wird in kWh umgerechnet.",
+        "data": {
+          "energypriceforecast_buy_entity_id": "Kaufpreis (Sensor mit Endkundenpreis)",
+          "energypriceforecast_sell_entity_id": "Verkaufspreis"
+        },
+        "data_description": {
+          "energypriceforecast_buy_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Endkundenpreis, einschließlich Marge des Lieferanten, Steuern und Netzentgelt",
+          "energypriceforecast_sell_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Großhandelspreis. Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr (der Endkundenpreis liegt über dem, was ein Verkauf einbringt, und wird deshalb nicht als Verkaufspreis verwendet)"
+        }
+      },
       "prices_stromligning": {
         "data_description": {
           "stromligning_buy_current_price": "Strømligning aktueller Kaufpreis",
@@ -140,7 +152,7 @@
       "price_fees": {
         "data_description": {
           "refund": "Erstattungsbetrag vom Staat/Anbieter",
-          "sell_fee": "Verkaufsgebühr"
+          "sell_fee": "Die Gebühr pro kWh, die der Käufer deines Stroms für den Kauf verlangt. Wird vom Verkaufspreis abgezogen, bei Energi Data Service und Strømligning zusammen mit Energinets Netz- und Systemtarif, die der Verkauf ebenfalls kostet."
         },
         "data": {
           "refund": "Erstattung",
@@ -227,7 +239,7 @@
         "data": {
           "price_providers": "Preisanbieter"
         },
-        "description": "Wähle, woher die Stundenpreise kommen. Bei beiden hat Strømligning Vorrang: sein Preis wird für jede Stunde genutzt, für die er einen hat, und Energi Data Service füllt die Lücken.",
+        "description": "Wähle, woher die Stundenpreise kommen. Bei mehreren gilt die Reihenfolge Strømligning, dann Energi Data Service, dann Energy Price Forecast: Für jede Stunde wird der Preis des ersten genutzt, der einen hat, und der nächste füllt die Lücken.",
         "title": "Strompreise"
       },
       "user": {
@@ -259,6 +271,10 @@
       "min_above_max": "Der minimale Stand muss niedriger als der maximale sein.",
       "invalid_icon": "Verwende einen Symbolnamen wie mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
+      "price_unit_subunit": "Dieser Sensor gibt den Preis in Cent oder Pence an (oder, bei Energi Data Service, pro MWh). Wähle einen Sensor mit dem Preis pro kWh in der Währung (z. B. EUR/kWh).",
+      "price_sensor_not_retail": "Das ist nicht der Sensor mit dem Endkundenpreis. Wähle den Endkundenpreis-Sensor von Energy Price Forecast als Kaufpreis (der Großhandelspreis ist der Verkaufspreis).",
+      "price_sensor_not_wholesale": "Das ist der Sensor mit dem Endkundenpreis. Wähle den Großhandelspreis-Sensor von Energy Price Forecast als Verkaufspreis (der Endkundenpreis liegt über dem, was ein Verkauf einbringt).",
+      "price_currency_mismatch": "Dieser Sensor hat eine andere Währung als die anderen Preissensoren. Verwende Preissensoren in einer Währung (oder wähle den anderen Preisanbieter ab).",
       "no_price_provider": "Wähle mindestens einen Preisanbieter.",
       "prefix_entities_exist": "Es gibt bereits Entitäten mit diesem Präfix (z. B. aus der PyScript-Version). Wähle ein anderes Präfix, um beide gleichzeitig zu betreiben.",
       "prefix_in_use": "Dieses Präfix wird bereits von einem anderen BattMind-Eintrag genutzt.",
@@ -365,6 +381,18 @@
         "description": "Sensoren der Integration [Energi Data Service]({eds_url}). Aktiviere Carnot (KI-Preisprognose) in Energi Data Service, um über die veröffentlichten Preise hinaus zu planen.",
         "title": "Energi Data Service"
       },
+      "prices_energypriceforecast": {
+        "title": "Energy Price Forecast",
+        "description": "Sensoren der Integration Energy Price Forecast (Preise und Prognosen für große Teile Europas). Wähle ihren Sensor mit dem Endkundenpreis als Kaufpreis: Er liefert die veröffentlichten Preise von heute und morgen und die Prognose danach. Wähle ihren Sensor mit dem Großhandelspreis als Verkaufspreis. Die Preise müssen pro kWh in der Währung angegeben sein (nicht in Cent oder Pence); ein Preis pro MWh wird in kWh umgerechnet.",
+        "data": {
+          "energypriceforecast_buy_entity_id": "Kaufpreis (Sensor mit Endkundenpreis)",
+          "energypriceforecast_sell_entity_id": "Verkaufspreis"
+        },
+        "data_description": {
+          "energypriceforecast_buy_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Endkundenpreis, einschließlich Marge des Lieferanten, Steuern und Netzentgelt",
+          "energypriceforecast_sell_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Großhandelspreis. Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr (der Endkundenpreis liegt über dem, was ein Verkauf einbringt, und wird deshalb nicht als Verkaufspreis verwendet)"
+        }
+      },
       "prices_stromligning": {
         "data_description": {
           "stromligning_buy_current_price": "Strømligning aktueller Kaufpreis",
@@ -406,7 +434,7 @@
       "price_fees": {
         "data_description": {
           "refund": "Erstattungsbetrag vom Staat/Anbieter",
-          "sell_fee": "Verkaufsgebühr"
+          "sell_fee": "Die Gebühr pro kWh, die der Käufer deines Stroms für den Kauf verlangt. Wird vom Verkaufspreis abgezogen, bei Energi Data Service und Strømligning zusammen mit Energinets Netz- und Systemtarif, die der Verkauf ebenfalls kostet."
         },
         "data": {
           "refund": "Erstattung",
@@ -514,7 +542,7 @@
         "data": {
           "price_providers": "Preisanbieter"
         },
-        "description": "Wähle, woher die Stundenpreise kommen. Bei beiden hat Strømligning Vorrang: sein Preis wird für jede Stunde genutzt, für die er einen hat, und Energi Data Service füllt die Lücken.",
+        "description": "Wähle, woher die Stundenpreise kommen. Bei mehreren gilt die Reihenfolge Strømligning, dann Energi Data Service, dann Energy Price Forecast: Für jede Stunde wird der Preis des ersten genutzt, der einen hat, und der nächste füllt die Lücken.",
         "title": "Strompreise"
       }
     },
@@ -534,6 +562,10 @@
       "min_above_max": "Der minimale Stand muss niedriger als der maximale sein.",
       "invalid_icon": "Verwende einen Symbolnamen wie mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
+      "price_unit_subunit": "Dieser Sensor gibt den Preis in Cent oder Pence an (oder, bei Energi Data Service, pro MWh). Wähle einen Sensor mit dem Preis pro kWh in der Währung (z. B. EUR/kWh).",
+      "price_sensor_not_retail": "Das ist nicht der Sensor mit dem Endkundenpreis. Wähle den Endkundenpreis-Sensor von Energy Price Forecast als Kaufpreis (der Großhandelspreis ist der Verkaufspreis).",
+      "price_sensor_not_wholesale": "Das ist der Sensor mit dem Endkundenpreis. Wähle den Großhandelspreis-Sensor von Energy Price Forecast als Verkaufspreis (der Endkundenpreis liegt über dem, was ein Verkauf einbringt).",
+      "price_currency_mismatch": "Dieser Sensor hat eine andere Währung als die anderen Preissensoren. Verwende Preissensoren in einer Währung (oder wähle den anderen Preisanbieter ab).",
       "no_price_provider": "Wähle mindestens einen Preisanbieter.",
       "prefix_entities_exist": "Es gibt bereits Entitäten mit diesem Präfix (z. B. aus der PyScript-Version). Wähle ein anderes Präfix, um beide gleichzeitig zu betreiben.",
       "prefix_in_use": "Dieses Präfix wird bereits von einem anderen BattMind-Eintrag genutzt.",
@@ -995,6 +1027,7 @@
     "price_providers": {
       "options": {
         "energidataservice": "Energi Data Service",
+        "energypriceforecast": "Energy Price Forecast (Europa)",
         "stromligning": "Strømligning"
       }
     }

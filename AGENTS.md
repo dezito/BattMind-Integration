@@ -38,6 +38,7 @@ custom_components/battmind/             The HA integration (HACS payload)
 │   ├── analysis/                        Results, recording, and published analysis
 │   └── battery.py / state.py            Battery model and planning state
 ├── prices/                              Price providers; CombinedPriceProvider is the only entry point
+│   └── energypriceforecast.py           Energy Price Forecast: buy = its retail sensor, sell = its wholesale sensor
 ├── management/                          Storage, backups, dashboard, and blueprint setup
 ├── utils/                               Shared codecs, formatting, and calculations
 ├── sensor.py / number.py / switch.py    Main HA entity platforms
@@ -103,7 +104,7 @@ Read the relevant documentation before changing behavior. In particular:
   `CombinedPriceProvider.update_prices(..., tz)`. A daily weather forecast whose time is midnight in its own offset names a date and keeps it
   (`forecast_day()`); any other time is converted. The repeated hour of the autumn change shares one price key;
   which row wins depends on the provider (Energi Data Service: the last row; Strømligning: the first, its
-  distribution tariff the last). Data stored before the conversion (prices, averages and price hours, the
+  distribution tariff the last; Energy Price Forecast: the first). Data stored before the conversion (prices, averages and price hours, the
   weather score of `solar_available_db`) keeps its old hours when the source gave UTC; it is not migrated and
   phases out.
 - Money limits are chosen for Danish kroner (the forecast adder, the rounding of prices, profit floors and ties, score
@@ -115,8 +116,11 @@ Read the relevant documentation before changing behavior. In particular:
   never scale a value the user entered (the wear cost is theirs, in their currency) or the `-1` of the fixed solar sell
   price. A new entry's suggested sell fee and the starting values of the two price rise thresholds follow the price
   currency (an import or a restored backup keeps its own). The
-  rates are rough and only set the size of a limit, no price is converted. A unit in cents or per MWh is not recognised
-  (the scale stays).
+  rates are rough and only set the size of a limit, no price is converted between currencies. A price sensor in a subunit (ct, p, GBp, øre …) is refused on the Energi Data Service and Energy Price Forecast
+  pages (`price_sensor_errors()`), and so is a price per MWh from Energi Data Service. Energy Price Forecast converts a
+  price per MWh to kWh (`price_unit_divisor()`): its rows in the provider and its recorded history where the history is
+  read (`CombinedPriceProvider.price_unit_divisors()`; the unit is the sensor's current one); units are read case-sensitively (`GBp` is not `GBP`), and all price sensors must be in one
+  currency (`price_currency_errors()`), so a backup provider with a known unit is never in another currency.
 - Preserve compatibility of config-entry options, entity IDs/unique IDs,
   stored data, backups, and migration from the PyScript version. Changes to
   these formats or identifiers require a migration/compatibility path and
@@ -142,7 +146,7 @@ Read the relevant documentation before changing behavior. In particular:
 - All price handling goes through `CombinedPriceProvider` (`prices/`, built by
   `create_price_provider()`): which price entities to read, the snapshot, the
   recorded price history, the provider priority (`PRICE_PROVIDER_PRIORITY`:
-  Strømligning before Energi Data Service) and the prices themselves. Other
+  Strømligning, then Energi Data Service, then Energy Price Forecast) and the prices themselves. Other
   code calls its methods (the coordinator via `coordinator.price_provider`)
   and never reads price entities, config keys or provider attributes itself.
 - Keep network and blocking work out of the event loop. Follow the existing
@@ -517,6 +521,10 @@ electricity supplier charges for selling. Formula:
   selling costs (net and system tariff) then come from the buy sensor's
   `tariffs` attribute (`get_sell_costs()` / `eds_sell_costs()`, what-if:
   provider `sell_costs`).
+- `sell_fee` is what the buyer of your electricity charges for buying it (user's definition).
+- Energy Price Forecast has no tariffs in its prices: sell price = the price of its sell sensor − `sell_fee`. The page
+  requires the sell sensor and refuses a retail sensor or the buy sensor as the sell sensor (the retail price is higher than
+  what a sale pays). An entry without one (a backup restored in the options menu) sells at its buy sensor's price less the fee (decided with the user): higher than a sale pays.
 - `sell_fee` is stored positive (`abs()`) and is always subtracted.
 - The dashboard's sell price series (Strømligning and Energi Data Service
   charts) must use the same formula and the configured sell entities

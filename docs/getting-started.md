@@ -10,7 +10,7 @@ few days of watching the plan before you trust it.
 | A **battery level** sensor (%) | where the plan starts from |
 | A **battery power** sensor (W or kW) | measures what goes in and out (charging history, cost price, loss) |
 | A **house consumption** sensor (W or kW) – the house's consumption, not the grid import | the consumption forecast per hour |
-| [Energi Data Service](https://github.com/MTrab/energidataservice) and/or [Strømligning](https://github.com/MTrab/stromligning) | buy and sell prices per hour |
+| [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning) and/or [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) | buy and sell prices per hour |
 | A way to control the inverter from Home Assistant | BattMind only decides – your automation does it |
 
 Optional, but recommended with solar panels:
@@ -147,13 +147,21 @@ again.
 
 ### Prices
 
-Choose Energi Data Service and/or Strømligning. With both, Strømligning has priority: its price is used for
-every hour it has one, and Energi Data Service fills the gaps (also in the what-if and the analysis).
+Choose Energi Data Service, Strømligning and/or Energy Price Forecast. With several, the priority is Strømligning,
+then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour,
+and the next fills the gaps (also in the what-if and the analysis). All price sensors must be in the same currency
+(a backup provider in another currency is refused).
 
 - **Energi Data Service:** enable *Carnot* in Energi Data Service to plan beyond the published prices.
   Without a separate sell sensor, the buy price minus tariffs is used as sell price. A sell sensor
   without tariffs is used as the spot price; the net and system tariff paid when selling then come
   from the buy sensor.
+- **Energy Price Forecast** (for prices outside Denmark): choose its retail price sensor as the buy price – it gives
+  the published prices of today and tomorrow and the forecast after them. Choose its wholesale price sensor as the sell
+  price (required: the retail price is higher than what a sale pays, so it is refused as a sell sensor; an entry
+  restored from a backup without one sells at the buy price less the sell fee). The sensors must give the
+  price per kWh in the currency (EUR/kWh, GBP/kWh, …), not in cents or pence: BattMind refuses a sensor in
+  ct/kWh or p/kWh. A sensor in EUR/MWh (a wholesale sensor often is) is converted to kWh, also in the recorded history (read in the unit the sensor has now: if you change its unit, the old history is off by 1000; a sensor that is missing from Home Assistant has its history left out).
 - **Strømligning:** the buy sensors are required. The sell sensors and the tariff page give an accurate
   sell price: Strømligning's sell price includes every tariff, so the distribution (transport) tariff,
   net tariff, system tariff, electricity tax and surcharge are all subtracted. The distribution sensor
@@ -163,7 +171,7 @@ every hour it has one, and Energi Data Service fills the gaps (also in the what-
   Entities** (*Show disabled entities*). The price forecasts also need *Include price forecasts for the next week?* in
   the Strømligning options. If a sensor BattMind uses is disabled later, or Strømligning stops providing it, a
   **repair** names it. Until it is fixed a missing tariff counts as 0, which makes the sell price too high.
-- **Refund** is subtracted from the buy price. Selling costs the **sell fee** plus Energinet's net
+- **Refund** is subtracted from the buy price. Selling costs the **sell fee** (what the buyer of your electricity charges for buying it) plus Energinet's net
   and system tariff:
   sell price = price − the tariffs and taxes in it − (sell fee + net tariff + system tariff).
   The price charts on the dashboard show the same sell price.

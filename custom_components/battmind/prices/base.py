@@ -58,6 +58,16 @@ def is_number(value) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
+def is_price_per_mwh(unit) -> bool:
+    """A price per MWh (EUR/MWh): 1000 times the price per kWh, as a wholesale sensor often gives it."""
+    return isinstance(unit, str) and "/" in unit and unit.rsplit("/", 1)[1].strip().lower() == "mwh"
+
+
+def price_unit_divisor(unit) -> float:
+    """What the numbers of a price sensor are divided by to get the price per kWh: 1000 for a price per MWh, else 1."""
+    return 1000.0 if is_price_per_mwh(unit) else 1.0
+
+
 def sell_adder_sign(config: dict) -> float:
     """+1 or -1: how the forecast adder moves a SELL price so that a sale is worth less.
 
@@ -202,7 +212,7 @@ class BasePriceProvider:
 
 class CombinedPriceProvider:
     """Every price of the integration, from the configured providers in PRICE_PROVIDER_PRIORITY
-    order (Strømligning before Energi Data Service).
+    order (Strømligning, then Energi Data Service, then Energy Price Forecast).
 
     For each timestamp the first provider with a price wins, and real prices always win over
     forecasts. The rest of the integration only asks this class: the coordinator which
@@ -253,6 +263,27 @@ class CombinedPriceProvider:
                 # unavailable: 0 as before. NaN or infinity stays: it gives a sell price that is dropped, not a too high one
                 values[entity_id] = value if value is not None else 0.0
         return {"attributes": attributes, "values": values}
+
+    def price_unit_divisors(self, get_state: GetState) -> dict[str, float]:
+        """{entity_id: divisor} of the Energy Price Forecast sensors whose recorded history (the statistics and states of the sensor
+        itself) is not a price per kWh as it is: 1000.0 for a price per MWh, None when the sensor is not in Home Assistant (its
+        unit is not known, so its history is left out, never read as kWh). The unit is the sensor's unit now; the recorder keeps
+        no unit for the states, so a sensor that changed its unit has its old history read in the new one."""
+        divisors: dict[str, float | None] = {}
+        for provider in self.providers:
+            if getattr(provider, "source_name", "") != "energypriceforecast":
+                continue
+            for entity_id in (provider.buy_entity_id, provider.sell_entity_id):
+                if not entity_id:
+                    continue
+                state = get_state(entity_id)
+                if state is None:
+                    divisors[entity_id] = None
+                    continue
+                divisor = price_unit_divisor(getattr(state, "attributes", {}).get("unit_of_measurement"))
+                if divisor != 1.0:
+                    divisors[entity_id] = divisor
+        return divisors
 
     def history_sources(self, get_state: GetState) -> list[dict]:
         """The recorded price history per provider, in priority order (the what-if)."""

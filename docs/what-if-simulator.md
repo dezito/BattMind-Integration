@@ -25,7 +25,7 @@ A separate planner (not the live one, its plan or its databases) plans every his
 real BattMind rules and the whole period optimisation, exactly as the live planner does:
 
 - **Prices:** only the real recorded prices of the configured buy/sell entities (Strømligning first,
-  Energi Data Service for the hours without Strømligning history). The planner runs when the prices of
+  then Energi Data Service, then Energy Price Forecast for the hours without history). The planner runs when the prices of
   the next day are published (13:00) and plans until the end of the next day; that plan is executed
   until the next publication. A history that starts before 13:00 is first planned with the prices of
   its own day. No price forecast or offline prices are used.
@@ -297,9 +297,11 @@ Recorder state history for the same configured entities. Unknown/unavailable sta
 filled or assumed. Hours without data for every required entity are skipped, so a gap does not discard
 older valid history. The calculation treats each continuous section separated by a gap independently:
 the first section uses the selected starting level and later sections restart at the battery's minimum
-level rather than carrying an unknown state of charge across missing data. If both Strømligning and
-Energi Data Service are configured, each hour uses Strømligning's price history first and falls back
-to Energi Data Service for hours where Strømligning has no history, the same priority as the planner.
+level rather than carrying an unknown state of charge across missing data. If several price providers are configured, each hour uses the price history of the first one
+(Strømligning, then Energi Data Service, then Energy Price Forecast) and falls back to the next for hours where
+it has no history, the same priority as the planner. Energy Price Forecast has no sell price history without a
+sell sensor (the setup requires one, but an entry restored from a backup may lack it): the what-if then reports that the sell
+price history is not available.
 Buy and sell prices for an hour always come from the same provider, and the result reports how many
 hours each provider supplied. The
 simulator does not use BattMind's offline price database or assume that the buy price was earned when

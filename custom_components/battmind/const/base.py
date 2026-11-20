@@ -10,7 +10,7 @@ PLATFORMS = ["sensor", "binary_sensor", "switch", "number", "select", "text", "b
 
 # Price providers in priority order. For each hour the planner and the what-if use the
 # first configured provider that has a price, then fall back to the next one.
-PRICE_PROVIDER_PRIORITY = ("stromligning", "energidataservice")
+PRICE_PROVIDER_PRIORITY = ("stromligning", "energidataservice", "energypriceforecast")
 
 LEGACY_DB_FILES = {
     "charging_history": "{prefix}_charging_history_db.yaml",

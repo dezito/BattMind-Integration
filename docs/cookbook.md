@@ -20,8 +20,9 @@ The battery only moves energy from cheap to expensive hours.
 The default setup. Make sure:
 
 - **Fixed solar sell price** is −1.
-- The sell price comes from the price integration: Energi Data Service with a separate sell sensor, or
-  Strømligning with the sell sensors and the tariff page.
+- The sell price comes from the price integration: Energi Data Service with a separate sell sensor,
+  Strømligning with the sell sensors and the tariff page, or Energy Price Forecast with its wholesale price sensor as
+  the sell sensor.
 - **Optimise solar charging** is only useful if your inverter can stop solar charging without stopping
   discharging (see [Actions](actions.md#blocked_solar_charge)). Otherwise switch it off.
 
