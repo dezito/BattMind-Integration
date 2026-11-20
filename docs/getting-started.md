@@ -221,7 +221,8 @@ yours. The easiest way is the blueprint that comes with the integration:
 1. *Settings → Automations & scenes → Blueprints* → **BattMind - control the home battery** → **Create automation**.
 2. Select the BattMind sensor.
 3. For each of the six actions, add what your inverter should do. See [Actions](actions.md) for what each
-   action means, and [Huawei Solar](inverters/huawei.md) for a complete example.
+   action means, and the [inverter pages](README.md#inverters) for complete examples
+   ([Huawei Solar](inverters/huawei.md) is the tested one).
 4. Keep **Repeat interval** at 5 minutes (default): the action is sent again, so a lost command or a mode
    the inverter changed by itself is put right. Use 30 seconds for a battery controlled via Modbus.
 

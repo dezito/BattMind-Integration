@@ -100,6 +100,23 @@ class StromligningPriceProvider(BasePriceProvider):
         self._add(prices, forecast_entity_id, forecast=True, sell=sell)
         return dict(sorted(prices.items()))
 
+    @classmethod
+    def dashboard_entities(cls, prices: dict[str, str]) -> dict[str, str]:
+        return {
+            "sensor.stromligning_current_price_vat": prices["stromligning_buy_current_price"],
+            "sensor.stromligning_forecasts_vat": prices["stromligning_buy_forecasts"],
+            "binary_sensor.stromligning_tomorrow_available_vat": prices["stromligning_buy_tomorrow_available"],
+            # the sell price chart uses the configured sell sensors and tariffs, like the planner
+            "sensor.stromligning_15min_current_price_ex_vat": prices["stromligning_sell_current_price"],
+            "sensor.stromligning_15min_forecasts_ex_vat": prices["stromligning_sell_forecasts"],
+            "binary_sensor.stromligning_15min_tomorrow_available_ex_vat": prices["stromligning_sell_tomorrow_available"],
+            "sensor.stromligning_15min_distribution_ex_vat": prices["stromligning_sell_distribution"],
+            "sensor.stromligning_15min_electricity_tax_ex_vat": prices["stromligning_sell_electricity_tax"],
+            "sensor.stromligning_15min_nettariff_ex_vat": prices["stromligning_sell_nettariff"],
+            "sensor.stromligning_15min_systemtariff_ex_vat": prices["stromligning_sell_systemtariff"],
+            "sensor.stromligning_15min_surcharge_ex_vat": prices["stromligning_sell_surcharge"],
+        }
+
     def _load_buy_real_prices(self):
         return self._real(self.buy_current_price, self.buy_tomorrow_available)
 

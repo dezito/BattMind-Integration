@@ -94,7 +94,7 @@ def test_card_mod_is_optional_and_every_card_links_to_github_and_hacs() -> None:
 
 
 def test_the_cards_match_the_custom_cards_of_the_dashboard_template() -> None:
-    template = (Path(__file__).parent.parent / "custom_components" / "battmind" / "dashboard" / "battmind.yaml").read_text(encoding="utf-8")
+    template = dashboard_build.template_text()
     used = {line.split("custom:", 1)[1].strip().split()[0] for line in template.splitlines() if line.lstrip("- ").startswith("type: custom:")}
     assert {"apexcharts-card", "config-template-card", "mushroom-entity-card", "mushroom-template-badge", "timer-bar-card"} <= used
     for card in used:

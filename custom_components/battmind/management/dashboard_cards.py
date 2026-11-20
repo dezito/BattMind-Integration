@@ -51,7 +51,7 @@ class DashboardCard:
         return f"https://my.home-assistant.io/redirect/hacs_repository/?owner={self.owner}&repository={self.repository}"
 
 
-# Every custom card type of dashboard/battmind.yaml; card-mod only styles cards (tables, state info)
+# Every custom card type of the dashboard template (dashboard/battmind.yaml and its included files); card-mod only styles cards (tables, state info)
 DASHBOARD_CARDS: tuple[DashboardCard, ...] = (
     DashboardCard("Mushroom", "piitaya", "lovelace-mushroom", ("mushroom",)),
     DashboardCard("ApexCharts Card", "RomRider", "apexcharts-card", ("apexcharts-card",)),

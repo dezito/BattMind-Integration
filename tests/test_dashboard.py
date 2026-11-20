@@ -25,7 +25,8 @@ from custom_components.battmind.const import (
     WHAT_IF_RULE_SELECTS,
     build_config,
 )
-from custom_components.battmind.management.dashboard_build import render_dashboard
+from custom_components.battmind.management.dashboard_build import TEMPLATE, expand_includes, render_dashboard, template_text
+from custom_components.battmind.prices.factory import PROVIDER_CLASSES
 from custom_components.battmind.utils.formatting import format_analysis_help_text, format_help_text, load_texts
 
 from .conftest import MOCK_OPTIONS, PREFIX, async_unload_and_join, set_source_states
@@ -492,6 +493,34 @@ def test_energi_data_service_sell_price_chart_subtracts_the_sell_fee() -> None:
     generator = _sell_series(language="en", sell_fee=0.03)
     assert "Number('0.03')" in generator
     assert "sellCosts(row.hour)" in generator
+
+
+def test_every_price_provider_has_a_chart_file_of_its_own() -> None:
+    """dashboard/prices/<provider>.yaml for every key of PROVIDER_CLASSES, each included by the template."""
+    files = {path.stem for path in (TEMPLATE.parent / "prices").glob("*.yaml")}
+    assert files == set(PROVIDER_CLASSES)
+    main = TEMPLATE.read_text(encoding="utf-8")
+    for provider in PROVIDER_CLASSES:
+        assert main.count(f"# @include prices/{provider}.yaml") == 1, provider  # twice would draw the chart twice
+
+
+def test_the_expanded_template_has_every_price_chart_and_no_marker_left() -> None:
+    text = template_text()
+    assert "@include" not in text
+    # exactly one chart stack per price integration: its first card is the "integration is down" notice
+    stacks = [card for card in walk(yaml.safe_load(text)["views"]) if card.get("type") == "vertical-stack"]
+    first_entities = [
+        (stack["cards"][0].get("conditions") or [{}])[0].get("entity") for stack in stacks if stack["cards"] and stack["cards"][0].get("type") == "conditional"
+    ]
+    assert first_entities.count("sensor.energi_data_service") == 1
+    assert first_entities.count("sensor.stromligning_current_price_vat") == 1
+
+
+def test_an_include_is_indented_like_its_marker_and_a_missing_file_raises(tmp_path) -> None:
+    (tmp_path / "x.yaml").write_text("- a: 1\n  b: |\n    one\n\n    two\n", encoding="utf-8")
+    assert expand_includes("k:\n    # @include x.yaml\nz: 1\n", tmp_path) == "k:\n    - a: 1\n      b: |\n        one\n\n        two\nz: 1\n"
+    with pytest.raises(FileNotFoundError):
+        expand_includes("k:\n    # @include missing.yaml\n", tmp_path)
 
 
 def test_every_chart_has_a_shared_non_intersecting_tooltip() -> None:

@@ -26,9 +26,13 @@ every rule does, and how to connect it to your inverter.
 | Page | Content |
 |---|---|
 | [Huawei Solar](inverters/huawei.md) | ready-made actions for the blueprint (LUNA2000) |
+| [SolarEdge](inverters/solaredge.md) | actions for SolarEdge Modbus Multi (StorEdge). Checked against the source, not tested on an inverter |
+| [Deye hybrid (Solarman)](inverters/deye-solarman.md) | actions for ha-solarman. Checked against the source, not tested on an inverter |
+| [Sofar hybrid (Solarman)](inverters/sofar-solarman.md) | actions for ha-solarman. Checked against the source, not tested on an inverter |
 
-Have you set up another inverter? Please share your actions in an
-[issue](https://github.com/dezito/BattMind-Integration/issues), so a page can be added for it.
+Have you set up another inverter, or tried one of the untested pages? Please share your actions under
+[Blueprint setups](https://github.com/dezito/BattMind-Integration/discussions/categories/blueprint-setups)
+or in an [issue](https://github.com/dezito/BattMind-Integration/issues), so a page can be added or corrected.
 
 ## Reference
 
