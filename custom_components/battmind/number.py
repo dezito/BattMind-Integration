@@ -9,7 +9,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import NUMBER_SETTINGS, WHAT_IF_INPUT_NUMBERS, WHAT_IF_OVERRIDE_NUMBERS
+from .const import NUMBER_SETTINGS, WHAT_IF_INPUT_NUMBERS, WHAT_IF_OVERRIDE_NUMBERS, price_decimals
 from .coordinator import BattMindCoordinator
 from .entity import BattMindEntity, BattMindUpdatingEntity
 from .utils.helpers import float_or_none
@@ -38,7 +38,9 @@ class BattMindNumber(BattMindEntity, NumberEntity, RestoreEntity):
         super().__init__(coordinator, "number", key)
         self._attr_native_min_value = info["min"]
         self._attr_native_max_value = info["max"]
-        self._attr_native_step = info["step"]
+        # an amount of money (unit {valuta}/{valuta_kwh}) in a currency with 3 decimals (EUR, GBP) has a step ten times finer
+        money = "{valuta" in (info["unit"] or "")
+        self._attr_native_step = info["step"] / 10 if money and price_decimals(coordinator.config) == 3 else info["step"]
         self._attr_mode = NumberMode.BOX if info["mode"] == "box" else NumberMode.SLIDER
         # {valuta} / {valuta_kwh}: the currency of Home Assistant
         self._attr_native_unit_of_measurement = (

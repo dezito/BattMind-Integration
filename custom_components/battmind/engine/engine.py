@@ -333,16 +333,16 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self.forecast_type = self.forecast_type_auto or self.forecast_type_manual
         return self.forecast_type
 
-    def get_forecast_value(self, data: list | None = None) -> float:
+    def get_forecast_value(self, data: list | None = None, decimals: int = 2) -> float:
         """Forecast from a history list (newest first) using the selected forecast type."""
         if not data or not isinstance(data, list):
             return 0.0
         values = get_list_values(data)
         if self.forecast_type == "average":
-            return round(average(values), 2)
+            return round(average(values), decimals)
         if self.forecast_type == "trend":
-            return round(calculate_trend(reverse_list(values)), 2)
-        return round(calculate_ema(reverse_list(values)), 2)
+            return round(calculate_trend(reverse_list(values)), decimals)
+        return round(calculate_ema(reverse_list(values)), decimals)
 
     # ------------------------------------------------------------------ #
     # Battery math

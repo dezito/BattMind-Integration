@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime
 import logging
 
+from ....const import MIN_GAIN_PER_KWH, scaled
 from ....utils.formatting import emoji_parse
 from ....utils.helpers import days_between, hour_in, hours_between, reset_time_to_hour, round_up
 
@@ -26,7 +27,7 @@ class FutureSelling:
         maximum = ctx.config["solar"]["powerwall_battery_level_max"]
         min_profit_per_kwh = ctx.get_min_profit_per_kwh()
         # selling has to earn something more than using the energy, also with min_profit_per_kwh = 0
-        min_gain_per_kwh = max(min_profit_per_kwh, 0.01)
+        min_gain_per_kwh = max(min_profit_per_kwh, scaled(ctx.config, MIN_GAIN_PER_KWH))
         from_timestamp = max(ctx.charging_plan[day]["start_of_day"], ctx.current_sell_price_timestamp)
         lowest_timestamp, _, _ = self.lowest_battery_level_until_next_charge(ctx, day)
         grid_sell_prices_for_day, sell_price, using_grid_sell_price = self.sell_prices_for_window(ctx, 

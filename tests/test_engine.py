@@ -757,6 +757,73 @@ def test_solcast_alone_when_there_is_no_solar_history(solar_history: bool) -> No
     assert prediction[12] == pytest.approx((1.0 * 0.5 + 2.0 * 1.5) / 2 if solar_history else 2.0, abs=0.051)
 
 
+def _as_utc(moment: datetime.datetime) -> datetime.datetime:
+    return moment.replace(tzinfo=TZ).astimezone(datetime.timezone.utc)
+
+
+def test_weather_forecast_times_are_read_in_the_home_assistant_time_zone() -> None:
+    """Home Assistant gives forecast times in UTC: 12:00 local (CEST) is 10:00 UTC, and a day starts at 22:00 UTC the day before."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options=SOLAR_OPTIONS)
+    tomorrow = datetime.datetime.combine(DAY + datetime.timedelta(days=1), datetime.time(0))
+    hourly = {"datetime": _as_utc(tomorrow.replace(hour=12)).isoformat(), "condition": "sunny"}
+    daily = {"datetime": _as_utc(tomorrow).isoformat(), "condition": "rainy"}
+    snap = snapshot(now, 50)
+    snap.forecast_dict = {"hourly": [hourly], "daily": [daily]}
+    for moment, expected in (
+        (tomorrow.replace(hour=12), hourly),
+        (tomorrow.replace(hour=5), daily),
+        (tomorrow - datetime.timedelta(hours=1), None),  # 23:00 the evening before is still the day before
+    ):
+        result = engine.run_job(snap, engine.get_forecast, moment)
+        assert result.error is None, result.error
+        assert result.value == expected
+
+
+@pytest.mark.parametrize("stamp", ["2026-10-23T00:00:00+00:00", "2026-10-23T04:00:00+00:00", "2026-10-23T00:00:00-04:00"])
+def test_a_daily_forecast_keeps_its_day_west_of_utc(stamp: str) -> None:
+    """New York: a daily row stamped with the date at 00:00Z, the local midnight in UTC (04:00Z) and the local midnight keep the 23rd."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options=SOLAR_OPTIONS)
+    daily = {"datetime": stamp, "condition": "rainy"}
+    snap = snapshot(now, 50)
+    snap.tz = zoneinfo.ZoneInfo("America/New_York")
+    snap.forecast_dict = {"hourly": [], "daily": [daily]}
+    for moment, expected in ((datetime.datetime(2026, 10, 23, 5), daily), (datetime.datetime(2026, 10, 22, 23), None)):
+        result = engine.run_job(snap, engine.get_forecast, moment)
+        assert result.error is None, result.error
+        assert result.value == expected
+
+
+@pytest.mark.parametrize("period_start", [
+    lambda noon: noon.replace(tzinfo=TZ).astimezone(datetime.timezone.utc),
+    lambda noon: noon.replace(tzinfo=TZ),
+    lambda noon: noon.replace(tzinfo=TZ).astimezone(datetime.timezone.utc).isoformat(),
+], ids=["utc", "local-offset", "text"])
+def test_solcast_hours_are_read_in_the_home_assistant_time_zone(period_start) -> None:
+    """Solcast's period_start has its own offset: the hour of the price is the one in Home Assistant's time zone."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options=SOLAR_OPTIONS)
+    noon = datetime.datetime.combine(DAY, datetime.time(12))
+    snap = snapshot(now, 50)
+    snap.solcast = {"sensor.solcast_today": [{"period_start": period_start(noon), "pv_estimate": 2.0}]}
+    result = engine.run_job(snap, engine.get_solar_kwh_forecast)
+    assert result.error is None, result.error
+    assert list(result.value) == [noon]
+
+
+def test_solcast_keeps_the_first_row_of_a_repeated_hour() -> None:
+    """The repeated hour of the autumn change has one key: the first row wins, like in the weather forecast."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options=SOLAR_OPTIONS)
+    noon = datetime.datetime.combine(DAY, datetime.time(12))
+    snap = snapshot(now, 50)
+    snap.solcast = {"sensor.solcast_today": [{"period_start": noon, "pv_estimate": 1.0}, {"period_start": noon, "pv_estimate": 3.0}]}
+    result = engine.run_job(snap, engine.get_solar_kwh_forecast)
+    assert result.error is None, result.error
+    assert 0.0 < result.value[noon][0] < 1.0  # 1 kWh from the first row less the house use; the second row (3 kWh) would be above 2
+
+
 # (time, battery level, solar blocking scenario: no selling and a high sell price at 10:00)
 UNSUPPORTED_SCENARIOS = [
     *((datetime.time(hour, 30), level, False) for hour in (0, 4, 10, 19) for level in (5, 60, 95)),

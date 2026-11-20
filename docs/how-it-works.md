@@ -99,6 +99,19 @@ average, the plan subtracts 0.15 kr. A day ahead is only corrected after 7 days 
 most ±0.50 kr. The [price forecast analysis](dashboard-analysis.md#price-forecast) shows the measurements
 and the correction used.
 
+**Prices in another currency.** The amounts above (and the small limits of the planner, such as the 0.01 kr a
+sale or a charge has to earn at least, and the smallest saving that gives a score) are chosen for Danish
+kroner. When BattMind is set up, and again each time its options are saved, it reads the unit of the price
+sensor (e.g. `EUR/kWh`) and stores a *price scale*, so these amounts follow the currency: with euro prices the
+adder is about 0.0045 € per day, the correction limit about ±0.07 € and the smallest gain about 0.0013 €, and
+prices are rounded to 3 decimals instead of 2. What you enter yourself, such as the *Wear cost*, is never
+changed. For a new installation the *Sell fee* suggested on the price page and the starting values of the two
+*price rise* thresholds follow the currency (an import or a restored backup keeps its own values), so after
+changing to prices in another currency, check the *Sell fee* and the thresholds yourself. A sensor without a known unit (or one in MWh or cents) leaves the scale as it is (kroner for a new
+installation), and Home Assistant's own currency setting is not used for this. The rates are rough: they only
+set the size of the limits, no price is ever converted. Currencies worth much less than a krone (CZK, HUF, ISK)
+are not recognised yet.
+
 BattMind also keeps its **own price database**: every day the buy and sell prices from the price
 integration are stored per hour of the day and weekday (only real prices – never the estimates below). It
 is used when prices are missing:

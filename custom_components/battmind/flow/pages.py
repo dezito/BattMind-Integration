@@ -8,9 +8,9 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.helpers import selector
 
-from ..const import FLOW_STEPS, PRICE_PROVIDER_KEYS
+from ..const import FLOW_STEPS, PRICE_PROVIDER_KEYS, default_options, price_scale
 from ..management.dependency_checks import disabled_sensors
-from ..prices import STROMLIGNING_PLATFORM, STROMLIGNING_UNIQUE_ID_PREFIXES, has_stromligning_sell_prices
+from ..prices import STROMLIGNING_PLATFORM, STROMLIGNING_UNIQUE_ID_PREFIXES, detect_price_scale, has_stromligning_sell_prices
 from ..utils.cjp import cjp_charger_power_entities
 from ..utils.solcast import SOLCAST_PLATFORM
 from .detection import Detection, async_detect, evidence_placeholders, verdict_values
@@ -65,12 +65,38 @@ class BattMindFlowPages:
     async def _async_finish(self) -> ConfigFlowResult:
         raise NotImplementedError
 
+    # True while a new entry is made (not changed): the defaults that are amounts of money follow the price currency then
+    _new_entry: bool = False
+
+    # set when a new entry's prices are not in kroner: its other money defaults (wear, thresholds) are scaled on finish
+    _kroner_defaults_scaled = False
+
+    def _apply_price_scale(self, suggest_fee: bool = False) -> None:
+        """Store prices.price_scale from the unit of the price sensors (kept as it is when no sensor has a known unit).
+
+        suggest_fee (the page of the fee, before it is shown): a new installation gets the default sell fee, 0.03 kroner, in
+        the price currency. Not for an import or a restored backup (their own values stay) and not once the user has seen
+        the page. For a new installation the other money defaults follow on finish (_scale_money_defaults)."""
+        previous = price_scale({"prices": {"price_scale": self._options.get("price_scale", 1.0)}})
+        scale = detect_price_scale(self._options, self.hass.states.get)  # type: ignore[attr-defined]
+        if scale is None:
+            return
+        self._options["price_scale"] = scale
+        own_values = getattr(self, "_restore_backup", None) is not None or getattr(self, "_legacy_prefix", None) is not None
+        if self._new_entry and not own_values and previous == 1.0 and scale != 1.0:
+            self._kroner_defaults_scaled = True
+            fee = default_options()["sell_fee"]
+            if suggest_fee and self._options.get("sell_fee") == fee:
+                self._options["sell_fee"] = round(fee * scale, 3)
+
     def _placeholders(self) -> dict[str, str]:
         return {}
 
     async def _async_page(self, step: str, user_input: dict[str, Any] | None) -> ConfigFlowResult:
         keys = FLOW_STEPS[step]
         errors: dict[str, str] = {}
+        if step == "price_fees" and user_input is None:
+            self._apply_price_scale(suggest_fee=True)  # the price pages are done: the fee suggestion follows the currency
         values_for_form = dict(self._options)
         if user_input is not None:
             values = normalize_input(keys, user_input)

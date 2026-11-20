@@ -15,6 +15,7 @@ from ...const import (
     WHAT_IF_NUMBERS,
     WHAT_IF_SWITCHES,
     WHAT_IF_TEXTS,
+    price_decimals,
     unsupported_switches,
 )
 from ..optimizer import OptimizerConfig, OptimizerHour
@@ -646,6 +647,7 @@ class WhatIf:
                     float(hour_provider.get("sell_fee", 0.0)),
                     # a raw sell price has no tariffs: the selling costs come from the buy sensor
                     None if tariffs else hour_provider.get("sell_costs"),
+                    price_decimals(self.config),
                 )
                 sell_value = self.sell_value(sell_price)
             else:

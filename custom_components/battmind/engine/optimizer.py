@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime
 from dataclasses import dataclass, field, replace
 
+from ..const import PRICE_TIE_MARGIN
 from ..utils.efficiency import EfficiencyCurve, efficiency_at_power
 
 HOLD = "force_solar_only_charging"  # the house buys from the grid while the battery keeps its energy
@@ -61,6 +62,7 @@ class OptimizerConfig:
     min_profit_per_kwh: float = 0.0  # steers the choice only: a kWh out of the battery has to earn this much
     min_sell_kwh: float = 0.0
     min_total_profit: float = 0.0  # steers the choice only: a sale hour (to the grid) has to earn this much
+    price_scale: float = 1.0  # NEGATIVE_PRICE_MARGIN and the tie tolerance are for kroner (const/base.py price_scale)
     usage_reserve: float = 0.0  # % kept for the house; force discharge may not export below it
     step: float = 0.5  # % resolution of the battery level
     unsupported: frozenset = frozenset()  # actions the inverter can't run (never planned)
@@ -442,7 +444,7 @@ def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerC
                 target = max(sales, key=lambda j: (hours[j].sell, -j))
                 # buying to sell switched off: the sale goes, the charge may still be used for the house
                 explanation = {"rule": "grid_charge_to_sell", "target": target, "forbid": (target, "force_discharge")}
-            elif hour.buy / cfg.efficiency**2 + cfg.wear <= NEGATIVE_PRICE_MARGIN:
+            elif hour.buy / cfg.efficiency**2 + cfg.wear <= NEGATIVE_PRICE_MARGIN * cfg.price_scale:
                 # as the rule: a kWh pays even if it is never used (price incl. the charging loss, plus wear, below -0.01)
                 explanation = {"rule": "negative_price_planner", "target": None}
             elif solar_full is not None:
@@ -450,7 +452,7 @@ def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerC
                 explanation = {"rule": "needed_before_max_level_planner", "target": max(before, key=lambda j: (hours[j].buy, -j)) if before else None}
             else:
                 same_day = sorted(h.buy for h in hours if h.timestamp.date() == hour.timestamp.date())
-                cheapest = hour.buy <= same_day[min(2, len(same_day) - 1)] + 0.005
+                cheapest = hour.buy <= same_day[min(2, len(same_day) - 1)] + PRICE_TIE_MARGIN * cfg.price_scale
                 explanation = {
                     "rule": "cheapest_hour_fill_planner" if cheapest else "most_expensive_planner",
                     "target": max(uses, key=lambda j: (hours[j].buy, -j)) if uses else None,

@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime
 import logging
 
+from ....const import MIN_GAIN_PER_KWH, scaled
 from ....utils.formatting import emoji_parse
 from ....utils.helpers import average, days_between, hour_in, reset_time_to_hour
 
@@ -215,7 +216,7 @@ class FutureDischargeRules:
         )
         for timestamp, price in sorted(sell_prices.items(), key=lambda kv: (kv[1], kv[0]), reverse=True):
             gain_per_kwh = price - usage_value
-            if old_kwh <= 0.0 or gain_per_kwh < max(ctx.get_min_profit_per_kwh(), 0.01):
+            if old_kwh <= 0.0 or gain_per_kwh < max(ctx.get_min_profit_per_kwh(), scaled(ctx.config, MIN_GAIN_PER_KWH)):
                 break
             if timestamp.hour in exclude_hours or timestamp in ctx.charging_plan[day]["force_discharge_timestamps"]:
                 continue
@@ -395,7 +396,7 @@ class FutureDischargeRules:
         solar_lost_hours = set()
         for price, timestamp, kind, kwh, periods_in_hour in sorted(candidates, key=lambda item: (item[0], item[1]), reverse=True):
             gain = price - refill_cost
-            if budget_kwh <= 0.01 or gain < max(ctx.get_min_profit_per_kwh(), 0.01):
+            if budget_kwh <= 0.01 or gain < max(ctx.get_min_profit_per_kwh(), scaled(ctx.config, MIN_GAIN_PER_KWH)):
                 break
             budget_used = kwh
             if kind == "use":

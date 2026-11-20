@@ -12,6 +12,7 @@ then Energi Data Service) with a price for a timestamp wins; real prices always 
 forecasts.
 """
 from .base import BasePriceProvider, CombinedPriceProvider, periods_in_hour, price_at
+from .currency import detect_price_scale
 from .energidataservice import EnergiDataServicePriceProvider
 from .dashboard import price_dashboard_entities
 from .factory import create_price_provider, providers_from_options
@@ -32,6 +33,7 @@ __all__ = [
     "EnergiDataServicePriceProvider",
     "StromligningPriceProvider",
     "create_price_provider",
+    "detect_price_scale",
     "has_stromligning_sell_prices",
     "price_dashboard_entities",
     "providers_from_options",

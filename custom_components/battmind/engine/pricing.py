@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 import logging
 
-from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER
+from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER, price_decimals, price_scale
 from ..utils.helpers import day_of_week, days_between, minutes_between, reset_time_to_hour, start_of_day
 from ..prices import price_at
 from ..prices.base import sell_adder_sign
@@ -55,7 +55,7 @@ class Pricing:
             if corrections:
                 current_hour = reset_time_to_hour(now)
                 prices = {
-                    timestamp: round(price + corrections.get(days_between(current_hour, timestamp), 0.0), 2)
+                    timestamp: round(price + corrections.get(days_between(current_hour, timestamp), 0.0), price_decimals(self.config))
                     if provider.is_forecast(timestamp, sell_prices) else price
                     for timestamp, price in prices.items()
                 }
@@ -120,10 +120,10 @@ class Pricing:
         while timestamp < end:
             values = history.get(timestamp.hour, {}).get(day_of_week(timestamp), [])
             if timestamp not in priced_hours and values:
-                adder = days_between(current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER
+                adder = days_between(current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER * price_scale(self.config)
                 if history_key == "history_sell":
                     adder *= sell_adder_sign(self.config)
-                missing[timestamp] = round(self.get_forecast_value(values) + adder, 2)
+                missing[timestamp] = round(self.get_price_forecast_value(values) + adder, price_decimals(self.config))
             timestamp += datetime.timedelta(hours=1)
         return missing
 
@@ -132,6 +132,10 @@ class Pricing:
 
     def get_sell_prices(self, update_prices: bool = False) -> dict:
         return self.get_hour_prices(update_prices=update_prices, sell_prices=True)
+
+    def get_price_forecast_value(self, data: list | None = None) -> float:
+        """get_forecast_value of a list of prices: rounded to the decimals of the price currency (2 for kroner)."""
+        return self.get_forecast_value(data, price_decimals(self.config))
 
     def sell_value(self, price: float) -> float:
         """What a sold kWh is worth at this hourly sell price.
@@ -151,7 +155,7 @@ class Pricing:
         if result is not None:
             return round(self.sell_value(result[1]), 3)
         try:
-            return self.sell_value(self.get_forecast_value(self.kwh_avg_prices_db["history_sell"][self.now().hour][day_of_week(self.now())]))
+            return self.sell_value(self.get_price_forecast_value(self.kwh_avg_prices_db["history_sell"][self.now().hour][day_of_week(self.now())]))
         except KeyError:
             return 0.0
 
@@ -198,14 +202,14 @@ class Pricing:
                     try:
                         grid_price = history["history"][hour][dow][days_ago]
                     except (KeyError, IndexError):
-                        grid_price = self.get_forecast_value(history["history"][hour][dow])
+                        grid_price = self.get_price_forecast_value(history["history"][hour][dow])
                 if loop_timestamp in sell_prices:
                     sell_price = sell_prices[loop_timestamp]
                 else:
                     try:
                         sell_price = history["history_sell"][hour][dow][days_ago]
                     except (KeyError, IndexError):
-                        sell_price = self.get_forecast_value(history["history_sell"][hour][dow])
+                        sell_price = self.get_price_forecast_value(history["history_sell"][hour][dow])
 
                 kwh_price = grid_price * grid_share + self.sell_value(sell_price) * solar_share
                 kwh_prices.append(round(kwh_price, 3))

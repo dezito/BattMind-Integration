@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 
+from ...const import price_decimals
 from ...utils.helpers import days_between, hour_in
 
 _LOGGER = logging.getLogger(__name__)
@@ -91,7 +92,7 @@ class ChargingHours:
 
             if kwh > min_charging_kwh:
                 if hour not in charge_hours:
-                    charge_hours[hour] = {"Cost": 0.0, "kWh": 0.0, "battery_level": 0.0, "Price": round(price, 2)}
+                    charge_hours[hour] = {"Cost": 0.0, "kWh": 0.0, "battery_level": 0.0, "Price": round(price, price_decimals(config))}
 
                 if (kwh_needed - kwh) < 0.0:
                     kwh = kwh_needed
@@ -103,7 +104,7 @@ class ChargingHours:
                 total_cost = total_cost + cost
                 battery_level_added = kwh_to_percentage(kwh) * efficiency
 
-                charge_hours[hour]["Cost"] = round(charge_hours[hour]["Cost"] + cost, 2)
+                charge_hours[hour]["Cost"] = round(charge_hours[hour]["Cost"] + cost, price_decimals(config))
                 charge_hours[hour]["kWh"] = round(charge_hours[hour]["kWh"] + kwh, 2)
                 charge_hours[hour]["battery_level"] = round(charge_hours[hour]["battery_level"] + battery_level_added, 2)
                 total_kwh = round(total_kwh + kwh, 2)

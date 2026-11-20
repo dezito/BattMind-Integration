@@ -7,10 +7,8 @@ import math
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from dateutil import parser as dateutil_parser
-
-from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER
-from ..utils.helpers import days_between, float_or_none, reset_time_to_hour
+from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER, price_decimals, price_scale
+from ..utils.helpers import days_between, float_or_none, reset_time_to_hour, to_local_datetime
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,13 +33,14 @@ GetState = Callable[[str], Any]
 
 
 def calculate_sell_price(
-    price: float, tariffs: dict[str, float], sell_fee: float, sell_costs: dict[str, float] | None = None
+    price: float, tariffs: dict[str, float], sell_fee: float, sell_costs: dict[str, float] | None = None, decimals: int = 2
 ) -> float:
     """Sell price: the tariffs, taxes and surcharge in the price are subtracted (spot price), and
     then what selling a kWh costs: the sell fee plus Energinet's net and system tariff.
 
     tariffs: the tariffs included in price. sell_costs: the net and system tariff paid when
     selling (default: those in tariffs), for a raw sell price that includes no tariffs.
+    decimals: what the sell price is rounded to (price_decimals of the config).
     """
     costs = tariffs if sell_costs is None else sell_costs
     return round(
@@ -50,7 +49,7 @@ def calculate_sell_price(
         - abs(sell_fee)
         - costs.get("transmissions_nettarif", 0.0)
         - costs.get("systemtarif", 0.0),
-        2,
+        decimals,
     )
 
 
@@ -76,19 +75,7 @@ def price_timestamp(value, tz: datetime.tzinfo | None = None):
     time zone) before the offset is dropped; a naive one is taken as local time already. Without a tz the offset
     is just dropped. Anything that is no timestamp is returned unchanged (the providers skip such rows).
     """
-    if isinstance(value, str):
-        try:
-            value = dateutil_parser.isoparse(value)
-        except (ValueError, OverflowError):
-            return value
-    if isinstance(value, datetime.datetime):
-        if tz is not None and value.tzinfo is not None:
-            try:
-                value = value.astimezone(tz)
-            except OverflowError:  # a timestamp at the edge of the calendar: keep its own wall time
-                pass
-        return value.replace(tzinfo=None)
-    return value
+    return to_local_datetime(value, tz)
 
 
 def price_at(prices: dict, timestamp: datetime.datetime):
@@ -123,6 +110,9 @@ class BasePriceProvider:
         self.entity_ids: dict[str, str] = dict(prices_config["entity_ids"])
         self.sell_fee = abs(prices_config.get("sell_fee", 0.0))
         self.sell_adder_sign = sell_adder_sign(config)
+        # the money limits are for kroner: prices in another currency scale them (const/base.py price_scale)
+        self.price_scale = price_scale(config)
+        self.decimals = price_decimals(config)
         self.attributes: dict[str, dict] = {}
         self.values: dict[str, float] = {}
         self.current_hour = reset_time_to_hour(datetime.datetime.now())
@@ -167,12 +157,12 @@ class BasePriceProvider:
         """Forecast prices get a small penalty per day ahead to prefer known prices.
 
         A forecast buy price is dearer, and a sale at a forecast sell price is worth less (sell_adder_sign)."""
-        adder = days_between(self.current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER
+        adder = days_between(self.current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER * self.price_scale
         return adder * self.sell_adder_sign if sell else adder
 
     def calculate_sell_price(self, timestamp: datetime.datetime, price: float) -> float:
         tariff = self.get_tariffs(timestamp)
-        return calculate_sell_price(price, tariff, self.sell_fee, self.get_sell_costs(timestamp))
+        return calculate_sell_price(price, tariff, self.sell_fee, self.get_sell_costs(timestamp), self.decimals)
 
     def buy_price_entity_id(self) -> str:
         return self.entity_ids.get(self.buy_key, "")
@@ -228,6 +218,8 @@ class CombinedPriceProvider:
         self.entity_ids: dict[str, str] = dict(prices_config["entity_ids"])
         self.refund = abs(prices_config.get("refund", 0.0))
         self.sell_adder_sign = sell_adder_sign(config)
+        self.price_scale = price_scale(config)
+        self.decimals = price_decimals(config)
         self.current_hour = reset_time_to_hour(datetime.datetime.now())
         self.buy_prices: dict = {}
         self.sell_prices: dict = {}
@@ -299,14 +291,14 @@ class CombinedPriceProvider:
                     # filled from the price history (or the next provider), never invented
                     unusable += 1
                 elif timestamp not in prices:
-                    prices[timestamp] = real[timestamp] = round(price, 2)
+                    prices[timestamp] = real[timestamp] = round(price, self.decimals)
                     sources[timestamp] = f"{provider.source_name}:real"
         for provider in self.providers:
             for timestamp, price in getattr(provider, f"{kind}_forecast_prices").items():
                 if not is_number(price):
                     unusable += 1
                 elif timestamp not in prices:
-                    prices[timestamp] = round(price, 2)
+                    prices[timestamp] = round(price, self.decimals)
                     sources[timestamp] = f"{provider.source_name}:forecast"
         if unusable:
             _LOGGER.warning("Ignoring %s %s prices that are not a finite number", unusable, kind)
@@ -337,7 +329,7 @@ class CombinedPriceProvider:
 
     def _forecast(self, prices: dict, sources: dict, adder: bool, sign: float) -> dict:
         return {
-            timestamp: price if adder else price - sign * days_between(self.current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER
+            timestamp: price if adder else price - sign * days_between(self.current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER * self.price_scale
             for timestamp, price in prices.items()
             if str(sources.get(timestamp, "")).endswith(":forecast")
         }

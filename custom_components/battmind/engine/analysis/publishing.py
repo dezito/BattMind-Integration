@@ -4,11 +4,13 @@ from __future__ import annotations
 import datetime
 import logging
 
-from ...const import CHARGING_TYPES
+from ...const import CHARGING_TYPES, price_decimals, scaled
 from ...utils.efficiency import learned_efficiency_curve, measured_efficiency_steps, parse_efficiency_curve
 from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_AUTO_MIN_DAYS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_VERSION, _is_num, _num, forecast_errors, loss_days, measured_loss
 
 _LOGGER = logging.getLogger(__name__)
+
+SCORE_MIN_POSSIBLE = 0.05  # kroner (times price_scale): a day with less to save than this has no score
 
 
 class AnalysisPublishing:
@@ -288,6 +290,7 @@ class AnalysisPublishing:
 
         # hindsight score --------------------------------------------------------
         scores = []
+        min_possible = scaled(self.config, SCORE_MIN_POSSIBLE)
         for date, day in sorted(closed.items()):
             score = day.get("score")
             # a score of an older hindsight model is not comparable
@@ -297,9 +300,9 @@ class AnalysisPublishing:
             possible = score["no_battery"] - score["optimal"]
             scores.append({
                 "date": date,
-                "saved": round(saved, 2),
-                "possible": round(possible, 2),
-                "score": round(min(max(saved / possible, -1.0), 1.0), 3) if possible > 0.05 else None,
+                "saved": round(saved, price_decimals(self.config)),
+                "possible": round(possible, price_decimals(self.config)),
+                "score": round(min(max(saved / possible, -1.0), 1.0), 3) if possible > min_possible else None,
             })
         recent_scores = [row for row in scores if row["date"] >= (today - datetime.timedelta(days=30)).isoformat()]
         possible_30 = sum(row["possible"] for row in recent_scores)
@@ -336,7 +339,7 @@ class AnalysisPublishing:
             "price_forecast": price_forecast,
             "solar_forecast": {key: solar_errors(source) for key, source in (("plan", "plan_solar"), ("database", "solar_database"), ("forecast", "solar_forecast"))},
             "scores": scores[-ANALYSIS_TABLE_DAYS:],
-            "score_30": round(sum(row["saved"] for row in recent_scores) / possible_30, 3) if possible_30 > 0.05 else None,
+            "score_30": round(sum(row["saved"] for row in recent_scores) / possible_30, 3) if possible_30 > min_possible else None,
             "score_days": len(recent_scores),
             "expensive": expensive[-ANALYSIS_TABLE_DAYS:],
             "expensive_30": {

@@ -11,7 +11,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
 from ..management.backup import BACKUP_DIR, async_load_backup, backup_dir, list_backups
-from ..const import CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX, DOMAIN, SENSOR_KEYS, dashboard_icon, default_options, normalize_language, strip_removed_options
+from ..const import CONF_ENTITY_PREFIX, DEFAULT_ENTITY_PREFIX, DOMAIN, NUMBER_SETTINGS, SENSOR_KEYS, dashboard_icon, default_options, normalize_language, price_scale, strip_removed_options
 from ..management.storage import find_legacy_sources, load_legacy_config
 from ..prices import providers_from_options
 from .pages import BattMindFlowPages
@@ -23,6 +23,7 @@ class BattMindConfigFlow(BattMindFlowPages, ConfigFlow, domain=DOMAIN):
     """Handle the BattMind config flow."""
 
     VERSION = 1
+    _new_entry = True
 
     def __init__(self) -> None:
         self._prefix = DEFAULT_ENTITY_PREFIX
@@ -172,8 +173,22 @@ class BattMindConfigFlow(BattMindFlowPages, ConfigFlow, domain=DOMAIN):
             description_placeholders={"prefix": self._prefix, "files": files},
         )
 
+    def _scale_money_defaults(self) -> None:
+        """A new entry with prices that are not in kroner: the starting values of the two price rise thresholds follow the currency.
+
+        They are number entities the user has not seen in the flow. Nothing the user enters is changed (the wear cost is
+        theirs, in their currency), and nothing at all for an import or a restored backup."""
+        if self._restore_backup is not None or self._legacy_prefix is not None:
+            return
+        scale = price_scale({"prices": {"price_scale": self._options.get("price_scale", 1.0)}})
+        for key in ("cheapest_price_rise_threshold", "cheap_price_period_rise_threshold"):
+            self._initial_settings.setdefault(key, round(NUMBER_SETTINGS[key]["default"] * scale, 3))
+
     async def _async_finish(self) -> ConfigFlowResult:
         title = "BattMind" if self._prefix == DEFAULT_ENTITY_PREFIX else f"BattMind ({self._prefix})"
+        self._apply_price_scale()
+        if self._kroner_defaults_scaled:
+            self._scale_money_defaults()
         return self.async_create_entry(
             title=title,
             data={

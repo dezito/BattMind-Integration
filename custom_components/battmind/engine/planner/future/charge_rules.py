@@ -5,6 +5,7 @@ import datetime
 import logging
 import math
 
+from ....const import MIN_GAIN_PER_KWH, scaled
 from ....utils.formatting import emoji_parse
 from ....utils.helpers import days_between, hour_in, in_between, reset_time_to_hour, reverse_list, round_up
 
@@ -315,7 +316,7 @@ class FutureChargeRules:
         total_cost, total_kwh = ctx.totals
         for timestamp, price in ctx.sorted_by_cheapest_price:
             kwh_profit = self.charge_kwh_profit(ctx, price, 0.0)
-            if kwh_profit < 0.01:
+            if kwh_profit < scaled(ctx.config, MIN_GAIN_PER_KWH):
                 break
             what_day = days_between(ctx.current_hour, timestamp)
             if what_day != day or timestamp < ctx.current_hour:
@@ -348,7 +349,7 @@ class FutureChargeRules:
         have to fit in the battery until the sale, and an hour either charges or sells.
         """
         total_cost, total_kwh = ctx.totals
-        min_gain = max(ctx.get_min_profit_per_kwh(), 0.01)
+        min_gain = max(ctx.get_min_profit_per_kwh(), scaled(ctx.config, MIN_GAIN_PER_KWH))
         exclude_hours = self.get_exclude_sell_hours()
         # the reserve for the house: nothing is planned to be exported below it (as in the other sell rules)
         usage_minimum = max(ctx.config["solar"]["powerwall_battery_level_min"], self.number("usage_reserve"))

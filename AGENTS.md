@@ -96,6 +96,27 @@ Read the relevant documentation before changing behavior. In particular:
 - Respect Home Assistant timestamps and configured time zones. Avoid naive
   datetime assumptions and test day boundaries, missing/future price data,
   and daylight-saving transitions when relevant.
+- Timestamps from other integrations (price rows, the weather forecast, Solcast `period_start`) can carry any
+  offset, often UTC. Read them with `to_local_datetime(value, tz)` (`utils/helpers.py`; `price_timestamp()` in
+  `prices/base.py` is the same call for price rows): it converts to Home Assistant's time zone (`snapshot.tz`)
+  before it drops the offset. A naive timestamp is local time. The providers get the zone through
+  `CombinedPriceProvider.update_prices(..., tz)`. A daily weather forecast whose time is midnight in its own offset names a date and keeps it
+  (`forecast_day()`); any other time is converted. The repeated hour of the autumn change shares one price key;
+  which row wins depends on the provider (Energi Data Service: the last row; Strømligning: the first, its
+  distribution tariff the last). Data stored before the conversion (prices, averages and price hours, the
+  weather score of `solar_available_db`) keeps its old hours when the source gave UTC; it is not migrated and
+  phases out.
+- Money limits are chosen for Danish kroner (the forecast adder, the rounding of prices, profit floors and ties, score
+  thresholds, the cap of the price correction). A config entry stores `prices.price_scale` (how many of its units one
+  krone is worth, `CURRENCY_PRICE_SCALE` in `const/base.py`); missing means 1.0, so existing entries and every result in
+  kroner stay exactly as they were. The flow sets it from the unit of the price sensors (`prices/currency.py`), never
+  from Home Assistant's currency setting (EUR by default, also in Denmark). A new money amount per kWh in the code is
+  chosen for kroner and read through `price_scale(config)`, `scaled(config, amount)` and `price_decimals(config)`;
+  never scale a value the user entered (the wear cost is theirs, in their currency) or the `-1` of the fixed solar sell
+  price. A new entry's suggested sell fee and the starting values of the two price rise thresholds follow the price
+  currency (an import or a restored backup keeps its own). The
+  rates are rough and only set the size of a limit, no price is converted. A unit in cents or per MWh is not recognised
+  (the scale stays).
 - Preserve compatibility of config-entry options, entity IDs/unique IDs,
   stored data, backups, and migration from the PyScript version. Changes to
   these formats or identifiers require a migration/compatibility path and
