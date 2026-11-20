@@ -691,6 +691,9 @@
   },
   "entity": {
     "switch": {
+      "automation_test_run": {
+        "name": "Test min automation"
+      },
       "what_if_run": {
         "name": "Start simulering"
       },
@@ -1025,6 +1028,16 @@
       },
       "what_if": {
         "name": "What-if-resultat"
+      },
+      "automation_test": {
+        "name": "Automationstest",
+        "state": {
+          "idle": "Inaktiv",
+          "running": "Kører",
+          "done": "Færdig",
+          "stopped": "Stoppet",
+          "failed": "Mislykket"
+        }
       },
       "what_if_status": {
         "name": "What-if-status",

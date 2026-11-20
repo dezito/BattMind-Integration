@@ -188,6 +188,9 @@ WHAT_IF_OVERRIDE_TEXTS: dict[str, str] = {f"what_if_{key}": key for key in WHAT_
 WHAT_IF_INPUT_KEYS = (*WHAT_IF_INPUT_NUMBERS, *WHAT_IF_INPUT_SWITCHES)
 # the switch that runs (on) and stops (off) a simulation, and the button that clears the scenario
 WHAT_IF_RUN_SWITCH = "what_if_run"
+# the test of the user's automation: the switch that runs it and the status of the last run
+AUTOMATION_TEST_RUN_SWITCH = "automation_test_run"
+AUTOMATION_TEST_STATUSES = ("idle", "running", "done", "stopped", "failed")
 WHAT_IF_BUTTON_KEYS = ("reset_what_if_settings",)
 # binary sensors: which parts the last what-if result has (the dashboard shows only the parts that exist)
 WHAT_IF_FLAGS = {

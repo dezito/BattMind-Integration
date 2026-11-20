@@ -18,6 +18,8 @@ charging history:
   (without BattMind's daily adder), and the real price once it is known; kept a week.
 - price_days: when all real prices of a day are known, the forecast error per days ahead and
   how well the forecast found the day's cheapest and most expensive hours.
+- plan_check: per hour whether the battery did what the published action asked (engine/analysis/plan_check.py);
+  only observed, kept 14 days, published as the attribute plan_check of sensor.<prefix>_powerwall_action.
 - efficiency: AC and battery kWh per AC power step for charging and discharging, measured between
   changes of the battery level (utils/efficiency); the measured efficiency curves. The first time
   the recorder history of the battery power and level is measured too (coordinator).
@@ -33,6 +35,7 @@ import logging
 
 from ..energy.energy import derive_power_values
 from ...utils.power import unique_entity_ids, unit_factor_to_w
+from .plan_check import PlanCheck
 from .publishing import AnalysisPublishing
 from .recording import AnalysisRecording
 from .helpers import ANALYSIS_DAYS, ANALYSIS_BACKFILL_VERSION, DAY_SUMS, FLOWS_SCORE_TOLERANCE_KWH, FLOWS_VERSION, FORECAST_AUTO_DAYS, FORECAST_AUTO_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_CORRECTION_MAX, _num, _is_num, _r, auto_forecast_choice, forecast_errors, summarize_day
@@ -40,12 +43,12 @@ from .helpers import ANALYSIS_DAYS, ANALYSIS_BACKFILL_VERSION, DAY_SUMS, FLOWS_S
 _LOGGER = logging.getLogger(__name__)
 
 
-class Analysis(AnalysisRecording, AnalysisPublishing):
+class Analysis(AnalysisRecording, AnalysisPublishing, PlanCheck):
     """The analysis database and sensor.<prefix>_analysis."""
 
     def load_analysis_db(self, database) -> None:
         db = database if isinstance(database, dict) else {}
-        for key in ("hours", "days", "plans", "rule_days", "price_hours", "price_days"):
+        for key in ("hours", "days", "plans", "rule_days", "price_hours", "price_days", "plan_check"):
             if not isinstance(db.get(key), dict):
                 db[key] = {}
         self.analysis_db = db

@@ -40,6 +40,7 @@ class AnalysisPublishing:
             self._analysis_rule_days()
             self._analysis_prune()
             self._publish_analysis()
+            self.set_attr("powerwall_action", "plan_check", self.plan_check_summary())
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Publishing the analysis failed")
 

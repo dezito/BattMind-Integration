@@ -31,6 +31,15 @@
       "what_if_progress": {
         "default": "mdi:progress-clock"
       },
+      "automation_test": {
+        "default": "mdi:test-tube",
+        "state": {
+          "running": "mdi:test-tube",
+          "done": "mdi:clipboard-check-outline",
+          "stopped": "mdi:test-tube-off",
+          "failed": "mdi:test-tube-off"
+        }
+      },
       "what_if_status": {
         "default": "mdi:flask-empty-outline",
         "state": {
@@ -42,6 +51,12 @@
       }
     },
     "switch": {
+      "automation_test_run": {
+        "default": "mdi:test-tube",
+        "state": {
+          "on": "mdi:stop"
+        }
+      },
       "what_if_run": {
         "default": "mdi:play",
         "state": {

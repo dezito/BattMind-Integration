@@ -36,6 +36,9 @@ custom_components/battmind/             The HA integration (HACS payload)
 │   ├── energy/                          Price, solar, forecast, and energy inputs
 │   ├── history/                         Recorder queries and stored history
 │   ├── analysis/                        Results, recording, and published analysis
+│   │   └── plan_check.py                Plan vs reality: observation only, stored in `analysis_db["plan_check"]`
+│   ├── automation_test.py               Test of the user's automation: step verdicts, held action, markdown result
+│   │                                    (the runner is `coordinator/automation_test.py`; the held action ends in `planning.py`)
 │   └── battery.py / state.py            Battery model and planning state
 ├── prices/                              Price providers; CombinedPriceProvider is the only entry point
 ├── management/                          Storage, backups, dashboard, and blueprint setup

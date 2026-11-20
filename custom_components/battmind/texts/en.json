@@ -341,6 +341,74 @@
       "enhance_battery_efficiency": "Enhance battery efficiency",
       "cheapest_hour_fill_up": "Charging: Fill up during cheapest period"
     },
+    "automation_test": {
+      "rule": "Testing your automation: {action}",
+      "not_run": "The test has not been run yet. Turn on **Test my automation** to start it.",
+      "status": {
+        "idle": "Test not running",
+        "running": "Running the test…",
+        "done": "Test finished",
+        "stopped": "Test stopped",
+        "failed": "Test could not run"
+      },
+      "column_action": "Action",
+      "column_result": "Result",
+      "action": {
+        "grid_charging": "Charge from grid",
+        "force_discharge": "Forced discharge",
+        "battery_stopped": "Stop battery",
+        "discharge_allowed": "Discharge allowed",
+        "force_solar_only_charging": "Solar charging only",
+        "blocked_solar_charge": "Solar charging blocked"
+      },
+      "running_note": "Each action is published for up to 5 minutes and passes as soon as the battery has shown what it should do. Turn the switch off to stop; BattMind's own action is then published again.",
+      "summary": "{ok} of {total} actions worked, {fail} did not work, {skip} could not be tested.",
+      "stop_reason": {
+        "battery_stopped": "The test ended because the battery is stopped for temperature. That is a safety the test never overrides.",
+        "expired": "The test ended because the published action ran out before the step was done.",
+        "stopped": "The test was stopped.",
+        "internal_error": "The test failed with an error. See the Home Assistant log.",
+        "not_configured": "The test needs sensors for the battery power, the battery level and the house consumption.",
+        "not_ready": "BattMind has not published an action yet. Try again after the first calculation.",
+        "no_level": "The battery level sensor has no number right now."
+      },
+      "fail_hint": "For an action that did not work: open the automation's trace and check that it ran the steps for that action, and that the inverter took the commands.",
+      "put_back": "BattMind's own action is published again, and nothing else was changed.",
+      "legend": "✅ worked · ❌ the battery did not react · 🔧 not tested",
+      "ev_hint": "If the car was charging, the blueprint runs its EV action instead of this one.",
+      "ok": {
+        "grid_charging": "The battery charged from the grid at {charge} W.",
+        "force_discharge": "The battery discharged at {discharge} W, more than the house used.",
+        "battery_stopped": "The battery stood still ({charge} W charging, {discharge} W discharging).",
+        "discharge_allowed": "The battery discharged {discharge} W into the house.",
+        "force_solar_only_charging": "The battery did not discharge ({discharge} W) while the house used {deficit} W more than the sun gave.",
+        "blocked_solar_charge": "The battery did not charge ({charge} W) while the sun gave {surplus} W more than the house used."
+      },
+      "fail": {
+        "grid_charging": "The battery did not charge from the grid (it showed {charge} W).",
+        "force_discharge": "The battery did not discharge more than the house used (it showed {discharge} W).",
+        "battery_stopped": "The battery kept moving ({charge} W charging, {discharge} W discharging).",
+        "discharge_allowed": "The battery did not discharge into the house (it showed {discharge} W).",
+        "force_solar_only_charging": "The battery discharged {discharge} W.",
+        "blocked_solar_charge": "The battery charged {charge} W."
+      },
+      "skip": {
+        "unsupported": "Not tested: your inverter setup says it can't run this action.",
+        "limit": "Not tested: the battery is too full or too empty right now to show it.",
+        "no_load": "Not tested: this needs the house to use more than the sun gives, and it does not right now.",
+        "no_surplus": "Not tested: this needs a solar surplus, and there is none right now.",
+        "unproven": "Not proven: the sun or the house load could explain what was seen.",
+        "ev": "Not tested: a car is charging, and the blueprint's EV action may run instead.",
+        "no_data": "Not tested: a sensor had no number.",
+        "not_reached": "Not reached: the test ended before this step.",
+        "battery_stopped": "Not tested: the battery was stopped for temperature.",
+        "expired": "Not finished: the published action ran out.",
+        "no_baseline": "Not proven: the battery was already doing what this action asks, so a change can't be seen.",
+        "not_published": "Not tested: BattMind could not publish the action (see the log).",
+        "no_steps": "Not tested: your automation has no steps for this action."
+      },
+      "automation_unknown": "BattMind could not find your automation in automations.yaml, so it can't see which actions have steps (an automation kept in a package or in YAML mode is not found)."
+    },
     "backup": {
       "exported": "Backup saved as {file}",
       "imported": "Backup {file} restored (databases: {databases})."
@@ -581,6 +649,8 @@
     "help_discharging": "* **Profit only**: block discharging in hours where the battery's kWh cost (incl. loss and wear) is higher than the price.\n* **Prioritise expensive hours**: save the battery for the most expensive hours until it is charged again.\n* **Before the sun**: use/sell the battery before the sun when it gets full of solar anyway and the surplus is sold cheaply.\n* **Max. hours old kWh**: energy older than this is used even without profit, and sold when that pays more.",
     "help_selling": "* **Maximise profit**: sell in the most expensive periods when that pays more than using the energy yourself.\n* **Sell excess kWh**: sell the energy that isn't used before the battery is empty or full again.\n* **Use midnight battery level**: only look until midnight instead of the whole forecast period.\n* **Buy to sell**: charge cheaply from the grid only to sell the kWh again when it pays after loss and wear.",
     "help_solar": "* **Solar charging**: include the solar surplus in the plan.\n* **Optimise solar charging**: sell the solar surplus in the expensive hours and fill the battery in the cheap solar hours instead. Only when the sun will still fill the battery later.",
+    "section_automation_test": "Test my automation",
+    "help_automation_test": "BattMind never controls your battery: your own automation does, when BattMind's action changes. This test checks that the automation really does what each action should.\n\n* **Test my automation**: turn it on to start. BattMind publishes the actions one after the other (Charge from grid, Forced discharge, Stop battery, Discharge allowed, Solar charging only, Solar charging blocked) and measures the battery. A step passes as soon as the battery has shown what it should do, and waits at most 5 minutes. Turn the switch off to stop; BattMind's own action is then published again.\n* **Automation test**: the status of the test: idle, running, done, stopped or failed.\n* The table below shows every action: ✅ worked, ❌ the battery did not react, 🔧 not tested. Actions that depend on the sun or the house load can only be proven when the conditions are right (e.g. the action that blocks solar charging needs a solar surplus), so they are shown as not tested, with the reason, instead of passing.\n\n**Be aware:** the test charges the battery from the grid and discharges it to the grid for a few minutes, and it changes what the inverter does. Nothing is tested while the battery is stopped for temperature, and the plan and the settings are not changed. Energy the test moves is counted like any other energy in the history of the hour.",
     "consumption_forecast": "Consumption forecast",
     "history_title": "History",
     "section_economy": "Economy per month",

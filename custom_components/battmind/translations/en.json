@@ -691,6 +691,9 @@
   },
   "entity": {
     "switch": {
+      "automation_test_run": {
+        "name": "Test my automation"
+      },
       "what_if_run": {
         "name": "Run simulation"
       },
@@ -1025,6 +1028,16 @@
       },
       "what_if": {
         "name": "What-if result"
+      },
+      "automation_test": {
+        "name": "Automation test",
+        "state": {
+          "idle": "Idle",
+          "running": "Running",
+          "done": "Done",
+          "stopped": "Stopped",
+          "failed": "Failed"
+        }
       },
       "what_if_status": {
         "name": "What-if status",

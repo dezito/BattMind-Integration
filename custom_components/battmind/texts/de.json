@@ -341,6 +341,74 @@
       "enhance_battery_efficiency": "Batterieeffizienz verbessern",
       "cheapest_hour_fill_up": "Laden: In der günstigsten Zeit vollständig laden"
     },
+    "automation_test": {
+      "rule": "Test deiner Automation: {action}",
+      "not_run": "Der Test wurde noch nicht ausgeführt. Schalte **Meine Automation testen** ein, um ihn zu starten.",
+      "status": {
+        "idle": "Der Test läuft nicht",
+        "running": "Der Test läuft…",
+        "done": "Der Test ist abgeschlossen",
+        "stopped": "Der Test wurde gestoppt",
+        "failed": "Der Test konnte nicht laufen"
+      },
+      "column_action": "Aktion",
+      "column_result": "Ergebnis",
+      "action": {
+        "grid_charging": "Aus dem Netz laden",
+        "force_discharge": "Erzwungene Entladung",
+        "battery_stopped": "Batterie stoppen",
+        "discharge_allowed": "Entladung erlaubt",
+        "force_solar_only_charging": "Nur Solarladung",
+        "blocked_solar_charge": "Solarladung blockiert"
+      },
+      "running_note": "Jede Aktion wird bis zu 5 Minuten veröffentlicht und gilt als bestanden, sobald die Batterie gezeigt hat, was sie tun soll. Schalte den Schalter aus, um zu stoppen; danach wird wieder BattMinds eigene Aktion veröffentlicht.",
+      "summary": "{ok} von {total} Aktionen funktionierten, {fail} funktionierten nicht, {skip} konnten nicht getestet werden.",
+      "stop_reason": {
+        "battery_stopped": "Der Test wurde beendet, weil die Batterie wegen der Temperatur gestoppt ist. Das ist eine Sicherheit, die der Test nie übergeht.",
+        "expired": "Der Test wurde beendet, weil die veröffentlichte Aktion ablief, bevor der Schritt fertig war.",
+        "stopped": "Der Test wurde gestoppt.",
+        "internal_error": "Der Test ist mit einem Fehler fehlgeschlagen. Siehe das Home-Assistant-Protokoll.",
+        "not_configured": "Der Test braucht Sensoren für Batterieleistung, Batteriestand und Hausverbrauch.",
+        "not_ready": "BattMind hat noch keine Aktion veröffentlicht. Versuche es nach der ersten Berechnung erneut.",
+        "no_level": "Der Batteriestand-Sensor hat gerade keine Zahl."
+      },
+      "fail_hint": "Bei einer Aktion, die nicht funktionierte: Öffne den Trace der Automation und prüfe, ob sie die Schritte für diese Aktion ausgeführt hat und ob der Wechselrichter die Befehle angenommen hat.",
+      "put_back": "BattMinds eigene Aktion wird wieder veröffentlicht, und sonst wurde nichts geändert.",
+      "legend": "✅ funktioniert · ❌ die Batterie hat nicht reagiert · 🔧 nicht getestet",
+      "ev_hint": "Wenn das Auto lädt, führt das Blueprint stattdessen seine EV-Aktion aus.",
+      "ok": {
+        "grid_charging": "Die Batterie lud mit {charge} W aus dem Netz.",
+        "force_discharge": "Die Batterie entlud mit {discharge} W, mehr als das Haus verbrauchte.",
+        "battery_stopped": "Die Batterie stand still ({charge} W Laden, {discharge} W Entladen).",
+        "discharge_allowed": "Die Batterie entlud {discharge} W ins Haus.",
+        "force_solar_only_charging": "Die Batterie entlud nicht ({discharge} W), während das Haus {deficit} W mehr verbrauchte, als die Sonne lieferte.",
+        "blocked_solar_charge": "Die Batterie lud nicht ({charge} W), während die Sonne {surplus} W mehr lieferte, als das Haus verbrauchte."
+      },
+      "fail": {
+        "grid_charging": "Die Batterie lud nicht aus dem Netz (sie zeigte {charge} W).",
+        "force_discharge": "Die Batterie entlud nicht mehr, als das Haus verbrauchte (sie zeigte {discharge} W).",
+        "battery_stopped": "Die Batterie bewegte sich weiter ({charge} W Laden, {discharge} W Entladen).",
+        "discharge_allowed": "Die Batterie entlud nicht ins Haus (sie zeigte {discharge} W).",
+        "force_solar_only_charging": "Die Batterie entlud {discharge} W.",
+        "blocked_solar_charge": "Die Batterie lud {charge} W."
+      },
+      "skip": {
+        "unsupported": "Nicht getestet: Deine Wechselrichter-Einrichtung sagt, dass sie diese Aktion nicht ausführen kann.",
+        "limit": "Nicht getestet: Die Batterie ist gerade zu voll oder zu leer, um es zu zeigen.",
+        "no_load": "Nicht getestet: Dafür muss das Haus mehr verbrauchen, als die Sonne liefert, und das ist gerade nicht der Fall.",
+        "no_surplus": "Nicht getestet: Dafür wird ein Solarüberschuss gebraucht, und gerade gibt es keinen.",
+        "unproven": "Nicht bewiesen: Die Sonne oder der Hausverbrauch könnten erklären, was gesehen wurde.",
+        "ev": "Nicht getestet: Ein Auto lädt, und die EV-Aktion des Blueprints läuft möglicherweise stattdessen.",
+        "no_data": "Nicht getestet: Ein Sensor hatte keine Zahl.",
+        "not_reached": "Nicht erreicht: Der Test endete vor diesem Schritt.",
+        "battery_stopped": "Nicht getestet: Die Batterie war wegen der Temperatur gestoppt.",
+        "expired": "Nicht abgeschlossen: Die veröffentlichte Aktion lief ab.",
+        "no_baseline": "Nicht bewiesen: Die Batterie tat bereits, was diese Aktion verlangt, daher ist keine Änderung zu sehen.",
+        "not_published": "Nicht getestet: BattMind konnte die Aktion nicht veröffentlichen (siehe Protokoll).",
+        "no_steps": "Nicht getestet: Deine Automation hat keine Schritte für diese Aktion."
+      },
+      "automation_unknown": "BattMind konnte deine Automation nicht in automations.yaml finden und sieht daher nicht, welche Aktionen Schritte haben (eine Automation in einem Package oder im YAML-Modus wird nicht gefunden)."
+    },
     "backup": {
       "exported": "Backup gespeichert als {file}",
       "imported": "Backup {file} wiederhergestellt (Datenbanken: {databases})."
@@ -581,6 +649,8 @@
     "help_discharging": "* **Nur mit Gewinn**: Entladung in Stunden sperren, in denen die kWh-Kosten der Batterie (inkl. Verlust und Verschleiß) über dem Preis liegen.\n* **Teuerste Stunden priorisieren**: Batterie für die teuersten Stunden aufsparen, bis sie wieder geladen wird.\n* **Vor der Sonne**: Batterie vor der Sonne nutzen/verkaufen, wenn sie ohnehin voll Solarstrom wird und der Überschuss billig verkauft wird.\n* **Max. Stunden alte kWh**: älterer Strom wird auch ohne Gewinn genutzt und verkauft, wenn das mehr bringt.",
     "help_selling": "* **Gewinn maximieren**: in den teuersten Perioden verkaufen, wenn das mehr bringt als selbst nutzen.\n* **Überschüssige kWh verkaufen**: den Strom verkaufen, der nicht genutzt wird, bevor die Batterie leer oder wieder voll ist.\n* **Batteriestand um Mitternacht**: nur bis Mitternacht statt über den ganzen Prognosezeitraum schauen.\n* **Kaufen um zu verkaufen**: günstig aus dem Netz laden, nur um die kWh wieder zu verkaufen, wenn es sich nach Verlust und Verschleiß lohnt.",
     "help_solar": "* **Solarladung**: Solarüberschuss in den Plan einbeziehen.\n* **Solarladung optimieren**: Solarüberschuss in den teuren Stunden verkaufen und die Batterie stattdessen in den günstigen Solarstunden füllen. Nur wenn die Batterie später ohnehin von der Sonne gefüllt wird.",
+    "section_automation_test": "Meine Automation testen",
+    "help_automation_test": "BattMind steuert deine Batterie nie selbst: das macht deine eigene Automation, wenn sich BattMinds Aktion ändert. Der Test prüft, ob deine Automation wirklich das tut, was jede Aktion verlangt.\n\n* **Meine Automation testen**: einschalten, um zu starten. BattMind veröffentlicht die Aktionen nacheinander (Aus dem Netz laden, Erzwungene Entladung, Batterie stoppen, Entladung erlaubt, Nur Solarladung, Solarladung blockiert) und misst die Batterie. Ein Schritt gilt als bestanden, sobald die Batterie gezeigt hat, was sie tun soll, und wartet höchstens 5 Minuten. Schalte den Schalter aus, um zu stoppen; danach wird wieder BattMinds eigene Aktion veröffentlicht.\n* **Automationstest**: der Status des Tests: inaktiv, läuft, fertig, gestoppt oder fehlgeschlagen.\n* Die Tabelle darunter zeigt jede Aktion: ✅ funktioniert, ❌ die Batterie hat nicht reagiert, 🔧 nicht getestet. Aktionen, die von der Sonne oder vom Hausverbrauch abhängen, lassen sich nur beweisen, wenn die Bedingungen passen (z. B. braucht die Aktion, die die Solarladung blockiert, einen Solarüberschuss); sie werden daher mit dem Grund als nicht getestet angezeigt, statt zu bestehen.\n\n**Beachte:** Der Test lädt die Batterie einige Minuten aus dem Netz und entlädt sie ins Netz, und er ändert, was der Wechselrichter tut. Solange die Batterie wegen der Temperatur gestoppt ist, wird nichts getestet; Plan und Einstellungen werden nicht geändert. Energie, die der Test bewegt, wird wie jede andere Energie im Verlauf der Stunde gezählt.",
     "consumption_forecast": "Verbrauchsprognose",
     "history_title": "Verlauf",
     "section_economy": "Wirtschaftlichkeit pro Monat",

@@ -9,7 +9,7 @@ every rule does, and how to connect it to your inverter.
 |---|---|
 | [Getting started](getting-started.md) | you install BattMind for the first time |
 | [How BattMind plans](how-it-works.md) | you want to understand why the battery does what it does |
-| [Actions and battery control](actions.md) | you build the automation that controls the inverter |
+| [Actions and battery control](actions.md) | you build the automation that controls the inverter, check that the battery follows the actions, or [test your automation](actions.md#test-your-automation) |
 
 ## Rules
 

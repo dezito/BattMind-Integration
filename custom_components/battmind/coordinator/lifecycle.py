@@ -139,8 +139,9 @@ class CoordinatorLifecycle:
 
     @callback
     def _on_ha_stop(self, _event: Event) -> None:
-        """Home Assistant is stopping (the entries are not unloaded): stop the what-ifs."""
+        """Home Assistant is stopping (the entries are not unloaded): stop the what-ifs and a test of the automation."""
         self.stop_what_ifs()
+        self.async_stop_automation_test()
 
     @callback
     def _start_background(self, _event: Event | None = None) -> None:
@@ -155,6 +156,8 @@ class CoordinatorLifecycle:
         self._unsubs.clear()
         if self._settings_debounce:
             self._settings_debounce()
+        # a running test of the automation puts BattMind's own action back while the worker still runs
+        await self.async_unload_automation_test()
         if self._charge_task and not self._charge_task.done():
             self._charge_task.cancel()
         self._what_if_executor.shutdown(wait=False, cancel_futures=True)
