@@ -101,7 +101,7 @@ If you don't want that:
 
 | Input | Meaning |
 |---|---|
-| EV charger power | one or more power sensors of the chargers |
+| EV charger power | one or more power sensors of the chargers, in W or kW |
 | Car is charging above | above this power (default 1000 W) the car counts as charging. The change has to last 30 seconds |
 | While the car is charging | runs instead of *Discharge allowed* and *Solar charging blocked* while the car charges, e.g. discharge power 0. *Charge from grid*, *Forced discharge* and *Solar charging only* still follow BattMind |
 | Allow discharging into the car when | while this entity is on, *Discharge allowed* runs as normal, e.g. Cable Juice Planner's `switch.cjp_<car>_powerwall_discharge_above_needed` |
