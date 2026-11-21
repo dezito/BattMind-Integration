@@ -393,13 +393,15 @@
         "blocked_solar_charge": "Bateria ładowała się {charge} W."
       },
       "skip": {
+        "no_flow": "Nie testowano: wymaga to, aby dom zużywał 300 W więcej, niż daje słońce, albo aby słońce dawało 300 W więcej, niż zużywa dom, tak by bateria poruszyła się bez zatrzymania, a teraz tak nie jest.",
+        "quiet": "Nie testowano: czujnik mocy baterii od 5 minut pokazuje te same 0 W bez raportowania, więc zatrzymania nie da się odróżnić od czujnika, który przestał się aktualizować.",
         "unsupported": "Nie testowano: konfiguracja falownika mówi, że nie może wykonać tej akcji.",
         "limit": "Nie testowano: bateria jest teraz zbyt pełna lub zbyt pusta, aby to pokazać.",
         "no_load": "Nie testowano: wymaga to, aby dom zużywał więcej, niż daje słońce, a teraz tak nie jest.",
         "no_surplus": "Nie testowano: wymaga to nadwyżki z paneli, a teraz jej nie ma.",
         "unproven": "Nie udowodniono: to, co zaobserwowano, mogą tłumaczyć słońce lub zużycie domu.",
         "ev": "Nie testowano: samochód się ładuje, a zamiast tej akcji może działać akcja EV blueprintu.",
-        "no_data": "Nie testowano: czujnik nie miał wartości.",
+        "no_data": "Nie testowano: czujnik nie miał wartości lub nie raportował od 5 minut.",
         "not_reached": "Nie dotarto: test zakończył się przed tym krokiem.",
         "battery_stopped": "Nie testowano: bateria była zatrzymana z powodu temperatury.",
         "expired": "Nie ukończono: opublikowana akcja wygasła.",

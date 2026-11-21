@@ -17,6 +17,7 @@ from custom_components.battmind.engine.automation_test import (
     LOAD_W,
     MOVE_W,
     SETTLE_SECONDS,
+    SKIP_REASONS,
     STOPPED_W,
     WINDOW_SECONDS,
     build_automation_test_markdown,
@@ -93,17 +94,17 @@ def test_standing_still_only_counts_when_the_battery_moved_just_before() -> None
 
 def test_standing_still_needs_a_load_or_a_surplus_that_normal_operation_would_move_the_battery_for() -> None:
     """Steps that only cancel the forced mode would leave a battery idle too when the sun covers the house."""
-    _skip(_judge("battery_stopped", _sample(load=1000.0, solar=1000.0)), "no_load")
-    _skip(_judge("battery_stopped", _sample(load=1000.0, solar=1200.0)), "no_load")  # 200 W surplus is not enough
+    _skip(_judge("battery_stopped", _sample(load=1000.0, solar=1000.0)), "no_flow")
+    _skip(_judge("battery_stopped", _sample(load=1000.0, solar=1200.0)), "no_flow")  # 200 W surplus is not enough
     assert _judge("battery_stopped", _sample(load=1000.0, solar=1000.0 + LOAD_W))["verdict"] == "ok"  # a surplus to charge from
     assert _judge("battery_stopped", _sample(load=LOAD_W, solar=0.0))["verdict"] == "ok"  # a load to discharge for
 
 
 def test_a_battery_sensor_that_is_quiet_at_0_watt_proves_no_stop_but_still_shows_no_charging() -> None:
     quiet = {**_sample(load=1000.0), "battery_stale": True}
-    _skip(_judge("battery_stopped", quiet), "no_data")
-    _skip(_judge("force_solar_only_charging", quiet), "no_data")
-    _skip(_judge("blocked_solar_charge", {**_sample(load=500.0, solar=2000.0), "battery_stale": True}), "no_data")
+    _skip(_judge("battery_stopped", quiet), "quiet")
+    _skip(_judge("force_solar_only_charging", quiet), "quiet")
+    _skip(_judge("blocked_solar_charge", {**_sample(load=500.0, solar=2000.0), "battery_stale": True}), "quiet")
     assert _judge("grid_charging", quiet)["verdict"] == "fail"  # it would have reported a change
 
 
@@ -440,7 +441,7 @@ STEP_RESULTS = (
     [{"action": a, "status": "ok", "reason": None, "seconds": 70, "charge": 3000, "discharge": 4000, "deficit": 650, "surplus": 900} for a in AUTOMATION_TEST_ACTIONS]
     + [{"action": a, "status": "fail", "reason": None, "seconds": 300, "charge": 0, "discharge": 0, "deficit": 650, "surplus": 900} for a in AUTOMATION_TEST_ACTIONS]
     + [{"action": a, "status": "skip", "reason": r, "seconds": 0} for a in AUTOMATION_TEST_ACTIONS
-       for r in ("unsupported", "limit", "no_load", "no_surplus", "unproven", "ev", "no_baseline", "no_data", "not_reached", "battery_stopped", "expired", "not_published", "no_steps")]
+       for r in SKIP_REASONS]
 )
 
 
@@ -809,6 +810,13 @@ async def test_the_automation_not_found_note_survives_a_restart(hass, loaded_ent
     assert "automations.yaml" in coordinator.automation_test_state["markdown"]
     coordinator.async_restore_automation_test({"status": "done", "steps": steps, "automation": "made up"})
     assert coordinator.automation_test_state["automation"] is None
+    # a reason that is not one of the test's (an old result) is not shown as a raw text key
+    coordinator.async_restore_automation_test({"status": "stopped", "steps": steps, "reason": "made_up"})
+    assert coordinator.automation_test_state["status"] == "stopped" and coordinator.automation_test_state["reason"] is None
+    old = [{"action": "battery_stopped", "status": "skip", "reason": "no_movement", "seconds": 0}]
+    coordinator.async_restore_automation_test({"status": "done", "steps": old})
+    assert coordinator.automation_test_state["status"] == "stopped"  # the old result was not taken
+    assert "ui.automation_test" not in _sensor(hass).attributes["markdown"]
 
 
 def test_a_test_that_ended_before_its_first_step_shows_no_table_and_no_count() -> None:
@@ -855,6 +863,10 @@ def test_an_automation_that_is_not_found_means_nothing_is_known_not_that_nothing
     broken.write_text("- [unclosed", encoding="utf-8")
     assert automations_using_blueprint(str(broken), SENSOR) == []
     assert actions_without_steps([], AUTOMATION_TEST_ACTIONS) == set()
+    # a file that can not be read (no permission): not known either, and the test goes on
+    readable = _automations_file(tmp_path, [{"alias": "x"}])
+    with patch("custom_components.battmind.management.automation_inputs.yaml_util.load_yaml", side_effect=PermissionError("denied")):
+        assert automations_using_blueprint(readable, SENSOR) == []
 
 
 def test_an_action_counts_as_having_steps_when_any_automation_of_the_sensor_has_them() -> None:

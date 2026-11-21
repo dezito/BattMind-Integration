@@ -23,7 +23,9 @@ from ..engine.automation_test import (
     PASSES_NEEDED,
     PRECHECK_SKIPS,
     SAMPLE_SECONDS,
+    SKIP_REASONS,
     STEP_TIMEOUT,
+    STOP_REASONS,
     build_automation_test_markdown,
     judge_step,
 )
@@ -53,14 +55,14 @@ class CoordinatorAutomationTest:
         number = (int, float, type(None))
         if not all(
             isinstance(step, dict) and step.get("action") in AUTOMATION_TEST_ACTIONS and step.get("status") in ("ok", "fail", "skip")
-            and isinstance(step.get("reason"), (str, type(None)))
+            and (step.get("reason") in SKIP_REASONS if step.get("status") == "skip" else step.get("reason") is None)
             and all(isinstance(step.get(key), number) for key in ("charge", "discharge", "deficit", "surplus", "seconds"))
             for step in steps
         ):
             return
         reason, automation = attributes.get("reason"), attributes.get("automation")
         self.automation_test_state = {
-            "status": status, "steps": steps, "reason": reason if isinstance(reason, str) else None,
+            "status": status, "steps": steps, "reason": reason if reason in STOP_REASONS else None,
             "finished": attributes.get("finished"), "markdown": "", "automation": automation if automation in ("found", "unknown") else None,
         }
         self.automation_test_state["markdown"] = build_automation_test_markdown(self.t, self.automation_test_state)
