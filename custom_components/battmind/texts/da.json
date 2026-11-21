@@ -393,13 +393,15 @@
         "blocked_solar_charge": "Batteriet ladede {charge} W."
       },
       "skip": {
+        "no_flow": "Ikke testet: det kræver, at huset bruger 300 W mere, end solen giver, eller at solen giver 300 W mere, end huset bruger, så batteriet ville bevæge sig uden stoppet, og det er ikke tilfældet lige nu.",
+        "quiet": "Ikke testet: batteriets effektsensor har vist de samme 0 W uden at rapportere i 5 minutter, så et stop kan ikke skelnes fra en sensor, der er holdt op med at opdatere.",
         "unsupported": "Ikke testet: din inverteropsætning siger, at den ikke kan køre denne handling.",
         "limit": "Ikke testet: batteriet er for fuldt eller for tomt lige nu til at vise det.",
         "no_load": "Ikke testet: det kræver, at huset bruger mere, end solen giver, og det gør det ikke lige nu.",
         "no_surplus": "Ikke testet: det kræver solcelleoverskud, og der er intet lige nu.",
         "unproven": "Ikke bevist: solen eller husets forbrug kan forklare det, der blev set.",
         "ev": "Ikke testet: en bil lader, og blueprintens EV-handling kan køre i stedet.",
-        "no_data": "Ikke testet: en sensor havde ikke et tal.",
+        "no_data": "Ikke testet: en sensor havde ikke et tal eller har ikke rapporteret i 5 minutter.",
         "not_reached": "Ikke nået: testen sluttede før dette trin.",
         "battery_stopped": "Ikke testet: batteriet var stoppet på grund af temperaturen.",
         "expired": "Ikke færdigt: den udsendte handling løb ud.",

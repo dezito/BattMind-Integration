@@ -393,13 +393,15 @@
         "blocked_solar_charge": "The battery charged {charge} W."
       },
       "skip": {
+        "no_flow": "Not tested: this needs the house to use 300 W more than the sun gives, or the sun to give 300 W more than the house uses, so that the battery would move without the stop, and that is not the case right now.",
+        "quiet": "Not tested: the battery power sensor has shown the same 0 W without reporting for 5 minutes, so a stop can't be told from a sensor that stopped updating.",
         "unsupported": "Not tested: your inverter setup says it can't run this action.",
         "limit": "Not tested: the battery is too full or too empty right now to show it.",
         "no_load": "Not tested: this needs the house to use more than the sun gives, and it does not right now.",
         "no_surplus": "Not tested: this needs a solar surplus, and there is none right now.",
         "unproven": "Not proven: the sun or the house load could explain what was seen.",
         "ev": "Not tested: a car is charging, and the blueprint's EV action may run instead.",
-        "no_data": "Not tested: a sensor had no number.",
+        "no_data": "Not tested: a sensor had no number or has not reported for 5 minutes.",
         "not_reached": "Not reached: the test ended before this step.",
         "battery_stopped": "Not tested: the battery was stopped for temperature.",
         "expired": "Not finished: the published action ran out.",

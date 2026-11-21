@@ -393,13 +393,15 @@
         "blocked_solar_charge": "Die Batterie lud {charge} W."
       },
       "skip": {
+        "no_flow": "Nicht getestet: Dafür muss das Haus 300 W mehr verbrauchen, als die Sonne liefert, oder die Sonne 300 W mehr liefern, als das Haus verbraucht, damit sich die Batterie ohne den Stopp bewegen würde, und das ist gerade nicht der Fall.",
+        "quiet": "Nicht getestet: Der Leistungssensor der Batterie zeigt seit 5 Minuten dieselben 0 W, ohne zu berichten, daher lässt sich ein Stopp nicht von einem Sensor unterscheiden, der nicht mehr aktualisiert.",
         "unsupported": "Nicht getestet: Deine Wechselrichter-Einrichtung sagt, dass sie diese Aktion nicht ausführen kann.",
         "limit": "Nicht getestet: Die Batterie ist gerade zu voll oder zu leer, um es zu zeigen.",
         "no_load": "Nicht getestet: Dafür muss das Haus mehr verbrauchen, als die Sonne liefert, und das ist gerade nicht der Fall.",
         "no_surplus": "Nicht getestet: Dafür wird ein Solarüberschuss gebraucht, und gerade gibt es keinen.",
         "unproven": "Nicht bewiesen: Die Sonne oder der Hausverbrauch könnten erklären, was gesehen wurde.",
         "ev": "Nicht getestet: Ein Auto lädt, und die EV-Aktion des Blueprints läuft möglicherweise stattdessen.",
-        "no_data": "Nicht getestet: Ein Sensor hatte keine Zahl.",
+        "no_data": "Nicht getestet: Ein Sensor hatte keine Zahl oder hat seit 5 Minuten nicht berichtet.",
         "not_reached": "Nicht erreicht: Der Test endete vor diesem Schritt.",
         "battery_stopped": "Nicht getestet: Die Batterie war wegen der Temperatur gestoppt.",
         "expired": "Nicht abgeschlossen: Die veröffentlichte Aktion lief ab.",

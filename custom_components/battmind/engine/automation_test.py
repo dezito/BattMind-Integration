@@ -52,7 +52,13 @@ STOPPED_W = 100.0  # below this the battery counts as standing still
 LOAD_W = 300.0  # the house load above the solar (or the solar above the house) that a solar step needs to prove anything
 
 # a verdict that means the step can not prove anything right now; it is also what a step is checked for before it is held
-PRECHECK_SKIPS = ("limit", "no_load", "no_surplus", "ev", "no_baseline")
+PRECHECK_SKIPS = ("limit", "no_load", "no_flow", "no_surplus", "ev", "no_baseline")
+# every reason a step can be not tested for (ui.automation_test.skip.*), and a whole test can end for (stop_reason.*)
+SKIP_REASONS = (
+    "unsupported", "limit", "no_load", "no_flow", "no_surplus", "unproven", "ev", "no_data", "quiet", "not_reached",
+    "battery_stopped", "expired", "no_baseline", "not_published", "no_steps",
+)
+STOP_REASONS = ("battery_stopped", "expired", "stopped", "internal_error", "not_configured", "not_ready", "no_level")
 
 
 def mean_or_none(values: list[float], minimum: int = MIN_POINTS) -> float | None:
@@ -110,11 +116,11 @@ def judge_step(
             return result("skip", "limit")
         if deficit < LOAD_W and surplus < LOAD_W:
             # normal operation would stand (nearly) still too: only a load or a surplus makes the stop visible
-            return result("skip", "no_load")
+            return result("skip", "no_flow")
         if max(before["charge"], before["discharge"]) < MOVE_W:
             return result("skip", "no_baseline")  # it was standing still already
         if stale_still:
-            return result("skip", "no_data")
+            return result("skip", "quiet")
         return result("ok") if charge < STOPPED_W and discharge < STOPPED_W else result("fail")
     if action == "discharge_allowed":
         if empty:
@@ -137,7 +143,7 @@ def judge_step(
         if before["discharge"] < MOVE_W:
             return result("skip", "no_baseline")  # it did not discharge before
         if stale_still:
-            return result("skip", "no_data")
+            return result("skip", "quiet")
         return result("ok") if discharge < STOPPED_W else result("fail")
     if action == "blocked_solar_charge":
         if full:
@@ -149,7 +155,7 @@ def judge_step(
         if before["charge"] < MOVE_W:
             return result("skip", "no_baseline")  # it did not charge before
         if stale_still:
-            return result("skip", "no_data")
+            return result("skip", "quiet")
         return result("ok") if charge < STOPPED_W else result("fail")
     raise ValueError(f"No test for the action {action}")
 
@@ -291,12 +297,10 @@ class AutomationTest:
         return out
 
     def _automation_dark(self, now: datetime.datetime) -> bool:
-        """Whether the sun is down now (a solar sensor then shows 0 and may not report for a long time)."""
-        try:
-            sun = self.get_sun_events(now)
-            return now <= sun["sunrise"] or now >= sun["sunset"]
-        except Exception:  # noqa: BLE001
-            return False  # not known: the solar sensor must have reported
+        """Whether the sun is down now (a solar sensor then shows 0 and may not report for a long time). Without the sun's
+        events get_sun_events takes 07:00-19:00 as the day; the solar sensor must still show (about) 0 to be allowed."""
+        sun = self.get_sun_events(now)
+        return now <= sun["sunrise"] or now >= sun["sunset"]
 
     def automation_test_limits(self) -> dict:
         """The levels and the power the verdicts are judged against."""
