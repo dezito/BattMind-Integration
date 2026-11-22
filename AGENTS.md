@@ -547,6 +547,13 @@ electricity supplier charges for selling. Formula:
   price is higher than what a sale pays). Energi Data Service does not: its tariffs attribute is not recorded (its
   `_unrecorded_attributes`), so the buy history cannot be turned into a sell price and the what-if keeps reporting that the sell
   price history is not available.
+- The country of the prices (`price_country`, stored as `prices.country`, default `"DK"`: an entry, backup or import from before it
+  is Danish, no migration) is chosen on the price provider page, which the options menu also shows. Home Assistant's country is
+  only a suggestion, once, for a new entry (an import or a backup keeps its own), and a new entry outside DK starts with Energy
+  Price Forecast. `provider_errors()` (`prices/availability.py`) refuses a provider with no prices in the country and a choice
+  with no forecast; it runs only on that page, never on an unrelated page of a running setup. Every provider class has
+  `countries` (None = any; Energi Data Service: the regions of its own integration; Strømligning: DK) and `has_forecast` (a
+  property of the provider, not of what its sensor shows now).
 - `sell_fee` is stored positive (`abs()`) and is always subtracted.
 - The dashboard's sell price series (Strømligning and Energi Data Service
   charts) must use the same formula and the configured sell entities

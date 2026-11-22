@@ -26,7 +26,11 @@
         "title": "Elpriser",
         "description": "Vælg hvor timepriserne kommer fra. Med flere er prioriteten Strømligning, så Energi Data Service, så Energy Price Forecast: prisen fra den første, der har en, bruges for hver time, og den næste udfylder hullerne.",
         "data": {
+          "price_country": "Land",
           "price_providers": "Prisleverandører"
+        },
+        "data_description": {
+          "price_country": "Landet priserne gælder for. Det afgør, hvilke prisudbydere der kan vælges. Home Assistants land foreslås."
         }
       },
       "battery_entities": {
@@ -276,6 +280,8 @@
       "price_sensor_forecast_only": "Sensoren har lige nu ingen offentliggjorte priser for i dag, kun en prognose. Hvis Energy Price Forecast ikke offentliggør priser for dit marked (fx Finland eller Storbritannien), så vælg en Nord Pool- eller ENTSO-e-sensor som “Egen priskilde” i Energy Price Forecast (til købsprisen skal du også vælge “Egen formel” under “Detailpris” dér: estimatet bruger ikke priskilden), og vælg så sensoren igen. Ellers prøv igen, når priserne er offentliggjort.",
       "price_currency_mismatch": "Sensoren er i en anden valuta end de andre prissensorer. Brug prissensorer i én valuta (eller fravælg den anden prisudbyder).",
       "no_price_provider": "Vælg mindst én prisleverandør.",
+      "price_provider_country": "En valgt prisudbyder har ingen priser i dette land. Strømligning virker kun i Danmark, og Energi Data Service i Danmark, Norge, Sverige, Finland, Estland, Letland, Litauen, Frankrig, Holland, Belgien, Østrig, Tyskland og Luxembourg. Vælg Energy Price Forecast (det meste af Europa) eller ændr landet.",
+      "price_provider_no_forecast": "Ingen af de valgte prisudbydere giver en prisprognose, så planlægningen kun ville kunne bruge priserne for i dag og i morgen. Vælg også en anden prisudbyder.",
       "production_required": "En solprognose kræver en solproduktions-sensor."
     },
     "abort": {
@@ -301,7 +307,11 @@
         "title": "Elpriser",
         "description": "Vælg hvor timepriserne kommer fra. Med flere er prioriteten Strømligning, så Energi Data Service, så Energy Price Forecast: prisen fra den første, der har en, bruges for hver time, og den næste udfylder hullerne.",
         "data": {
+          "price_country": "Land",
           "price_providers": "Prisleverandører"
+        },
+        "data_description": {
+          "price_country": "Landet priserne gælder for. Det afgør, hvilke prisudbydere der kan vælges. Home Assistants land foreslås."
         }
       },
       "general": {
@@ -566,6 +576,8 @@
       "price_sensor_forecast_only": "Sensoren har lige nu ingen offentliggjorte priser for i dag, kun en prognose. Hvis Energy Price Forecast ikke offentliggør priser for dit marked (fx Finland eller Storbritannien), så vælg en Nord Pool- eller ENTSO-e-sensor som “Egen priskilde” i Energy Price Forecast (til købsprisen skal du også vælge “Egen formel” under “Detailpris” dér: estimatet bruger ikke priskilden), og vælg så sensoren igen. Ellers prøv igen, når priserne er offentliggjort.",
       "price_currency_mismatch": "Sensoren er i en anden valuta end de andre prissensorer. Brug prissensorer i én valuta (eller fravælg den anden prisudbyder).",
       "no_price_provider": "Vælg mindst én prisleverandør.",
+      "price_provider_country": "En valgt prisudbyder har ingen priser i dette land. Strømligning virker kun i Danmark, og Energi Data Service i Danmark, Norge, Sverige, Finland, Estland, Letland, Litauen, Frankrig, Holland, Belgien, Østrig, Tyskland og Luxembourg. Vælg Energy Price Forecast (det meste af Europa) eller ændr landet.",
+      "price_provider_no_forecast": "Ingen af de valgte prisudbydere giver en prisprognose, så planlægningen kun ville kunne bruge priserne for i dag og i morgen. Vælg også en anden prisudbyder.",
       "production_required": "En solprognose kræver en solproduktions-sensor."
     },
     "abort": {

@@ -151,6 +151,11 @@ then Energi Data Service, then Energy Price Forecast: the price of the first one
 and the next fills the gaps (also in the what-if and the analysis). All price sensors must be in the same currency
 (a backup provider in another currency is refused).
 
+The **country** of the prices is chosen on the same page as the providers (Home Assistant's country is suggested, and a new
+entry outside Denmark starts with Energy Price Forecast). A provider with no prices in the country is refused: Strømligning
+only works in Denmark, Energi Data Service in Denmark, Norway, Sweden, Finland, Estonia, Latvia, Lithuania, France, the
+Netherlands, Belgium, Austria, Germany and Luxembourg, and Energy Price Forecast in most of Europe.
+
 - **Energi Data Service:** enable *Carnot* in Energi Data Service to plan beyond the published prices.
   Without a separate sell sensor, the buy price minus tariffs is used as sell price. A sell sensor
   without tariffs is used as the spot price; the net and system tariff paid when selling then come

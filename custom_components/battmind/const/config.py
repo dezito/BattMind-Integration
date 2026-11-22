@@ -83,6 +83,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         },
         "refund": 0.0,
         "sell_fee": 0.03,
+        "country": "DK",  # ISO 3166-1 alpha-2: the country of the prices (the price provider page); Denmark for entries from before it
         # not a page of the flow: set when the entry is made from the unit of the price sensors (const/base.py price_scale)
         "price_scale": 1.0,
     },
@@ -154,6 +155,7 @@ OPTION_PATHS: dict[str, str] = {
     "stromligning_sell_surcharge": "prices.entity_ids.stromligning_sell_surcharge",
     "refund": "prices.refund",
     "sell_fee": "prices.sell_fee",
+    "price_country": "prices.country",
     "price_scale": "prices.price_scale",
     # solar / forecast
     "production_entity_id": "solar.entity_ids.production_entity_id",

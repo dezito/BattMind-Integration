@@ -23,7 +23,7 @@ from homeassistant.helpers.restore_state import StoredState, async_get as async_
 from homeassistant.util import dt as dt_util
 from homeassistant.util.json import load_json
 
-from ..const import CONF_ENTITY_PREFIX, DOMAIN, strip_removed_options
+from ..const import CONF_ENTITY_PREFIX, DOMAIN, default_options, strip_removed_options
 from .storage import DB_NAMES, BattMindStorage
 
 _LOGGER = logging.getLogger(__name__)
@@ -167,5 +167,5 @@ async def async_import(hass: HomeAssistant, entry: ConfigEntry, name: str, resto
     pending_restores(hass)[entry.entry_id] = name
     if restore_configuration and isinstance(backup.get("options"), dict):
         # while unloaded, so the update listener does not schedule another reload
-        hass.config_entries.async_update_entry(entry, options=strip_removed_options({**entry.options, **backup["options"]}))
+        hass.config_entries.async_update_entry(entry, options=strip_removed_options({**entry.options, "price_country": default_options()["price_country"], **backup["options"]}))
     await hass.config_entries.async_setup(entry.entry_id)

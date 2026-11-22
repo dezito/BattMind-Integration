@@ -58,6 +58,7 @@ async def _to_price_provider(hass: HomeAssistant, **extra):
 
 
 async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
+    hass.config.country = "SE"
     result = await _to_price_provider(hass, dashboard_icon="mdi:solar-power")
     result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
@@ -81,6 +82,7 @@ async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
     assert result["title"] == "BattMind (bmflow)"
     assert result["data"][CONF_ENTITY_PREFIX] == "bmflow"
     options = result["options"]
+    assert options["price_country"] == "SE"  # a new entry: the country of Home Assistant is suggested and stored
     assert options["powerwall_battery_level_entity_id"] == BATTERY_LEVEL
     assert options["invert_powerwall_watt_flow_entity_id"] is True
     assert options["powerwall_battery_size"] == 13.5
@@ -323,6 +325,7 @@ async def test_import_legacy_pyscript_config(hass: HomeAssistant, tmp_path: Path
     """A PyScript battmind_config.yaml in the config dir is offered and its values prefill the pages."""
     shutil.copy(FIXTURES / "battmind_config.yaml", tmp_path / "battmind_config.yaml")
     hass.config.config_dir = str(tmp_path)
+    hass.config.country = "DE"
     result = await _start(hass)
     assert result["step_id"] == "import_legacy"
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"import_source": "battmind"})
@@ -341,6 +344,7 @@ async def test_import_legacy_pyscript_config(hass: HomeAssistant, tmp_path: Path
     assert options["ignore_consumption_from_entity_ids"] == ["sensor.bil_lader_power"]
     assert options["energidataservice_sell_entity_id"] == "sensor.energi_data_service_salg"
     assert options["language"] == "da"
+    assert options["price_country"] == "DK"  # an import keeps its own: Denmark, not the country of Home Assistant
     # the removed testing mode in the legacy file (testing_mode: true) is ignored, not imported
     assert "testing_mode" not in options
 

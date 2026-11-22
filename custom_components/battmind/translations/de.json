@@ -237,7 +237,11 @@
       },
       "price_provider": {
         "data": {
+          "price_country": "Land",
           "price_providers": "Preisanbieter"
+        },
+        "data_description": {
+          "price_country": "Das Land, für das die Preise gelten. Es bestimmt, welche Preisanbieter gewählt werden können. Das Land von Home Assistant wird vorgeschlagen."
         },
         "description": "Wähle, woher die Stundenpreise kommen. Bei mehreren gilt die Reihenfolge Strømligning, dann Energi Data Service, dann Energy Price Forecast: Für jede Stunde wird der Preis des ersten genutzt, der einen hat, und der nächste füllt die Lücken.",
         "title": "Strompreise"
@@ -277,6 +281,8 @@
       "price_sensor_forecast_only": "Dieser Sensor hat gerade keine veröffentlichten Preise für heute, nur eine Prognose. Wenn Energy Price Forecast für deinen Markt keine Preise veröffentlicht (z. B. Finnland oder Großbritannien), wähle dort einen Nord-Pool- oder ENTSO-e-Sensor als „Eigene Preisquelle“ (für den Kaufpreis wähle dort auch „Eigene Formel“ unter „Endkundenpreis“: die Schätzung nutzt diese Preisquelle nicht) und wähle den Sensor erneut. Andernfalls versuche es erneut, sobald die Preise veröffentlicht sind.",
       "price_currency_mismatch": "Dieser Sensor hat eine andere Währung als die anderen Preissensoren. Verwende Preissensoren in einer Währung (oder wähle den anderen Preisanbieter ab).",
       "no_price_provider": "Wähle mindestens einen Preisanbieter.",
+      "price_provider_country": "Ein gewählter Preisanbieter hat in diesem Land keine Preise. Strømligning funktioniert nur in Dänemark, Energi Data Service in Dänemark, Norwegen, Schweden, Finnland, Estland, Lettland, Litauen, Frankreich, den Niederlanden, Belgien, Österreich, Deutschland und Luxemburg. Wähle Energy Price Forecast (der größte Teil Europas) oder ändere das Land.",
+      "price_provider_no_forecast": "Keiner der gewählten Preisanbieter liefert eine Preisprognose, daher könnte die Planung nur die Preise von heute und morgen nutzen. Wähle zusätzlich einen weiteren Preisanbieter.",
       "prefix_entities_exist": "Es gibt bereits Entitäten mit diesem Präfix (z. B. aus der PyScript-Version). Wähle ein anderes Präfix, um beide gleichzeitig zu betreiben.",
       "prefix_in_use": "Dieses Präfix wird bereits von einem anderen BattMind-Eintrag genutzt.",
       "production_required": "Eine Solarprognose braucht einen Sensor für die Solarproduktion."
@@ -541,7 +547,11 @@
       },
       "price_provider": {
         "data": {
+          "price_country": "Land",
           "price_providers": "Preisanbieter"
+        },
+        "data_description": {
+          "price_country": "Das Land, für das die Preise gelten. Es bestimmt, welche Preisanbieter gewählt werden können. Das Land von Home Assistant wird vorgeschlagen."
         },
         "description": "Wähle, woher die Stundenpreise kommen. Bei mehreren gilt die Reihenfolge Strømligning, dann Energi Data Service, dann Energy Price Forecast: Für jede Stunde wird der Preis des ersten genutzt, der einen hat, und der nächste füllt die Lücken.",
         "title": "Strompreise"
@@ -569,6 +579,8 @@
       "price_sensor_forecast_only": "Dieser Sensor hat gerade keine veröffentlichten Preise für heute, nur eine Prognose. Wenn Energy Price Forecast für deinen Markt keine Preise veröffentlicht (z. B. Finnland oder Großbritannien), wähle dort einen Nord-Pool- oder ENTSO-e-Sensor als „Eigene Preisquelle“ (für den Kaufpreis wähle dort auch „Eigene Formel“ unter „Endkundenpreis“: die Schätzung nutzt diese Preisquelle nicht) und wähle den Sensor erneut. Andernfalls versuche es erneut, sobald die Preise veröffentlicht sind.",
       "price_currency_mismatch": "Dieser Sensor hat eine andere Währung als die anderen Preissensoren. Verwende Preissensoren in einer Währung (oder wähle den anderen Preisanbieter ab).",
       "no_price_provider": "Wähle mindestens einen Preisanbieter.",
+      "price_provider_country": "Ein gewählter Preisanbieter hat in diesem Land keine Preise. Strømligning funktioniert nur in Dänemark, Energi Data Service in Dänemark, Norwegen, Schweden, Finnland, Estland, Lettland, Litauen, Frankreich, den Niederlanden, Belgien, Österreich, Deutschland und Luxemburg. Wähle Energy Price Forecast (der größte Teil Europas) oder ändere das Land.",
+      "price_provider_no_forecast": "Keiner der gewählten Preisanbieter liefert eine Preisprognose, daher könnte die Planung nur die Preise von heute und morgen nutzen. Wähle zusätzlich einen weiteren Preisanbieter.",
       "prefix_entities_exist": "Es gibt bereits Entitäten mit diesem Präfix (z. B. aus der PyScript-Version). Wähle ein anderes Präfix, um beide gleichzeitig zu betreiben.",
       "prefix_in_use": "Dieses Präfix wird bereits von einem anderen BattMind-Eintrag genutzt.",
       "production_required": "Eine Solarprognose braucht einen Sensor für die Solarproduktion."

@@ -237,7 +237,11 @@
       },
       "price_provider": {
         "data": {
+          "price_country": "Kraj",
           "price_providers": "Dostawcy cen"
+        },
+        "data_description": {
+          "price_country": "Kraj, którego dotyczą ceny. Decyduje, których dostawców cen można wybrać. Proponowany jest kraj z Home Assistant."
         },
         "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy kilku kolejność to Strømligning, potem Energi Data Service, potem Energy Price Forecast: dla każdej godziny używana jest cena pierwszego, który ją ma, a następny uzupełnia luki.",
         "title": "Ceny energii"
@@ -277,6 +281,8 @@
       "price_sensor_forecast_only": "Ten czujnik nie ma teraz opublikowanych cen na dziś, tylko prognozę. Jeśli Energy Price Forecast nie publikuje cen dla Twojego rynku (np. Finlandia lub Wielka Brytania), ustaw w nim czujnik Nord Pool lub ENTSO-e jako „Own price source” (dla ceny zakupu wybierz tam też „Own formula” w „Retail price”: oszacowanie nie korzysta z tego źródła cen) i wybierz czujnik ponownie. W przeciwnym razie spróbuj ponownie, gdy ceny zostaną opublikowane.",
       "price_currency_mismatch": "Ten czujnik jest w innej walucie niż pozostałe czujniki cen. Używaj czujników cen w jednej walucie (lub odznacz innego dostawcę cen).",
       "no_price_provider": "Wybierz co najmniej jednego dostawcę cen.",
+      "price_provider_country": "Wybrany dostawca cen nie ma cen w tym kraju. Strømligning działa tylko w Danii, a Energi Data Service w Danii, Norwegii, Szwecji, Finlandii, Estonii, Łotwie, Litwie, Francji, Holandii, Belgii, Austrii, Niemczech i Luksemburgu. Wybierz Energy Price Forecast (większość Europy) albo zmień kraj.",
+      "price_provider_no_forecast": "Żaden z wybranych dostawców cen nie podaje prognozy cen, więc planowanie mogłoby używać tylko cen na dziś i jutro. Wybierz dodatkowo innego dostawcę cen.",
       "prefix_entities_exist": "Encje z tym prefiksem już istnieją (np. z wersji PyScript). Wybierz inny prefiks, aby uruchomić obie jednocześnie.",
       "prefix_in_use": "Ten prefiks jest już używany przez inny wpis BattMind.",
       "production_required": "Prognoza słoneczna wymaga czujnika produkcji słonecznej."
@@ -541,7 +547,11 @@
       },
       "price_provider": {
         "data": {
+          "price_country": "Kraj",
           "price_providers": "Dostawcy cen"
+        },
+        "data_description": {
+          "price_country": "Kraj, którego dotyczą ceny. Decyduje, których dostawców cen można wybrać. Proponowany jest kraj z Home Assistant."
         },
         "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy kilku kolejność to Strømligning, potem Energi Data Service, potem Energy Price Forecast: dla każdej godziny używana jest cena pierwszego, który ją ma, a następny uzupełnia luki.",
         "title": "Ceny energii"
@@ -569,6 +579,8 @@
       "price_sensor_forecast_only": "Ten czujnik nie ma teraz opublikowanych cen na dziś, tylko prognozę. Jeśli Energy Price Forecast nie publikuje cen dla Twojego rynku (np. Finlandia lub Wielka Brytania), ustaw w nim czujnik Nord Pool lub ENTSO-e jako „Own price source” (dla ceny zakupu wybierz tam też „Own formula” w „Retail price”: oszacowanie nie korzysta z tego źródła cen) i wybierz czujnik ponownie. W przeciwnym razie spróbuj ponownie, gdy ceny zostaną opublikowane.",
       "price_currency_mismatch": "Ten czujnik jest w innej walucie niż pozostałe czujniki cen. Używaj czujników cen w jednej walucie (lub odznacz innego dostawcę cen).",
       "no_price_provider": "Wybierz co najmniej jednego dostawcę cen.",
+      "price_provider_country": "Wybrany dostawca cen nie ma cen w tym kraju. Strømligning działa tylko w Danii, a Energi Data Service w Danii, Norwegii, Szwecji, Finlandii, Estonii, Łotwie, Litwie, Francji, Holandii, Belgii, Austrii, Niemczech i Luksemburgu. Wybierz Energy Price Forecast (większość Europy) albo zmień kraj.",
+      "price_provider_no_forecast": "Żaden z wybranych dostawców cen nie podaje prognozy cen, więc planowanie mogłoby używać tylko cen na dziś i jutro. Wybierz dodatkowo innego dostawcę cen.",
       "prefix_entities_exist": "Encje z tym prefiksem już istnieją (np. z wersji PyScript). Wybierz inny prefiks, aby uruchomić obie jednocześnie.",
       "prefix_in_use": "Ten prefiks jest już używany przez inny wpis BattMind.",
       "production_required": "Prognoza słoneczna wymaga czujnika produkcji słonecznej."
