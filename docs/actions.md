@@ -216,13 +216,18 @@ what each action asks, run the test: turn on **Test my automation** under *Setti
 | Charge from grid | the battery charges at 200 W or more than the sun alone could | a battery that is not full |
 | Forced discharge | it discharges 200 W or more than the house uses | a battery above the usage reserve |
 | Stop battery | it neither charges nor discharges (under 100 W) | the battery moving (200 W or more) just before, and the house using 300 W or more than the sun gives, or the sun giving 300 W or more than the house uses (normal operation would then move the battery) |
-| Discharge allowed | it discharges into the house, at least half of what the house lacks or the battery can give, and not more than the house uses | the house using 300 W or more than the sun gives, the battery not discharging just before, and no car charging |
+| Discharge allowed | it discharges into the house, at least half of what the house lacks or the battery can give, and not more than the house uses; after a sale it fails if the battery still sells at least half of what it sold before | the house using 300 W or more than the sun gives, the battery not discharging just before or selling (discharging 200 W or more than the house lacked from the sun, as the forced discharge of the step before does when *Stop battery* did not stop the battery between), and no car charging |
 | Solar charging only | it does not discharge | the house using 300 W or more than the sun gives, and the battery discharging (200 W or more) just before |
 | Solar charging blocked | it does not charge | a solar surplus of 300 W or more, no car charging, and the battery charging (200 W or more) just before |
 
 A step that asks the battery to stop or to do less can only be proven by a change: the measurement taken just before
 the step has to show the opposite, otherwise the step is not proven (a battery that stood still already, or that
-a step before left in a forced mode, would pass without your automation doing anything).
+a step before left in a forced mode, would pass without your automation doing anything). *Discharge allowed* is
+proven from both sides: from a battery that stood still (after *Stop battery*), and from a battery that still sold
+(after *Forced discharge*, when *Stop battery* did not stop the battery: no steps, skipped or failed), where the sale
+must end and the battery must still feed the house. Only a battery that fed the house already leaves it not proven,
+and so does a battery that still gives a little more than the house uses after the sale ended (a battery power
+measured before the inverter can read a few percent above the house).
 
 Every step passes as soon as two measurements 10 seconds apart agree, usually after a minute, and fails if the
 battery has not shown it within 5 minutes. A step ends at once, without a verdict, if the battery reaches its
@@ -239,7 +244,9 @@ can't prove a stop, so the stopping steps are then not tested.
 - ✅ **Worked:** the battery did what the action asks.
 - ❌ **The battery did not react:** open the automation's trace and check that it ran the steps for the action and
   that the inverter took the commands. For *Discharge allowed* and *Solar charging blocked* the blueprint runs
-  *While the car is charging* instead when a car is charging.
+  *While the car is charging* instead when a car is charging. *Discharge allowed* that kept selling after
+  *Forced discharge* means that your steps for it do not end the forced discharge (e.g. a missing
+  `stop_forcible_charge` or a forced mode that runs for a set time).
 - 🔧 **Not tested:** the step could not prove anything right now, and the reason is shown. The solar actions need
   sun and a house load: *Solar charging blocked* can only be tested while the solar production is above the house's
   use, and *Solar charging only* and *Discharge allowed* while the house uses more than the sun gives. BattMind
@@ -252,7 +259,10 @@ can't prove a stop, so the stopping steps are then not tested.
 - 🔧 **No steps:** your automation was made from the blueprint, and the field for the action is empty, so it does
   nothing. BattMind reads this from `automations.yaml` (the file the automation editor writes; it only reads it) by
   looking for the blueprint automation that uses this action sensor. An automation kept in a package or in YAML mode
-  is not found: the result then says so and the steps are tested as usual.
+  is not found: the result then says so and the steps are tested as usual. *Stop battery* is only sent as the
+  safety stop for a battery temperature that is too high, too low or unknown (see *Stop battery* above). Without a
+  temperature sensor BattMind never sends it, so the result says that no steps are needed; with a sensor it warns
+  that your automation does not stop the battery.
 
 What the test does and does not do:
 

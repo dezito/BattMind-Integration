@@ -88,11 +88,24 @@ class CoordinatorLifecycle:
         """Health checks of the battery setup (management/health_checks.py). The sensors that the Strømligning and Solcast
         repairs judge are left out of the missing-sensor check."""
         watcher = HealthWatcher(
-            self.hass, self.entry, self.prefix, self.config, self.configured_entities, dependency.covered_entities, self.t
+            self.hass,
+            self.entry,
+            self.prefix,
+            self.config,
+            self.configured_entities,
+            dependency.covered_entities,
+            self.t,
+            price_units=self._price_unit_problems,
         )
         await watcher.async_load()
         watcher.start()
         self.entry.async_on_unload(watcher.stop)
+
+    def _price_unit_problems(self) -> tuple[list[tuple[str, str]], bool] | None:
+        """The price entities in a unit the prices are not read in (CombinedPriceProvider.price_unit_problems). None before
+        the engine has a price provider: nothing is judged then, so a repair stays as it is."""
+        provider = self.price_provider
+        return None if provider is None else provider.price_unit_problems(self.hass.states.get)
 
     @callback
     def _on_config_entry_changed(self, change: ConfigEntryChange, entry: ConfigEntry) -> None:

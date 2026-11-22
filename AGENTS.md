@@ -473,13 +473,22 @@ electricity supplier charges for selling. Formula:
 ### Health checks (repairs)
 
 - `management/health_checks.py` raises the repairs `entities_missing`,
-  `entity_units`, `blueprint_automation_lost` and `plan_not_followed`. They
+  `entity_units`, `blueprint_automation_lost`, `plan_not_followed` and the
+  value scale repairs below (`power_without_unit`, `battery_level_fraction`,
+  `price_unit_scale`). They
   only inform; none of them controls anything. `plan_not_followed` reads the
   published `plan_check` attribute and needs `PLAN_MIN_CHECKED_HOURS`,
   `PLAN_MIN_MISMATCHES` and a match below `PLAN_MAX_MATCH_PERCENT`; its lines
   show charged/discharged kWh, so an opposite action is visible there. Being
-  unavailable is not a repair: the existing persistent notification after 30
-  minutes covers it.
+  unavailable is not a repair. `engine/engine.py` `is_entity_available()` is
+  called only for the house consumption sensor: from `inverter_available()`
+  (solar configured) in the planning run (`local_energy_prediction()`) and at
+  minute 59 of every hour, and from `power_values_to_db()` at minute 59 of every
+  hour. Each call that finds the sensor unavailable logs a warning. Once more
+  than 30 minutes have passed since the first such call (counted per
+  integration, reset by any call that finds the sensor available), it posts a
+  persistent notification. The sensor needs an entity registry entry, which
+  gives its integration; a YAML sensor without a unique ID gets no notification.
 - Delete an issue only on a positive answer (the problem is gone), never on an
   unclear one (unavailable/unknown state, unreadable `automations.yaml`).
   Delete + create resets the user's "Ignore", while `async_create_issue` on an
@@ -500,6 +509,44 @@ electricity supplier charges for selling. Formula:
   so users with their own automation never get it. Automations without an
   `id` or outside `automations.yaml` (packages, YAML mode) are not found. A
   registry-disabled automation counts as off.
+- Value scale repairs (decided with the user: inform only, no fix flow and no
+  conversion, because a blueprint can read the same sensor itself):
+  `power_without_unit` (a power sensor without a unit whose values over
+  `POWER_SCALE_DAYS` stay at most `KW_LOOKING_MAX` with fractions, so kW read
+  as W), `battery_level_fraction` (every value 0..1 with fractions) and
+  `price_unit_scale` (a price entity in a subunit, per MWh or per Wh, judged by
+  its unit only, through `CombinedPriceProvider.price_unit_problems`). The
+  verdicts are in `management/value_checks.py`, the same file as in CJP
+  (change both together, with `tests/test_value_checks.py`): True, False or
+  None, and None never clears a repair. History is read in the recorder's
+  executor, at most once per `VALUE_RECHECK` per sensor, and only for a
+  sensor whose current state could be in the wrong scale. The flagged sensors
+  are kept in the `.health` store (`values_flagged`, and `values_known` for
+  the repairs whose list is known); with a known list for that repair the
+  repair goes when no sensor is flagged any more. A repair's list is known
+  only when it was read intact from the store or one check judged every
+  sensor of that repair (True or False), or when the repair is not in the
+  issue registry (nothing to forget: a fresh start knows its empty list). A
+  lost store, a store without `values_known` or a malformed entry while the
+  repair is open leaves it unknown, and then every sensor must be judged fine
+  before the repair goes.
+  `price_unit_scale` keeps no list: it goes only when every price entity was
+  judged.
+- `consumption_frozen`: only the house consumption sensor (`home.entity_ids.power_consumption_entity_id`). Raised when its
+  value has not changed for 6 h (`FROZEN_AFTER`, by `last_changed`); the hourly check makes it visible 6 to 7 h after the
+  last change. Other sensors are not checked this way, because a steady reading can be real for them. The frozen value,
+  its entity and its time are kept in the `.health` store (`consumption_frozen`: entity, value, since), so a restart keeps
+  the repair and its earlier time. Startup grace (`CONSUMPTION_GRACE`: from a start or reload of the entry until the first check that is at least
+  30 min later and reads a number, so in practice up to about an hour): nothing
+  is deleted, the stored value and time are not replaced, and a lost store gets no baseline. An existing repair is raised
+  again from the stored values (its Ignore is kept); a new one may be raised by the 6 h rule only when no repair for this
+  sensor is open. After the grace the repair is deleted only on a positive answer: a finite number different from the
+  stored one (at a check, or at once when the listener sees it while Home Assistant runs), the sensor no longer configured,
+  or a repair that names another sensor while the stored value is lost (the two configuration answers at the first check
+  after the grace). Unavailable, unknown and text keep it. Without a stored value (lost or malformed store), an open repair
+  that names this sensor takes the value seen at the first check after the grace as its baseline; a repair whose
+  placeholders are unknown (the issue registry restores them as None after a restart) is baselined and raised only by the
+  6 h rule.
 
 ## Tests and validation
 
@@ -513,6 +560,13 @@ fixed number of `sleep(0)` yields. `tests/conftest.py` has `async_advance()`
 for timers. When calling the test venv's Python directly, put
 `../ha-dev/windows` (shims) on `PYTHONPATH`. Test the PyScript import with
 `../ha-dev/dev.ps1 import-legacy` before adding the integration.
+
+Keep test runs short (user decision). While fixing, run only the test files
+that cover the change (`'-n' '0'` for a single file); after a failure rerun
+only what failed (`--lf`, `-x` to stop at the first failure). Run the full
+suite once, after the last change and before reporting the task done: not
+after every fix or review round, and in a multi-agent task only once, by the
+main agent, not by each subagent. `--durations=25` shows the slowest tests.
 
 The devcontainer, the Windows venv and its shims, debugging in one process
 (`'-n' '0'`), the pinned test dependencies, and where the ha-dev seed and

@@ -80,7 +80,8 @@ def judge_step(
     the opposite before: standing still after a step that left it standing still proves nothing.
     discharge_limit_w: what the battery can discharge at most.
     Returns {"verdict": "ok" | "fail" | "skip", "reason": why it is a skip, "surplus"/"deficit": W}, and with the reason
-    "limit" also "limit_side": "full" or "empty" (the limit the step is skipped for, for the text of the step).
+    "limit" also "limit_side": "full" or "empty" (the limit the step is skipped for, for the text of the step). A fail
+    of discharge_allowed that went on selling after a sale before has "detail": "export".
     """
     charge, discharge, level = sample["charge"], sample["discharge"], sample["level"]
     load_max, load_min = max(sample["load"], sample["use"]), min(sample["load"], sample["use"])
@@ -93,11 +94,13 @@ def judge_step(
     full = level >= level_max - margin
     empty = level <= level_min + margin
 
-    def result(verdict: str, reason: str | None = None, limit_side: str | None = None) -> dict:
+    def result(verdict: str, reason: str | None = None, limit_side: str | None = None, detail: str | None = None) -> dict:
         out = {"verdict": verdict, "reason": reason, "surplus": round(surplus), "deficit": round(deficit)}
         if limit_side:
             # the limit the step skips for: a small battery or a high reserve can make full and empty both true
             out["limit_side"] = limit_side
+        if detail:
+            out["detail"] = detail
         return out
 
     if action == "grid_charging":
@@ -134,10 +137,18 @@ def judge_step(
             return result("skip", "ev")  # the blueprint runs the "while the car is charging" actions instead
         if deficit < LOAD_W:
             return result("skip", "no_load")
-        if before["discharge"] >= STOPPED_W:
-            return result("skip", "no_baseline")  # it discharged already: a forced discharge may still be running
-        if discharge - could_discharge >= MOVE_W:
-            return result("skip", "unproven")  # more than the house uses: not normal operation
+        # a battery that sold before (the forced discharge of the step before, when Stop battery did not run between)
+        # shows the action by a change too: the sale ends and the battery feeds the house
+        sold = before["discharge"] - max(max(before["load"], before["use"]) - before["solar"], 0.0)
+        sold_before = sold >= MOVE_W
+        if before["discharge"] >= STOPPED_W and not sold_before:
+            return result("skip", "no_baseline")  # it fed the house already: no change can be seen
+        if (selling := discharge - could_discharge) >= MOVE_W:
+            if sold_before and selling >= 0.5 * sold:
+                return result("fail", detail="export")  # most of the sale is left: the forced discharge was not ended
+            # more than the house uses: not normal operation; or a little above the house after a sale that ended (a DC
+            # battery sensor against an AC consumption, a lagging sensor), which proves nothing either way
+            return result("skip", "unproven")
         needed = max(STOPPED_W, 0.5 * min(deficit, discharge_limit_w))
         return result("ok") if discharge >= needed else result("fail")
     if action == "force_solar_only_charging":
@@ -183,7 +194,9 @@ class AutomationTest:
             return {"ok": False, "reason": "battery_stopped", "unsupported": unsupported}
         if self._automation_level() is None:
             return {"ok": False, "reason": "no_level", "unsupported": unsupported}
-        return {"ok": True, "reason": None, "unsupported": unsupported}
+        # Stop battery is only published for the temperature (charge_if_needed): without a sensor it is never sent
+        temperature_sensor = bool(ids.get("battery_temperature_entity_id"))
+        return {"ok": True, "reason": None, "unsupported": unsupported, "temperature_sensor": temperature_sensor}
 
     def _automation_level(self) -> float | None:
         """The level of the battery sensor now. Unlike get_battery_level() a lost sensor is not read as 100 %."""
@@ -366,7 +379,13 @@ def step_text(t: Callable[..., str], step: dict) -> str:
         # full or empty when the side of the limit is known; a step without it (an older result) says "full or empty"
         if reason == "limit" and step.get("limit_side") in ("full", "empty"):
             reason = f"limit_{step['limit_side']}"
+        # Stop battery is the temperature stop: say whether it is ever sent (an older result only says there are no steps)
+        if reason == "no_steps" and step["action"] == "battery_stopped" and isinstance(step.get("temperature_sensor"), bool):
+            reason = "no_steps_temperature" if step["temperature_sensor"] else "no_steps_no_temperature"
         return t(f"ui.automation_test.skip.{reason}", **seen)
+    if step["status"] == "fail" and step["action"] == "discharge_allowed" and step.get("detail") == "export":
+        # it went on selling: the forced discharge was not ended (a charging car does not explain a sale)
+        return t("ui.automation_test.fail.discharge_allowed_export", **seen)
     text = t(f"ui.automation_test.{step['status']}.{step['action']}", **seen)
     if step["status"] == "fail" and step["action"] in ("discharge_allowed", "blocked_solar_charge"):
         text += " " + t("ui.automation_test.ev_hint")

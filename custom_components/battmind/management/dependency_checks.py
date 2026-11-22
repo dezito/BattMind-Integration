@@ -33,7 +33,20 @@ ISSUE_ENTITIES_MISSING = "entities_missing"
 ISSUE_ENTITY_UNITS = "entity_units"
 ISSUE_BLUEPRINT_LOST = "blueprint_automation_lost"
 ISSUE_PLAN_NOT_FOLLOWED = "plan_not_followed"
-HEALTH_ISSUES = (ISSUE_ENTITIES_MISSING, ISSUE_ENTITY_UNITS, ISSUE_BLUEPRINT_LOST, ISSUE_PLAN_NOT_FOLLOWED)
+ISSUE_POWER_WITHOUT_UNIT = "power_without_unit"
+ISSUE_BATTERY_FRACTION = "battery_level_fraction"
+ISSUE_PRICE_UNIT = "price_unit_scale"
+ISSUE_CONSUMPTION_FROZEN = "consumption_frozen"
+HEALTH_ISSUES = (
+    ISSUE_ENTITIES_MISSING,
+    ISSUE_ENTITY_UNITS,
+    ISSUE_BLUEPRINT_LOST,
+    ISSUE_PLAN_NOT_FOLLOWED,
+    ISSUE_POWER_WITHOUT_UNIT,
+    ISSUE_BATTERY_FRACTION,
+    ISSUE_PRICE_UNIT,
+    ISSUE_CONSUMPTION_FROZEN,
+)
 # Home Assistant reloads an integration about 30 seconds after one of its entities was enabled or disabled
 RECHECK_DELAY = 60
 RECHECK_INTERVAL = datetime.timedelta(hours=1)

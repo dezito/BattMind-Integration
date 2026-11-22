@@ -133,12 +133,38 @@ def test_discharge_allowed_needs_a_house_load_above_the_sun_and_a_battery_that_d
     assert _judge("discharge_allowed", _sample(load=1000.0, discharge=900.0))["verdict"] == "ok"
     assert _judge("discharge_allowed", _sample(load=1000.0, discharge=0.0))["verdict"] == "fail"
     _skip(_judge("discharge_allowed", _sample(load=1000.0, level=LEVEL_MIN)), "limit")
-    # a forced discharge that is still running: it passes only if the automation did nothing
-    _skip(_judge("discharge_allowed", _sample(load=1000.0, discharge=900.0), before=DISCHARGING), "no_baseline")
+    # it fed the house already: the same again shows no change, also when the automation did nothing
+    _skip(_judge("discharge_allowed", _sample(load=1000.0, discharge=900.0), before=_sample(load=1000.0, discharge=1000.0)), "no_baseline")
     # discharging more than the house uses is not normal operation
     _skip(_judge("discharge_allowed", _sample(load=1000.0, discharge=3000.0)), "unproven")
     # the blueprint runs the action for a charging car instead
     _skip(_judge("discharge_allowed", _sample(load=2500.0, ignored=2000.0, discharge=900.0)), "ev")
+
+
+def test_discharge_allowed_after_a_forced_discharge_is_proven_by_the_end_of_the_sale() -> None:
+    """Stop battery was skipped (no steps), so the forced discharge of the step before still sells when the step starts:
+    ending the sale and still feeding the house is a change that only the automation can make."""
+    forced = _sample(load=1000.0, discharge=4000.0)
+    assert _judge("discharge_allowed", _sample(load=1000.0, discharge=900.0), before=forced)["verdict"] == "ok"
+    # the automation did nothing: the battery still sells, which the action does not allow
+    still_selling = _judge("discharge_allowed", _sample(load=1000.0, discharge=4000.0), before=forced)
+    assert still_selling["verdict"] == "fail" and still_selling["detail"] == "export"
+    # the sale ended, but the battery does not feed the house either: a plain fail
+    stopped = _judge("discharge_allowed", _sample(load=1000.0, discharge=0.0), before=forced)
+    assert stopped["verdict"] == "fail" and "detail" not in stopped
+    # less than MOVE_W more than the house lacked is no sale; the sun counts in what the house lacked before
+    _skip(_judge("discharge_allowed", _sample(load=1000.0, discharge=900.0), before=_sample(load=1000.0, discharge=1000.0 + MOVE_W - 1)), "no_baseline")
+    _skip(_judge("discharge_allowed", _sample(load=1000.0, discharge=900.0), before=_sample(load=1500.0, solar=500.0, discharge=1100.0)), "no_baseline")
+    assert _judge("discharge_allowed", _sample(load=1000.0, discharge=900.0), before=_sample(load=1500.0, solar=1000.0, discharge=1100.0))["verdict"] == "ok"
+    # most of the sale is left: still selling, a fail; a little above the house (a DC battery sensor against an AC
+    # consumption, a lagging sensor) after a sale that ended is no proof either way
+    assert _judge("discharge_allowed", _sample(load=1000.0, discharge=2600.0), before=forced)["detail"] == "export"
+    _skip(_judge("discharge_allowed", _sample(load=4000.0, discharge=4250.0), before=_sample(load=4000.0, discharge=5000.0)), "unproven")
+    _skip(_judge("discharge_allowed", _sample(load=1000.0, discharge=2400.0), before=forced), "unproven")
+    # the larger of the two house loads counts, so what a charging car takes is no sale
+    _skip(_judge("discharge_allowed", _sample(load=1000.0, discharge=900.0), before=_sample(load=3500.0, ignored=2500.0, discharge=3000.0)), "no_baseline")
+    # without a sale before, more than the house uses still proves nothing
+    _skip(_judge("discharge_allowed", _sample(load=1000.0, discharge=3000.0)), "unproven")
 
 
 def test_a_battery_that_can_only_discharge_a_little_is_judged_on_what_it_can() -> None:
@@ -296,6 +322,15 @@ def _temperature_engine():
     engine = BattMindEngine(build_config(options), "test", TEXTS)
     engine.run_job(_snap(_at(12, 30), states={"sensor.battery_temperature": "20"}), engine.startup, {})
     return engine
+
+
+def test_a_test_knows_whether_stop_battery_can_ever_be_sent() -> None:
+    """Stop battery is only published for the temperature: without a temperature sensor it is never sent."""
+    engine = _engine()
+    assert _run(engine, _at(12, 31), engine.automation_test_begin).value["temperature_sensor"] is False
+    engine = _temperature_engine()
+    _run(engine, _at(12, 30), engine.charge_if_needed, True, states={"sensor.battery_temperature": "20"})
+    assert _run(engine, _at(12, 31), engine.automation_test_begin, states={"sensor.battery_temperature": "20"}).value["temperature_sensor"] is True
 
 
 def test_a_battery_that_is_stopped_for_temperature_is_never_tested() -> None:
@@ -463,6 +498,10 @@ STEP_RESULTS = (
        for r in SKIP_REASONS]
     + [{"action": a, "status": "skip", "reason": "limit", "limit_side": side, "seconds": 0} for a in AUTOMATION_TEST_ACTIONS
        for side in ("full", "empty")]
+    + [{"action": "discharge_allowed", "status": "fail", "reason": None, "detail": "export", "seconds": 300, "charge": 0,
+        "discharge": 4000, "deficit": 650, "surplus": 0}]
+    + [{"action": "battery_stopped", "status": "skip", "reason": "no_steps", "temperature_sensor": flag, "seconds": 0}
+       for flag in (True, False)]
 )
 
 
@@ -520,6 +559,38 @@ def test_a_step_at_a_limit_tells_whether_the_battery_was_full_or_empty() -> None
     # a result without the side (restored from before), or with a side that is no side, says either
     for side in (None, "sideways"):
         assert "for fuldt eller for tomt" in row(side), side
+
+
+def _row(step: dict) -> str:
+    markdown = build_automation_test_markdown(translate_with(TEXTS), {"status": "done", "steps": [step], "reason": None})
+    return next(line for line in markdown.splitlines() if line.startswith("| ") and "---" not in line and "Handling" not in line)
+
+
+def test_stop_battery_without_steps_tells_that_it_is_the_temperature_stop() -> None:
+    def row(**extra):
+        return _row({"action": "battery_stopped", "status": "skip", "reason": "no_steps", "seconds": 0, **extra})
+
+    generic = TEXTS["ui.automation_test.skip.no_steps"]
+    # no temperature sensor: BattMind never sends it, so no steps are needed
+    assert "temperatursensor" in row(temperature_sensor=False) and "sendes aldrig" in row(temperature_sensor=False)
+    # a temperature sensor: the automation does not stop the battery when it gets too hot or too cold
+    assert "temperatur" in row(temperature_sensor=True) and "sendes aldrig" not in row(temperature_sensor=True)
+    # an older result without the flag, a flag that is no flag, or another action: only that there are no steps
+    for extra in ({}, {"temperature_sensor": "yes"}):
+        assert generic in row(**extra), extra
+    assert generic in _row({"action": "grid_charging", "status": "skip", "reason": "no_steps", "seconds": 0, "temperature_sensor": False})
+
+
+def test_discharge_allowed_that_kept_selling_says_the_forced_discharge_was_not_ended() -> None:
+    step = {"action": "discharge_allowed", "status": "fail", "reason": None, "seconds": 300, "charge": 0, "discharge": 4000,
+            "deficit": 1277, "surplus": 0}
+    selling = _row({**step, "detail": "export"})
+    assert selling.startswith("| ❌") and "4000" in selling and "1277" in selling and "tvungne afladning" in selling
+    assert "EV" not in selling  # a charging car does not explain a sale
+    # without the detail (an older result, or one that did not feed the house) the plain text with the car hint
+    plain = _row(step)
+    assert "tvungne afladning" not in plain and "EV" in plain
+    assert "tvungne afladning" not in _row({**step, "detail": "made up"})
 
 
 def translate_with(texts):
@@ -960,3 +1031,38 @@ async def test_an_action_without_steps_is_not_held_and_a_missing_automation_is_s
         await _start(hass, loaded_entry)
     assert "automations.yaml" in _sensor(hass).attributes["markdown"]
     assert [step["status"] for step in _sensor(hass).attributes["steps"]][:5] == ["ok"] * 5  # unknown: tested as usual
+
+
+WITHOUT_STOP = [{action: STEPS for action in AUTOMATION_TEST_ACTIONS if action != "battery_stopped"}]
+
+
+async def test_discharge_allowed_is_proven_after_a_forced_discharge_when_stop_battery_has_no_steps(hass, loaded_entry, fast_runner) -> None:
+    """The case of a debug file: Stop battery had no steps, so Discharge allowed started from the forced discharge that
+    still sold, and was never published (no baseline). The end of the sale is the change that proves it."""
+    coordinator = loaded_entry.runtime_data
+    held: list[str] = []
+    with patch("custom_components.battmind.coordinator.automation_test.automations_using_blueprint", return_value=WITHOUT_STOP), \
+            patch.object(type(coordinator.engine), "automation_test_sample", _battery(calls=held)):
+        await _start(hass, loaded_entry)
+    steps = {step["action"]: step for step in _sensor(hass).attributes["steps"]}
+    assert steps["battery_stopped"]["reason"] == "no_steps"
+    assert steps["battery_stopped"]["temperature_sensor"] is False  # the test entry has no temperature sensor
+    assert "sendes aldrig" in _sensor(hass).attributes["markdown"]
+    assert steps["discharge_allowed"]["status"] == "ok", steps["discharge_allowed"]
+    assert "discharge_allowed" in held and "battery_stopped" not in held
+    assert steps["force_solar_only_charging"]["status"] == "ok"  # it starts from the house discharge of the step before
+
+
+async def test_an_automation_that_does_not_end_the_forced_discharge_fails_discharge_allowed(hass, loaded_entry, fast_runner) -> None:
+    coordinator = loaded_entry.runtime_data
+    keeps_selling = _battery({"discharge_allowed": {"discharge": 4000.0}})
+    with patch("custom_components.battmind.coordinator.automation_test.automations_using_blueprint", return_value=WITHOUT_STOP), \
+            patch.object(type(coordinator.engine), "automation_test_sample", keeps_selling):
+        await _start(hass, loaded_entry)
+    state = _sensor(hass)
+    step = next(step for step in state.attributes["steps"] if step["action"] == "discharge_allowed")
+    assert step["status"] == "fail" and step["detail"] == "export" and step["discharge"] == 4000
+    assert "tvungne afladning blev ikke stoppet" in state.attributes["markdown"]
+    # the result survives a restart with its text
+    coordinator.async_restore_automation_test(dict(state.attributes))
+    assert "tvungne afladning blev ikke stoppet" in coordinator.automation_test_state["markdown"]

@@ -124,7 +124,11 @@ class CoordinatorAutomationTest:
                     self._publish_automation_test(steps=list(steps))
                     continue
                 if action in without_steps:
-                    steps.append({"action": action, "status": "skip", "reason": "no_steps"})
+                    step = {"action": action, "status": "skip", "reason": "no_steps"}
+                    if action == "battery_stopped":
+                        # the temperature stop: without a temperature sensor BattMind never sends it
+                        step["temperature_sensor"] = bool(begin.get("temperature_sensor"))
+                    steps.append(step)
                     self._publish_automation_test(steps=list(steps))
                     continue
                 step, stop = await self._async_automation_test_step(action, limits)
@@ -218,4 +222,6 @@ class CoordinatorAutomationTest:
             step.update(deficit=check["deficit"], surplus=check["surplus"])
             if status == "skip" and reason == "limit" and check.get("limit_side"):
                 step["limit_side"] = check["limit_side"]
+            if status == "fail" and check.get("detail"):
+                step["detail"] = check["detail"]  # e.g. "export": Discharge allowed went on selling
         return step
