@@ -200,7 +200,8 @@ An hour is **skipped, never counted as a match or a mismatch**, when it can't pr
 
 A low percentage means the battery didn't do what the action asked: the automation isn't connected yet, uses
 the wrong entity, or the inverter ignores the command. Look at the blueprint's automation traces. The check only
-observes: it never sends a command and never changes the plan.
+observes: it never sends a command and never changes the plan. When the plan is clearly not followed, BattMind raises
+a repair as well (see [Repairs](faq-troubleshooting.md#repairs)).
 
 ## Test your automation
 

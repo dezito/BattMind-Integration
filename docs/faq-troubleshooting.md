@@ -135,6 +135,38 @@ moved aside as `….corrupt.<time>` and the newest good copy is restored. The lo
 both files. Data saved after that copy was made is lost, at most about a day. Without a good copy the database is treated as missing, as on a new install. You can then import
 a full backup (see [Backup](../README.md#backup-export-and-import-of-data)).
 
+## Repairs
+
+BattMind raises a **repair** (*Settings → System → Repairs*) when something it was set up with has gone wrong. The
+repairs only read: they never change the battery, the plan or your automations. Each one says what was found and how
+to check it, and disappears by itself once the problem is gone. If you ignore a repair, it stays hidden, also after a
+restart, until the problem is gone.
+
+- **Sensors BattMind uses are disabled or missing:** a sensor is disabled in Home Assistant, or it no longer exists
+  (deleted or renamed). The plan then works with missing values. It disappears when all of them are enabled and found
+  again.
+- **Sensor units BattMind can't read:** a power sensor reports a unit other than mW, W, kW, MW or GW, or the battery
+  level sensor reports a unit other than %. A unit with an h at the end (Wh, kWh, MWh) is read as the unit without it,
+  so kWh is read as kW. A power sensor with no unit is read as W. The repair disappears when every such
+  sensor reports a unit BattMind can read.
+- **The automation made from the blueprint is off:** the automation that uses the BattMind blueprint for the battery
+  was switched on before, and is now turned off or deleted. A repair is only raised after BattMind has seen that
+  automation on, so one you never made from the blueprint, or one kept in another file than `automations.yaml`, never
+  gives a repair. It disappears when the automation is on again.
+- **The battery does not follow the plan:** BattMind's plan check (see [Does the battery follow the action?](actions.md#does-the-battery-follow-the-action))
+  judged at least 24 hours, at least 6 of them did not match the action, and fewer than 80 % matched. The repair lists
+  the latest mismatches with the kWh charged and discharged in that hour. Hours in which the battery could not follow
+  (at a limit, during the test, with missing data, or when the action changed in that hour) are not counted. Common
+  causes: the automation does not run the step for that action (run the test), another app or the inverter's own
+  schedule also controls the battery, a sign that is the wrong way round, or an inverter setting such as minimum state
+  of charge or maximum power. The hours are counted over the last 14 days, so after a fix the repair can stay for
+  several days. It disappears when at least 24 hours are judged and fewer than 6 of them mismatch, or at least 80 %
+  match.
+
+The Strømligning and Solcast sensors have their own repairs (see [Getting started](getting-started.md)). The check runs
+at startup, every hour, a minute after a sensor was enabled or disabled, when the blueprint automation changes, and when
+the plan check is published again.
+
 ## Report a problem
 
 When BattMind does something wrong, create a debug file **as soon as possible** after it happened: it holds
