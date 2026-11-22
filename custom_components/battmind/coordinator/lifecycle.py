@@ -18,6 +18,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from ..const import DOMAIN, ENTITY_UNAVAILABLE_STATES
 from ..engine import BattMindEngine
 from ..management.dependency_checks import DependencyWatcher
+from ..management.health_checks import HealthWatcher
 from ..prices import stromligning_entities_to_watch
 from ..utils.cjp import CJP_DOMAIN, cjp_charger_power_entities
 from ..utils.solcast import solcast_endings_for_days
@@ -57,7 +58,7 @@ class CoordinatorLifecycle:
         if self.config["home"]["ignore_cjp_chargers"]:
             self.entry.async_on_unload(async_dispatcher_connect(self.hass, SIGNAL_CONFIG_ENTRY_CHANGED, self._on_config_entry_changed))
 
-        self._start_dependency_checks()
+        await self._async_start_health_checks(self._start_dependency_checks())
 
         ent_reg = er.async_get(self.hass)
         for entity_id in self.configured_entities:
@@ -67,7 +68,7 @@ class CoordinatorLifecycle:
         await self._async_apply_restore()
         self.set_charging_rule(f"📟{self.t('ui.init.script_starting')}")
 
-    def _start_dependency_checks(self) -> None:
+    def _start_dependency_checks(self) -> DependencyWatcher:
         """Repairs for Strømligning and Solcast sensors BattMind needs but that are disabled or not provided."""
         stromligning = stromligning_entities_to_watch(self.config["prices"]["entity_ids"])
         forecast_entity = self.config["solar"]["entity_ids"]["forecast_entity_id"]
@@ -79,6 +80,17 @@ class CoordinatorLifecycle:
             forecast_entity,
             solcast_endings_for_days(int(self.config["days_to_predict"])),
         )
+        watcher.start()
+        self.entry.async_on_unload(watcher.stop)
+        return watcher
+
+    async def _async_start_health_checks(self, dependency: DependencyWatcher) -> None:
+        """Health checks of the battery setup (management/health_checks.py). The sensors that the Strømligning and Solcast
+        repairs judge are left out of the missing-sensor check."""
+        watcher = HealthWatcher(
+            self.hass, self.entry, self.prefix, self.config, self.configured_entities, dependency.covered_entities, self.t
+        )
+        await watcher.async_load()
         watcher.start()
         self.entry.async_on_unload(watcher.stop)
 

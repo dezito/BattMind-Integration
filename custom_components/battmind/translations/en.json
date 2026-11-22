@@ -1128,6 +1128,22 @@
     "solcast_entities": {
       "title": "Solcast forecast sensors that BattMind needs are not available ({prefix})",
       "description": "BattMind ({prefix}) can't use all the Solcast forecast sensors it needs, so the days without one are planned from the weather forecast and the stored solar history instead. Solcast disables the forecast sensors of day 3 and on by default.\n\nDisabled in Home Assistant (enable them under **Settings → Devices & services → Entities**, with *Show disabled entities*):\n{disabled}\n\nNot named the way BattMind expects (the entity id must end in _today, _tomorrow or _day_3 …):\n{renamed}\n\nWithout hourly detail (turn on *Hourly detail* under *Forecast attributes breakdown* in the Solcast options):\n{no_detail}\n\nThis repair disappears by itself when the sensors are fixed."
+    },
+    "entities_missing": {
+      "title": "Sensors BattMind uses are disabled or missing ({prefix})",
+      "description": "BattMind ({prefix}) uses sensors that are disabled in Home Assistant, or that no longer exist because they were deleted or renamed. The plan then works with missing values, and the battery may not follow it.\n\nDisabled (enable them under **Settings → Devices & services → Entities**, with *Show disabled entities*):\n{disabled}\n\nMissing (select the sensor again under **Configure** in the BattMind integration, or give it its old name back):\n{missing}\n\nTo check that the battery still follows the plan, run *Test my automation* on the BattMind dashboard.\n\nThis repair disappears by itself when all the sensors are enabled and found again."
+    },
+    "entity_units": {
+      "title": "Sensor units BattMind can't read ({prefix})",
+      "description": "BattMind ({prefix}) reads power sensors in mW, W, kW, MW or GW (a unit with an h, such as Wh or kWh, is read as the unit without it), and the battery level in %. These sensors report another unit, so their values are read at the wrong size and the plan is wrong:\n{entities}\n\nChange the unit in the integration that creates the sensor, or select a sensor that reports power or the battery level in these units under **Configure** in the BattMind integration. Then run *Test my automation* on the BattMind dashboard to check that the battery still follows the plan.\n\nThis repair disappears by itself when every sensor reports a unit BattMind can read."
+    },
+    "blueprint_automation_lost": {
+      "title": "The automation made from the BattMind blueprint is off ({prefix})",
+      "description": "BattMind ({prefix}) has seen an automation made from its battery blueprint switched on. It is now turned off or deleted, so the battery no longer gets the actions of the plan.\n\nTurned off (a dash means the automation was deleted from automations.yaml):\n{automations}\n\nTurn the automation on again under **Settings → Automations & scenes**, or make a new one from the BattMind blueprint and run *Test my automation* on the BattMind dashboard.\n\nThis repair disappears by itself when the automation is on again. If you stopped using the blueprint on purpose, ignore this repair."
+    },
+    "plan_not_followed": {
+      "title": "The battery does not follow the plan ({prefix})",
+      "description": "In the last {days} days BattMind judged {checked} hours in which the battery should do what the action of `sensor.{prefix}_powerwall_action` says. In {mismatches} of them the battery did not do it, and {percent} % matched. This repair is raised at {min_checked} or more judged hours with at least {min_mismatches} mismatches and a match below {max_percent} %.\n\nLatest mismatches (hour, action, charged / discharged kWh):\n{latest}\n\nCommon causes:\n- the automation does not run the step for that action: run *Test my automation* on the BattMind dashboard and read the result for each action\n- another app, another automation or the inverter's own schedule also controls the battery\n- a wrong sign: charging is measured as discharging, or the other way round (check the battery power sensor)\n- an inverter setting, such as its minimum state of charge or maximum power, stops the battery\n\nHours in which the battery could not follow are not counted: the battery was at a limit, the test ran, data was missing, or the action changed during the hour.\n\nThis repair disappears by itself when the battery follows the plan again: fewer than {min_mismatches} hours mismatch, or at least {max_percent} % match. The hours are counted over the last {days} days, so this can take several days."
     }
   }
 }

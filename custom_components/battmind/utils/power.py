@@ -20,7 +20,7 @@ from __future__ import annotations
 import bisect
 import datetime
 import math
-from typing import Iterable
+from typing import Any, Iterable
 
 NUM_POINTS = 100
 
@@ -36,6 +36,15 @@ _POWER_FACTORS_TO_W = {
 def unique_entity_ids(entity_ids: Iterable[str | None] | None) -> list[str]:
     """The entity ids in order, without empty values and repeats (a sensor listed twice is counted once)."""
     return list(dict.fromkeys(entity_id for entity_id in entity_ids or [] if entity_id))
+
+
+def power_unit_known(unit: Any) -> bool:
+    """Whether unit_factor_to_w reads the unit as the size it has: no unit (read as W) or one of the power units.
+
+    A unit that is not text (a number, a list) is not known: it is never read as a size."""
+    if not unit:
+        return True
+    return isinstance(unit, str) and unit.replace("h", "") in _POWER_FACTORS_TO_W
 
 
 def unit_factor_to_w(unit: str | None) -> float:

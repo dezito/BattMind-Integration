@@ -28,6 +28,12 @@ _LOGGER = logging.getLogger(__name__)
 
 ISSUE_STROMLIGNING = "stromligning_entities"
 ISSUE_SOLCAST = "solcast_entities"
+# the repairs of management/health_checks.py (the names are here so that removing an entry deletes them too)
+ISSUE_ENTITIES_MISSING = "entities_missing"
+ISSUE_ENTITY_UNITS = "entity_units"
+ISSUE_BLUEPRINT_LOST = "blueprint_automation_lost"
+ISSUE_PLAN_NOT_FOLLOWED = "plan_not_followed"
+HEALTH_ISSUES = (ISSUE_ENTITIES_MISSING, ISSUE_ENTITY_UNITS, ISSUE_BLUEPRINT_LOST, ISSUE_PLAN_NOT_FOLLOWED)
 # Home Assistant reloads an integration about 30 seconds after one of its entities was enabled or disabled
 RECHECK_DELAY = 60
 RECHECK_INTERVAL = datetime.timedelta(hours=1)
@@ -95,9 +101,19 @@ def _lines(entity_ids: list[str]) -> str:
 
 
 @callback
-def remove_issues(hass: HomeAssistant, entry_id: str) -> None:
-    """Delete the repairs of a config entry (it was removed, or it no longer uses Strømligning or Solcast)."""
+def remove_dependency_issues(hass: HomeAssistant, entry_id: str) -> None:
+    """Delete the Strømligning and Solcast repairs of a config entry (it no longer uses them).
+
+    Not the health checks: a start or reload with nothing to watch here must keep their repairs, and the user's "ignore"."""
     for issue in (ISSUE_STROMLIGNING, ISSUE_SOLCAST):
+        ir.async_delete_issue(hass, DOMAIN, f"{entry_id}_{issue}")
+
+
+@callback
+def remove_issues(hass: HomeAssistant, entry_id: str) -> None:
+    """Delete all repairs of a config entry (it was removed)."""
+    remove_dependency_issues(hass, entry_id)
+    for issue in HEALTH_ISSUES:
         ir.async_delete_issue(hass, DOMAIN, f"{entry_id}_{issue}")
 
 
@@ -124,13 +140,24 @@ class DependencyWatcher:
         base = strip_forecast_suffix(forecast_entity) if forecast_entity else ""
         self._watched = {*self.stromligning_entities, *(f"{base}_{ending}" for ending in self.solcast_endings if base)}
 
+    def covered_entities(self) -> set[str]:
+        """The sensors the repairs above judge, which the health checks leave out.
+
+        The Strømligning sensors always; the Solcast forecast sensors only while the selected sensor is a Solcast one
+        (for another forecast integration nothing is judged, so nothing is covered)."""
+        covered = set(self.stromligning_entities)
+        if self.forecast_entity and solcast_problems(self.hass, self.forecast_entity, self.solcast_endings) is not None:
+            base = strip_forecast_suffix(self.forecast_entity)
+            covered.update(f"{base}_{ending}" for ending in self.solcast_endings)
+        return covered
+
     def _issue_id(self, issue: str) -> str:
         return f"{self.entry.entry_id}_{issue}"
 
     @callback
     def start(self) -> None:
         if not self.stromligning_entities and not self.forecast_entity:
-            remove_issues(self.hass, self.entry.entry_id)  # nothing to watch any more: no repair about it either
+            remove_dependency_issues(self.hass, self.entry.entry_id)  # nothing to watch any more: no repair about it either
             return
         if (unsub := async_at_started(self.hass, self._started)) is not None:
             self._unsubs.append(unsub)

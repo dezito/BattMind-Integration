@@ -225,6 +225,91 @@ async def test_discharge_into_car_allowed_by_entity(hass: HomeAssistant, freezer
     assert ran == ["discharge_allowed", "ev_charging"]
 
 
+KW = {"unit_of_measurement": "kW", "device_class": "power"}
+
+
+async def test_car_charging_in_kw_blocks_discharge(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    """A charger power sensor in kW (e.g. Easee) is compared with the threshold in W."""
+    hass.states.async_set(EV_POWER, "0.0", KW)
+    await _setup(hass, freezer, **EV_INPUTS)
+    hass.states.async_set(EV_POWER, "10.0", KW)
+    await _wait(hass, freezer, 31)
+    assert ran == ["ev_charging"]
+    # the car stops: back to BattMind's action
+    hass.states.async_set(EV_POWER, "0.0", KW)
+    await _wait(hass, freezer, 31)
+    assert ran == ["ev_charging", "discharge_allowed"]
+
+
+async def test_car_charging_in_kw_below_threshold(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    """0.5 kW is 500 W: under the default 1000 W the car does not count as charging."""
+    hass.states.async_set(EV_POWER, "0.0", KW)
+    await _setup(hass, freezer, **EV_INPUTS)
+    hass.states.async_set(EV_POWER, "0.5", KW)
+    await _wait(hass, freezer, 31)
+    hass.states.async_set(ACTION_SENSOR, "blocked_solar_charge")
+    await _settle()
+    assert ran == ["blocked_solar_charge"]
+
+
+async def test_discharge_into_car_switch_with_kw_charger(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    hass.states.async_set(EV_POWER, "0.0", KW)
+    hass.states.async_set(EV_ALLOWED, "on")
+    await _setup(hass, freezer, **EV_INPUTS, ev_discharge_allowed=EV_ALLOWED)
+    hass.states.async_set(EV_POWER, "7.4", KW)
+    await _wait(hass, freezer, 31)
+    assert ran == ["discharge_allowed"]
+    hass.states.async_set(EV_ALLOWED, "off")
+    await _settle()
+    assert ran == ["discharge_allowed", "ev_charging"]
+
+
+async def _ramp(hass: HomeAssistant, freezer: FrozenDateTimeFactory, values: list[str], attributes: dict[str, str] | None = None, seconds: int = 7) -> None:
+    """A charger that ramps up through several values, each one shorter than 30 seconds."""
+    for value in values:
+        hass.states.async_set(EV_POWER, value, attributes)
+        await _wait(hass, freezer, seconds)
+
+
+@pytest.mark.parametrize(
+    ("values", "attributes"),
+    [
+        (["0.45", "9.87", "10.07", "10.17"], KW),
+        (["450", "9866", "10068", "10173"], None),
+    ],
+    ids=["kW", "W"],
+)
+async def test_car_charging_detected_when_power_ramps_up(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str], values: list[str], attributes: dict[str, str] | None
+) -> None:
+    """Seen with an Easee charger: the power steps up within 30 seconds, then holds above the threshold."""
+    hass.states.async_set(EV_POWER, "0", attributes)
+    await _setup(hass, freezer, **EV_INPUTS)
+    await _ramp(hass, freezer, values, attributes)
+    await _wait(hass, freezer, 31)
+    assert ran == ["ev_charging"]
+
+
+async def test_power_wobble_while_charging_runs_nothing_new(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    hass.states.async_set(EV_POWER, "0.0", KW)
+    await _setup(hass, freezer, **EV_INPUTS)
+    hass.states.async_set(EV_POWER, "10.0", KW)
+    await _wait(hass, freezer, 31)
+    assert ran == ["ev_charging"]
+    # the reading moves a little, sometimes held longer than 30 seconds: still charging
+    await _ramp(hass, freezer, ["10.07", "9.95", "10.05", "9.96"], KW, seconds=40)
+    assert ran == ["ev_charging"]
+
+
+async def test_single_charger_entity_as_string(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    """An automation that holds one entity instead of a list (as an older editor or YAML may write it)."""
+    hass.states.async_set(EV_POWER, "0.0", KW)
+    await _setup(hass, freezer, ev_chargers=EV_POWER, ev_charging=EV_INPUTS["ev_charging"])
+    hass.states.async_set(EV_POWER, "10.0", KW)
+    await _wait(hass, freezer, 31)
+    assert ran == ["ev_charging"]
+
+
 async def test_discharge_into_car_only_above_level(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
     hass.states.async_set(EV_POWER, "0")
     hass.states.async_set(EV_ALLOWED, "on")

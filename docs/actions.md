@@ -101,7 +101,7 @@ If you don't want that:
 
 | Input | Meaning |
 |---|---|
-| EV charger power | one or more power sensors of the chargers |
+| EV charger power | one or more power sensors of the chargers, in W or kW |
 | Car is charging above | above this power (default 1000 W) the car counts as charging. The change has to last 30 seconds |
 | While the car is charging | runs instead of *Discharge allowed* and *Solar charging blocked* while the car charges, e.g. discharge power 0. *Charge from grid*, *Forced discharge* and *Solar charging only* still follow BattMind |
 | Allow discharging into the car when | while this entity is on, *Discharge allowed* runs as normal, e.g. Cable Juice Planner's `switch.cjp_<car>_powerwall_discharge_above_needed` |
@@ -200,7 +200,8 @@ An hour is **skipped, never counted as a match or a mismatch**, when it can't pr
 
 A low percentage means the battery didn't do what the action asked: the automation isn't connected yet, uses
 the wrong entity, or the inverter ignores the command. Look at the blueprint's automation traces. The check only
-observes: it never sends a command and never changes the plan.
+observes: it never sends a command and never changes the plan. When the plan is clearly not followed, BattMind raises
+a repair as well (see [Repairs](faq-troubleshooting.md#repairs)).
 
 ## Test your automation
 

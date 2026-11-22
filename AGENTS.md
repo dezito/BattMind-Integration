@@ -533,6 +533,37 @@ electricity supplier charges for selling. Formula:
   lack `planning_job`/`price_data` and replay less
   faithfully.
 
+### Health checks (repairs)
+
+- `management/health_checks.py` raises the repairs `entities_missing`,
+  `entity_units`, `blueprint_automation_lost` and `plan_not_followed`. They
+  only inform; none of them controls anything. `plan_not_followed` reads the
+  published `plan_check` attribute and needs `PLAN_MIN_CHECKED_HOURS`,
+  `PLAN_MIN_MISMATCHES` and a match below `PLAN_MAX_MATCH_PERCENT`; its lines
+  show charged/discharged kWh, so an opposite action is visible there. Being
+  unavailable is not a repair: the existing persistent notification after 30
+  minutes covers it.
+- Delete an issue only on a positive answer (the problem is gone), never on an
+  unclear one (unavailable/unknown state, unreadable `automations.yaml`).
+  Delete + create resets the user's "Ignore", while `async_create_issue` on an
+  existing issue keeps it. Stop, unload and reload never delete the issues;
+  only removing the entry does, and it also deletes the `.health` store. An
+  unreadable store starts with the safe defaults.
+- The store `battmind.<entry_id>.health` is deliberately not in `DB_NAMES`, so
+  it is not in BattMind's own backup (`management/backup.py`) nor in the debug
+  export. A full Home Assistant backup still contains it.
+- Units follow `power_unit_known()` in `utils/power.py` (the unit without an
+  `h` is mW, W, kW, MW or GW, or no unit); the battery level only in %. CJP
+  has the same rule. BattMind reads every power value, statistics included
+  (`units=None`), through `unit_factor_to_w` in `utils/power.py` (the config
+  flow's own copy in `flow/detection.py` doesn't strip the `h`, so a kWh
+  sensor just isn't suggested). Keep the rule in line with the code that
+  reads each sensor.
+- `blueprint_automation_lost` needs the automation to have been seen on first,
+  so users with their own automation never get it. Automations without an
+  `id` or outside `automations.yaml` (packages, YAML mode) are not found. A
+  registry-disabled automation counts as off.
+
 ## Tests and validation
 
 ### Devcontainer
