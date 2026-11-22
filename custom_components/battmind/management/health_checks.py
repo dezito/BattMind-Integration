@@ -6,8 +6,14 @@ no service and switches nothing. Its repairs are:
 
 - entities_missing: a configured sensor is disabled, or is in neither the entity registry nor the states
 - entity_units: a power or battery level sensor reports a unit BattMind does not read
+- power_without_unit: a power sensor without a unit whose values look like kW (value_checks.py), so it is read 1000 times too small
+- battery_level_fraction: a battery level read as % whose values look like a share 0..1, so it is read 100 times too small
+- price_unit_scale: a price sensor in a subunit of its currency (øre, cent), per MWh or per Wh, so the prices are in another scale (100 or 1000 times too large, or 1000 times too small)
 - blueprint_automation_lost: the automation made from the BattMind blueprint was switched on, and is now off or deleted
 - plan_not_followed: the battery did not do what the published action asked (engine/analysis/plan_check.py)
+
+The value and price repairs only judge: they never convert a value, and what they flag is kept in the store (the values),
+so a restart can't clear a repair it can't judge again.
 
 The sensors that the Strømligning and Solcast repairs (dependency_checks.py) judge are left out of entities_missing.
 
@@ -34,18 +40,33 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_interval
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN
 from ..utils.power import power_unit_known, unique_entity_ids
 from .automation_inputs import blueprint_automation_ids
 from .dependency_checks import (
+    ISSUE_BATTERY_FRACTION,
     ISSUE_BLUEPRINT_LOST,
     ISSUE_ENTITIES_MISSING,
     ISSUE_ENTITY_UNITS,
     ISSUE_PLAN_NOT_FOLLOWED,
+    ISSUE_POWER_WITHOUT_UNIT,
+    ISSUE_PRICE_UNIT,
     NOTHING,
     RECHECK_DELAY,
     _lines,
+)
+from .value_checks import (
+    KW_LOOKING_MAX,
+    POWER_SCALE_DAYS,
+    VALUE_RECHECK,
+    async_recorded_numbers,
+    battery_fraction_verdict,
+    could_be_fraction,
+    could_be_kw,
+    number_text,
+    power_scale_verdict,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,6 +76,12 @@ STORE_VERSION = 1
 # can't tell "never used" from "switched off"), and the sensors flagged with a unit, until they are judged OK again
 STORE_AUTOMATION_SEEN = "automation_seen"
 STORE_UNITS_FLAGGED = "units_flagged"
+# the sensors flagged by power_without_unit or battery_level_fraction (entity id -> the repair), until they are judged OK again
+STORE_VALUES_FLAGGED = "values_flagged"
+# the repairs (issue keys) whose list of flagged sensors is complete: read intact from the store, every sensor judged in one check,
+# or no repair in the issue registry when the store had no list
+STORE_VALUES_KNOWN = "values_known"
+VALUE_ISSUES = (ISSUE_POWER_WITHOUT_UNIT, ISSUE_BATTERY_FRACTION)
 # the checks also run this often, so a change that nothing announced is still found
 RECHECK_INTERVAL = datetime.timedelta(hours=1)
 # plan_not_followed: the plan check (engine/analysis/plan_check.py) must have judged at least this many hours ...
@@ -76,6 +103,22 @@ EVENT_AUTOMATION_RELOADED = "automation_reloaded"
 
 def store_key(entry_id: str) -> str:
     return f"{DOMAIN}.{entry_id}.health"
+
+
+def _utcnow() -> datetime.datetime:
+    """The clock of the history reads of the value checks (tests set it to age a read)."""
+    return dt_util.utcnow()
+
+
+def _rounded_up_for_text(value: float) -> float:
+    """The value rounded UP to the digits number_text shows (3 significant digits, whole numbers from 1000), so that the shown
+    number is never below the value. The small margin keeps a float like 4.2 / 0.01 = 420.00000000000006 from rounding up again."""
+    if value <= 0:
+        return 0.0
+    if value >= 1000:
+        return float(math.ceil(value))
+    step = 10.0 ** (math.floor(math.log10(value)) - 2)
+    return math.ceil(value / step - 1e-9) * step
 
 
 async def async_remove_health_store(hass: HomeAssistant, entry_id: str) -> None:
@@ -153,16 +196,20 @@ class HealthWatcher:
         entities: Iterable[str],
         covered: Callable[[], set[str]],
         text: Callable[[str, str | None], str],
+        price_units: Callable[[], tuple[list[tuple[str, str]], bool] | None] | None = None,
     ) -> None:
         """config: the BattMind configuration (build_config); entities: the configured entities of the entry;
         covered: the sensors the Strømligning and Solcast repairs already judge (called at each check); text: the
-        translation of a key from texts/<language>.json (coordinator.t), for the words in the repair texts."""
+        translation of a key from texts/<language>.json (coordinator.t), for the words in the repair texts; price_units:
+        the price entities in a unit the prices are not read in, as (problems, all judged) (CombinedPriceProvider
+        .price_unit_problems); None when there is no price provider yet, so nothing is judged."""
         self.hass = hass
         self.entry = entry
         self.prefix = prefix
         self.action_sensor = f"sensor.{prefix}_powerwall_action"
         self._covered = covered
         self._text = text
+        self._price_units = price_units
         self.configured = set(entities)
         self._entities = sorted(self.configured)
         home = config["home"]["entity_ids"]
@@ -185,6 +232,16 @@ class HealthWatcher:
         self._unit_flagged: dict[str, str] = {}
         # False until a list was written: without one (the store is gone) the unit repair is only deleted when every sensor is judged
         self._unit_list_known = False
+        # power_without_unit and battery_level_fraction: the flagged sensors (persisted, entity id -> repair) and the repairs
+        # whose list is known (persisted, per repair: complete when read intact from the store or when every sensor was judged in
+        # one check), and in memory the last history read of each sensor, its verdict and the highest absolute value it showed
+        self._value_flagged: dict[str, str] = {}
+        self._value_known: set[str] = set()
+        self._value_read: dict[str, datetime.datetime] = {}
+        self._value_verdict: dict[str, bool | None] = {}
+        self._value_max: dict[str, float] = {}
+        # True after a failed history read (logged as a warning once, then at debug until a read works again)
+        self._value_read_failed = False
         # the automation entities of the blueprint found by the last check, and their state listener
         self._automations: frozenset[str] = frozenset()
         self._automation_unsub: CALLBACK_TYPE | None = None
@@ -211,6 +268,13 @@ class HealthWatcher:
         if isinstance(flagged, dict):
             self._unit_flagged = {str(entity_id): str(unit) for entity_id, unit in flagged.items()}
             self._unit_list_known = True
+        values = data.get(STORE_VALUES_FLAGGED)
+        if isinstance(values, dict):
+            self._value_flagged = {str(entity_id): issue for entity_id, issue in values.items() if issue in VALUE_ISSUES}
+            # a list is known only when the store was read intact: no entry dropped as malformed, and the known list present
+            known = data.get(STORE_VALUES_KNOWN)
+            if len(self._value_flagged) == len(values) and isinstance(known, list):
+                self._value_known = {issue for issue in known if issue in VALUE_ISSUES}
 
     @callback
     def start(self) -> None:
@@ -304,6 +368,9 @@ class HealthWatcher:
             ("blueprint_automation_lost", self._async_check_blueprint),
             ("entities_missing", self._check_missing),
             ("entity_units", self._check_units),
+            ("power_without_unit", self._check_power_scale),
+            ("battery_level_fraction", self._check_battery_scale),
+            ("price_unit_scale", self._check_price_units),
             ("plan_not_followed", self._check_plan),
         )
         for name, check in checks:
@@ -362,6 +429,150 @@ class HealthWatcher:
             self._create(ISSUE_ENTITY_UNITS, {"entities": _lines([f"{entity_id} ({unit})" for entity_id, unit in sorted(flagged.items())])})
         elif self._unit_list_known or not unjudged:
             self._delete(ISSUE_ENTITY_UNITS)
+
+    async def _check_power_scale(self) -> None:
+        """power_without_unit: the power sensors, judged as kW that is read as W (see _async_check_scale)."""
+        await self._async_check_scale(ISSUE_POWER_WITHOUT_UNIT, [entity_id for entity_id, battery in self._unit_entities if not battery])
+
+    async def _check_battery_scale(self) -> None:
+        """battery_level_fraction: the battery level, judged as a share 0..1 that is read as a percentage."""
+        await self._async_check_scale(ISSUE_BATTERY_FRACTION, [entity_id for entity_id, battery in self._unit_entities if battery])
+
+    async def _async_check_scale(self, issue: str, entities: list[str]) -> None:
+        """The verdict of each sensor: True (its values look wrong), False (positively fine) or None (can't tell: it keeps its
+        flag). A sensor with a unit is fine for power (the unit is converted) and for the battery level in another unit than
+        % (entity_units reports that). A sensor whose state could be in the wrong scale is judged by its history in the
+        recorder: one read for all the sensors of the repair, and each sensor at most once per VALUE_RECHECK. The repair is
+        raised for the flagged sensors. It is deleted when none is flagged any more and its list is known: read from the store,
+        or every sensor of this repair was judged in one check (then an unclear sensor that is not flagged does not keep the
+        repair). A list without a stored state and without a repair in the registry starts complete (nothing to forget). The
+        list is per repair, so judging one repair's sensors never completes the list of the other. A failed history
+        read keeps the verdicts and is not retried before VALUE_RECHECK."""
+        battery = issue == ISSUE_BATTERY_FRACTION
+        now = _utcnow()
+        verdicts: dict[str, bool | None] = {}
+        current: dict[str, float] = {}
+        needs: list[str] = []
+        for entity_id in entities:
+            state = self.hass.states.get(entity_id)
+            if state is None or state.state in UNJUDGED_STATES:
+                verdicts[entity_id] = None
+                continue
+            unit = state.attributes.get("unit_of_measurement") or None
+            if unit is not None and not (battery and unit == BATTERY_LEVEL_UNIT):
+                verdicts[entity_id] = self._judged_fine(entity_id)
+                continue
+            could = could_be_fraction(state.state) if battery else could_be_kw(state.state)
+            if could is True:
+                needs.append(entity_id)
+                current[entity_id] = float(state.state)
+            elif could is False:
+                verdicts[entity_id] = self._judged_fine(entity_id)  # above the scale it is read in
+            else:
+                verdicts[entity_id] = None  # no number
+        stale = [entity_id for entity_id in needs if entity_id not in self._value_read or now - self._value_read[entity_id] >= VALUE_RECHECK]
+        if stale:
+            failed = False
+            try:
+                numbers = await async_recorded_numbers(self.hass, stale)
+            except Exception as err:  # noqa: BLE001 - the verdicts are kept and the read is not retried before VALUE_RECHECK
+                failed = True
+                self._log_read_failed(err)
+                numbers = None
+            else:
+                self._value_read_failed = False
+            for entity_id in stale:
+                self._value_read[entity_id] = now
+                if failed:
+                    continue
+                if numbers is None:  # no recorder: nothing to judge by, the sensor keeps its flag
+                    self._value_verdict[entity_id] = None
+                    continue
+                values = [*numbers.get(entity_id, []), current[entity_id]]
+                self._value_max[entity_id] = max(abs(value) for value in values)
+                self._value_verdict[entity_id] = battery_fraction_verdict(values) if battery else power_scale_verdict(values)
+        for entity_id in needs:
+            verdicts[entity_id] = self._value_verdict.get(entity_id)
+
+        flagged = dict(self._value_flagged)
+        for entity_id in [entity_id for entity_id, found in flagged.items() if found == issue and entity_id not in entities]:
+            del flagged[entity_id]  # no longer configured
+        unclear = False
+        for entity_id in entities:
+            verdict = verdicts[entity_id]
+            if verdict is True:
+                flagged[entity_id] = issue
+            elif verdict is False:
+                flagged.pop(entity_id, None)
+            else:
+                unclear = True
+        known_before = issue in self._value_known
+        # no repair in the issue registry (a fresh start, or none was ever raised): nothing could have been forgotten, so the
+        # list starts complete, also when one of its sensors is never judged
+        if not known_before and ir.async_get(self.hass).async_get_issue(DOMAIN, self._issue_id(issue)) is None:
+            self._value_known.add(issue)
+        if not unclear:  # every sensor of this repair was judged: its list is complete
+            self._value_known.add(issue)
+        if flagged != self._value_flagged or (issue in self._value_known and not known_before):
+            self._value_flagged = flagged
+            await self._async_save()
+
+        listed = [entity_id for entity_id in sorted(flagged) if flagged[entity_id] == issue]
+        if listed:
+            language = self.hass.config.language
+            lines = []
+            for entity_id in listed:
+                seen = self._value_max.get(entity_id)  # the highest absolute value of the last history read
+                if seen is None:  # never read (or the read failed): a number from the state alone could be below the real value
+                    lines.append(entity_id)
+                    continue
+                current_value = self._current_abs(entity_id)
+                if current_value is not None and current_value > seen:
+                    # kept until the next history read (which holds this value too), so the number never goes down
+                    seen = self._value_max[entity_id] = current_value
+                lines.append(f"{entity_id} (≤ {number_text(_rounded_up_for_text(seen), language)})")
+            placeholders = {"entities": _lines(lines), "days": str(POWER_SCALE_DAYS)}
+            if not battery:
+                placeholders["max"] = number_text(KW_LOOKING_MAX, language)
+            self._create(issue, placeholders)  # again on each change: async_create_issue keeps the user's Ignore
+        elif issue in self._value_known:  # the list is complete (read intact from the store, or every sensor judged in one check)
+            self._delete(issue)
+
+    def _current_abs(self, entity_id: str) -> float | None:
+        """The absolute state value of a sensor now, None when it is no finite number."""
+        state = self.hass.states.get(entity_id)
+        try:
+            value = abs(float(state.state)) if state is not None else None
+        except (TypeError, ValueError):
+            return None
+        return value if value is not None and math.isfinite(value) else None
+
+    def _judged_fine(self, entity_id: str) -> bool:
+        """A sensor whose state is positively fine now: its verdict is False, and its read counts as made now, so an older True
+        from the history is not raised again within VALUE_RECHECK."""
+        self._value_verdict[entity_id] = False
+        self._value_read[entity_id] = _utcnow()
+        return False
+
+    def _log_read_failed(self, err: Exception) -> None:
+        """A failed history read is a warning the first time and debug after that, until a read works again."""
+        if self._value_read_failed:
+            _LOGGER.debug("BattMind could not read the history of the power and battery level sensors again: %s", err)
+        else:
+            self._value_read_failed = True
+            _LOGGER.warning("BattMind could not read the history of the power and battery level sensors, retried later: %s", err)
+
+    async def _check_price_units(self) -> None:
+        """price_unit_scale: a price sensor in a subunit of its currency (øre, cent), per MWh or per Wh, judged by its unit alone. The
+        price provider is asked for it; None (no provider yet) judges nothing, and the repair stays as it is."""
+        result = None if self._price_units is None else self._price_units()
+        if result is None:
+            return
+        problems, judged = result
+        if problems:
+            self._create(ISSUE_PRICE_UNIT, {"entities": _lines([f"{entity_id} ({unit})" for entity_id, unit in problems])})
+        elif judged:
+            self._delete(ISSUE_PRICE_UNIT)
 
     async def _check_plan(self) -> None:
         """plan_not_followed: judged on the plan check published on the action sensor. Fewer hours than the minimum, a
@@ -443,6 +654,8 @@ class HealthWatcher:
             data[STORE_AUTOMATION_SEEN] = True
         if self._unit_list_known:
             data[STORE_UNITS_FLAGGED] = dict(self._unit_flagged)
+        data[STORE_VALUES_FLAGGED] = dict(self._value_flagged)  # always with values_known: without it no list is read as known
+        data[STORE_VALUES_KNOWN] = sorted(self._value_known)
         try:
             await self._store.async_save(data)
         except (OSError, HomeAssistantError) as err:

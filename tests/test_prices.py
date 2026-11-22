@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime
 import math
+from types import SimpleNamespace
 
 import pytest
 
@@ -282,3 +283,44 @@ def test_combined_provider_reads_the_price_entities_and_merges_the_prices() -> N
     assert provider.get_buy_forecast_prices()[tomorrow] > provider.get_buy_forecast_prices(adder=False)[tomorrow] == pytest.approx(2.0, abs=0.005)
     assert tomorrow not in provider.get_buy_real_prices()
     assert provider.buy_price_entity_id() == "sensor.stromligning, sensor.eds"
+
+
+def _price_state(value):
+    """A price entity for price_unit_problems: (state, unit or None), or None when the entity has no state."""
+    if value is None:
+        return None
+    state, unit = value
+    return SimpleNamespace(state=state, attributes={} if unit is None else {"unit_of_measurement": unit})
+
+
+@pytest.mark.parametrize(
+    ("buy", "sell", "problems", "judged"),
+    [
+        (("1.2", "øre/kWh"), ("0.5", "kr/kWh"), [("sensor.eds_buy", "øre/kWh")], True),
+        (("1.2", "kr/kWh"), ("0.5", "kr/MWh"), [("sensor.eds_sell", "kr/MWh")], True),
+        (("1.2", "kr/kWh"), ("0.5", "kr/kWh"), [], True),
+        (("1.2", None), ("0.5", "kr/kWh"), [], True),
+        (None, ("0.5", "kr/kWh"), [], False),
+        (("unavailable", None), ("0.5", "kr/kWh"), [], False),
+        (("unavailable", "ct/kWh"), ("0.5", "kr/kWh"), [("sensor.eds_buy", "ct/kWh")], True),
+        (("1.2", "kr/kWh"), None, [], False),
+    ],
+    ids=[
+        "subunit-buy",
+        "per-mwh-sell",
+        "kr-kwh",
+        "no-unit",
+        "no-state",
+        "unavailable-without-unit",
+        "unavailable-with-unit",
+        "missing-sell-state",
+    ],
+)
+def test_the_price_units_that_are_wrong_are_reported_and_missing_ones_are_not_judged(buy, sell, problems, judged) -> None:
+    states = {"sensor.eds_buy": _price_state(buy), "sensor.eds_sell": _price_state(sell)}
+    provider = create_price_provider(build_config({
+        **default_options(),
+        "energidataservice_buy_entity_id": "sensor.eds_buy",
+        "energidataservice_sell_entity_id": "sensor.eds_sell",
+    }))
+    assert provider.price_unit_problems(states.get) == (problems, judged)

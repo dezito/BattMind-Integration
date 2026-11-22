@@ -473,7 +473,9 @@ electricity supplier charges for selling. Formula:
 ### Health checks (repairs)
 
 - `management/health_checks.py` raises the repairs `entities_missing`,
-  `entity_units`, `blueprint_automation_lost` and `plan_not_followed`. They
+  `entity_units`, `blueprint_automation_lost`, `plan_not_followed` and the
+  value scale repairs below (`power_without_unit`, `battery_level_fraction`,
+  `price_unit_scale`). They
   only inform; none of them controls anything. `plan_not_followed` reads the
   published `plan_check` attribute and needs `PLAN_MIN_CHECKED_HOURS`,
   `PLAN_MIN_MISMATCHES` and a match below `PLAN_MAX_MATCH_PERCENT`; its lines
@@ -500,6 +502,29 @@ electricity supplier charges for selling. Formula:
   so users with their own automation never get it. Automations without an
   `id` or outside `automations.yaml` (packages, YAML mode) are not found. A
   registry-disabled automation counts as off.
+- Value scale repairs (decided with the user: inform only, no fix flow and no
+  conversion, because a blueprint can read the same sensor itself):
+  `power_without_unit` (a power sensor without a unit whose values over
+  `POWER_SCALE_DAYS` stay at most `KW_LOOKING_MAX` with fractions, so kW read
+  as W), `battery_level_fraction` (every value 0..1 with fractions) and
+  `price_unit_scale` (a price entity in a subunit, per MWh or per Wh, judged by
+  its unit only, through `CombinedPriceProvider.price_unit_problems`). The
+  verdicts are in `management/value_checks.py`, the same file as in CJP
+  (change both together, with `tests/test_value_checks.py`): True, False or
+  None, and None never clears a repair. History is read in the recorder's
+  executor, at most once per `VALUE_RECHECK` per sensor, and only for a
+  sensor whose current state could be in the wrong scale. The flagged sensors
+  are kept in the `.health` store (`values_flagged`, and `values_known` for
+  the repairs whose list is known); with a known list for that repair the
+  repair goes when no sensor is flagged any more. A repair's list is known
+  only when it was read intact from the store or one check judged every
+  sensor of that repair (True or False), or when the repair is not in the
+  issue registry (nothing to forget: a fresh start knows its empty list). A
+  lost store, a store without `values_known` or a malformed entry while the
+  repair is open leaves it unknown, and then every sensor must be judged fine
+  before the repair goes.
+  `price_unit_scale` keeps no list: it goes only when every price entity was
+  judged.
 
 ## Tests and validation
 
@@ -513,6 +538,13 @@ fixed number of `sleep(0)` yields. `tests/conftest.py` has `async_advance()`
 for timers. When calling the test venv's Python directly, put
 `../ha-dev/windows` (shims) on `PYTHONPATH`. Test the PyScript import with
 `../ha-dev/dev.ps1 import-legacy` before adding the integration.
+
+Keep test runs short (user decision). While fixing, run only the test files
+that cover the change (`'-n' '0'` for a single file); after a failure rerun
+only what failed (`--lf`, `-x` to stop at the first failure). Run the full
+suite once, after the last change and before reporting the task done: not
+after every fix or review round, and in a multi-agent task only once, by the
+main agent, not by each subagent. `--durations=25` shows the slowest tests.
 
 The devcontainer, the Windows venv and its shims, debugging in one process
 (`'-n' '0'`), the pinned test dependencies, and where the ha-dev seed and

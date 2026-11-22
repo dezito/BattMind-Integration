@@ -147,8 +147,36 @@ restart, until the problem is gone.
   again.
 - **Sensor units BattMind can't read:** a power sensor reports a unit other than mW, W, kW, MW or GW, or the battery
   level sensor reports a unit other than %. A unit with an h at the end (Wh, kWh, MWh) is read as the unit without it,
-  so kWh is read as kW. A power sensor with no unit is read as W. The repair disappears when every such
-  sensor reports a unit BattMind can read.
+  so kWh is read as kW. A power sensor with no unit is read as W (the next repair checks that it fits). The repair
+  disappears when every such sensor reports a unit BattMind can read.
+- **Power sensors without a unit:** BattMind reads a power sensor without a unit in W. The repair is raised when the
+  sensor's current value is between -50 and 50 (its absolute value is 50 or less), when its values over the last 3 days (from
+  the recorder history) never went above 50 either way, some of them are decimal numbers, there are at least 10 values, and
+  at least two different values. Such values look like kilowatts (kW): read as
+  W, they are 1000 times too small, and the plan uses far too little power. Fix it at the source: give the sensor its
+  unit, for example `unit_of_measurement: kW` on a template sensor. Then run *Test my automation* on the BattMind
+  dashboard. The repair is checked every hour: a current value above 50 clears it at the next hourly check, and a value above 50 that is
+  only in the history can take about 6 to 7 hours, because the history is read at most every 6 hours and judged at the hourly check. It also disappears when
+  the sensor gets a unit. The 10 values are needed only to raise the repair; one value above 50 is enough to clear it.
+  Possible false positive: a sensor in W that stays at 50 or below with decimal values for 3 days. If the values really
+  are in W, ignore the repair.
+- **The battery level looks like a share:** BattMind reads the battery level in %. The repair is raised when the battery
+  level's current value is between 0 and 1, and over the last 3 days every value is between 0 and 1, some of them are
+  decimal numbers, there are at least 10 values, and at least two different values. Read as %, 0.85 is 0.85 % instead of 85 %. Fix it at the source:
+  make the sensor report 0 to 100, for example by multiplying by 100 in a template sensor, and select that sensor under
+  **Configure**. The repair is checked every hour: a current value above 1 clears it at the next hourly check, and a value above 1 that
+  is only in the history can take about 6 to 7 hours, because the history is read at most every 6 hours and judged at the hourly check. The 10 values are
+  needed only to raise the repair; one value above 1 is enough to clear it. Possible false positive: a battery that stays
+  between 0 and 1 % for 3 days. If so, ignore the repair.
+- **Prices in a subunit, per MWh or per Wh:** a price sensor's unit is a subunit of the currency (øre or cent), per MWh
+  or per Wh. BattMind does not convert prices, so the prices are in another scale: 100 times too large (subunit), 1000
+  times too large (per MWh) or 1000 times too small (per Wh), and the plan and the savings calculation are wrong. Only the
+  unit is checked. Fix it at the source: in Energi Data Service, turn off the option that shows prices in cent (English
+  *Show prices in cent*, Danish *Vis priser i øre*, German *Preise in Cent anzeigen*) and set *Price calculated in*
+  (Danish *Pris beregnes i*, German *Preis wird berechnet in*) to kWh in the integration's options. Or select a sensor
+  with the currency per kWh (e.g. kr/kWh) under **Configure**. The repair disappears when no price sensor is in a
+  subunit, per MWh or per Wh, checked every hour. If the prices really are in the currency per kWh, ignore the repair.
+  In the Polish and Ukrainian repair text, the Energi Data Service options are only in English.
 - **The automation made from the blueprint is off:** the automation that uses the BattMind blueprint for the battery
   was switched on before, and is now turned off or deleted. A repair is only raised after BattMind has seen that
   automation on, so one you never made from the blueprint, or one kept in another file than `automations.yaml`, never
@@ -162,6 +190,13 @@ restart, until the problem is gone.
   of charge or maximum power. The hours are counted over the last 14 days, so after a fix the repair can stay for
   several days. It disappears when at least 24 hours are judged and fewer than 6 of them mismatch, or at least 80 %
   match.
+
+For the power and battery level repairs, BattMind keeps the list of flagged sensors in its health store, separately for
+each repair. A repair goes away when none of its sensors is flagged any more and its list is complete: the list was read intact
+from the store, one check judged every sensor of that repair, or the repair had not been raised yet (a fresh start). A
+sensor that can't be judged (unavailable, no recorder, too few values) keeps its flag. If the store was lost while a
+repair was open, it stays until one check has judged every sensor of it. The
+price repair keeps no list: it goes only when every price entity has been judged.
 
 The Strømligning and Solcast sensors have their own repairs (see [Getting started](getting-started.md)). The check runs
 at startup, every hour, a minute after a sensor was enabled or disabled, when the blueprint automation changes, and when

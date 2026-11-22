@@ -4,8 +4,9 @@ from __future__ import annotations
 import datetime
 import itertools
 import json
+import logging
 import re
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Iterator
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -36,6 +37,7 @@ from custom_components.battmind.management.health_checks import (
     async_remove_health_store,
     store_key,
 )
+from custom_components.battmind.management.value_checks import POWER_SCALE_DAYS, VALUE_RECHECK
 from custom_components.battmind.utils.formatting import load_texts, translate
 from custom_components.battmind.utils.solcast import solcast_endings_for_days
 
@@ -84,6 +86,9 @@ EXPECTED_PLACEHOLDERS = {
     "entities_missing": {"prefix", "disabled", "missing"},
     "entity_units": {"prefix", "entities"},
     "blueprint_automation_lost": {"prefix", "automations"},
+    "power_without_unit": {"prefix", "entities", "max", "days"},
+    "battery_level_fraction": {"prefix", "entities", "days"},
+    "price_unit_scale": {"prefix", "entities"},
     "plan_not_followed": {"prefix", "days", "checked", "mismatches", "percent", "min_checked", "min_mismatches", "max_percent", "latest"},
 }
 # hours the hourly check fires at, always later than the one before (async_fire_time_changed moves the clock forward)
@@ -120,10 +125,12 @@ async def entry(hass: HomeAssistant) -> MockConfigEntry:
 
 async def start_watcher(
     hass: HomeAssistant, entry: MockConfigEntry, *, covered: set[str] = frozenset(), entities: list[str] = CONFIGURED,
-    config: dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None, price_units: Any = None,
 ) -> HealthWatcher:
     """A started watcher, like the coordinator starts it (its first check has run when this returns)."""
-    watcher = HealthWatcher(hass, entry, PREFIX, build_config(config or MOCK_OPTIONS), entities, lambda: set(covered), _da)
+    watcher = HealthWatcher(
+        hass, entry, PREFIX, build_config(config or MOCK_OPTIONS), entities, lambda: set(covered), _da, price_units=price_units
+    )
     await watcher.async_load()
     watcher.start()
     await hass.async_block_till_done(wait_background_tasks=True)
@@ -442,7 +449,7 @@ async def test_an_automation_that_was_never_seen_on_is_never_a_repair(
     await start_watcher(hass, entry)
     await hourly_check(hass)
     assert issue(hass, entry, "blueprint_automation_lost") is None
-    assert stored(hass_storage, entry) is None
+    assert "automation_seen" not in (stored(hass_storage, entry) or {})
 
 
 async def test_an_automation_outside_automations_yaml_is_never_a_repair(hass: HomeAssistant, entry: MockConfigEntry, config_dir: Path) -> None:
@@ -954,15 +961,543 @@ async def test_every_repair_passes_the_placeholders_its_texts_use(hass: HomeAssi
     # registry first: Home Assistant gives a new registry entry another id when a state already has that id
     er.async_get(hass).async_get_or_create("sensor", "test", "consumption", suggested_object_id="house_consumption", disabled_by=DISABLED)
     set_source_states(hass)
-    hass.states.async_set(PRODUCTION, "0", {"unit_of_measurement": "kVA"})
+    hass.states.async_set(BATTERY_FLOW, "0", {"unit_of_measurement": "kVA"})
+    hass.states.async_set(PRODUCTION, "1.5")
+    hass.states.async_set(BATTERY_LEVEL, "0.6", {"unit_of_measurement": "%"})
     write_automations(config_dir, BLUEPRINT_AUTOMATION)
     register_automation(hass, "on")
     show_plan(hass, plan(30, 20))
-    await start_watcher(hass, entry)
-    hass.states.async_set(AUTOMATION, "off", {"friendly_name": "Battery control"})
-    await hass.async_block_till_done(wait_background_tasks=True)
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY, BATTERY_LEVEL: SHARE_HISTORY})):
+        await start_watcher(hass, entry, price_units=lambda: ([(PRICE, "øre/kWh")], True))
+        hass.states.async_set(AUTOMATION, "off", {"friendly_name": "Battery control"})
+        await hass.async_block_till_done(wait_background_tasks=True)
 
     for key, placeholders in EXPECTED_PLACEHOLDERS.items():
         found = issue(hass, entry, key)
         assert found is not None, key
         assert set(found.translation_placeholders) == placeholders, key
+
+
+# --- power_without_unit, battery_level_fraction and price_unit_scale ----------------------------------------------------
+
+HEALTH = "custom_components.battmind.management.health_checks"
+# the numbers of the last days as the recorder gives them: power in kW-looking values, a battery level as a share
+KW_HISTORY = [0.5, 1.2, 3.4, 0.8, 2.2, 4.2, 1.1, 0.3, 2.5, 3.3]
+WHOLE_HISTORY = [10, 20, 30, 40, 15, 25, 35, 45, 12, 18]  # whole numbers under 50: never judged, neither kW nor W
+SHARE_HISTORY = [0.85, 0.9, 0.5, 0.97, 0.12, 0.33, 0.6, 0.7, 0.8, 0.99]
+
+
+def recorded(history: dict[str, list[float]] | None) -> AsyncMock:
+    """async_recorded_numbers, patched: the numbers of each entity asked for, or None (no recorder)."""
+
+    async def numbers(_hass: HomeAssistant, entity_ids: list[str], days: int = POWER_SCALE_DAYS) -> dict[str, list[float]] | None:
+        if history is None:
+            return None
+        return {entity_id: history.get(entity_id, []) for entity_id in entity_ids}
+
+    return AsyncMock(side_effect=numbers)
+
+
+@pytest.fixture
+def clock() -> Iterator[list[datetime.datetime]]:
+    """The clock of the history reads (VALUE_RECHECK): the test moves it forward."""
+    now = [dt_util.utcnow()]
+    with patch(f"{HEALTH}._utcnow", side_effect=lambda: now[0]):
+        yield now
+
+
+async def test_a_power_without_unit_that_looks_like_kw_is_a_repair(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        await start_watcher(hass, entry)
+    found = issue(hass, entry, "power_without_unit")
+    assert found is not None
+    assert found.translation_placeholders["entities"] == f"- {PRODUCTION} (≤ 4.2)"
+    assert found.translation_placeholders["max"] == "50"
+    assert found.translation_placeholders["days"] == "3"
+
+
+async def test_a_power_sensor_with_a_unit_is_judged_without_history(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5", {"unit_of_measurement": "kW"})
+    numbers = recorded({PRODUCTION: KW_HISTORY})
+    with patch(f"{HEALTH}.async_recorded_numbers", numbers):
+        await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is None
+    assert numbers.await_count == 0
+
+
+async def test_a_power_sensor_that_gets_a_unit_clears_the_repair(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is not None
+
+    hass.states.async_set(PRODUCTION, "1.5", {"unit_of_measurement": "W"})
+    await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit") is None
+
+
+async def test_a_power_above_fifty_in_watts_clears_the_repair(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is not None
+
+    hass.states.async_set(PRODUCTION, "1200")
+    await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit") is None
+
+
+async def test_unclear_values_keep_the_power_repair(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is not None
+
+    # the history can't be read now (no recorder): nothing is decided, the repair stays
+    clock[0] += VALUE_RECHECK
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded(None)):
+        await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit") is not None
+
+    # unavailable is not a verdict either
+    hass.states.async_set(PRODUCTION, "unavailable")
+    await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit") is not None
+
+
+async def test_without_a_recorder_nothing_is_raised(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is None
+
+
+async def test_the_history_is_read_at_most_once_per_recheck(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    numbers = recorded({PRODUCTION: KW_HISTORY})
+    with patch(f"{HEALTH}.async_recorded_numbers", numbers):
+        await start_watcher(hass, entry)
+        assert numbers.await_count == 1
+
+        clock[0] += datetime.timedelta(hours=1)
+        await hourly_check(hass)
+        clock[0] += datetime.timedelta(hours=4)
+        await hourly_check(hass)
+        assert numbers.await_count == 1, "the verdict is kept for VALUE_RECHECK"
+
+        clock[0] += datetime.timedelta(hours=1)
+        await hourly_check(hass)
+        assert numbers.await_count == 2
+    assert issue(hass, entry, "power_without_unit") is not None
+
+
+async def test_all_flagged_sensors_are_read_in_one_call(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    hass.states.async_set(BATTERY_FLOW, "2.0")
+    numbers = recorded({PRODUCTION: KW_HISTORY, BATTERY_FLOW: KW_HISTORY})
+    with patch(f"{HEALTH}.async_recorded_numbers", numbers):
+        await start_watcher(hass, entry)
+    assert numbers.await_count == 1
+    assert sorted(numbers.await_args.args[1]) == sorted([PRODUCTION, BATTERY_FLOW])
+    assert issue(hass, entry, "power_without_unit").translation_placeholders["entities"] == (
+        f"- {BATTERY_FLOW} (≤ 4.2)\n- {PRODUCTION} (≤ 4.2)"
+    )
+
+
+async def test_a_flagged_power_sensor_is_kept_in_the_store(hass: HomeAssistant, entry: MockConfigEntry, hass_storage: dict[str, Any]) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        first = await start_watcher(hass, entry)
+    assert stored(hass_storage, entry)["values_flagged"] == {PRODUCTION: "power_without_unit"}
+    first.stop()
+
+    # a new watcher can't read the sensor yet: the repair stays
+    hass.states.async_set(PRODUCTION, "unavailable")
+    await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is not None
+    hass.states.async_set(PRODUCTION, "1.5", {"unit_of_measurement": "W"})
+    await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit") is None
+
+
+async def test_a_battery_level_that_is_a_share_is_a_repair_until_it_is_a_percentage(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(BATTERY_LEVEL, "0.85", {"unit_of_measurement": "%"})
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({BATTERY_LEVEL: SHARE_HISTORY})):
+        await start_watcher(hass, entry)
+    found = issue(hass, entry, "battery_level_fraction")
+    assert found is not None
+    assert found.translation_placeholders["entities"] == f"- {BATTERY_LEVEL} (≤ 0.99)"
+    assert found.translation_placeholders["days"] == "3"
+
+    hass.states.async_set(BATTERY_LEVEL, "85", {"unit_of_measurement": "%"})
+    await hourly_check(hass)
+    assert issue(hass, entry, "battery_level_fraction") is None
+
+
+@pytest.mark.parametrize(("attributes", "flagged"), [({"unit_of_measurement": "%"}, True), ({}, True), ({"unit_of_measurement": "kWh"}, False)])
+async def test_the_unit_of_the_battery_level_decides_whether_it_is_judged(
+    hass: HomeAssistant, entry: MockConfigEntry, clock, attributes: dict[str, str], flagged: bool
+) -> None:
+    set_source_states(hass)
+    hass.states.async_set(BATTERY_LEVEL, "0.85", attributes)
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({BATTERY_LEVEL: SHARE_HISTORY})):
+        await start_watcher(hass, entry)
+    assert (issue(hass, entry, "battery_level_fraction") is not None) == flagged
+
+
+async def test_a_price_in_a_subunit_is_a_repair_until_it_is_in_kr(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    units: dict[str, Any] = {"result": ([(PRICE, "øre/kWh")], True)}
+    await start_watcher(hass, entry, price_units=lambda: units["result"])
+    found = issue(hass, entry, "price_unit_scale")
+    assert found is not None
+    assert found.translation_placeholders["entities"] == f"- {PRICE} (øre/kWh)"
+
+    units["result"] = ([], True)
+    await hourly_check(hass)
+    assert issue(hass, entry, "price_unit_scale") is None
+
+
+async def test_a_price_provider_that_can_not_judge_keeps_the_repair(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    units: dict[str, Any] = {"result": ([(PRICE, "ct/kWh")], True)}
+    await start_watcher(hass, entry, price_units=lambda: units["result"])
+    assert issue(hass, entry, "price_unit_scale") is not None
+
+    # no price provider yet, or a price sensor with no state: nothing is judged, so the repair stays
+    units["result"] = None
+    await hourly_check(hass)
+    assert issue(hass, entry, "price_unit_scale") is not None
+    units["result"] = ([], False)
+    await hourly_check(hass)
+    assert issue(hass, entry, "price_unit_scale") is not None
+
+
+async def test_removing_the_entry_removes_the_value_and_price_repairs(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    for name in ("power_without_unit", "battery_level_fraction", "price_unit_scale"):
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            f"{entry.entry_id}_{name}",
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key=name,
+            translation_placeholders={"prefix": PREFIX},
+        )
+    remove_issues(hass, entry.entry_id)
+    for name in ("power_without_unit", "battery_level_fraction", "price_unit_scale"):
+        assert issue(hass, entry, name) is None, name
+
+
+# --- the value repairs: the stored list, the flapping, a failed read, the language of the numbers ------------------------
+
+
+async def test_a_fixed_value_sensor_is_deleted_while_another_is_unclear(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is not None
+
+    hass.states.async_set(PRODUCTION, "1200")  # fixed: positively fine
+    hass.states.async_set(BATTERY_FLOW, "unavailable")  # never flagged, and can't be judged now
+    await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit") is None
+
+
+async def test_a_fresh_start_without_a_store_knows_its_list_so_a_fixed_sensor_removes_the_repair(
+    hass: HomeAssistant, entry: MockConfigEntry, clock, hass_storage: dict[str, Any]
+) -> None:
+    """No store and no repair in the registry: nothing could have been forgotten, so the list starts known. A sensor that is
+    never judged (whole numbers under 50 W) must not keep the repair of another sensor once that one is fixed."""
+    set_source_states(hass)
+    hass.states.async_set(CONSUMPTION, "20")  # no unit, whole numbers under 50: never judged
+    hass.states.async_set(PRODUCTION, "1.5")  # no unit, kW-like: flagged
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({CONSUMPTION: WHOLE_HISTORY, PRODUCTION: KW_HISTORY})):
+        await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is not None
+    assert "power_without_unit" in stored(hass_storage, entry)["values_known"]
+
+    hass.states.async_set(PRODUCTION, "1.5", {"unit_of_measurement": "kW"})  # the sensor gets a unit: fine
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({CONSUMPTION: WHOLE_HISTORY})):
+        await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit") is None
+
+
+async def test_a_fixed_value_sensor_is_deleted_after_a_restart_while_another_is_unclear(
+    hass: HomeAssistant, entry: MockConfigEntry, clock, hass_storage: dict[str, Any]
+) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        first = await start_watcher(hass, entry)
+    assert stored(hass_storage, entry)["values_flagged"] == {PRODUCTION: "power_without_unit"}
+    first.stop()
+
+    # the list is read from the store again: the fixed sensor is judged, the unclear one is not flagged
+    hass.states.async_set(PRODUCTION, "1200")
+    hass.states.async_set(BATTERY_FLOW, "unavailable")
+    await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is None
+
+
+async def test_without_a_stored_list_an_unclear_sensor_keeps_the_repair(
+    hass: HomeAssistant, entry: MockConfigEntry, clock, hass_storage: dict[str, Any]
+) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        first = await start_watcher(hass, entry)
+    first.stop()
+
+    # the store is lost: without a known list an unclear sensor keeps the repair, as before
+    hass_storage.pop(store_key(entry.entry_id), None)
+    hass.states.async_set(PRODUCTION, "1200")
+    hass.states.async_set(BATTERY_FLOW, "unavailable")
+    await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is not None
+
+
+async def test_the_repair_text_follows_the_flagged_list_and_keeps_the_ignore(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    hass.states.async_set(BATTERY_FLOW, "2.0")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY, BATTERY_FLOW: KW_HISTORY})):
+        await start_watcher(hass, entry)
+    found = issue(hass, entry, "power_without_unit")
+    assert found.translation_placeholders["entities"].count("\n") == 1
+
+    ir.async_ignore_issue(hass, DOMAIN, f"{entry.entry_id}_power_without_unit", True)
+    hass.states.async_set(BATTERY_FLOW, "1200")
+    await hourly_check(hass)
+    found = issue(hass, entry, "power_without_unit")
+    assert found.translation_placeholders["entities"] == f"- {PRODUCTION} (≤ 4.2)"
+    assert found.dismissed_version is not None, "the Ignore of the user stays"
+
+
+async def test_a_fine_state_clears_the_cached_verdict_so_an_old_true_is_not_raised_again(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is not None
+
+    hass.states.async_set(PRODUCTION, "1200")
+    await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit") is None
+
+    # an hour later it reads like kW again, but the False of the 1200 is kept until VALUE_RECHECK: the history is not read again
+    clock[0] += datetime.timedelta(hours=1)
+    hass.states.async_set(PRODUCTION, "1.5")
+    history = recorded({PRODUCTION: [*KW_HISTORY, 1200.0]})
+    with patch(f"{HEALTH}.async_recorded_numbers", history):
+        await hourly_check(hass)
+    history.assert_not_awaited()
+    assert issue(hass, entry, "power_without_unit") is None
+
+
+async def test_a_lost_store_keeps_a_repair_whose_sensor_was_never_judged(hass: HomeAssistant, entry: MockConfigEntry, hass_storage: dict[str, Any], clock) -> None:
+    """The known list is per repair: a battery level judged in a check says nothing about the power sensor, which was never judged."""
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        first = await start_watcher(hass, entry)
+    first.stop()
+    assert issue(hass, entry, "power_without_unit") is not None
+
+    # the store is lost; the power sensor is unavailable, and the battery level is a share
+    hass_storage.pop(store_key(entry.entry_id), None)
+    hass.states.async_set(PRODUCTION, "unavailable")
+    hass.states.async_set(BATTERY_LEVEL, "0.85", {"unit_of_measurement": "%"})
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({BATTERY_LEVEL: SHARE_HISTORY})):
+        await start_watcher(hass, entry)
+        assert issue(hass, entry, "battery_level_fraction") is not None
+        assert stored(hass_storage, entry)["values_known"] == ["battery_level_fraction"]
+        await hourly_check(hass)
+
+    assert issue(hass, entry, "power_without_unit") is not None, "the power sensor was never judged, so its repair stays"
+
+
+async def test_a_store_without_a_known_list_is_read_as_unknown(hass: HomeAssistant, entry: MockConfigEntry, hass_storage: dict[str, Any], clock) -> None:
+    """A store with values_flagged and no values_known is not read as complete: the flagged sensor is fine now, but the
+    unclear sensor is not judged, so the repair stays until every sensor of it is judged."""
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        first = await start_watcher(hass, entry)
+    first.stop()
+    assert issue(hass, entry, "power_without_unit") is not None
+    assert "power_without_unit" in stored(hass_storage, entry)["values_known"]
+
+    del hass_storage[store_key(entry.entry_id)]["data"]["values_known"]
+    hass.states.async_set(PRODUCTION, "1200")
+    hass.states.async_set(BATTERY_FLOW, "unavailable")
+    await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is not None
+    assert "power_without_unit" not in stored(hass_storage, entry)["values_known"]
+
+
+async def test_a_malformed_entry_in_the_flagged_list_makes_the_known_lists_unknown(
+    hass: HomeAssistant, entry: MockConfigEntry, hass_storage: dict[str, Any], clock
+) -> None:
+    """An entry that is not a value repair means the store was not read intact: no list is known, so the unclear sensor keeps
+    the repair."""
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        first = await start_watcher(hass, entry)
+    first.stop()
+    assert issue(hass, entry, "power_without_unit") is not None
+
+    hass_storage[store_key(entry.entry_id)]["data"]["values_flagged"]["sensor.old_sensor"] = "some_other_repair"
+    hass.states.async_set(PRODUCTION, "1200")
+    hass.states.async_set(BATTERY_FLOW, "unavailable")
+    await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is not None
+    assert "power_without_unit" not in stored(hass_storage, entry)["values_known"]
+
+
+async def test_a_lost_store_keeps_a_repair_until_every_sensor_of_it_is_judged(
+    hass: HomeAssistant, entry: MockConfigEntry, hass_storage: dict[str, Any], clock
+) -> None:
+    """Two power sensors in one repair and the store lost: the flagged one is fixed, the other is unavailable, so the repair
+    stays; once the other one is judged fine, the repair goes."""
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    hass.states.async_set(BATTERY_FLOW, "2.0")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY, BATTERY_FLOW: KW_HISTORY})):
+        first = await start_watcher(hass, entry)
+    first.stop()
+    assert issue(hass, entry, "power_without_unit") is not None
+
+    hass_storage.pop(store_key(entry.entry_id), None)
+    hass.states.async_set(PRODUCTION, "1200")
+    hass.states.async_set(BATTERY_FLOW, "unavailable")
+    await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit") is not None
+    await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit") is not None, "the other sensor is not judged yet"
+
+    hass.states.async_set(BATTERY_FLOW, "1200")
+    await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit") is None
+
+
+async def test_a_failed_history_read_is_logged_once_and_not_retried_before_the_recheck(
+    hass: HomeAssistant, entry: MockConfigEntry, clock, caplog: pytest.LogCaptureFixture
+) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        await start_watcher(hass, entry)
+
+    numbers = AsyncMock(side_effect=RuntimeError("the recorder is busy"))
+    with patch(f"{HEALTH}.async_recorded_numbers", numbers), caplog.at_level(logging.DEBUG, logger=HEALTH):
+        clock[0] += VALUE_RECHECK
+        await hourly_check(hass)
+        assert numbers.await_count == 1
+        clock[0] += datetime.timedelta(hours=1)
+        await hourly_check(hass)
+        assert numbers.await_count == 1, "the failed read is not repeated before VALUE_RECHECK"
+        clock[0] += VALUE_RECHECK
+        await hourly_check(hass)
+        assert numbers.await_count == 2
+
+    assert issue(hass, entry, "power_without_unit") is not None, "the verdicts are kept"
+    warnings = [record for record in caplog.records if record.levelno >= logging.WARNING and "could not read the history" in record.getMessage()]
+    assert len(warnings) == 1
+    assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
+
+
+async def test_the_numbers_of_the_repair_text_follow_the_language_of_home_assistant(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    hass.config.language = "da"
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        await start_watcher(hass, entry)
+    found = issue(hass, entry, "power_without_unit")
+    assert found.translation_placeholders["entities"] == f"- {PRODUCTION} (≤ 4,2)"
+    assert found.translation_placeholders["max"] == "50"
+
+
+async def test_the_highest_value_seen_is_the_current_value_when_it_is_above_the_history(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        await start_watcher(hass, entry)
+    hass.states.async_set(PRODUCTION, "4.9")  # no new history read: the clock is not moved
+    await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit").translation_placeholders["entities"] == f"- {PRODUCTION} (≤ 4.9)"
+    hass.states.async_set(PRODUCTION, "2.0")  # lower again, still no new history read: the highest value seen stays
+    await hourly_check(hass)
+    assert issue(hass, entry, "power_without_unit").translation_placeholders["entities"] == f"- {PRODUCTION} (≤ 4.9)"
+
+
+async def test_the_highest_value_seen_is_rounded_up_so_it_is_never_below_the_value(hass: HomeAssistant, entry: MockConfigEntry, clock) -> None:
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: [*KW_HISTORY, 4.234]})):
+        await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit").translation_placeholders["entities"] == f"- {PRODUCTION} (≤ 4.24)"
+
+
+async def test_a_flagged_sensor_without_a_known_highest_value_shows_no_number(
+    hass: HomeAssistant, entry: MockConfigEntry, hass_storage: dict[str, Any], clock
+) -> None:
+    """After a restart with the history not readable, the highest value is not known: the current value alone would be
+    below it, so no number is shown."""
+    set_source_states(hass)
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", recorded({PRODUCTION: KW_HISTORY})):
+        first = await start_watcher(hass, entry)
+    first.stop()
+
+    hass.states.async_set(PRODUCTION, "1.5")
+    with patch(f"{HEALTH}.async_recorded_numbers", AsyncMock(side_effect=RuntimeError("the recorder is busy"))):
+        await start_watcher(hass, entry)
+    assert issue(hass, entry, "power_without_unit").translation_placeholders["entities"] == f"- {PRODUCTION}"
+
+
+def test_the_highest_value_seen_is_said_without_sign_in_every_language() -> None:
+    component = Path(__file__).parents[1] / "custom_components" / "battmind"
+    phrases = {"strings": "without sign", "da": "uden fortegn", "de": "ohne Vorzeichen", "en": "without sign", "pl": "bez znaku", "uk": "без знака"}
+    for path in [component / "strings.json", *(component / "translations").glob("*.json")]:
+        issues = json.loads(path.read_text(encoding="utf-8"))["issues"]
+        for key in ("power_without_unit", "battery_level_fraction"):
+            text = issues[key]["description"]
+            language = "strings" if path.name == "strings.json" else path.stem
+            assert phrases[language] in text, (path.name, key)
+
+
+async def test_the_price_units_of_the_real_price_provider_raise_and_clear_the_repair(hass: HomeAssistant, loaded_entry: MockConfigEntry) -> None:
+    coordinator = loaded_entry.runtime_data
+    assert coordinator._price_unit_problems() == ([], True)
+
+    state = hass.states.get(PRICE)
+    hass.states.async_set(PRICE, state.state, {**state.attributes, "unit_of_measurement": "øre/kWh"})
+    assert coordinator._price_unit_problems() == ([(PRICE, "øre/kWh")], True)
+    await hourly_check(hass)
+    found = issue(hass, loaded_entry, "price_unit_scale")
+    assert found is not None
+    assert found.translation_placeholders["entities"] == f"- {PRICE} (øre/kWh)"
+
+    state = hass.states.get(PRICE)
+    hass.states.async_set(PRICE, state.state, {**state.attributes, "unit_of_measurement": "kr/kWh"})
+    await hourly_check(hass)
+    assert issue(hass, loaded_entry, "price_unit_scale") is None
+
+
+async def test_without_a_price_provider_the_lifecycle_judges_no_price(hass: HomeAssistant, loaded_entry: MockConfigEntry, monkeypatch) -> None:
+    coordinator = loaded_entry.runtime_data
+    monkeypatch.setattr(coordinator, "engine", None)
+    assert coordinator._price_unit_problems() is None

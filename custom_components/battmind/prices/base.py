@@ -8,6 +8,7 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER
+from ..management.value_checks import price_unit_wrong
 from ..utils.helpers import days_between, float_or_none, reset_time_to_hour
 
 _LOGGER = logging.getLogger(__name__)
@@ -216,6 +217,24 @@ class CombinedPriceProvider:
     def price_entity_ids(self) -> list[str]:
         """Every configured price entity (each once)."""
         return list(dict.fromkeys(entity_id for entity_id in self.entity_ids.values() if entity_id))
+
+    def price_unit_problems(self, get_state: GetState) -> tuple[list[tuple[str, str]], bool]:
+        """The configured price entities in a unit the prices are not read in (price_unit_wrong): (entity id, unit) of each,
+        and whether every entity was judged. An entity with no state, or unavailable/unknown without a unit, is not judged."""
+        problems: list[tuple[str, str]] = []
+        judged = True
+        for entity_id in self.price_entity_ids():
+            state = get_state(entity_id)
+            if state is None:
+                judged = False
+                continue
+            unit = state.attributes.get("unit_of_measurement") or None
+            if unit is None and state.state in ("unavailable", "unknown"):
+                judged = False
+                continue
+            if price_unit_wrong(unit):
+                problems.append((entity_id, unit))
+        return problems, judged
 
     def buy_price_entity_ids(self) -> list[str]:
         """The buy price entities of the providers, in priority order."""
