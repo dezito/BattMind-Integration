@@ -56,6 +56,8 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
                 yield timestamp, price
 
     def _real(self, entity_id: str) -> dict:
+        if self._wrong_unit(entity_id):
+            return {}
         attr = self._attr(entity_id)
         prices = {ts: p for ts, p in self._rows(attr.get("raw_today")) if days_between(self.current_hour, ts) == 0}
         if attr.get("tomorrow_valid"):
@@ -63,6 +65,8 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
         return dict(sorted(prices.items()))
 
     def _forecast(self, entity_id: str, sell: bool = False) -> dict:
+        if self._wrong_unit(entity_id):
+            return {}
         attr = self._attr(entity_id)
         return {
             ts: p + self._forecast_adder(ts, sell)

@@ -537,6 +537,16 @@ electricity supplier charges for selling. Formula:
   unknown, no price rows yet) is never judged: it neither creates nor removes the repair. A repair the user ignored stays
   ignored (do not delete and recreate it). A restored state of a sensor that Energy Price Forecast no longer provides
   does not count while its entry runs. Do not use the `freezer` fixture to test it: the clock is `_utcnow()`.
+- A price sensor whose unit makes its prices 100 or 1000 times off (`price_unit_error()`: a subunit such as ct/kWh on any price
+  key, per MWh or per Wh on an Energi Data Service key; Energy Price Forecast converts its own per MWh) is refused on the price
+  page and, while running, gives no prices (`_wrong_unit()` in the providers: the next provider or the stored prices fill in,
+  never a price that is too high). Its recorded history is left out of the what-if (`price_unit_divisors()` returns None), and the
+  repair `price_sensor_unit` names it (no grace time, an ignored repair stays ignored).
+- What-if without a sell sensor (a restored backup may lack it): Energy Price Forecast follows the live prices (the history of
+  the buy sensor less the sell fee), but is not given a module payback or year estimate (`sell_price_from_buy_sensor`, the retail
+  price is higher than what a sale pays). Energi Data Service does not: its tariffs attribute is not recorded (its
+  `_unrecorded_attributes`), so the buy history cannot be turned into a sell price and the what-if keeps reporting that the sell
+  price history is not available.
 - `sell_fee` is stored positive (`abs()`) and is always subtracted.
 - The dashboard's sell price series (Strømligning and Energi Data Service
   charts) must use the same formula and the configured sell entities
@@ -619,6 +629,13 @@ suite when practical:
 python -m pytest tests/test_<area>.py
 python -m pytest
 ```
+
+Keep test runs short (user decision). While fixing, run only the test files
+that cover the change; after a failure rerun only what failed (`--lf`, `-x` to
+stop at the first failure). Run the full suite once, after the last change and
+before reporting the task done: not after every fix or review round, and in a
+multi-agent task only once, by the main agent, not by each subagent.
+`--durations=25` shows the slowest tests.
 
 If test dependencies are not installed, install the repository's declared
 test requirements in the active environment:

@@ -410,3 +410,15 @@ def test_stromligning_tariff_rows_in_utc_follow_the_same_conversion() -> None:
     provider.update(data, NOW, COPENHAGEN)
     for hour in (3, 17, 20, 21):  # 17-20 have the high distribution tariff
         assert provider.sell_real_prices[_at(hour)] == pytest.approx(round(SPOT[TODAY] - 0.03 - 0.043 - 0.072, 2))
+
+
+def test_the_what_if_has_no_sell_history_for_energi_data_service_without_a_sell_sensor() -> None:
+    """The live prices sell at the buy sensor's price less its tariffs, but the tariffs of past hours are not recorded
+    (Energi Data Service keeps its tariffs attribute out of the recorder): reading the buy history as the sell history would
+    leave out every hour, so the what-if keeps reporting that the sell price history is not available."""
+    provider = create_price_provider(build_config({**default_options(), "energidataservice_buy_entity_id": "sensor.eds"}))
+    states = {"sensor.eds": _State("1.0", {"tariffs": {"transmissions_nettarif": 0.1}})}
+    (source,) = provider.history_sources(states.get)
+    assert source["buy_entity_id"] == "sensor.eds" and source["sell_entity_id"] is None
+    chosen = create_price_provider(build_config({**default_options(), "energidataservice_buy_entity_id": "sensor.eds", "energidataservice_sell_entity_id": "sensor.eds_sell"}))
+    assert chosen.history_sources(states.get)[0]["sell_entity_id"] == "sensor.eds_sell"

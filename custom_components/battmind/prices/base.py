@@ -7,7 +7,7 @@ import math
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER, price_decimals, price_scale
+from ..const import CURRENCY_PRICE_SCALE, PRICE_ADDER_DAY_BETWEEN_DIVIDER, price_decimals, price_scale
 from ..utils.helpers import days_between, float_or_none, reset_time_to_hour, to_local_datetime
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,6 +66,42 @@ def is_price_per_mwh(unit) -> bool:
 def price_unit_divisor(unit) -> float:
     """What the numbers of a price sensor are divided by to get the price per kWh: 1000 for a price per MWh, else 1."""
     return 1000.0 if is_price_per_mwh(unit) else 1.0
+
+
+_SUBUNITS = {
+    "c", "ct", "cts", "cent", "cents", "eurocent", "eurocents", "c€", "¢", "p", "pence", "penny", "gbx",
+    "øre", "ore", "öre", "snt", "gr", "grosz", "groszy", "rp", "rappen", "bani", "st", "stotinki",
+}
+
+
+def _is_subunit_code(currency: str) -> bool:
+    """GBp, EUr...: an ISO code of the table with a lower-case last letter (the currency code spelled as its subunit)."""
+    return len(currency) > 1 and currency[:-1].isupper() and currency[-1].islower() and currency.upper() in CURRENCY_PRICE_SCALE
+
+
+def is_price_subunit(unit: Any) -> bool:
+    """A price per kWh in a subunit of the currency (ct/kWh, p/kWh, GBp/kWh, EURct/kWh): 100 times the price in the currency.
+
+    price_scale_of_unit() is None for these (they are not a currency), this tells that apart from a unit it just does not know."""
+    if not isinstance(unit, str) or "/" not in unit:
+        return False
+    currency, per = (part.strip() for part in unit.rsplit("/", 1))
+    if per.lower() not in ("kwh", "mwh") or not currency:
+        return False
+    token = currency.lower()
+    return token in _SUBUNITS or token.endswith(("ct", "cent", "cents")) or _is_subunit_code(currency)
+
+
+def is_price_per_wh(unit) -> bool:
+    """A price per Wh (DKK/Wh): 1000 times too small as a price per kWh, one of the price types of Energi Data Service."""
+    return isinstance(unit, str) and "/" in unit and unit.rsplit("/", 1)[1].strip().lower() == "wh"
+
+
+def price_unit_error(key: str, unit: Any) -> bool:
+    """A price sensor whose unit makes its prices 100 or 1000 times off: a price in a subunit of the currency (ct/kWh,
+    p/kWh) on any price key, a price per MWh or per Wh on an Energi Data Service key (Energy Price Forecast converts its own
+    price per MWh, see price_unit_divisor())."""
+    return is_price_subunit(unit) or (key.startswith("energidataservice_") and (is_price_per_mwh(unit) or is_price_per_wh(unit)))
 
 
 def sell_adder_sign(config: dict) -> float:
@@ -128,6 +164,7 @@ class BasePriceProvider:
         self.current_hour = reset_time_to_hour(datetime.datetime.now())
         # Home Assistant's time zone (update): the offset of a price row is converted to it, see price_timestamp()
         self.tz: datetime.tzinfo | None = None
+        self._wrong_unit_logged: set[str] = set()
         self.buy_real_prices: dict = {}
         self.buy_forecast_prices: dict = {}
         self.sell_real_prices: dict = {}
@@ -152,6 +189,19 @@ class BasePriceProvider:
         if not entity_id or entity_id not in self.attributes:
             raise ValueError(f"{entity_id} not loaded")
         return self.attributes[entity_id] or {}
+
+    def _wrong_unit(self, entity_id: str) -> bool:
+        """A price sensor whose unit makes its prices 100 or 1000 times too large (price_unit_error) gives no prices at all, so
+        the next provider or the stored prices fill in, never a price that is too high. The price page refuses such a sensor;
+        this is for one whose unit changed later."""
+        unit = self._attr(entity_id).get("unit_of_measurement")
+        if not price_unit_error(self.buy_key, unit):
+            self._wrong_unit_logged.discard(entity_id)
+            return False
+        if entity_id not in self._wrong_unit_logged:
+            self._wrong_unit_logged.add(entity_id)
+            _LOGGER.warning("%s gives its price in %s, not per kWh in the currency: its prices are not used", entity_id, unit)
+        return True
 
     def _has(self, entity_id: str) -> bool:
         return bool(entity_id) and entity_id in self.attributes
@@ -264,24 +314,30 @@ class CombinedPriceProvider:
                 values[entity_id] = value if value is not None else 0.0
         return {"attributes": attributes, "values": values}
 
-    def price_unit_divisors(self, get_state: GetState) -> dict[str, float]:
-        """{entity_id: divisor} of the Energy Price Forecast sensors whose recorded history (the statistics and states of the sensor
-        itself) is not a price per kWh as it is: 1000.0 for a price per MWh, None when the sensor is not in Home Assistant (its
-        unit is not known, so its history is left out, never read as kWh). The unit is the sensor's unit now; the recorder keeps
-        no unit for the states, so a sensor that changed its unit has its old history read in the new one."""
+    def price_unit_divisors(self, get_state: GetState) -> dict[str, float | None]:
+        """{entity_id: divisor} of the Energy Price Forecast and Energi Data Service sensors whose recorded history (the statistics
+        and states of the sensor itself) is not a price per kWh as it is: 1000.0 for a price per MWh of Energy Price Forecast, and
+        None where the history is left out, never read as kWh: an Energy Price Forecast sensor that is not in Home Assistant (its
+        unit is not known) and a sensor whose unit makes its prices 100 or 1000 times too large (price_unit_error: ct/kWh, or per
+        MWh for Energi Data Service). The unit is the sensor's unit now; the recorder keeps no unit for the states, so a sensor
+        that changed its unit has its old history read in the new one."""
         divisors: dict[str, float | None] = {}
         for provider in self.providers:
-            if getattr(provider, "source_name", "") != "energypriceforecast":
+            source = getattr(provider, "source_name", "")
+            if source not in ("energypriceforecast", "energidataservice"):
                 continue
             for entity_id in (provider.buy_entity_id, provider.sell_entity_id):
                 if not entity_id:
                     continue
                 state = get_state(entity_id)
                 if state is None:
-                    divisors[entity_id] = None
+                    if source == "energypriceforecast":
+                        divisors[entity_id] = None
                     continue
-                divisor = price_unit_divisor(getattr(state, "attributes", {}).get("unit_of_measurement"))
-                if divisor != 1.0:
+                unit = getattr(state, "attributes", {}).get("unit_of_measurement")
+                if price_unit_error(provider.buy_key, unit):
+                    divisors[entity_id] = None
+                elif source == "energypriceforecast" and (divisor := price_unit_divisor(unit)) != 1.0:
                     divisors[entity_id] = divisor
         return divisors
 

@@ -270,7 +270,7 @@
       "min_above_max": "The minimum level must be lower than the maximum level.",
       "invalid_icon": "Use an icon name like mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
-      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, per MWh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh).",
+      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, per MWh or Wh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh).",
       "price_sensor_not_retail": "This is not the retail price sensor. Choose the retail price sensor of Energy Price Forecast as the buy price (the wholesale price is the sell price).",
       "price_sensor_not_wholesale": "This is the retail price sensor. Choose the wholesale price sensor of Energy Price Forecast as the sell price (the retail price is higher than what a sale pays).",
       "price_sensor_forecast_only": "This sensor has no published prices for today right now, only a forecast. If Energy Price Forecast publishes no prices for your market (for example Finland or Great Britain), set a Nord Pool or ENTSO-e sensor as “Own price source” in Energy Price Forecast (for the buy price, also choose “Own formula” under “Retail price” there: the estimate does not use the own price source) and choose the sensor again. Otherwise try again once the prices are published.",
@@ -560,7 +560,7 @@
       "min_above_max": "The minimum level must be lower than the maximum level.",
       "invalid_icon": "Use an icon name like mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
-      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, per MWh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh).",
+      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, per MWh or Wh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh).",
       "price_sensor_not_retail": "This is not the retail price sensor. Choose the retail price sensor of Energy Price Forecast as the buy price (the wholesale price is the sell price).",
       "price_sensor_not_wholesale": "This is the retail price sensor. Choose the wholesale price sensor of Energy Price Forecast as the sell price (the retail price is higher than what a sale pays).",
       "price_sensor_forecast_only": "This sensor has no published prices for today right now, only a forecast. If Energy Price Forecast publishes no prices for your market (for example Finland or Great Britain), set a Nord Pool or ENTSO-e sensor as “Own price source” in Energy Price Forecast (for the buy price, also choose “Own formula” under “Retail price” there: the estimate does not use the own price source) and choose the sensor again. Otherwise try again once the prices are published.",
@@ -1146,6 +1146,10 @@
     "energypriceforecast_forecast_only": {
       "title": "Energy Price Forecast sensors that BattMind uses have no published prices ({prefix})",
       "description": "BattMind ({prefix}) uses Energy Price Forecast sensors that have had no published prices for today or tomorrow for at least an hour, only a forecast:\n{entities}\n\nWithout a price for today the hours that have passed have no price, so they are missing from the charging history, the price of the energy in the battery and the price history.\n\nIf Energy Price Forecast publishes no prices for your market (for example Finland or Great Britain), set a Nord Pool or ENTSO-e sensor as “Own price source” in Energy Price Forecast (for the buy price, also choose “Own formula” under “Retail price” there: the estimate does not use the own price source). Otherwise the prices are only late.\n\nThis repair disappears by itself when the sensors have published prices again."
+    },
+    "price_sensor_unit": {
+      "title": "Price sensors that BattMind uses give the price in the wrong unit ({prefix})",
+      "description": "BattMind ({prefix}) uses price sensors that give the price in a subunit of the currency (for example ct/kWh or p/kWh) or, for Energi Data Service, per MWh or Wh:\n{entities}\n\nTheir prices are 100 or 1000 times off, so BattMind does not use them: it plans on the stored prices instead. Choose a sensor with the price per kWh in the currency (for example EUR/kWh) in the price settings, or set the unit of the sensor back.\n\nThis repair disappears by itself when the sensors give the price per kWh again."
     },
     "stromligning_entities": {
       "title": "Strømligning sensors that BattMind needs are not available ({prefix})",

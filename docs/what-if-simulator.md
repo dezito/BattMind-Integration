@@ -299,9 +299,13 @@ older valid history. The calculation treats each continuous section separated by
 the first section uses the selected starting level and later sections restart at the battery's minimum
 level rather than carrying an unknown state of charge across missing data. If several price providers are configured, each hour uses the price history of the first one
 (Strømligning, then Energi Data Service, then Energy Price Forecast) and falls back to the next for hours where
-it has no history, the same priority as the planner. Energy Price Forecast has no sell price history without a
-sell sensor (the setup requires one, but an entry restored from a backup may lack it): the what-if then reports that the sell
-price history is not available.
+it has no history, the same priority as the planner. Without a sell sensor, Energy Price Forecast sells like the live planner: the what-if reads the history of the buy sensor as
+the sell history and takes the sell fee off (the setup requires a sell sensor, but an entry restored from a backup may lack
+it). A retail price is higher than what a sale pays, so no module payback or year estimate is given then
+(`missing_sell_price`, and `sell_price_from_buy_sensor` in the assumptions). Energi Data Service without a sell sensor sells
+at the buy price less the tariffs live, but the tariffs of past hours are not recorded, so the what-if reports that the sell
+price history is not available. A price sensor whose unit is a subunit (ct/kWh), or per MWh or Wh for Energi Data Service, has its
+history left out.
 Buy and sell prices for an hour always come from the same provider, and the result reports how many
 hours each provider supplied. The
 simulator does not use BattMind's offline price database or assume that the buy price was earned when

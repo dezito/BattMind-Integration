@@ -1084,6 +1084,39 @@ def test_profit_requirements_are_shown_as_a_steering_figure_for_every_plan() -> 
     assert "🎯" not in zero_engine.last_overview
 
 
+def test_what_if_epf_without_a_sell_sensor_sells_at_the_buy_sensor_but_gives_no_payback() -> None:
+    """Like the live prices: the history of the buy sensor less the fee is the sell price. It is higher than a sale pays, so
+    the result says so (sell_price_from_buy_sensor) and the module payback is refused (missing_sell_price)."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine, _ = planned(3, 40, {"optimizer_control": True}, solar=True)
+    snap = realistic_snapshot(now, 40, {"optimizer_control": True})
+    ids = engine.config["home"]["entity_ids"]
+    solar_id = engine.config["solar"]["entity_ids"]["production_entity_id"]
+    buy_id, sell_id = "sensor.historical_buy", "sensor.historical_sell"
+    start = datetime.datetime.combine(DAY - datetime.timedelta(days=1), datetime.time())
+    timestamps = [(start + datetime.timedelta(hours=hour)).timestamp() for hour in range(48)]
+    stats = {
+        ids["power_consumption_entity_id"]: [(ts, 1000.0) for ts in timestamps],
+        ids["powerwall_watt_flow_entity_id"]: [(ts, 0.0) for ts in timestamps],
+        solar_id: [(ts, 1500.0 if 9 <= datetime.datetime.fromtimestamp(ts).hour <= 15 else 0.0) for ts in timestamps],
+        buy_id: [(ts, 0.5 if datetime.datetime.fromtimestamp(ts).hour < 6 else 2.0) for ts in timestamps],
+        sell_id: [(ts, 0.4 if datetime.datetime.fromtimestamp(ts).hour < 6 else 1.5) for ts in timestamps],
+    }
+
+    def run(provider: dict):
+        return engine.run_job(snap, engine.what_if, {"buy_entity_id": buy_id, "sell_entity_id": sell_id, "price_providers": [provider], "stats": stats}, {})
+
+    from_buy = run({"name": "Energy Price Forecast", "buy_entity_id": buy_id, "sell_entity_id": buy_id, "sell_fee": 0.05})
+    assert from_buy.error is None, from_buy.error
+    assert from_buy.value["assumptions"]["sell_price_history_available"] is True
+    assert from_buy.value["assumptions"]["sell_price_from_buy_sensor"] is True
+    assert from_buy.value["current"]["without"]["solar_income"] != 0.0  # the solar is priced at the buy price less the fee, not at 0
+    own = run({"name": "Energy Price Forecast", "buy_entity_id": buy_id, "sell_entity_id": sell_id, "sell_fee": 0.05})
+    assert own.error is None, own.error
+    assert own.value["assumptions"]["sell_price_from_buy_sensor"] is False
+    assert own.value["current"]["without"]["solar_income"] != from_buy.value["current"]["without"]["solar_income"]
+
+
 def test_what_if_simulator_does_not_change_the_active_plan() -> None:
     now = datetime.datetime.combine(DAY, datetime.time(3, 30))
     engine, _ = planned(3, 40, {"optimizer_control": True}, solar=True)
@@ -2530,3 +2563,20 @@ def test_a_buy_to_sell_sale_shows_its_prices_per_kwh_with_the_decimals_of_the_cu
     ]
     assert reasons, "the scenario sells bought energy"
     assert "til **0.300 kr/kWh**" in reasons[0] and "Ladetab + slid pr. kWh: **0.013 kr/kWh**" in reasons[0], reasons[0]
+
+
+def test_a_price_sensor_that_changes_to_a_subunit_keeps_the_plan_on_the_cached_prices() -> None:
+    """Running with prices, then the sensor gives ct/kWh: it gives no prices (never 100 times too high), the plan stays on the
+    prices it has, and nothing fails."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine, _ = planned(3, 40, {"optimizer_control": False})
+    cached = dict(engine.grid_price_cache["prices"])
+    assert cached
+    snap = realistic_snapshot(now, 40, {"optimizer_control": False})
+    snap.price_data["attributes"]["sensor.price"]["unit_of_measurement"] = "ct/kWh"
+    assert engine.run_job(snap, engine.update_grid_prices).error is None  # the hourly price update reads the sensor
+    assert engine.price_provider.buy_prices_available() is False
+    result = engine.run_job(snap, engine.charge_if_needed, True)
+    assert result.error is None, result.error
+    assert not [message for message, title, _ in result.notifications if "error" in title.lower()]
+    assert engine.grid_price_cache["prices"] == cached and engine.grid_price_cache["using_offline_prices"] is False  # the last successful prices

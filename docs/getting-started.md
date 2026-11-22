@@ -165,7 +165,7 @@ and the next fills the gaps (also in the what-if and the analysis). All price se
   price (required: the retail price is higher than what a sale pays, so it is refused as a sell sensor; an entry
   restored from a backup without one sells at the buy price less the sell fee). The sensors must give the
   price per kWh in the currency (EUR/kWh, GBP/kWh, …), not in cents or pence: BattMind refuses a sensor in
-  ct/kWh or p/kWh. A sensor in EUR/MWh (a wholesale sensor often is) is converted to kWh, also in the recorded history (read in the unit the sensor has now: if you change its unit, the old history is off by 1000; a sensor that is missing from Home Assistant has its history left out).
+  ct/kWh or p/kWh, and one whose unit is changed to that later gives no prices (a repair names it). A sensor in EUR/MWh (a wholesale sensor often is) is converted to kWh, also in the recorded history (read in the unit the sensor has now: if you change its unit, the old history is off by 1000 (MWh) or 100 (ct); a sensor that is missing from Home Assistant has its history left out).
 - **Strømligning:** the buy sensors are required. The sell sensors and the tariff page give an accurate
   sell price: Strømligning's sell price includes every tariff, so the distribution (transport) tariff,
   net tariff, system tariff, electricity tax and surcharge are all subtracted. The distribution sensor

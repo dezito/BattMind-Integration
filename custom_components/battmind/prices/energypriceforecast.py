@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 
 from ..utils.helpers import days_between, reset_time_to_hour
-from .base import BasePriceProvider, is_number, price_timestamp, price_unit_divisor
+from .base import BasePriceProvider, GetState, is_number, price_timestamp, price_unit_divisor
 
 
 class EnergyPriceForecastPriceProvider(BasePriceProvider):
@@ -27,6 +27,13 @@ class EnergyPriceForecastPriceProvider(BasePriceProvider):
         super().__init__(config)
         self.buy_entity_id = self.entity_ids.get(self.buy_key, "")
         self.sell_entity_id = self.entity_ids.get(self.sell_key, "") or self.buy_entity_id
+
+    def history_source(self, get_state: GetState) -> dict | None:
+        source = super().history_source(get_state)
+        if source and not source["sell_entity_id"]:
+            # no sell sensor: the live prices sell at the buy sensor's price less the fee, so does the what-if
+            source["sell_entity_id"] = self.sell_entity_id
+        return source
 
     @classmethod
     def dashboard_entities(cls, prices: dict[str, str]) -> dict[str, str]:
@@ -53,6 +60,8 @@ class EnergyPriceForecastPriceProvider(BasePriceProvider):
                 yield timestamp, price / divisor
 
     def _real(self, entity_id: str) -> dict:
+        if self._wrong_unit(entity_id):
+            return {}
         return dict(sorted(self._published(entity_id).items()))
 
     def _published(self, entity_id: str) -> dict:
@@ -68,6 +77,8 @@ class EnergyPriceForecastPriceProvider(BasePriceProvider):
         return prices
 
     def _forecast(self, entity_id: str, sell: bool = False) -> dict:
+        if self._wrong_unit(entity_id):
+            return {}
         attr = self._attr(entity_id)
         real = self._published(entity_id)
         published_hours = {reset_time_to_hour(ts) for ts in real}
