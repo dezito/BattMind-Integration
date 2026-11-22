@@ -144,7 +144,10 @@ restart, until the problem is gone.
 
 - **Sensors BattMind uses are disabled or missing:** a sensor is disabled in Home Assistant, or it no longer exists
   (deleted or renamed). The plan then works with missing values. It disappears when all of them are enabled and found
-  again.
+  again. A sensor that is enabled and has an entity registry entry is not missing, even when its state is unavailable or
+  unknown: an unavailable sensor is not this repair. For the house consumption sensor, BattMind posts a persistent
+  notification when it stays unavailable (see *The house consumption sensor shows the same value* below). Two minutes
+  after each start, BattMind also lists the configured sensors that are still unavailable in a persistent notification.
 - **Sensor units BattMind can't read:** a power sensor reports a unit other than mW, W, kW, MW or GW, or the battery
   level sensor reports a unit other than %. A unit with an h at the end (Wh, kWh, MWh) is read as the unit without it,
   so kWh is read as kW. A power sensor with no unit is read as W (the next repair checks that it fits). The repair
@@ -190,6 +193,23 @@ restart, until the problem is gone.
   of charge or maximum power. The hours are counted over the last 14 days, so after a fix the repair can stay for
   several days. It disappears when at least 24 hours are judged and fewer than 6 of them mismatch, or at least 80 %
   match.
+- **The house consumption sensor shows the same value:** the sensor that BattMind uses for the house consumption has
+  shown the same value for at least 6 hours. The plan then uses an old value for the house consumption. The repair names
+  the sensor, the value and since when (local time). The repair appears 6 to 7 hours after the last change, because the
+  check runs every hour. Check the integration or device that delivers the sensor, and restart it if needed. Only this
+  sensor is checked, because the plan uses it directly; the other sensors are not. A sensor that is unavailable or unknown
+  is not judged, and an open repair stays as it is. After a start or reload nothing is deleted or replaced until the first
+  check at least 30 minutes later (in practice up to about an hour), so a sensor that is still starting cannot clear the
+  repair. After that the repair is deleted when the sensor
+  shows another number: at once when the change happens while Home Assistant runs, otherwise at the next check. It is also
+  deleted when the sensor is no longer the house consumption sensor of BattMind. If the value really stays the same, ignore
+  the repair. A restart does not move the time the repair shows: the saved value keeps the earlier time. An unavailable
+  house consumption sensor gets a persistent notification as well. BattMind's `is_entity_available()` (engine/engine.py)
+  logs a warning at each call that finds the sensor unavailable. It posts the notification at the first call that comes
+  more than 30 minutes after the first call that found the sensor unavailable, and posts it again with the same
+  notification id at each later call while the sensor stays unavailable. The states that count as unavailable are None,
+  `unavailable` and `unknown`. It needs an entity registry entry of an integration; a YAML template sensor without a
+  unique ID gets none.
 
 For the power and battery level repairs, BattMind keeps the list of flagged sensors in its health store, separately for
 each repair. A repair goes away when none of its sensors is flagged any more and its list is complete: the list was read intact

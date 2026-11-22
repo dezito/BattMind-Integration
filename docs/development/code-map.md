@@ -25,7 +25,7 @@ custom_components/battmind/             The HA integration (HACS payload)
 │   └── battery.py / state.py            Battery model and planning state
 ├── prices/                              Price providers; CombinedPriceProvider is the only entry point
 ├── management/                          Storage, backups, dashboard, and blueprint setup
-│   ├── health_checks.py                 HealthWatcher: the health repairs of an entry (sensors, units, value scale, prices, plan)
+│   ├── health_checks.py                 HealthWatcher: the health repairs of an entry (sensors, units, value scale, prices, plan, frozen consumption)
 │   └── value_checks.py                  Pure checks of sensor values in the wrong scale (shared with Cable Juice Planner)
 ├── utils/                               Shared codecs, formatting, and calculations
 ├── sensor.py / number.py / switch.py    Main HA entity platforms

@@ -480,8 +480,15 @@ electricity supplier charges for selling. Formula:
   published `plan_check` attribute and needs `PLAN_MIN_CHECKED_HOURS`,
   `PLAN_MIN_MISMATCHES` and a match below `PLAN_MAX_MATCH_PERCENT`; its lines
   show charged/discharged kWh, so an opposite action is visible there. Being
-  unavailable is not a repair: the existing persistent notification after 30
-  minutes covers it.
+  unavailable is not a repair. `engine/engine.py` `is_entity_available()` is
+  called only for the house consumption sensor: from `inverter_available()`
+  (solar configured) in the planning run (`local_energy_prediction()`) and at
+  minute 59 of every hour, and from `power_values_to_db()` at minute 59 of every
+  hour. Each call that finds the sensor unavailable logs a warning. Once more
+  than 30 minutes have passed since the first such call (counted per
+  integration, reset by any call that finds the sensor available), it posts a
+  persistent notification. The sensor needs an entity registry entry, which
+  gives its integration; a YAML sensor without a unique ID gets no notification.
 - Delete an issue only on a positive answer (the problem is gone), never on an
   unclear one (unavailable/unknown state, unreadable `automations.yaml`).
   Delete + create resets the user's "Ignore", while `async_create_issue` on an
@@ -525,6 +532,21 @@ electricity supplier charges for selling. Formula:
   before the repair goes.
   `price_unit_scale` keeps no list: it goes only when every price entity was
   judged.
+- `consumption_frozen`: only the house consumption sensor (`home.entity_ids.power_consumption_entity_id`). Raised when its
+  value has not changed for 6 h (`FROZEN_AFTER`, by `last_changed`); the hourly check makes it visible 6 to 7 h after the
+  last change. Other sensors are not checked this way, because a steady reading can be real for them. The frozen value,
+  its entity and its time are kept in the `.health` store (`consumption_frozen`: entity, value, since), so a restart keeps
+  the repair and its earlier time. Startup grace (`CONSUMPTION_GRACE`: from a start or reload of the entry until the first check that is at least
+  30 min later and reads a number, so in practice up to about an hour): nothing
+  is deleted, the stored value and time are not replaced, and a lost store gets no baseline. An existing repair is raised
+  again from the stored values (its Ignore is kept); a new one may be raised by the 6 h rule only when no repair for this
+  sensor is open. After the grace the repair is deleted only on a positive answer: a finite number different from the
+  stored one (at a check, or at once when the listener sees it while Home Assistant runs), the sensor no longer configured,
+  or a repair that names another sensor while the stored value is lost (the two configuration answers at the first check
+  after the grace). Unavailable, unknown and text keep it. Without a stored value (lost or malformed store), an open repair
+  that names this sensor takes the value seen at the first check after the grace as its baseline; a repair whose
+  placeholders are unknown (the issue registry restores them as None after a restart) is baselined and raised only by the
+  6 h rule.
 
 ## Tests and validation
 

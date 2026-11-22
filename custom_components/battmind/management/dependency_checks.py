@@ -36,6 +36,7 @@ ISSUE_PLAN_NOT_FOLLOWED = "plan_not_followed"
 ISSUE_POWER_WITHOUT_UNIT = "power_without_unit"
 ISSUE_BATTERY_FRACTION = "battery_level_fraction"
 ISSUE_PRICE_UNIT = "price_unit_scale"
+ISSUE_CONSUMPTION_FROZEN = "consumption_frozen"
 HEALTH_ISSUES = (
     ISSUE_ENTITIES_MISSING,
     ISSUE_ENTITY_UNITS,
@@ -44,6 +45,7 @@ HEALTH_ISSUES = (
     ISSUE_POWER_WITHOUT_UNIT,
     ISSUE_BATTERY_FRACTION,
     ISSUE_PRICE_UNIT,
+    ISSUE_CONSUMPTION_FROZEN,
 )
 # Home Assistant reloads an integration about 30 seconds after one of its entities was enabled or disabled
 RECHECK_DELAY = 60
