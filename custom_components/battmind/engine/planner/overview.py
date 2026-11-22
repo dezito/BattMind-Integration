@@ -6,6 +6,7 @@ import logging
 import math
 from collections import defaultdict
 
+from ...const import price_decimals
 from ...utils.formatting import emoji_parse, emoji_text_format
 from ...utils.helpers import day_of_week_text, float_or_none, reset_time_to_hour
 from ._helpers import _group_hour_rules, _join_timestamps_by_hour, _joined_reason
@@ -331,6 +332,7 @@ class Overview:
         t = self.t
         valuta = t("ui.common.valuta")
         valuta_kwh = t("ui.common.valuta_kwh")
+        decimals = price_decimals(self.config)  # a per kWh amount: 3 decimals in a currency like the euro
         overview: list[str] = []
         days = sorted(k for k in charging_plan if isinstance(k, int))
 
@@ -342,21 +344,21 @@ class Overview:
             cost_loss = round(battery_expenses.get("cost_loss", 0.0), 2)
             cost_wear = round(battery_expenses.get("cost_wear", 0.0), 2)
             cost = round(battery_expenses.get("cost", 0.0), 2)
-            unit = round(battery_expenses.get("unit") or 0.0, 2)
-            unit_percentage = round(self.kwh_to_percentage(self.percentage_to_kwh(battery_expenses.get("unit") or 0.0)), 2)
+            unit = round(battery_expenses.get("unit") or 0.0, decimals)
+            unit_percentage = round(self.kwh_to_percentage(self.percentage_to_kwh(battery_expenses.get("unit") or 0.0)), decimals)
             cost_with_loss = round(battery_expenses.get("cost_with_loss_and_wear", 0.0), 2)
-            unit_with_loss = round(battery_expenses.get("unit_with_loss_and_wear") or 0.0, 2)
+            unit_with_loss = round(battery_expenses.get("unit_with_loss_and_wear") or 0.0, decimals)
             unit_percentage_with_loss = round(
-                self.kwh_to_percentage(self.percentage_to_kwh(battery_expenses.get("unit_with_loss_and_wear") or 0.0)), 2
+                self.kwh_to_percentage(self.percentage_to_kwh(battery_expenses.get("unit_with_loss_and_wear") or 0.0)), decimals
             )
-            unit_kwh_with_loss_text = f"**{unit_with_loss:.2f} {valuta_kwh}**"
+            unit_kwh_with_loss_text = f"**{unit_with_loss:.{decimals}f} {valuta_kwh}**"
             unit_pct_with_loss_text = (
-                f"<br>**{unit_percentage_with_loss:.2f} {t('ui.common.valuta_percentage')}**" if unit_with_loss != unit_percentage_with_loss else ""
+                f"<br>**{unit_percentage_with_loss:.{decimals}f} {t('ui.common.valuta_percentage')}**" if unit_with_loss != unit_percentage_with_loss else ""
             )
-            unit_kwh_text = f"<br>(**{unit:.2f} {valuta_kwh}**)"
-            unit_pct_text = f"<br>(**{unit_percentage:.2f} {t('ui.common.valuta_percentage')}**)" if unit != unit_percentage else ""
-            cost_loss_kwh = round(cost_loss / kwh, 2) if kwh else 0.0
-            cost_wear_kwh = round(cost_wear / kwh, 2) if kwh else 0.0
+            unit_kwh_text = f"<br>(**{unit:.{decimals}f} {valuta_kwh}**)"
+            unit_pct_text = f"<br>(**{unit_percentage:.{decimals}f} {t('ui.common.valuta_percentage')}**)" if unit != unit_percentage else ""
+            cost_loss_kwh = round(battery_expenses.get("cost_loss", 0.0) / kwh, decimals) if kwh else 0.0
+            cost_wear_kwh = round(battery_expenses.get("cost_wear", 0.0) / kwh, decimals) if kwh else 0.0
             loss_percentage = battery_expenses.get("loss_percentage", 0.0) * 100
 
             if kwh > 0.0:
@@ -371,10 +373,10 @@ class Overview:
                 overview.append(f"| **💰 {t(f'{prefix}.expense')}** | **{cost_with_loss:.2f} {valuta}**<br>(**{cost:.2f} {valuta}**) |")
                 overview.append(
                     f"| **📊 {t(f'{prefix}.estimated_loss')}**<br>({t(f'{prefix}.charging_loss')} {loss_percentage:.1f}%) | "
-                    f"**{cost_loss:.2f} {valuta}**<br>(**{cost_loss_kwh:.2f} {valuta_kwh}**) |"
+                    f"**{cost_loss:.2f} {valuta}**<br>(**{cost_loss_kwh:.{decimals}f} {valuta_kwh}**) |"
                 )
                 overview.append(
-                    f"| **🛠️ {t(f'{prefix}.estimated_wear_cost')}** | **{cost_wear:.2f} {valuta}**<br>(**{cost_wear_kwh:.2f} {valuta_kwh}**) |"
+                    f"| **🛠️ {t(f'{prefix}.estimated_wear_cost')}** | **{cost_wear:.2f} {valuta}**<br>(**{cost_wear_kwh:.{decimals}f} {valuta_kwh}**) |"
                 )
                 overview.append(
                     f"| **🧮 {t(f'{prefix}.unit_price')}** | {unit_kwh_with_loss_text}{unit_pct_with_loss_text}{unit_kwh_text}{unit_pct_text} |"

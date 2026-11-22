@@ -215,6 +215,36 @@ def test_stromligning_tariff_that_is_not_a_finite_number_drops_the_sell_prices(b
     assert provider.get_sell_prices()
 
 
+def test_a_forecast_day_with_quarter_sell_prices_has_four_sell_periods_per_hour() -> None:
+    """Strømligning's sell forecast in 15-minute rows: every quarter sells a quarter of the hour, not a whole hour's energy.
+    Today's real hourly sell prices keep one period per hour."""
+    _config, data = _stromligning()
+    config = build_config({
+        **default_options(),
+        "stromligning_buy_current_price": "sensor.buy",
+        "stromligning_sell_current_price": "sensor.sell",
+        "stromligning_sell_tomorrow_available": "binary_sensor.sell_tomorrow",
+        "stromligning_sell_forecasts": "sensor.sell_forecasts",
+        "stromligning_sell_distribution": "sensor.sell_distribution",
+        "stromligning_sell_electricity_tax": "sensor.sell_tax",
+        "stromligning_sell_nettariff": "sensor.sell_nettariff",
+        "stromligning_sell_systemtariff": "sensor.sell_systemtariff",
+        "stromligning_sell_surcharge": "sensor.sell_surcharge",
+    })
+    day_3 = TODAY + datetime.timedelta(days=2)
+    rows = [
+        {"start": (datetime.datetime.combine(day_3, datetime.time(0)) + datetime.timedelta(minutes=15 * i)).isoformat() + "+01:00", "price": 3.0}
+        for i in range(96)
+    ]
+    data["attributes"]["sensor.sell_forecasts"] = {"prices": rows}
+    provider = CombinedPriceProvider(config, [StromligningPriceProvider(config)])
+    provider.update_prices(data, NOW)
+    noon = datetime.datetime.combine(day_3, datetime.time(12))
+    assert provider.is_forecast(noon, sell_prices=True)
+    assert provider.sell_periods_in_hour(noon) == 4
+    assert provider.sell_periods_in_hour(datetime.datetime.combine(TODAY, datetime.time(12))) == 1
+
+
 def test_is_number_accepts_only_finite_numbers() -> None:
     assert is_number(1) and is_number(-0.5) and is_number(0.0)
     assert not any(is_number(value) for value in (None, "1.0", True, float("nan"), float("inf"), float("-inf")))

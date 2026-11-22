@@ -86,6 +86,13 @@ Buy and sell prices per hour (or per 15 minutes) from Energi Data Service, Strø
 Forecast, incl. tariffs, refund and sell fee. Energy Price Forecast has no tariffs in its prices: the sell price is
 the price of its sell sensor (the wholesale price, required: the retail price is higher than what a sale pays) less the sell fee.
 
+**A market without published prices** (Energy Price Forecast in Finland, Great Britain, SE1/SE2 and others) needs
+the own price source of Energy Price Forecast (a Nord Pool or ENTSO-e sensor), which gives it published prices from
+midnight: with only a forecast, today has no price before the present, so the price page refuses the sensor, and an existing setup gets a repair when a sensor has had only a forecast for at least an hour (it goes by itself when published prices are back). A
+forecast never enters an hour that has a real price, also not one of another provider with other periods, and only
+real prices are stored in the price history. A forecast day with 15-minute sell prices (Strømligning) is planned per
+quarter: each quarter sells at most a quarter of the hour's energy.
+
 A price that is not a usable number (text, NaN or infinity) is ignored, and so is a sell price whose tariffs are
 not usable numbers: the hour gets its price from the price history, or none, and is never planned with an
 invented price.
@@ -105,10 +112,11 @@ sale or a charge has to earn at least, and the smallest saving that gives a scor
 kroner. When BattMind is set up, and again each time its options are saved, it reads the unit of the price
 sensor (e.g. `EUR/kWh`) and stores a *price scale*, so these amounts follow the currency: with euro prices the
 adder is about 0.0045 € per day, the correction limit about ±0.07 € and the smallest gain about 0.0013 €, and
-prices are rounded to 3 decimals instead of 2. What you enter yourself, such as the *Wear cost*, is never
-changed. For a new installation the *Sell fee* suggested on the price page and the starting values of the two
-*price rise* thresholds follow the currency (an import or a restored backup keeps its own values), so after
-changing to prices in another currency, check the *Sell fee* and the thresholds yourself. A sensor without a known unit leaves the scale as it is (kroner for a new
+prices are rounded to 3 decimals instead of 2. What you enter yourself is never changed. For a new installation
+the *Sell fee* and the *Wear cost* suggested on the page *Refund and fees* (after the price pages, so they are shown
+in the currency of the prices: 0.013 € wear with euro prices) and the starting values of the two *price rise*
+thresholds follow the currency (an import or a restored backup keeps its own values), so after changing to prices
+in another currency, check the *Sell fee*, the *Wear cost* and the thresholds yourself. A sensor without a known unit leaves the scale as it is (kroner for a new
 installation), and Home Assistant's own currency setting is not used for this. The price pages of Energi Data
 Service and Energy Price Forecast refuse a sensor in cents or pence (and Energi Data Service one per MWh; Energy Price Forecast converts a price per MWh to kWh), and every price sensor must be in the same
 currency (a backup provider in another currency is refused). The rates are rough: they only

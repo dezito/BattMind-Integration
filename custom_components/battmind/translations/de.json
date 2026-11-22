@@ -27,8 +27,7 @@
           "powerwall_charge_discharge_loss": "Lade-/Entladeverlust in Prozent basierend auf Round-Trip-Effizienz (z.B. 10% Verlust = 0.1)",
           "use_charge_discharge_loss_from_history": "Verwende tatsächliche Lade- und Entladeverluste basierend auf dem Ladeverlauf anstelle des geschätzten Verlusts in der Konfiguration",
           "battery_charging_efficiency_curve": "AC-Ladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 1000 W = 88 %, 3000 W = 94 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet).",
-          "battery_discharging_efficiency_curve": "AC-Entladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet).",
-          "powerwall_wear_cost_per_kwh": "Kosten pro kWh aus dem Heimspeicher basierend auf Lebensdauer und Preis"
+          "battery_discharging_efficiency_curve": "AC-Entladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet)."
         },
         "data": {
           "powerwall_battery_level_max": "Maximaler Stand",
@@ -39,7 +38,6 @@
           "battery_temperature_min": "Minimum safe temperature",
           "battery_temperature_max": "Maximum safe temperature",
           "powerwall_discharging_power": "Max. Entladeleistung",
-          "powerwall_wear_cost_per_kwh": "Verschleißkosten",
           "use_charge_discharge_loss_from_history": "Gemessenen Verlust nutzen",
           "battery_charging_efficiency_curve": "Wirkungsgradkurve Laden (optional)",
           "battery_discharging_efficiency_curve": "Wirkungsgradkurve Entladen (optional)"
@@ -107,8 +105,8 @@
           "energypriceforecast_sell_entity_id": "Verkaufspreis"
         },
         "data_description": {
-          "energypriceforecast_buy_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Endkundenpreis, einschließlich Marge des Lieferanten, Steuern und Netzentgelt",
-          "energypriceforecast_sell_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Großhandelspreis. Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr (der Endkundenpreis liegt über dem, was ein Verkauf einbringt, und wird deshalb nicht als Verkaufspreis verwendet)"
+          "energypriceforecast_buy_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Endkundenpreis, einschließlich Marge des Lieferanten, Steuern und Netzentgelt. In Energy Price Forecast heißt er „Aktueller Endkundenpreis“, und es gibt ihn nur, wenn dort „Endkundenpreis“ („Schätzung“ oder „Eigene Formel“) eingeschaltet ist",
+          "energypriceforecast_sell_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Großhandelspreis. Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr (der Endkundenpreis liegt über dem, was ein Verkauf einbringt, und wird deshalb nicht als Verkaufspreis verwendet). In Energy Price Forecast heißt er „Preisreihe“"
         }
       },
       "prices_stromligning": {
@@ -152,13 +150,15 @@
       "price_fees": {
         "data_description": {
           "refund": "Erstattungsbetrag vom Staat/Anbieter",
-          "sell_fee": "Die Gebühr pro kWh, die der Käufer deines Stroms für den Kauf verlangt. Wird vom Verkaufspreis abgezogen, bei Energi Data Service und Strømligning zusammen mit Energinets Netz- und Systemtarif, die der Verkauf ebenfalls kostet."
+          "sell_fee": "Die Gebühr pro kWh, die der Käufer deines Stroms für den Kauf verlangt. Wird vom Verkaufspreis abgezogen, bei Energi Data Service und Strømligning zusammen mit Energinets Netz- und Systemtarif, die der Verkauf ebenfalls kostet.",
+          "powerwall_wear_cost_per_kwh": "Kosten pro kWh aus dem Heimspeicher basierend auf Lebensdauer und Preis"
         },
         "data": {
           "refund": "Erstattung",
-          "sell_fee": "Verkaufsgebühr"
+          "sell_fee": "Verkaufsgebühr",
+          "powerwall_wear_cost_per_kwh": "Verschleißkosten"
         },
-        "description": "Beträge pro kWh, die den Wert von Laden und Verkaufen ändern.",
+        "description": "Beträge pro kWh in der Währung der Preise, die den Wert von Laden, Verkaufen und der Nutzung des Speichers ändern.",
         "title": "Erstattung und Gebühren"
       },
       "solar": {
@@ -274,6 +274,7 @@
       "price_unit_subunit": "Dieser Sensor gibt den Preis in Cent oder Pence an (oder, bei Energi Data Service, pro MWh). Wähle einen Sensor mit dem Preis pro kWh in der Währung (z. B. EUR/kWh).",
       "price_sensor_not_retail": "Das ist nicht der Sensor mit dem Endkundenpreis. Wähle den Endkundenpreis-Sensor von Energy Price Forecast als Kaufpreis (der Großhandelspreis ist der Verkaufspreis).",
       "price_sensor_not_wholesale": "Das ist der Sensor mit dem Endkundenpreis. Wähle den Großhandelspreis-Sensor von Energy Price Forecast als Verkaufspreis (der Endkundenpreis liegt über dem, was ein Verkauf einbringt).",
+      "price_sensor_forecast_only": "Dieser Sensor hat gerade keine veröffentlichten Preise für heute, nur eine Prognose. Wenn Energy Price Forecast für deinen Markt keine Preise veröffentlicht (z. B. Finnland oder Großbritannien), wähle dort einen Nord-Pool- oder ENTSO-e-Sensor als „Eigene Preisquelle“ (für den Kaufpreis wähle dort auch „Eigene Formel“ unter „Endkundenpreis“: die Schätzung nutzt diese Preisquelle nicht) und wähle den Sensor erneut. Andernfalls versuche es erneut, sobald die Preise veröffentlicht sind.",
       "price_currency_mismatch": "Dieser Sensor hat eine andere Währung als die anderen Preissensoren. Verwende Preissensoren in einer Währung (oder wähle den anderen Preisanbieter ab).",
       "no_price_provider": "Wähle mindestens einen Preisanbieter.",
       "prefix_entities_exist": "Es gibt bereits Entitäten mit diesem Präfix (z. B. aus der PyScript-Version). Wähle ein anderes Präfix, um beide gleichzeitig zu betreiben.",
@@ -309,8 +310,7 @@
           "powerwall_charge_discharge_loss": "Lade-/Entladeverlust in Prozent basierend auf Round-Trip-Effizienz (z.B. 10% Verlust = 0.1)",
           "use_charge_discharge_loss_from_history": "Verwende tatsächliche Lade- und Entladeverluste basierend auf dem Ladeverlauf anstelle des geschätzten Verlusts in der Konfiguration",
           "battery_charging_efficiency_curve": "AC-Ladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 1000 W = 88 %, 3000 W = 94 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet).",
-          "battery_discharging_efficiency_curve": "AC-Entladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet).",
-          "powerwall_wear_cost_per_kwh": "Kosten pro kWh aus dem Heimspeicher basierend auf Lebensdauer und Preis"
+          "battery_discharging_efficiency_curve": "AC-Entladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet)."
         },
         "data": {
           "powerwall_battery_level_max": "Maximaler Stand",
@@ -321,7 +321,6 @@
           "battery_temperature_min": "Minimum safe temperature",
           "battery_temperature_max": "Maximum safe temperature",
           "powerwall_discharging_power": "Max. Entladeleistung",
-          "powerwall_wear_cost_per_kwh": "Verschleißkosten",
           "use_charge_discharge_loss_from_history": "Gemessenen Verlust nutzen",
           "battery_charging_efficiency_curve": "Wirkungsgradkurve Laden (optional)",
           "battery_discharging_efficiency_curve": "Wirkungsgradkurve Entladen (optional)"
@@ -389,8 +388,8 @@
           "energypriceforecast_sell_entity_id": "Verkaufspreis"
         },
         "data_description": {
-          "energypriceforecast_buy_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Endkundenpreis, einschließlich Marge des Lieferanten, Steuern und Netzentgelt",
-          "energypriceforecast_sell_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Großhandelspreis. Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr (der Endkundenpreis liegt über dem, was ein Verkauf einbringt, und wird deshalb nicht als Verkaufspreis verwendet)"
+          "energypriceforecast_buy_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Endkundenpreis, einschließlich Marge des Lieferanten, Steuern und Netzentgelt. In Energy Price Forecast heißt er „Aktueller Endkundenpreis“, und es gibt ihn nur, wenn dort „Endkundenpreis“ („Schätzung“ oder „Eigene Formel“) eingeschaltet ist",
+          "energypriceforecast_sell_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Großhandelspreis. Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr (der Endkundenpreis liegt über dem, was ein Verkauf einbringt, und wird deshalb nicht als Verkaufspreis verwendet). In Energy Price Forecast heißt er „Preisreihe“"
         }
       },
       "prices_stromligning": {
@@ -434,13 +433,15 @@
       "price_fees": {
         "data_description": {
           "refund": "Erstattungsbetrag vom Staat/Anbieter",
-          "sell_fee": "Die Gebühr pro kWh, die der Käufer deines Stroms für den Kauf verlangt. Wird vom Verkaufspreis abgezogen, bei Energi Data Service und Strømligning zusammen mit Energinets Netz- und Systemtarif, die der Verkauf ebenfalls kostet."
+          "sell_fee": "Die Gebühr pro kWh, die der Käufer deines Stroms für den Kauf verlangt. Wird vom Verkaufspreis abgezogen, bei Energi Data Service und Strømligning zusammen mit Energinets Netz- und Systemtarif, die der Verkauf ebenfalls kostet.",
+          "powerwall_wear_cost_per_kwh": "Kosten pro kWh aus dem Heimspeicher basierend auf Lebensdauer und Preis"
         },
         "data": {
           "refund": "Erstattung",
-          "sell_fee": "Verkaufsgebühr"
+          "sell_fee": "Verkaufsgebühr",
+          "powerwall_wear_cost_per_kwh": "Verschleißkosten"
         },
-        "description": "Beträge pro kWh, die den Wert von Laden und Verkaufen ändern.",
+        "description": "Beträge pro kWh in der Währung der Preise, die den Wert von Laden, Verkaufen und der Nutzung des Speichers ändern.",
         "title": "Erstattung und Gebühren"
       },
       "solar": {
@@ -565,6 +566,7 @@
       "price_unit_subunit": "Dieser Sensor gibt den Preis in Cent oder Pence an (oder, bei Energi Data Service, pro MWh). Wähle einen Sensor mit dem Preis pro kWh in der Währung (z. B. EUR/kWh).",
       "price_sensor_not_retail": "Das ist nicht der Sensor mit dem Endkundenpreis. Wähle den Endkundenpreis-Sensor von Energy Price Forecast als Kaufpreis (der Großhandelspreis ist der Verkaufspreis).",
       "price_sensor_not_wholesale": "Das ist der Sensor mit dem Endkundenpreis. Wähle den Großhandelspreis-Sensor von Energy Price Forecast als Verkaufspreis (der Endkundenpreis liegt über dem, was ein Verkauf einbringt).",
+      "price_sensor_forecast_only": "Dieser Sensor hat gerade keine veröffentlichten Preise für heute, nur eine Prognose. Wenn Energy Price Forecast für deinen Markt keine Preise veröffentlicht (z. B. Finnland oder Großbritannien), wähle dort einen Nord-Pool- oder ENTSO-e-Sensor als „Eigene Preisquelle“ (für den Kaufpreis wähle dort auch „Eigene Formel“ unter „Endkundenpreis“: die Schätzung nutzt diese Preisquelle nicht) und wähle den Sensor erneut. Andernfalls versuche es erneut, sobald die Preise veröffentlicht sind.",
       "price_currency_mismatch": "Dieser Sensor hat eine andere Währung als die anderen Preissensoren. Verwende Preissensoren in einer Währung (oder wähle den anderen Preisanbieter ab).",
       "no_price_provider": "Wähle mindestens einen Preisanbieter.",
       "prefix_entities_exist": "Es gibt bereits Entitäten mit diesem Präfix (z. B. aus der PyScript-Version). Wähle ein anderes Präfix, um beide gleichzeitig zu betreiben.",
@@ -990,6 +992,10 @@
           }
         }
       }
+    },
+    "energypriceforecast_forecast_only": {
+      "title": "Energy-Price-Forecast-Sensoren, die BattMind nutzt, haben keine veröffentlichten Preise ({prefix})",
+      "description": "BattMind ({prefix}) nutzt Energy-Price-Forecast-Sensoren, die seit mindestens einer Stunde keine veröffentlichten Preise für heute oder morgen haben, nur eine Prognose:\n{entities}\n\nOhne einen Preis für heute haben die vergangenen Stunden keinen Preis, daher fehlen sie im Ladeverlauf, im Preis der Energie im Speicher und im Preisverlauf.\n\nWenn Energy Price Forecast für deinen Markt keine Preise veröffentlicht (z. B. Finnland oder Großbritannien), wähle dort einen Nord-Pool- oder ENTSO-e-Sensor als „Eigene Preisquelle“ (für den Kaufpreis wähle dort auch „Eigene Formel“ unter „Endkundenpreis“: die Schätzung nutzt diese Preisquelle nicht). Andernfalls sind die Preise nur verspätet.\n\nDiese Reparatur verschwindet von selbst, wenn die Sensoren wieder veröffentlichte Preise haben."
     },
     "stromligning_entities": {
       "title": "Strømligning-Sensoren, die BattMind braucht, sind nicht verfügbar ({prefix})",

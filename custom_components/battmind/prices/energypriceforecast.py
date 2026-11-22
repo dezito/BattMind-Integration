@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime
 
-from ..utils.helpers import days_between
+from ..utils.helpers import days_between, reset_time_to_hour
 from .base import BasePriceProvider, is_number, price_timestamp, price_unit_divisor
 
 
@@ -70,11 +70,15 @@ class EnergyPriceForecastPriceProvider(BasePriceProvider):
     def _forecast(self, entity_id: str, sell: bool = False) -> dict:
         attr = self._attr(entity_id)
         real = self._published(entity_id)
-        # a forecast never replaces a published price (the rows do not overlap, but a start must not be both)
+        published_hours = {reset_time_to_hour(ts) for ts in real}
+        # from tomorrow on: a market without published prices (today only a forecast, no price before the present) is
+        # refused on the price page; the own price source of Energy Price Forecast gives it published prices. A forecast
+        # never enters an hour with a published price (not even a quarter of a published hour, when the two lists have
+        # different periods)
         return {
             ts: p + self._forecast_adder(ts, sell)
             for ts, p in sorted(self._rows(attr.get("raw_forecast"), self._divisor(entity_id)))
-            if days_between(self.current_hour, ts) > 0 and ts not in real
+            if days_between(self.current_hour, ts) > 0 and reset_time_to_hour(ts) not in published_hours
         }
 
     def _load_buy_real_prices(self):

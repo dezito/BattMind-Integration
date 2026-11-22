@@ -19,6 +19,7 @@ from ..const import DOMAIN, ENTITY_UNAVAILABLE_STATES
 from ..engine import BattMindEngine
 from ..management.dependency_checks import DependencyWatcher
 from ..prices import stromligning_entities_to_watch
+from ..prices.currency import energypriceforecast_entities
 from ..utils.cjp import CJP_DOMAIN, cjp_charger_power_entities
 from ..utils.solcast import solcast_endings_for_days
 from ..utils.formatting import load_texts
@@ -68,7 +69,7 @@ class CoordinatorLifecycle:
         self.set_charging_rule(f"📟{self.t('ui.init.script_starting')}")
 
     def _start_dependency_checks(self) -> None:
-        """Repairs for Strømligning and Solcast sensors BattMind needs but that are disabled or not provided."""
+        """Repairs for Strømligning, Solcast and Energy Price Forecast sensors BattMind needs but that are disabled or not provided."""
         stromligning = stromligning_entities_to_watch(self.config["prices"]["entity_ids"])
         forecast_entity = self.config["solar"]["entity_ids"]["forecast_entity_id"]
         watcher = DependencyWatcher(
@@ -78,6 +79,7 @@ class CoordinatorLifecycle:
             stromligning,
             forecast_entity,
             solcast_endings_for_days(int(self.config["days_to_predict"])),
+            price_forecast_entities=energypriceforecast_entities(self.config["prices"]["entity_ids"]),
         )
         watcher.start()
         self.entry.async_on_unload(watcher.stop)

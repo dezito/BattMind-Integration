@@ -2485,3 +2485,48 @@ def test_replay_plans_when_the_prices_of_the_next_day_are_published() -> None:
     afternoon = datetime.datetime(2026, 10, 22, 13)
     assert _known_until(afternoon) == datetime.datetime(2026, 10, 24)
     assert _next_planning(afternoon) == datetime.datetime(2026, 10, 23, 13)
+
+
+def test_a_forecast_day_with_quarter_prices_sells_at_most_a_quarter_of_the_rate_per_quarter() -> None:
+    """A forecast day with 15-minute rows (Strømligning, Energy Price Forecast) has four sell periods per hour: a rule
+    sells at most a quarter of the discharge rate in each, not the rate of a whole hour (rule plan; prices change every
+    hour; 20 kWh at 90 %, 3 kW: the rate limits the sale, not the energy)."""
+    engine, _ = planned(
+        0, 90, {"optimizer_control": False, "usage_reserve": 0, "min_profit_per_kwh": 0.0, "prioritize_discharge_hours_by_energy_cost": True, "only_discharge_on_profit": False,
+                "grid_charge_to_sell": True, "most_profit": False, "sell_excess_kwh_available": False},
+        price_fn=lambda ts: 0.3 if ts.hour % 2 == 0 else 2.2, days=4, quarters=True,
+        options={"powerwall_battery_size": 20.0, "powerwall_charge_discharge_loss": 0.0, "powerwall_wear_cost_per_kwh": 0.3, "powerwall_discharging_power": 3000},
+    )
+    quarter = abs(engine.max_kwh_discharging) / 4
+    forecast_sales = [
+        sale["kwh"] for day in engine.plan if isinstance(day, int) and day >= 2 for sale in engine.plan[day]["force_discharge_timestamps"].values()
+    ]
+    assert forecast_sales, "the forecast days sell"
+    assert max(forecast_sales) <= quarter + 0.011, (max(forecast_sales), quarter)
+
+
+def test_the_battery_costs_per_kwh_have_the_decimals_of_the_currency() -> None:
+    """In euro a per kWh amount of the battery costs has 3 decimals (a wear cost of 0.013 is not shown as 0.01); in
+    kroner 2. The totals stay at 2 decimals."""
+    for scale, wear, total, shown in ((0.134, 0.013, "0.07", "0.013"), (1.0, 0.1, "0.50", "0.10")):
+        engine, _ = planned(0, 30, {}, days=1, options={"price_scale": scale})
+        expenses = {"kwh": 5.0, "percentage": 50.0, "solar_percentage": 0.0, "unit": 0.2, "cost_wear": 5.0 * wear, "cost_loss": 0.0}
+        battery_costs = "\n".join(engine._build_overview(engine.plan, {}, expenses, {}))
+        assert f"**{total} " in battery_costs and f"(**{shown} " in battery_costs, (scale, battery_costs)
+
+
+def test_a_buy_to_sell_sale_shows_its_prices_per_kwh_with_the_decimals_of_the_currency() -> None:
+    """In euro the details of a sale of bought energy show the buy price, the sell price, loss and wear and the profit
+    per kWh with 3 decimals (a wear cost of 0.013 is not 0.01)."""
+    engine, _ = planned(
+        0, 30, {"optimizer_control": False, "usage_reserve": 0, "min_profit_per_kwh": 0.0, "prioritize_discharge_hours_by_energy_cost": True, "only_discharge_on_profit": False,
+                "grid_charge_to_sell": True, "most_profit": False, "sell_excess_kwh_available": False},
+        price_fn=lambda ts: 0.3 if ts.hour % 2 == 0 else 2.2, days=2,
+        options={"price_scale": 0.134, "powerwall_battery_size": 10.0, "powerwall_charge_discharge_loss": 0.0, "powerwall_wear_cost_per_kwh": 0.013, "powerwall_discharging_power": 3000},
+    )
+    reasons = [
+        sale["reason"] for day in engine.plan if isinstance(day, int) for sale in engine.plan[day]["force_discharge_timestamps"].values()
+        if sale["title"] == "Sælger strøm købt billigt"
+    ]
+    assert reasons, "the scenario sells bought energy"
+    assert "til **0.300 kr/kWh**" in reasons[0] and "Ladetab + slid pr. kWh: **0.013 kr/kWh**" in reasons[0], reasons[0]

@@ -231,13 +231,13 @@ Setup is done in the UI, split into small pages with help texts:
 
 1. **Prefix and language:** the prefix becomes the start of all entity ids (default `battmind`)
 2. **Home battery:** battery level, power, size, min./max. level,
-   charge/discharge power, charge/discharge loss, optional efficiency curves and wear per kWh. Without curves BattMind measures them itself. The curves can be enabled or disabled from **Settings** without deleting them.
+   charge/discharge power, charge/discharge loss and optional efficiency curves. Without curves BattMind measures them itself. The curves can be enabled or disabled from **Settings** without deleting them.
    If the inverter can't run a battery mode (e.g. selling from the battery or blocking solar charging), select it on the page **controllable modes**: BattMind then never plans it, and the rules that need it are switched off and hidden on the dashboard
 3. **Consumption:** the house consumption. You can also ignore consumers, e.g. the EV charger.
    **Check the battery and consumption:** the sign of the battery power and whether the consumption includes the
    battery's charging/discharging are suggested from the recorder's history (as far back as needed) with the numbers
    used, so you can check and change them
-4. **Price providers:** Energi Data Service, Strømligning and/or Energy Price Forecast (buy and sell, and the tariffs of Strømligning), refund and selling fee
+4. **Price providers:** Energi Data Service, Strømligning and/or Energy Price Forecast (buy and sell, and the tariffs of Strømligning), refund, selling fee and wear per kWh (after the price pages, so a new installation suggests it in the currency of the prices)
 5. **Solar panels:** production, the inverter's max. power, fixed sell price or hourly price, and Solcast
 6. **Weather:** hourly and daily forecast (only with solar panels)
 7. **Advanced:** number of days to plan, interval, dashboard and diagnostic file log

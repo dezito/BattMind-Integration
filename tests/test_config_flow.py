@@ -26,7 +26,6 @@ BATTERY_SPECS = {
     "powerwall_discharging_power": 5000,
     "powerwall_charge_discharge_loss": 0.1,
     "use_charge_discharge_loss_from_history": True,
-    "powerwall_wear_cost_per_kwh": 0.1,
     "battery_temperature_min": 0,
     "battery_temperature_max": 50,
 }
@@ -113,21 +112,33 @@ async def _finish_after_the_price_pages(hass: HomeAssistant, result):
 )
 async def test_a_new_entry_gets_the_price_scale_of_its_price_sensor(hass: HomeAssistant, unit, scale, fee, thresholds) -> None:
     """The scale comes from the unit of the price sensor, not from Home Assistant's currency (EUR by default); the suggested
-    sell fee and the starting values of the two price rise thresholds follow it, in kroner they stay as they are. The wear
-    cost the user enters is never changed."""
+    sell fee and wear cost (on the fee page, after the price pages) and the starting values of the two price rise
+    thresholds follow it, in kroner they stay as they are."""
     hass.states.async_set(PRICE, "0.5", {"unit_of_measurement": unit} if unit else {})
     result = await _to_price_provider(hass)
     result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     assert result["step_id"] == "price_fees"
     assert form_defaults(result)["sell_fee"] == fee  # the suggestion is 0.03 kroner in the price currency
+    wear = 0.013 if scale == 0.134 else 0.1  # 0.1 kroner in the price currency, shown before it is stored
+    assert form_defaults(result)["powerwall_wear_cost_per_kwh"] == wear
     result = await _configure(hass, result, "price_fees", form_defaults(result))
     result = await _finish_after_the_price_pages(hass, result)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     options = result["options"]
     assert options.get("price_scale", 1.0) == (scale or 1.0)
-    assert options["sell_fee"] == fee and options["powerwall_wear_cost_per_kwh"] == BATTERY_SPECS["powerwall_wear_cost_per_kwh"]
+    assert options["sell_fee"] == fee and options["powerwall_wear_cost_per_kwh"] == wear
     assert {key: value for key, value in result["data"]["initial_settings"].items() if key.endswith("rise_threshold")} == (thresholds or {})
+
+
+async def test_a_wear_cost_the_user_changed_is_kept_when_the_scale_is_found(hass: HomeAssistant) -> None:
+    hass.states.async_set(PRICE, "0.5", {"unit_of_measurement": "EUR/kWh"})
+    result = await _to_price_provider(hass)
+    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
+    result = await _configure(hass, result, "price_fees", {**form_defaults(result), "powerwall_wear_cost_per_kwh": 0.05})
+    result = await _finish_after_the_price_pages(hass, result)
+    assert result["options"]["price_scale"] == 0.134 and result["options"]["powerwall_wear_cost_per_kwh"] == 0.05
 
 
 async def test_a_sell_fee_the_user_changed_is_kept_when_the_scale_is_found(hass: HomeAssistant) -> None:

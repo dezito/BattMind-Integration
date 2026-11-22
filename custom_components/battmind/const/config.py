@@ -194,7 +194,6 @@ FLOW_STEPS: dict[str, list[str]] = {
         "use_charge_discharge_loss_from_history",
         "battery_charging_efficiency_curve",
         "battery_discharging_efficiency_curve",
-        "powerwall_wear_cost_per_kwh",
     ],
     "battery_actions": ["unsupported_actions"],
     "consumption": [
@@ -231,7 +230,8 @@ FLOW_STEPS: dict[str, list[str]] = {
         "stromligning_sell_systemtariff",
         "stromligning_sell_surcharge",
     ],
-    "price_fees": ["refund", "sell_fee"],
+    # the wear cost is an amount in the price currency: on the page after the price pages, where it is known
+    "price_fees": ["refund", "sell_fee", "powerwall_wear_cost_per_kwh"],
     "solar": [
         "production_entity_id",
         "inverter_discharging_power_limit",

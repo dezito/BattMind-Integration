@@ -27,8 +27,7 @@
           "powerwall_charge_discharge_loss": "Straty ładowania/rozładowania (%)",
           "use_charge_discharge_loss_from_history": "Używaj rzeczywistych strat ładowania i rozładowania na podstawie historii ładowania zamiast szacowanych strat w konfiguracji",
           "battery_charging_efficiency_curve": "Przypisz moc ładowania AC w W do sprawności w procentach, np. 1000 W = 88 %, 3000 W = 94 %, 5000 W = 96 %. BattMind interpoluje między punktami. Pozostaw puste, aby BattMind sam zmierzył krzywą (do czasu zebrania wystarczającej liczby pomiarów używana jest strata cyklu).",
-          "battery_discharging_efficiency_curve": "Przypisz moc rozładowania AC w W do sprawności w procentach, np. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoluje między punktami. Pozostaw puste, aby BattMind sam zmierzył krzywą (do czasu zebrania wystarczającej liczby pomiarów używana jest strata cyklu).",
-          "powerwall_wear_cost_per_kwh": "Koszt zużycia magazynu na kWh"
+          "battery_discharging_efficiency_curve": "Przypisz moc rozładowania AC w W do sprawności w procentach, np. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoluje między punktami. Pozostaw puste, aby BattMind sam zmierzył krzywą (do czasu zebrania wystarczającej liczby pomiarów używana jest strata cyklu)."
         },
         "data": {
           "powerwall_battery_level_max": "Poziom maksymalny",
@@ -39,7 +38,6 @@
           "battery_temperature_min": "Minimum safe temperature",
           "battery_temperature_max": "Maximum safe temperature",
           "powerwall_discharging_power": "Maks. moc rozładowania",
-          "powerwall_wear_cost_per_kwh": "Koszt zużycia",
           "use_charge_discharge_loss_from_history": "Użyj zmierzonej straty",
           "battery_charging_efficiency_curve": "Krzywa sprawności ładowania (opcjonalnie)",
           "battery_discharging_efficiency_curve": "Krzywa sprawności rozładowania (opcjonalnie)"
@@ -107,8 +105,8 @@
           "energypriceforecast_sell_entity_id": "Cena sprzedaży"
         },
         "data_description": {
-          "energypriceforecast_buy_entity_id": "Czujnik Energy Price Forecast z ceną detaliczną, wraz z marżą dostawcy, podatkami i opłatą sieciową",
-          "energypriceforecast_sell_entity_id": "Czujnik Energy Price Forecast z ceną hurtową. Cena sprzedaży to ta cena minus opłata za sprzedaż (cena detaliczna jest wyższa niż to, co daje sprzedaż, więc nie jest używana jako cena sprzedaży)"
+          "energypriceforecast_buy_entity_id": "Czujnik Energy Price Forecast z ceną detaliczną, wraz z marżą dostawcy, podatkami i opłatą sieciową. W Energy Price Forecast nazywa się „Current retail price” i istnieje tylko wtedy, gdy włączona jest tam cena detaliczna „Retail price” („Estimate” lub „Own formula”)",
+          "energypriceforecast_sell_entity_id": "Czujnik Energy Price Forecast z ceną hurtową. Cena sprzedaży to ta cena minus opłata za sprzedaż (cena detaliczna jest wyższa niż to, co daje sprzedaż, więc nie jest używana jako cena sprzedaży). W Energy Price Forecast nazywa się „Price forecast series”"
         }
       },
       "prices_stromligning": {
@@ -152,13 +150,15 @@
       "price_fees": {
         "data_description": {
           "refund": "Kwota zwrotu od państwa/dostawcy",
-          "sell_fee": "Opłata za kWh, którą kupujący Twoją energię pobiera za jej zakup. Odejmowana od ceny sprzedaży, w przypadku Energi Data Service i Strømligning razem z taryfą sieciową i systemową Energinet, które również kosztuje sprzedaż."
+          "sell_fee": "Opłata za kWh, którą kupujący Twoją energię pobiera za jej zakup. Odejmowana od ceny sprzedaży, w przypadku Energi Data Service i Strømligning razem z taryfą sieciową i systemową Energinet, które również kosztuje sprzedaż.",
+          "powerwall_wear_cost_per_kwh": "Koszt zużycia magazynu na kWh"
         },
         "data": {
           "refund": "Zwrot",
-          "sell_fee": "Opłata za sprzedaż"
+          "sell_fee": "Opłata za sprzedaż",
+          "powerwall_wear_cost_per_kwh": "Koszt zużycia"
         },
-        "description": "Kwoty na kWh, które zmieniają wartość ładowania i sprzedaży.",
+        "description": "Kwoty na kWh w walucie cen, które zmieniają wartość ładowania, sprzedaży i korzystania z magazynu.",
         "title": "Zwrot i opłaty"
       },
       "solar": {
@@ -274,6 +274,7 @@
       "price_unit_subunit": "Ten czujnik podaje cenę w centach lub pensach (albo, w przypadku Energi Data Service, za MWh). Wybierz czujnik z ceną za kWh w walucie (np. EUR/kWh).",
       "price_sensor_not_retail": "To nie jest czujnik z ceną detaliczną. Jako cenę zakupu wybierz czujnik Energy Price Forecast z ceną detaliczną (cena hurtowa jest ceną sprzedaży).",
       "price_sensor_not_wholesale": "To jest czujnik z ceną detaliczną. Jako cenę sprzedaży wybierz czujnik Energy Price Forecast z ceną hurtową (cena detaliczna jest wyższa niż to, co daje sprzedaż).",
+      "price_sensor_forecast_only": "Ten czujnik nie ma teraz opublikowanych cen na dziś, tylko prognozę. Jeśli Energy Price Forecast nie publikuje cen dla Twojego rynku (np. Finlandia lub Wielka Brytania), ustaw w nim czujnik Nord Pool lub ENTSO-e jako „Own price source” (dla ceny zakupu wybierz tam też „Own formula” w „Retail price”: oszacowanie nie korzysta z tego źródła cen) i wybierz czujnik ponownie. W przeciwnym razie spróbuj ponownie, gdy ceny zostaną opublikowane.",
       "price_currency_mismatch": "Ten czujnik jest w innej walucie niż pozostałe czujniki cen. Używaj czujników cen w jednej walucie (lub odznacz innego dostawcę cen).",
       "no_price_provider": "Wybierz co najmniej jednego dostawcę cen.",
       "prefix_entities_exist": "Encje z tym prefiksem już istnieją (np. z wersji PyScript). Wybierz inny prefiks, aby uruchomić obie jednocześnie.",
@@ -309,8 +310,7 @@
           "powerwall_charge_discharge_loss": "Straty ładowania/rozładowania (%)",
           "use_charge_discharge_loss_from_history": "Używaj rzeczywistych strat ładowania i rozładowania na podstawie historii ładowania zamiast szacowanych strat w konfiguracji",
           "battery_charging_efficiency_curve": "Przypisz moc ładowania AC w W do sprawności w procentach, np. 1000 W = 88 %, 3000 W = 94 %, 5000 W = 96 %. BattMind interpoluje między punktami. Pozostaw puste, aby BattMind sam zmierzył krzywą (do czasu zebrania wystarczającej liczby pomiarów używana jest strata cyklu).",
-          "battery_discharging_efficiency_curve": "Przypisz moc rozładowania AC w W do sprawności w procentach, np. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoluje między punktami. Pozostaw puste, aby BattMind sam zmierzył krzywą (do czasu zebrania wystarczającej liczby pomiarów używana jest strata cyklu).",
-          "powerwall_wear_cost_per_kwh": "Koszt zużycia magazynu na kWh"
+          "battery_discharging_efficiency_curve": "Przypisz moc rozładowania AC w W do sprawności w procentach, np. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoluje między punktami. Pozostaw puste, aby BattMind sam zmierzył krzywą (do czasu zebrania wystarczającej liczby pomiarów używana jest strata cyklu)."
         },
         "data": {
           "powerwall_battery_level_max": "Poziom maksymalny",
@@ -321,7 +321,6 @@
           "battery_temperature_min": "Minimum safe temperature",
           "battery_temperature_max": "Maximum safe temperature",
           "powerwall_discharging_power": "Maks. moc rozładowania",
-          "powerwall_wear_cost_per_kwh": "Koszt zużycia",
           "use_charge_discharge_loss_from_history": "Użyj zmierzonej straty",
           "battery_charging_efficiency_curve": "Krzywa sprawności ładowania (opcjonalnie)",
           "battery_discharging_efficiency_curve": "Krzywa sprawności rozładowania (opcjonalnie)"
@@ -389,8 +388,8 @@
           "energypriceforecast_sell_entity_id": "Cena sprzedaży"
         },
         "data_description": {
-          "energypriceforecast_buy_entity_id": "Czujnik Energy Price Forecast z ceną detaliczną, wraz z marżą dostawcy, podatkami i opłatą sieciową",
-          "energypriceforecast_sell_entity_id": "Czujnik Energy Price Forecast z ceną hurtową. Cena sprzedaży to ta cena minus opłata za sprzedaż (cena detaliczna jest wyższa niż to, co daje sprzedaż, więc nie jest używana jako cena sprzedaży)"
+          "energypriceforecast_buy_entity_id": "Czujnik Energy Price Forecast z ceną detaliczną, wraz z marżą dostawcy, podatkami i opłatą sieciową. W Energy Price Forecast nazywa się „Current retail price” i istnieje tylko wtedy, gdy włączona jest tam cena detaliczna „Retail price” („Estimate” lub „Own formula”)",
+          "energypriceforecast_sell_entity_id": "Czujnik Energy Price Forecast z ceną hurtową. Cena sprzedaży to ta cena minus opłata za sprzedaż (cena detaliczna jest wyższa niż to, co daje sprzedaż, więc nie jest używana jako cena sprzedaży). W Energy Price Forecast nazywa się „Price forecast series”"
         }
       },
       "prices_stromligning": {
@@ -434,13 +433,15 @@
       "price_fees": {
         "data_description": {
           "refund": "Kwota zwrotu od państwa/dostawcy",
-          "sell_fee": "Opłata za kWh, którą kupujący Twoją energię pobiera za jej zakup. Odejmowana od ceny sprzedaży, w przypadku Energi Data Service i Strømligning razem z taryfą sieciową i systemową Energinet, które również kosztuje sprzedaż."
+          "sell_fee": "Opłata za kWh, którą kupujący Twoją energię pobiera za jej zakup. Odejmowana od ceny sprzedaży, w przypadku Energi Data Service i Strømligning razem z taryfą sieciową i systemową Energinet, które również kosztuje sprzedaż.",
+          "powerwall_wear_cost_per_kwh": "Koszt zużycia magazynu na kWh"
         },
         "data": {
           "refund": "Zwrot",
-          "sell_fee": "Opłata za sprzedaż"
+          "sell_fee": "Opłata za sprzedaż",
+          "powerwall_wear_cost_per_kwh": "Koszt zużycia"
         },
-        "description": "Kwoty na kWh, które zmieniają wartość ładowania i sprzedaży.",
+        "description": "Kwoty na kWh w walucie cen, które zmieniają wartość ładowania, sprzedaży i korzystania z magazynu.",
         "title": "Zwrot i opłaty"
       },
       "solar": {
@@ -565,6 +566,7 @@
       "price_unit_subunit": "Ten czujnik podaje cenę w centach lub pensach (albo, w przypadku Energi Data Service, za MWh). Wybierz czujnik z ceną za kWh w walucie (np. EUR/kWh).",
       "price_sensor_not_retail": "To nie jest czujnik z ceną detaliczną. Jako cenę zakupu wybierz czujnik Energy Price Forecast z ceną detaliczną (cena hurtowa jest ceną sprzedaży).",
       "price_sensor_not_wholesale": "To jest czujnik z ceną detaliczną. Jako cenę sprzedaży wybierz czujnik Energy Price Forecast z ceną hurtową (cena detaliczna jest wyższa niż to, co daje sprzedaż).",
+      "price_sensor_forecast_only": "Ten czujnik nie ma teraz opublikowanych cen na dziś, tylko prognozę. Jeśli Energy Price Forecast nie publikuje cen dla Twojego rynku (np. Finlandia lub Wielka Brytania), ustaw w nim czujnik Nord Pool lub ENTSO-e jako „Own price source” (dla ceny zakupu wybierz tam też „Own formula” w „Retail price”: oszacowanie nie korzysta z tego źródła cen) i wybierz czujnik ponownie. W przeciwnym razie spróbuj ponownie, gdy ceny zostaną opublikowane.",
       "price_currency_mismatch": "Ten czujnik jest w innej walucie niż pozostałe czujniki cen. Używaj czujników cen w jednej walucie (lub odznacz innego dostawcę cen).",
       "no_price_provider": "Wybierz co najmniej jednego dostawcę cen.",
       "prefix_entities_exist": "Encje z tym prefiksem już istnieją (np. z wersji PyScript). Wybierz inny prefiks, aby uruchomić obie jednocześnie.",
@@ -990,6 +992,10 @@
           }
         }
       }
+    },
+    "energypriceforecast_forecast_only": {
+      "title": "Czujniki Energy Price Forecast używane przez BattMind nie mają opublikowanych cen ({prefix})",
+      "description": "BattMind ({prefix}) używa czujników Energy Price Forecast, które od co najmniej godziny nie mają opublikowanych cen na dziś ani na jutro, tylko prognozę:\n{entities}\n\nBez ceny na dziś minione godziny nie mają ceny, więc brakuje ich w historii ładowania, w cenie energii w magazynie i w historii cen.\n\nJeśli Energy Price Forecast nie publikuje cen dla Twojego rynku (np. Finlandia lub Wielka Brytania), ustaw w nim czujnik Nord Pool lub ENTSO-e jako „Own price source” (dla ceny zakupu wybierz tam też „Own formula” w „Retail price”: oszacowanie nie korzysta z tego źródła cen). W przeciwnym razie ceny są tylko opóźnione.\n\nTa naprawa zniknie sama, gdy czujniki znów będą miały opublikowane ceny."
     },
     "stromligning_entities": {
       "title": "Czujniki Strømligning potrzebne dla BattMind są niedostępne ({prefix})",

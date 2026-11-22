@@ -78,11 +78,10 @@ leave the field empty for the default icon.
 | Loss from history | after 6 full cycles BattMind measures the loss itself – leave it on |
 | Charging / discharging efficiency curve | optional object mapping AC power in W to efficiency in percent, e.g. 1000 W = 88 %, 3000 W = 94 %, 5000 W = 96 %. BattMind interpolates between points. Leave empty to let BattMind measure the curve itself (the round-trip loss is used until there are enough measurements) |
 | Enhance battery efficiency | switch under **Settings → Control** that decides whether BattMind uses the configured curves. Turning it off keeps the curves and uses the round-trip loss instead |
-| Wear per kWh | battery price ÷ expected lifetime in kWh, e.g. 40 000 kr ÷ (10 kWh × 6000 cycles) ≈ 0.67 kr/kWh. Default is 0.10. A higher value makes BattMind more careful |
 | Min. / max. safe temperature | limits in °C from the battery manufacturer; defaults are 0 to 50 °C |
 
-The loss and the wear decide how big a price difference has to be before BattMind uses the battery. See
-[How BattMind plans](how-it-works.md#the-cost-of-a-kwh-from-the-battery).
+The loss and the wear (on the page *Refund and fees*, see [prices](#prices)) decide how big a price difference has
+to be before BattMind uses the battery. See [How BattMind plans](how-it-works.md#the-cost-of-a-kwh-from-the-battery).
 
 ### Home battery – controllable modes
 
@@ -156,8 +155,13 @@ and the next fills the gaps (also in the what-if and the analysis). All price se
   Without a separate sell sensor, the buy price minus tariffs is used as sell price. A sell sensor
   without tariffs is used as the spot price; the net and system tariff paid when selling then come
   from the buy sensor.
-- **Energy Price Forecast** (for prices outside Denmark): choose its retail price sensor as the buy price – it gives
-  the published prices of today and tomorrow and the forecast after them. Choose its wholesale price sensor as the sell
+- **Energy Price Forecast** (for prices outside Denmark): choose its retail price sensor (*Current retail price*) as
+  the buy price – it gives the published prices of today and tomorrow and the forecast after them. It only exists when
+  retail pricing is turned on in Energy Price Forecast: its estimate (Germany, the Netherlands, Denmark, Austria and
+  Norway) or your own formula (every market). In a market where Energy Price Forecast publishes no prices, only a
+  forecast (Finland, Great Britain, SE1/SE2 and others), set a Nord Pool or ENTSO-e sensor as its own price source
+  and use its own retail formula: the page refuses a buy or sell sensor with only a forecast for today, and an existing setup gets a repair when one has had only a forecast for at least an hour. Choose its wholesale price sensor
+  (*Price forecast series*) as the sell
   price (required: the retail price is higher than what a sale pays, so it is refused as a sell sensor; an entry
   restored from a backup without one sells at the buy price less the sell fee). The sensors must give the
   price per kWh in the currency (EUR/kWh, GBP/kWh, …), not in cents or pence: BattMind refuses a sensor in
@@ -175,6 +179,9 @@ and the next fills the gaps (also in the what-if and the analysis). All price se
   and system tariff:
   sell price = price − the tariffs and taxes in it − (sell fee + net tariff + system tariff).
   The price charts on the dashboard show the same sell price.
+- **Wear per kWh:** battery price ÷ expected lifetime in kWh, e.g. 40 000 kr ÷ (10 kWh × 6000 cycles) ≈ 0.67 kr/kWh.
+  It is on this page because it is an amount in the currency of the prices: a new installation suggests 0.10 kr in
+  that currency (0.013 € with euro prices). A higher value makes BattMind more careful.
 
 ### Solar panels and weather (optional)
 

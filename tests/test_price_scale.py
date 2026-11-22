@@ -143,10 +143,12 @@ def test_a_restored_backup_or_an_import_keeps_its_sell_fee_and_only_a_new_entry_
     new = flow()
     new._apply_price_scale(suggest_fee=True)
     assert new._options["sell_fee"] == 0.004 and new._kroner_defaults_scaled is True
+    assert new._options["powerwall_wear_cost_per_kwh"] == 0.013  # the wear cost on the same page: 0.1 kroner in euro
     for own in ({"_restore_backup": "backup"}, {"_legacy_prefix": "bm"}):
         kept = flow(**own)
         kept._apply_price_scale(suggest_fee=True)
         assert kept._options["price_scale"] == 0.134 and kept._options["sell_fee"] == 0.03, own  # a stored 0.03 is not the default
+        assert kept._options["powerwall_wear_cost_per_kwh"] == 0.1, own  # and its wear cost stays too
         assert not kept._kroner_defaults_scaled
 
 

@@ -176,8 +176,9 @@ class BattMindConfigFlow(BattMindFlowPages, ConfigFlow, domain=DOMAIN):
     def _scale_money_defaults(self) -> None:
         """A new entry with prices that are not in kroner: the starting values of the two price rise thresholds follow the currency.
 
-        They are number entities the user has not seen in the flow. Nothing the user enters is changed (the wear cost is
-        theirs, in their currency), and nothing at all for an import or a restored backup."""
+        They are number entities the user has not seen in the flow. Nothing the user has seen is changed (the sell fee and
+        the wear cost are suggested in the price currency on the fee page, see _apply_price_scale), and nothing at all for
+        an import or a restored backup."""
         if self._restore_backup is not None or self._legacy_prefix is not None:
             return
         scale = price_scale({"prices": {"price_scale": self._options.get("price_scale", 1.0)}})

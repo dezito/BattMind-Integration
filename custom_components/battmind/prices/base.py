@@ -324,11 +324,14 @@ class CombinedPriceProvider:
                 elif timestamp not in prices:
                     prices[timestamp] = real[timestamp] = round(price, self.decimals)
                     sources[timestamp] = f"{provider.source_name}:real"
+        # a forecast never enters an hour with a real price, also not one of another provider with other periods (an hourly
+        # real price and forecast quarters): the real price is the price of the whole hour
+        real_hours = {reset_time_to_hour(timestamp) for timestamp in real}
         for provider in self.providers:
             for timestamp, price in getattr(provider, f"{kind}_forecast_prices").items():
                 if not is_number(price):
                     unusable += 1
-                elif timestamp not in prices:
+                elif timestamp not in prices and reset_time_to_hour(timestamp) not in real_hours:
                     prices[timestamp] = round(price, self.decimals)
                     sources[timestamp] = f"{provider.source_name}:forecast"
         if unusable:
@@ -397,7 +400,9 @@ class CombinedPriceProvider:
         return periods_in_hour(self.buy_prices, timestamp)
 
     def sell_periods_in_hour(self, timestamp: datetime.datetime) -> int:
-        return periods_in_hour(self.sell_real_prices, timestamp)
+        """Number of sell price periods in the hour, also for a forecast day (like buy_periods_in_hour): a forecast day with
+        15-minute sell prices sells a quarter of the hour's energy per quarter, not a whole hour's."""
+        return periods_in_hour(self.sell_prices, timestamp)
 
     def current_price_timestamp(self, timestamp: datetime.datetime, sell_prices: bool = False):
         result = price_at(self.sell_real_prices if sell_prices else self.buy_real_prices, timestamp)

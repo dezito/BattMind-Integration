@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 import logging
 
-from ....const import MIN_GAIN_PER_KWH, scaled
+from ....const import MIN_GAIN_PER_KWH, price_decimals, scaled
 from ....utils.formatting import emoji_parse
 from ....utils.helpers import days_between, hour_in, hours_between, reset_time_to_hour, round_up
 
@@ -174,7 +174,7 @@ class FutureSelling:
                     f"({kwh:.1f} kWh / +{gain:.2f} {ctx.valuta})</summary>"
                     f"{ctx.r('battery_cost_basis')}: **{raw:.2f} {ctx.valuta_kwh}**<br>"
                     f"{ctx.r('loss_cost')}: **{loss_cost:.2f} {ctx.valuta_kwh}**<br>"
-                    f"{ctx.r('wear_cost')}: **{abs(ctx.config['solar']['powerwall_wear_cost_per_kwh']):.2f} {ctx.valuta_kwh}**<br>"
+                    f"{ctx.r('wear_cost')}: **{abs(ctx.config['solar']['powerwall_wear_cost_per_kwh']):.{price_decimals(ctx.config)}f} {ctx.valuta_kwh}**<br>"
                     f"**{ctx.r('battery_cost_total')}**: **{battery_kwh_cost:.2f} {ctx.valuta_kwh}**<br>"
                     f"{ctx.r('grid_sell_price')}: **{fixed_price_calc_text}{price:.2f} {ctx.valuta_kwh}**<br>"
                     f"{ctx.r('kwh_sold')}: **{kwh:.2f} kWh**<br>"
@@ -291,7 +291,7 @@ class FutureSelling:
                         f"({excess_current:.1f} kWh / {excess_profit:.2f} {ctx.valuta}){other_day}</summary>"
                         f"{ctx.r('battery_cost_basis')}: **{loop_raw:.2f} {ctx.valuta_kwh}**<br>"
                         f"{ctx.r('loss_cost')}: **{loop_loss_cost:.2f} {ctx.valuta_kwh}**<br>"
-                        f"{ctx.r('wear_cost')}: **{abs(ctx.config['solar']['powerwall_wear_cost_per_kwh']):.2f} {ctx.valuta_kwh}**<br>"
+                        f"{ctx.r('wear_cost')}: **{abs(ctx.config['solar']['powerwall_wear_cost_per_kwh']):.{price_decimals(ctx.config)}f} {ctx.valuta_kwh}**<br>"
                         f"**{ctx.r('battery_cost_total')}**: **{loop_battery_kwh_cost:.2f} {ctx.valuta_kwh}**<br>"
                         f"{ctx.r('grid_sell_price')}: **{fixed_price_calc_text}{price:.2f} {ctx.valuta_kwh}**<br>"
                         f"{ctx.r('excess_kwh_sold')}: **{excess_current:.2f} kWh**<br>"
@@ -314,7 +314,7 @@ class FutureSelling:
                 f"{hour_excluded}"
                 f"{ctx.r('battery_cost_basis')}: <b>{raw:.2f} {ctx.valuta_kwh}</b><br>"
                 f"{ctx.r('loss_cost')}: <b>{loss_cost:.2f} {ctx.valuta_kwh}</b><br>"
-                f"{ctx.r('wear_cost')}: <b>{abs(ctx.config['solar']['powerwall_wear_cost_per_kwh']):.2f} {ctx.valuta_kwh}</b><br>"
+                f"{ctx.r('wear_cost')}: <b>{abs(ctx.config['solar']['powerwall_wear_cost_per_kwh']):.{price_decimals(ctx.config)}f} {ctx.valuta_kwh}</b><br>"
                 f"<b>{ctx.r('battery_cost_total')}: {battery_kwh_cost:.2f} {ctx.valuta_kwh}</b><br>"
                 f"{ctx.r('max_price_time')}: <b>{max_price_timestamp if max_price_timestamp else 'N/A'}</b><br>"
                 f"{ctx.r('max_sell_price')}: <b>{max_price:.2f} {ctx.valuta_kwh}</b><br>"

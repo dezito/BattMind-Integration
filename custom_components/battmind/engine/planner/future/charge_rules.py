@@ -5,7 +5,7 @@ import datetime
 import logging
 import math
 
-from ....const import MIN_GAIN_PER_KWH, scaled
+from ....const import MIN_GAIN_PER_KWH, price_decimals, scaled
 from ....utils.formatting import emoji_parse
 from ....utils.helpers import days_between, hour_in, in_between, reset_time_to_hour, reverse_list, round_up
 
@@ -404,8 +404,9 @@ class FutureChargeRules:
                     continue
                 delivered_kwh = min((ctx.charge_hours[buy_timestamp]["kWh"] - charged_before) * ctx.efficiency**2, export_limit)
                 ctx.charging_plan[buy_day]["total_cost"] += cost_added
+                decimals = price_decimals(ctx.config)  # per kWh: 3 decimals in a currency like the euro
                 fixed_price_calc_text = (
-                    f"{sell_price:.2f} - {ctx.grid_sell_prices.get(sell_timestamp, 0.0):.2f} =" if not using_grid_sell_price else ""
+                    f"{sell_price:.{decimals}f} - {ctx.grid_sell_prices.get(sell_timestamp, 0.0):.{decimals}f} =" if not using_grid_sell_price else ""
                 )
                 data["force_discharge_timestamps"][sell_timestamp] = {
                     "title": ctx.r("title.sell_bought_cheap"),
@@ -415,10 +416,10 @@ class FutureChargeRules:
                     "reason": (
                         f"<details><summary>{emoji_parse({'grid_charge_to_sell': True})}{ctx.r('title.sell_bought_cheap')}<br>"
                         f"({delivered_kwh:.1f} kWh / +{kwh_profit * delivered_kwh:.2f} {ctx.valuta})</summary>"
-                        f"{ctx.r('bought_at', time=buy_timestamp.strftime('%d/%m %H:%M'), price=f'{buy_price:.2f} {ctx.valuta_kwh}')}<br>"
-                        f"{ctx.r('grid_sell_price')}: **{fixed_price_calc_text}{price:.2f} {ctx.valuta_kwh}**<br>"
-                        f"{ctx.r('loss_wear_per_kwh')}: **{ctx.calc_battery_loss_cost(buy_price) + abs(ctx.config['solar']['powerwall_wear_cost_per_kwh']):.2f} {ctx.valuta_kwh}**<br>"
-                        f"{ctx.r('profit_per_kwh')}: **{kwh_profit:.2f} {ctx.valuta_kwh}**<br>"
+                        f"{ctx.r('bought_at', time=buy_timestamp.strftime('%d/%m %H:%M'), price=f'{buy_price:.{decimals}f} {ctx.valuta_kwh}')}<br>"
+                        f"{ctx.r('grid_sell_price')}: **{fixed_price_calc_text}{price:.{decimals}f} {ctx.valuta_kwh}**<br>"
+                        f"{ctx.r('loss_wear_per_kwh')}: **{ctx.calc_battery_loss_cost(buy_price) + abs(ctx.config['solar']['powerwall_wear_cost_per_kwh']):.{decimals}f} {ctx.valuta_kwh}**<br>"
+                        f"{ctx.r('profit_per_kwh')}: **{kwh_profit:.{decimals}f} {ctx.valuta_kwh}**<br>"
                         "</details>"
                     ),
                 }

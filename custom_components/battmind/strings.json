@@ -57,8 +57,7 @@
           "powerwall_charge_discharge_loss": "Charge/discharge loss",
           "use_charge_discharge_loss_from_history": "Use measured loss",
           "battery_charging_efficiency_curve": "Charging efficiency curve (optional)",
-          "battery_discharging_efficiency_curve": "Discharging efficiency curve (optional)",
-          "powerwall_wear_cost_per_kwh": "Wear cost"
+          "battery_discharging_efficiency_curve": "Discharging efficiency curve (optional)"
         },
         "data_description": {
           "powerwall_battery_size": "Usable capacity of the home battery.",
@@ -71,8 +70,7 @@
           "powerwall_charge_discharge_loss": "Round-trip loss as a fraction: 0.1 = 10 % loss. Added to the price of the energy in the battery.",
           "use_charge_discharge_loss_from_history": "Calculate the loss from the charging history instead (used after 6 full charge cycles of history).",
           "battery_charging_efficiency_curve": "Map AC charging power in W to efficiency in percent, for example 1000 W = 88 %, 3000 W = 94 %, 5000 W = 96 %. BattMind interpolates between points. Leave empty to let BattMind measure the curve itself (the round-trip loss is used until there are enough measurements).",
-          "battery_discharging_efficiency_curve": "Map AC discharging power in W to efficiency in percent, for example 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpolates between points. Leave empty to let BattMind measure the curve itself (the round-trip loss is used until there are enough measurements).",
-          "powerwall_wear_cost_per_kwh": "Cost of wear per kWh taken from the battery (battery price / expected lifetime in kWh). Discharging must earn more than this."
+          "battery_discharging_efficiency_curve": "Map AC discharging power in W to efficiency in percent, for example 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpolates between points. Leave empty to let BattMind measure the curve itself (the round-trip loss is used until there are enough measurements)."
         }
       },
       "battery_actions": {
@@ -135,8 +133,8 @@
           "energypriceforecast_sell_entity_id": "Sell price"
         },
         "data_description": {
-          "energypriceforecast_buy_entity_id": "The Energy Price Forecast sensor with the retail price, including the supplier’s margin, taxes and network charge",
-          "energypriceforecast_sell_entity_id": "The Energy Price Forecast sensor with the wholesale price. The sell price is this price less the sell fee (the retail price is higher than what a sale pays, so it is not used as a sell price)"
+          "energypriceforecast_buy_entity_id": "The Energy Price Forecast sensor with the retail price, including the supplier’s margin, taxes and network charge. In Energy Price Forecast it is “Current retail price”, which only exists when retail pricing (“Estimate” or “Own formula” under “Retail price”) is turned on there",
+          "energypriceforecast_sell_entity_id": "The Energy Price Forecast sensor with the wholesale price. The sell price is this price less the sell fee (the retail price is higher than what a sale pays, so it is not used as a sell price). In Energy Price Forecast it is “Price forecast series”"
         }
       },
       "prices_stromligning": {
@@ -179,14 +177,16 @@
       },
       "price_fees": {
         "title": "Refund and fees",
-        "description": "Amounts per kWh that change what charging and selling is worth.",
+        "description": "Amounts per kWh in the currency of the prices that change what charging, selling and using the battery is worth.",
         "data": {
           "refund": "Refund",
-          "sell_fee": "Sell fee"
+          "sell_fee": "Sell fee",
+          "powerwall_wear_cost_per_kwh": "Wear cost"
         },
         "data_description": {
           "refund": "Refund per kWh from state/grid company/supplier, subtracted from the buy price in the price history. 0 if none.",
-          "sell_fee": "The fee per kWh that the buyer of your electricity takes for buying it. Subtracted from the sell price, with Energi Data Service and Strømligning together with Energinet's net and system tariff, which selling also costs."
+          "sell_fee": "The fee per kWh that the buyer of your electricity takes for buying it. Subtracted from the sell price, with Energi Data Service and Strømligning together with Energinet's net and system tariff, which selling also costs.",
+          "powerwall_wear_cost_per_kwh": "Cost of wear per kWh taken from the battery (battery price / expected lifetime in kWh). Discharging must earn more than this."
         }
       },
       "solar": {
@@ -273,6 +273,7 @@
       "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, per MWh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh).",
       "price_sensor_not_retail": "This is not the retail price sensor. Choose the retail price sensor of Energy Price Forecast as the buy price (the wholesale price is the sell price).",
       "price_sensor_not_wholesale": "This is the retail price sensor. Choose the wholesale price sensor of Energy Price Forecast as the sell price (the retail price is higher than what a sale pays).",
+      "price_sensor_forecast_only": "This sensor has no published prices for today right now, only a forecast. If Energy Price Forecast publishes no prices for your market (for example Finland or Great Britain), set a Nord Pool or ENTSO-e sensor as “Own price source” in Energy Price Forecast (for the buy price, also choose “Own formula” under “Retail price” there: the estimate does not use the own price source) and choose the sensor again. Otherwise try again once the prices are published.",
       "price_currency_mismatch": "This sensor is in another currency than the other price sensors. Use price sensors in one currency (or deselect the other price provider).",
       "no_price_provider": "Choose at least one price provider.",
       "production_required": "A solar forecast requires a solar production sensor."
@@ -342,8 +343,7 @@
           "powerwall_charge_discharge_loss": "Charge/discharge loss",
           "use_charge_discharge_loss_from_history": "Use measured loss",
           "battery_charging_efficiency_curve": "Charging efficiency curve (optional)",
-          "battery_discharging_efficiency_curve": "Discharging efficiency curve (optional)",
-          "powerwall_wear_cost_per_kwh": "Wear cost"
+          "battery_discharging_efficiency_curve": "Discharging efficiency curve (optional)"
         },
         "data_description": {
           "powerwall_battery_size": "Usable capacity of the home battery.",
@@ -356,8 +356,7 @@
           "powerwall_charge_discharge_loss": "Round-trip loss as a fraction: 0.1 = 10 % loss. Added to the price of the energy in the battery.",
           "use_charge_discharge_loss_from_history": "Calculate the loss from the charging history instead (used after 6 full charge cycles of history).",
           "battery_charging_efficiency_curve": "Map AC charging power in W to efficiency in percent, for example 1000 W = 88 %, 3000 W = 94 %, 5000 W = 96 %. BattMind interpolates between points. Leave empty to let BattMind measure the curve itself (the round-trip loss is used until there are enough measurements).",
-          "battery_discharging_efficiency_curve": "Map AC discharging power in W to efficiency in percent, for example 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpolates between points. Leave empty to let BattMind measure the curve itself (the round-trip loss is used until there are enough measurements).",
-          "powerwall_wear_cost_per_kwh": "Cost of wear per kWh taken from the battery (battery price / expected lifetime in kWh). Discharging must earn more than this."
+          "battery_discharging_efficiency_curve": "Map AC discharging power in W to efficiency in percent, for example 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpolates between points. Leave empty to let BattMind measure the curve itself (the round-trip loss is used until there are enough measurements)."
         }
       },
       "battery_actions": {
@@ -420,8 +419,8 @@
           "energypriceforecast_sell_entity_id": "Sell price"
         },
         "data_description": {
-          "energypriceforecast_buy_entity_id": "The Energy Price Forecast sensor with the retail price, including the supplier’s margin, taxes and network charge",
-          "energypriceforecast_sell_entity_id": "The Energy Price Forecast sensor with the wholesale price. The sell price is this price less the sell fee (the retail price is higher than what a sale pays, so it is not used as a sell price)"
+          "energypriceforecast_buy_entity_id": "The Energy Price Forecast sensor with the retail price, including the supplier’s margin, taxes and network charge. In Energy Price Forecast it is “Current retail price”, which only exists when retail pricing (“Estimate” or “Own formula” under “Retail price”) is turned on there",
+          "energypriceforecast_sell_entity_id": "The Energy Price Forecast sensor with the wholesale price. The sell price is this price less the sell fee (the retail price is higher than what a sale pays, so it is not used as a sell price). In Energy Price Forecast it is “Price forecast series”"
         }
       },
       "prices_stromligning": {
@@ -464,14 +463,16 @@
       },
       "price_fees": {
         "title": "Refund and fees",
-        "description": "Amounts per kWh that change what charging and selling is worth.",
+        "description": "Amounts per kWh in the currency of the prices that change what charging, selling and using the battery is worth.",
         "data": {
           "refund": "Refund",
-          "sell_fee": "Sell fee"
+          "sell_fee": "Sell fee",
+          "powerwall_wear_cost_per_kwh": "Wear cost"
         },
         "data_description": {
           "refund": "Refund per kWh from state/grid company/supplier, subtracted from the buy price in the price history. 0 if none.",
-          "sell_fee": "The fee per kWh that the buyer of your electricity takes for buying it. Subtracted from the sell price, with Energi Data Service and Strømligning together with Energinet's net and system tariff, which selling also costs."
+          "sell_fee": "The fee per kWh that the buyer of your electricity takes for buying it. Subtracted from the sell price, with Energi Data Service and Strømligning together with Energinet's net and system tariff, which selling also costs.",
+          "powerwall_wear_cost_per_kwh": "Cost of wear per kWh taken from the battery (battery price / expected lifetime in kWh). Discharging must earn more than this."
         }
       },
       "solar": {
@@ -562,6 +563,7 @@
       "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, per MWh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh).",
       "price_sensor_not_retail": "This is not the retail price sensor. Choose the retail price sensor of Energy Price Forecast as the buy price (the wholesale price is the sell price).",
       "price_sensor_not_wholesale": "This is the retail price sensor. Choose the wholesale price sensor of Energy Price Forecast as the sell price (the retail price is higher than what a sale pays).",
+      "price_sensor_forecast_only": "This sensor has no published prices for today right now, only a forecast. If Energy Price Forecast publishes no prices for your market (for example Finland or Great Britain), set a Nord Pool or ENTSO-e sensor as “Own price source” in Energy Price Forecast (for the buy price, also choose “Own formula” under “Retail price” there: the estimate does not use the own price source) and choose the sensor again. Otherwise try again once the prices are published.",
       "price_currency_mismatch": "This sensor is in another currency than the other price sensors. Use price sensors in one currency (or deselect the other price provider).",
       "no_price_provider": "Choose at least one price provider.",
       "production_required": "A solar forecast requires a solar production sensor."
@@ -1140,6 +1142,10 @@
           }
         }
       }
+    },
+    "energypriceforecast_forecast_only": {
+      "title": "Energy Price Forecast sensors that BattMind uses have no published prices ({prefix})",
+      "description": "BattMind ({prefix}) uses Energy Price Forecast sensors that have had no published prices for today or tomorrow for at least an hour, only a forecast:\n{entities}\n\nWithout a price for today the hours that have passed have no price, so they are missing from the charging history, the price of the energy in the battery and the price history.\n\nIf Energy Price Forecast publishes no prices for your market (for example Finland or Great Britain), set a Nord Pool or ENTSO-e sensor as “Own price source” in Energy Price Forecast (for the buy price, also choose “Own formula” under “Retail price” there: the estimate does not use the own price source). Otherwise the prices are only late.\n\nThis repair disappears by itself when the sensors have published prices again."
     },
     "stromligning_entities": {
       "title": "Strømligning sensors that BattMind needs are not available ({prefix})",

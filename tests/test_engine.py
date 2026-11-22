@@ -581,6 +581,19 @@ def test_price_history_stores_only_the_providers_prices() -> None:
     assert engine.kwh_avg_prices_db["history"][15][dow] == _price_history()["history"][15][dow]
 
 
+def test_price_history_never_stores_a_forecast_as_a_real_price() -> None:
+    """A market without published prices (Energy Price Forecast in Finland, ...): today is only a forecast, nothing is stored."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 0))
+    engine, snap = solar_engine(now, 50, False)
+    engine.kwh_avg_prices_db = deepcopy(_price_history())
+    engine.price_provider.get_buy_real_prices = lambda: {}
+    engine.price_provider.get_sell_real_prices = lambda: {}
+    assert engine.run_job(snap, engine.update_grid_prices).error is None
+    dow = DAY.weekday()
+    assert engine.kwh_avg_prices_db["history"][17][dow] == _price_history()["history"][17][dow]
+    assert engine.kwh_avg_prices_db["history_sell"][17][dow] == _price_history()["history_sell"][17][dow]
+
+
 def test_codec_roundtrip() -> None:
     data = {
         0: {"a": [[datetime.datetime(2026, 1, 1, 12), 1.5]]},

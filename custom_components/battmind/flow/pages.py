@@ -70,15 +70,16 @@ class BattMindFlowPages:
     # True while a new entry is made (not changed): the defaults that are amounts of money follow the price currency then
     _new_entry: bool = False
 
-    # set when a new entry's prices are not in kroner: its other money defaults (wear, thresholds) are scaled on finish
+    # set when a new entry's prices are not in kroner: the starting values of the price rise thresholds are scaled on finish
     _kroner_defaults_scaled = False
 
     def _apply_price_scale(self, suggest_fee: bool = False) -> None:
         """Store prices.price_scale from the unit of the price sensors (kept as it is when no sensor has a known unit).
 
-        suggest_fee (the page of the fee, before it is shown): a new installation gets the default sell fee, 0.03 kroner, in
-        the price currency. Not for an import or a restored backup (their own values stay) and not once the user has seen
-        the page. For a new installation the other money defaults follow on finish (_scale_money_defaults)."""
+        suggest_fee (the page of the fee, before it is shown): a new installation gets the default sell fee (0.03 kroner) and
+        wear cost (0.1 kroner) in the price currency, so the user sees the amount that is stored. Not for an import or a
+        restored backup (their own values stay) and not once the user has seen the page. For a new installation the
+        thresholds follow on finish (_scale_money_defaults)."""
         previous = price_scale({"prices": {"price_scale": self._options.get("price_scale", 1.0)}})
         scale = detect_price_scale(self._options, self.hass.states.get)  # type: ignore[attr-defined]
         if scale is None:
@@ -87,9 +88,10 @@ class BattMindFlowPages:
         own_values = getattr(self, "_restore_backup", None) is not None or getattr(self, "_legacy_prefix", None) is not None
         if self._new_entry and not own_values and previous == 1.0 and scale != 1.0:
             self._kroner_defaults_scaled = True
-            fee = default_options()["sell_fee"]
-            if suggest_fee and self._options.get("sell_fee") == fee:
-                self._options["sell_fee"] = round(fee * scale, 3)
+            for key in ("sell_fee", "powerwall_wear_cost_per_kwh"):
+                default = default_options()[key]
+                if suggest_fee and self._options.get(key) == default:
+                    self._options[key] = round(default * scale, 3)
 
     def _placeholders(self) -> dict[str, str]:
         return {}

@@ -102,7 +102,7 @@ SELECTORS: dict[str, Any] = {
     "use_charge_discharge_loss_from_history": BOOLEAN,
     "battery_charging_efficiency_curve": OBJECT,
     "battery_discharging_efficiency_curve": OBJECT,
-    "powerwall_wear_cost_per_kwh": _number(0, 10, 0.01, "{valuta_kwh}"),
+    "powerwall_wear_cost_per_kwh": _number(0, 10, 0.001, "{valuta_kwh}"),  # 0.001: 0.1 kroner in euro is 0.013
     "unsupported_actions": selector.SelectSelector(
         selector.SelectSelectorConfig(
             options=list(CONTROLLABLE_ACTIONS),
