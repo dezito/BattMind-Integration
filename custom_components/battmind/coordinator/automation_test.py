@@ -216,4 +216,6 @@ class CoordinatorAutomationTest:
             step.update(charge=round(sample["charge"]), discharge=round(sample["discharge"]))
         if check:
             step.update(deficit=check["deficit"], surplus=check["surplus"])
+            if status == "skip" and reason == "limit" and check.get("limit_side"):
+                step["limit_side"] = check["limit_side"]
         return step

@@ -92,6 +92,25 @@ def test_standing_still_only_counts_when_the_battery_moved_just_before() -> None
     _skip(_judge("battery_stopped", _sample(level=LEVEL_MIN)), "limit")
 
 
+def test_a_step_at_a_limit_says_whether_the_battery_is_full_or_empty() -> None:
+    assert _judge("grid_charging", _sample(level=LEVEL_MAX))["limit_side"] == "full"
+    assert _judge("blocked_solar_charge", _sample(load=500.0, solar=3000.0, level=LEVEL_MAX))["limit_side"] == "full"
+    for action in ("force_discharge", "discharge_allowed", "force_solar_only_charging"):
+        assert _judge(action, _sample(load=1000.0, level=LEVEL_MIN))["limit_side"] == "empty", action
+    assert _judge("battery_stopped", _sample(level=LEVEL_MAX))["limit_side"] == "full"
+    assert _judge("battery_stopped", _sample(level=LEVEL_MIN))["limit_side"] == "empty"
+    # a high reserve on a small battery makes a level both full and empty: the side is the one the step needs
+    def overlapping(action, **values):
+        return judge_step(action, _sample(level=99.0, **values), 97.0, 100.0, 2.0, IDLE, DISCHARGE_LIMIT)
+
+    assert overlapping("grid_charging")["limit_side"] == "full"
+    assert overlapping("blocked_solar_charge", load=500.0, solar=3000.0)["limit_side"] == "full"
+    assert overlapping("force_discharge")["limit_side"] == "empty"
+    # only a step at a limit has a side
+    assert "limit_side" not in _judge("grid_charging", _sample(charge=3000.0))
+    assert "limit_side" not in _judge("blocked_solar_charge", _sample(load=1000.0, solar=0.0))
+
+
 def test_standing_still_needs_a_load_or_a_surplus_that_normal_operation_would_move_the_battery_for() -> None:
     """Steps that only cancel the forced mode would leave a battery idle too when the sun covers the house."""
     _skip(_judge("battery_stopped", _sample(load=1000.0, solar=1000.0)), "no_flow")
@@ -442,6 +461,8 @@ STEP_RESULTS = (
     + [{"action": a, "status": "fail", "reason": None, "seconds": 300, "charge": 0, "discharge": 0, "deficit": 650, "surplus": 900} for a in AUTOMATION_TEST_ACTIONS]
     + [{"action": a, "status": "skip", "reason": r, "seconds": 0} for a in AUTOMATION_TEST_ACTIONS
        for r in SKIP_REASONS]
+    + [{"action": a, "status": "skip", "reason": "limit", "limit_side": side, "seconds": 0} for a in AUTOMATION_TEST_ACTIONS
+       for side in ("full", "empty")]
 )
 
 
@@ -484,6 +505,21 @@ def test_the_markdown_has_a_row_per_action_and_tells_what_was_not_tested() -> No
     assert "3100" in rows[0] and "solcelleoverskud" in rows[2]
     assert "1 af 3" in markdown  # one of three worked (the Danish summary)
     assert "EV" in rows[1]  # the car may have held the battery
+
+
+def test_a_step_at_a_limit_tells_whether_the_battery_was_full_or_empty() -> None:
+    def row(side):
+        step = {"action": "force_discharge", "status": "skip", "reason": "limit", "seconds": 0}
+        if side is not None:
+            step["limit_side"] = side
+        markdown = build_automation_test_markdown(translate_with(TEXTS), {"status": "done", "steps": [step], "reason": None})
+        return next(line for line in markdown.splitlines() if line.startswith("| 🔧"))
+
+    assert "for tomt" in row("empty") and "fuldt" not in row("empty")
+    assert "for fuldt" in row("full") and "tomt" not in row("full")
+    # a result without the side (restored from before), or with a side that is no side, says either
+    for side in (None, "sideways"):
+        assert "for fuldt eller for tomt" in row(side), side
 
 
 def translate_with(texts):
@@ -694,6 +730,17 @@ async def test_the_last_result_is_restored_after_a_restart_but_a_running_test_is
     assert coordinator.automation_test_state["steps"] == steps
 
 
+@pytest.mark.parametrize(("side", "text"), [("empty", "for tomt lige nu"), (None, "for fuldt eller for tomt"), (["full"], "for fuldt eller for tomt")])
+async def test_a_restored_step_at_a_limit_tells_the_side_when_it_has_one(hass, loaded_entry, side, text) -> None:
+    coordinator = loaded_entry.runtime_data
+    step = {"action": "force_discharge", "status": "skip", "reason": "limit", "seconds": 0, "charge": 0, "discharge": 0, "deficit": 0, "surplus": 0}
+    if side is not None:
+        step["limit_side"] = side
+    coordinator.async_restore_automation_test({"status": "done", "steps": [step], "reason": None, "finished": "2026-11-20T10:00:00+01:00"})
+    assert coordinator.automation_test_state["status"] == "done"
+    assert text in coordinator.automation_test_state["markdown"]
+
+
 @pytest.mark.parametrize("language", ["da", "de", "en", "pl", "uk"])
 def test_the_dashboard_shows_the_switch_the_status_and_the_result(language) -> None:
     content = render_dashboard(build_config({**OPTIONS, "language": language}), "mybatt")
@@ -723,6 +770,25 @@ def test_the_real_action_comes_back_when_the_calculation_fails_after_the_test() 
         result = _run(engine, _at(12, 45), engine.automation_test_release)
     assert result.states["powerwall_action"] == real
     assert engine._automation_hold is None and engine._published_action == real
+    assert "🧪" not in result.states["current_charging_rule"] and "prices" in result.states["current_charging_rule"]
+
+
+def test_a_calculation_that_fails_during_the_test_keeps_saying_that_the_test_runs() -> None:
+    engine = _engine()
+    real = engine.last_powerwall_action
+    held = "force_discharge" if real != "force_discharge" else "grid_charging"
+    assert _run(engine, _at(12, 40), engine.automation_test_hold, held, 900).value == "ok"
+    with patch.object(engine, "cheap_grid_charge_hours", side_effect=RuntimeError("prices")):
+        result = _run(engine, _at(12, 45), engine.charge_if_needed, False)
+    rule = result.states["current_charging_rule"]
+    assert rule.startswith("🧪") and "prices" not in rule.split("\n")[0] and "prices" in rule.split("\n")[1], rule
+    assert "Fejl: prices" in rule  # translated: the entry of the test is Danish
+    assert engine._automation_hold is not None and engine._published_action == held
+    # once the hold has run out, the failed calculation shows only the error
+    with patch.object(engine, "cheap_grid_charge_hours", side_effect=RuntimeError("prices")):
+        result = _run(engine, _at(13, 0), engine.charge_if_needed, False)
+    assert "🧪" not in result.states["current_charging_rule"] and "prices" in result.states["current_charging_rule"]
+    assert result.states["powerwall_action"] == real
 
 
 def test_an_expired_hold_does_not_stay_on_the_sensor_when_the_calculation_fails() -> None:
@@ -744,6 +810,8 @@ def test_a_hold_that_did_not_reach_the_sensor_is_reported_and_dropped() -> None:
         result = _run(engine, _at(12, 40), engine.automation_test_hold, held, 900)
     assert result.value == "not_published"
     assert engine._automation_hold is None
+    # the held action never reached the sensor: the rule does not claim that the test runs
+    assert "🧪" not in result.states["current_charging_rule"] and "prices" in result.states["current_charging_rule"]
 
 
 async def test_the_jobs_that_plan_are_run_with_the_forecast(hass, loaded_entry, fast_runner) -> None:
@@ -775,6 +843,8 @@ async def test_a_battery_that_reaches_a_limit_while_forced_stops_the_forcing_at_
         await _start(hass, loaded_entry)
     first = _sensor(hass).attributes["steps"][0]
     assert first["action"] == "grid_charging" and first["status"] == "skip" and first["reason"] == "limit"
+    assert first["limit_side"] == "full"
+    assert "for fuldt lige nu" in _sensor(hass).attributes["markdown"]
     assert coordinator.engine._automation_hold is None
 
 

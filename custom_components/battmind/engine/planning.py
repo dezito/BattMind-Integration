@@ -199,12 +199,18 @@ class Planning:
             self.error_count += 1
             if self.error_count >= 3 and self._out is not None:
                 self._out.request_reload = True
-            self.set_charging_rule(f"{emoji_parse({'error': True})}Fejl: {err}")
+            error_rule = f"{emoji_parse({'error': True})}{t('ui.charge_if_needed.calculation_error', error=err)}"
+            self.set_charging_rule(error_rule)
             try:
                 # an expired or dropped test action must not stay on the sensor because this calculation failed
                 if self._automation_hold is not None and self.now() >= self._automation_hold["until"]:
                     self._automation_hold, self._automation_abort = None, "expired"
                 self.automation_test_settle()
+                hold = self._automation_hold
+                if hold is not None and self._published_action == hold["action"]:
+                    # the held action is still on the sensor: the rule still says that the test runs, with the error under it
+                    test_rule = t("ui.automation_test.rule", action=t(f"ui.automation_test.action.{hold['action']}"))
+                    self.set_charging_rule(f"🧪{test_rule}\n{error_rule}")
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Could not put the real action back after a failed calculation")
         return self.last_powerwall_action

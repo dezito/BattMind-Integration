@@ -79,7 +79,8 @@ def judge_step(
     stop discharging, stop charging or go back to normal can only be proven by a change, so the battery must have done
     the opposite before: standing still after a step that left it standing still proves nothing.
     discharge_limit_w: what the battery can discharge at most.
-    Returns {"verdict": "ok" | "fail" | "skip", "reason": why it is a skip, "surplus"/"deficit": W}.
+    Returns {"verdict": "ok" | "fail" | "skip", "reason": why it is a skip, "surplus"/"deficit": W}, and with the reason
+    "limit" also "limit_side": "full" or "empty" (the limit the step is skipped for, for the text of the step).
     """
     charge, discharge, level = sample["charge"], sample["discharge"], sample["level"]
     load_max, load_min = max(sample["load"], sample["use"]), min(sample["load"], sample["use"])
@@ -92,19 +93,23 @@ def judge_step(
     full = level >= level_max - margin
     empty = level <= level_min + margin
 
-    def result(verdict: str, reason: str | None = None) -> dict:
-        return {"verdict": verdict, "reason": reason, "surplus": round(surplus), "deficit": round(deficit)}
+    def result(verdict: str, reason: str | None = None, limit_side: str | None = None) -> dict:
+        out = {"verdict": verdict, "reason": reason, "surplus": round(surplus), "deficit": round(deficit)}
+        if limit_side:
+            # the limit the step skips for: a small battery or a high reserve can make full and empty both true
+            out["limit_side"] = limit_side
+        return out
 
     if action == "grid_charging":
         if full:
-            return result("skip", "limit")
+            return result("skip", "limit", "full")
         if charge < MOVE_W:
             return result("fail")
         # more than the sun could have charged, or the sun may have done it alone
         return result("ok") if charge - could_charge >= MOVE_W else result("skip", "unproven")
     if action == "force_discharge":
         if empty:
-            return result("skip", "limit")
+            return result("skip", "limit", "empty")
         if discharge < MOVE_W:
             return result("fail")
         # more than the house used: it was sold
@@ -113,7 +118,7 @@ def judge_step(
     stale_still = bool(sample.get("battery_stale"))
     if action == "battery_stopped":
         if empty or full:
-            return result("skip", "limit")
+            return result("skip", "limit", "empty" if empty else "full")
         if deficit < LOAD_W and surplus < LOAD_W:
             # normal operation would stand (nearly) still too: only a load or a surplus makes the stop visible
             return result("skip", "no_flow")
@@ -124,7 +129,7 @@ def judge_step(
         return result("ok") if charge < STOPPED_W and discharge < STOPPED_W else result("fail")
     if action == "discharge_allowed":
         if empty:
-            return result("skip", "limit")
+            return result("skip", "limit", "empty")
         if ignored >= STOPPED_W:
             return result("skip", "ev")  # the blueprint runs the "while the car is charging" actions instead
         if deficit < LOAD_W:
@@ -137,7 +142,7 @@ def judge_step(
         return result("ok") if discharge >= needed else result("fail")
     if action == "force_solar_only_charging":
         if empty:
-            return result("skip", "limit")
+            return result("skip", "limit", "empty")
         if deficit < LOAD_W:
             return result("skip", "no_load")  # only "does not discharge" can be seen, and that needs a load
         if before["discharge"] < MOVE_W:
@@ -147,7 +152,7 @@ def judge_step(
         return result("ok") if discharge < STOPPED_W else result("fail")
     if action == "blocked_solar_charge":
         if full:
-            return result("skip", "limit")
+            return result("skip", "limit", "full")
         if ignored >= STOPPED_W:
             return result("skip", "ev")  # the blueprint runs the "while the car is charging" actions instead
         if surplus < LOAD_W:
@@ -357,7 +362,11 @@ def step_text(t: Callable[..., str], step: dict) -> str:
     seen = {key: round(step.get(key) or 0) for key in ("charge", "discharge", "deficit", "surplus")}
     seen["seconds"] = round(step.get("seconds") or 0)
     if step["status"] == "skip":
-        return t(f"ui.automation_test.skip.{step['reason']}", **seen)
+        reason = step["reason"]
+        # full or empty when the side of the limit is known; a step without it (an older result) says "full or empty"
+        if reason == "limit" and step.get("limit_side") in ("full", "empty"):
+            reason = f"limit_{step['limit_side']}"
+        return t(f"ui.automation_test.skip.{reason}", **seen)
     text = t(f"ui.automation_test.{step['status']}.{step['action']}", **seen)
     if step["status"] == "fail" and step["action"] in ("discharge_allowed", "blocked_solar_charge"):
         text += " " + t("ui.automation_test.ev_hint")
