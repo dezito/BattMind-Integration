@@ -226,8 +226,12 @@ a step before left in a forced mode, would pass without your automation doing an
 
 Every step passes as soon as two measurements 10 seconds apart agree, usually after a minute, and fails if the
 battery has not shown it within 5 minutes. A step ends at once, without a verdict, if the battery reaches its
-highest or lowest level while it is forced. A whole test takes about 5 to 25 minutes. A sensor must have reported
-within the last 5 minutes (battery power, consumption, solar production), or the step is not tested. Two quiet sensors
+highest level, or its lowest level or the usage reserve, while it is forced. A step that can't prove anything right
+now is skipped in seconds, before its action is published (the battery too full or too empty, no house load or solar
+surplus to show it, the battery already doing what the action asks, a car charging, a sensor without a number, an
+action the inverter can't run, or no steps in your automation). A whole test therefore takes from a few seconds to
+about 30 minutes: about a minute for every step that works, and up to 5 minutes for every step that fails. A sensor
+must have reported within the last 5 minutes (battery power, consumption, solar production), or the step is not tested. Two quiet sensors
 are allowed, because many sensors only report when the value changes: a solar sensor at 0 W in the dark, and a battery
 power sensor at 0 W. A battery sensor that is quiet at 0 W can show that a step did not make the battery move, but it
 can't prove a stop, so the stopping steps are then not tested.
@@ -240,9 +244,10 @@ can't prove a stop, so the stopping steps are then not tested.
   sun and a house load: *Solar charging blocked* can only be tested while the solar production is above the house's
   use, and *Solar charging only* and *Discharge allowed* while the house uses more than the sun gives. BattMind
   decides this itself, from the measurements, so there is nothing to choose. Run the test again when the conditions
-  are right. A step is also not tested when the inverter can't run the action (*When the inverter can't run an
-  action*), when a sensor has no number or has not reported lately, when the sun or the house load could explain
-  what was seen, when the battery was already doing what the action asks, or when a car is charging (the
+  are right. A step is not tested when the battery is too full or too empty to show it (close to its highest level,
+  or to its lowest level or the usage reserve), and the result says which. A step is also not tested when the
+  inverter can't run the action (*When the inverter can't run an action*), when a sensor has no number or has not
+  reported lately, when the sun or the house load could explain what was seen, when the battery was already doing what the action asks, or when a car is charging (the
   blueprint then runs *While the car is charging* instead of *Discharge allowed* and *Solar charging blocked*).
 - 🔧 **No steps:** your automation was made from the blueprint, and the field for the action is empty, so it does
   nothing. BattMind reads this from `automations.yaml` (the file the automation editor writes; it only reads it) by
@@ -255,6 +260,9 @@ What the test does and does not do:
   automation the same actions the plan would. The energy it moves is counted like any other energy in the history
   of the hour, so the hour's savings figures include it, and the planner's rules active in the rest of that hour
   are credited with it. The plan and the settings are not changed.
+- While a step runs, `sensor.<prefix>_current_charging_rule` shows *🧪Testing your automation: …* with the action
+  of the step, also when a calculation fails during it (the error is then shown on the line below). When every step
+  is done, the test ends on its own and the switch turns off.
 - Nothing is tested while the battery is stopped for temperature, and the test ends at once if it becomes so.
   The temperature stop is a safety that the test never overrides.
 - Turning the switch off stops the test, and BattMind's own action is published again. A test is never resumed:
