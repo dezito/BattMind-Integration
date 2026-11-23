@@ -1,17 +1,21 @@
 """Config flow and options flow of BattMind."""
 from __future__ import annotations
 
+import json
 import shutil
 from pathlib import Path
 
 import pytest
 
 from homeassistant import config_entries
+from homeassistant.components.energy.data import async_get_manager
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 
 from custom_components.battmind.const import CONF_ENTITY_PREFIX, DOMAIN
 from custom_components.battmind.const.config import build_config, default_options
+from custom_components.battmind.flow.detection import Detection
+from custom_components.battmind.management.backup import BACKUP_DIR
 from custom_components.battmind.utils.formatting import format_charging_rule
 
 from .conftest import BATTERY_FLOW, BATTERY_LEVEL, CONSUMPTION, PRICE, PRODUCTION, form_defaults
@@ -214,6 +218,179 @@ async def test_import_legacy_pyscript_config(hass: HomeAssistant, tmp_path: Path
     assert options["language"] == "da"
     # the removed testing mode in the legacy file (testing_mode: true) is ignored, not imported
     assert "testing_mode" not in options
+
+
+ENERGY_SOLAR = "sensor.energy_solar_power"
+ENERGY_BATTERY = "sensor.energy_battery_power"
+
+
+async def _energy_dashboard(hass: HomeAssistant) -> None:
+    """An Energy dashboard with one solar and one battery source, each with a plain power sensor in W."""
+    hass.config.components.add("energy")
+    for entity_id in (ENERGY_SOLAR, ENERGY_BATTERY):
+        hass.states.async_set(entity_id, "1000", {"unit_of_measurement": "W", "device_class": "power"})
+    manager = await async_get_manager(hass)
+    manager.data = {
+        "energy_sources": [
+            {"type": "solar", "stat_energy_from": "sensor.solar_energy", "stat_rate": ENERGY_SOLAR},
+            {
+                "type": "battery",
+                "stat_energy_from": "sensor.battery_in",
+                "stat_energy_to": "sensor.battery_out",
+                "stat_rate": ENERGY_BATTERY,
+            },
+        ],
+        "device_consumption": [],
+    }
+
+
+def _suggested(result, key: str):
+    """The suggested value of a field of the form (what the frontend shows, not a default)."""
+    for marker in result["data_schema"].schema:
+        if str(marker) == key:
+            return (marker.description or {}).get("suggested_value")
+    raise AssertionError(f"{key} is not on the form")
+
+
+async def _to_solar(hass: HomeAssistant, result: dict, battery: str = ENERGY_BATTERY) -> dict:
+    """From the battery page (as returned by _start) to the solar page; the battery power sensor is kept as suggested."""
+    result = await _configure(
+        hass, result, "battery_entities",
+        {"powerwall_battery_level_entity_id": BATTERY_LEVEL, "powerwall_watt_flow_entity_id": battery},
+    )
+    result = await _configure(hass, result, "battery_specs", BATTERY_SPECS)
+    result = await _configure(hass, result, "battery_actions", {"unsupported_actions": []})
+    result = await _configure(hass, result, "consumption", {"power_consumption_entity_id": CONSUMPTION})
+    result = await _configure(hass, result, "detection_review", {"invert_powerwall_watt_flow_entity_id": True})
+    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
+    return await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.03})
+
+
+async def test_the_energy_dashboard_pre_fills_the_solar_and_battery_power(hass: HomeAssistant) -> None:
+    await _energy_dashboard(hass)
+    result = await _start(hass)
+    assert result["step_id"] == "battery_entities"
+    assert _suggested(result, "powerwall_watt_flow_entity_id") == ENERGY_BATTERY
+    result = await _to_solar(hass, result)
+    assert result["step_id"] == "solar"
+    assert _suggested(result, "production_entity_id") == ENERGY_SOLAR
+
+
+async def test_a_pre_filled_sensor_can_be_cleared_and_stays_empty(hass: HomeAssistant) -> None:
+    await _energy_dashboard(hass)
+    result = await _to_solar(hass, await _start(hass))
+    assert _suggested(result, "production_entity_id") == ENERGY_SOLAR
+    # the user clears the solar field: it is left out of the submitted form
+    result = await _configure(hass, result, "solar", {"inverter_discharging_power_limit": 6000, "production_price": -1})
+    assert result["step_id"] == "advanced"
+    result = await _configure(hass, result, "advanced", {"days_to_predict": 3, "cron_interval": "5", "dashboard": False})
+    result = await _configure(
+        hass, result, "database",
+        {
+            "power_values_db_data_to_save": 15,
+            "solar_available_db_data_to_save": 10,
+            "kwh_avg_prices_db_data_to_save": 15,
+            "charging_history_db_data_to_save": 12,
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["options"]["production_entity_id"] == ""
+    assert result["options"]["powerwall_watt_flow_entity_id"] == ENERGY_BATTERY
+
+
+async def test_the_battery_sign_is_still_read_from_the_recorder_for_a_pre_filled_sensor(hass: HomeAssistant, monkeypatch) -> None:
+    await _energy_dashboard(hass)
+    calls = []
+
+    async def fake_detect(hass, consumption, power, level, trusted=None, now=None, ignored=()):
+        calls.append((consumption, power, level, trusted))
+        return Detection()
+
+    monkeypatch.setattr("custom_components.battmind.flow.pages.async_detect", fake_detect)
+    await _to_solar(hass, await _start(hass))
+    # the history is looked at for the pre-filled battery sensor, and nothing is trusted from before (the sign is unknown)
+    assert calls == [(CONSUMPTION, ENERGY_BATTERY, BATTERY_LEVEL, None)]
+
+
+async def test_the_pyscript_import_wins_over_the_energy_dashboard(hass: HomeAssistant, tmp_path: Path) -> None:
+    shutil.copy(FIXTURES / "battmind_config.yaml", tmp_path / "battmind_config.yaml")
+    hass.config.config_dir = str(tmp_path)
+    await _energy_dashboard(hass)
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"import_source": "battmind"})
+    assert result["step_id"] == "battery_entities"
+    assert _suggested(result, "powerwall_watt_flow_entity_id") == "sensor.batteries_charge_discharge_power"
+    while result["type"] is FlowResultType.FORM:
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], form_defaults(result))
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["options"]["production_entity_id"] == "sensor.inverter_input_power"
+    assert result["options"]["powerwall_watt_flow_entity_id"] == "sensor.batteries_charge_discharge_power"
+
+
+BACKUP_BATTERY = "sensor.backup_battery_power"
+
+
+def _write_backup(config_dir: Path, options: dict) -> str:
+    """A BattMind backup in the backup folder of the test config; returns its file name."""
+    folder = config_dir / BACKUP_DIR
+    folder.mkdir(parents=True, exist_ok=True)
+    backup = {"integration": DOMAIN, "title": "BattMind test", "created": "2026-11-01T10:00:00+01:00", "options": options, "databases": {}}
+    (folder / "battmind_backup_test.json").write_text(json.dumps(backup), encoding="utf-8")
+    return "battmind_backup_test.json"
+
+
+async def _finish_without_solar(hass: HomeAssistant, result: dict) -> dict:
+    """From the solar page to the end, with the solar sensor left out (the user clears the field)."""
+    result = await _configure(hass, result, "solar", {"inverter_discharging_power_limit": 6000, "production_price": -1})
+    result = await _configure(hass, result, "advanced", {"days_to_predict": 3, "cron_interval": "5", "dashboard": False})
+    return await _configure(
+        hass, result, "database",
+        {
+            "power_values_db_data_to_save": 15,
+            "solar_available_db_data_to_save": 10,
+            "kwh_avg_prices_db_data_to_save": 15,
+            "charging_history_db_data_to_save": 12,
+        },
+    )
+
+
+async def test_a_restored_backup_wins_over_the_energy_dashboard(hass: HomeAssistant, tmp_path: Path) -> None:
+    """The backup replaces the options after the pre-fill: its empty solar field stays empty, its battery sensor is kept."""
+    hass.config.config_dir = str(tmp_path)
+    await _energy_dashboard(hass)
+    name = _write_backup(tmp_path, {"production_entity_id": "", "powerwall_watt_flow_entity_id": BACKUP_BATTERY})
+    result = await _start(hass)
+    assert result["step_id"] == "restore_backup"
+    result = await _configure(hass, result, "restore_backup", {"backup": name})
+    assert result["step_id"] == "battery_entities"
+    assert _suggested(result, "powerwall_watt_flow_entity_id") == BACKUP_BATTERY
+    result = await _to_solar(hass, result, battery=BACKUP_BATTERY)
+    assert result["step_id"] == "solar"
+    assert _suggested(result, "production_entity_id") in (None, "")
+    result = await _finish_without_solar(hass, result)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["restore_backup"] == name
+    assert result["options"]["production_entity_id"] == ""
+    assert result["options"]["powerwall_watt_flow_entity_id"] == BACKUP_BATTERY
+
+
+async def test_options_flow_never_changes_the_existing_sensors(hass: HomeAssistant, loaded_entry) -> None:
+    await _energy_dashboard(hass)
+    result = await hass.config_entries.options.async_init(loaded_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "menu_battery"})
+    assert result["step_id"] == "battery_entities"
+    assert _suggested(result, "powerwall_watt_flow_entity_id") == BATTERY_FLOW
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
+    assert result["step_id"] == "battery_specs"
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
+    assert result["step_id"] == "detection_review"
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert loaded_entry.options["powerwall_watt_flow_entity_id"] == BATTERY_FLOW
+    assert loaded_entry.options["production_entity_id"] == PRODUCTION
 
 
 def test_removed_testing_mode_is_ignored() -> None:
