@@ -10,6 +10,7 @@ from typing import Any
 from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER
 from ..management.value_checks import price_unit_wrong
 from ..utils.helpers import days_between, float_or_none, reset_time_to_hour
+from .intervals import common_interval_minutes, interval_slots, provider_intervals
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -282,26 +283,50 @@ class CombinedPriceProvider:
         self.sell_prices, self.sell_real_prices, self.sell_price_sources = self._combine("sell")
 
     def _combine(self, kind: str) -> tuple[dict, dict, dict]:
+        """The prices of every provider on one common interval (the finest all of them fit on).
+
+        A provider's price covers the interval to its next timestamp (an hourly price the whole hour) and is
+        repeated over every slot of it. Per slot the first provider with a real price wins, then the first with a
+        forecast, so one hour never gets a falsely cheap quarter from an hourly price next to another provider's
+        quarters. A price that is no finite number covers its slots without a price, so another provider fills them."""
         prices: dict = {}
         real: dict = {}
         sources: dict = {}
         unusable = 0
+        layers = []
         for provider in self.providers:
-            for timestamp, price in getattr(provider, f"{kind}_real_prices").items():
-                if not is_number(price):
-                    # e.g. NaN from a broken tariff: no price is better than one that makes the plan NaN. The hour is
-                    # filled from the price history (or the next provider), never invented
-                    unusable += 1
-                elif timestamp not in prices:
-                    prices[timestamp] = real[timestamp] = round(price, 2)
-                    sources[timestamp] = f"{provider.source_name}:real"
-        for provider in self.providers:
-            for timestamp, price in getattr(provider, f"{kind}_forecast_prices").items():
-                if not is_number(price):
-                    unusable += 1
-                elif timestamp not in prices:
-                    prices[timestamp] = round(price, 2)
-                    sources[timestamp] = f"{provider.source_name}:forecast"
+            entries: dict = {}
+            real_starts: set = set()
+            for label in ("forecast", "real"):
+                for timestamp, price in getattr(provider, f"{kind}_{label}_prices").items():
+                    if label == "real" and not is_number(price) and is_number(entries.get(timestamp)):
+                        continue  # a real price that is no number leaves the provider's forecast for it, as before
+                    entries[timestamp] = price
+                    if label == "real":
+                        real_starts.add(timestamp)
+            try:
+                layers.append((provider, provider_intervals(entries), real_starts))
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("Can't read the %s prices of %s: %s %s", kind, provider.source_name, err, type(err))
+        grid = common_interval_minutes(end - start for _provider, intervals, _real in layers for start, end, _price in intervals)
+        for want_real in (True, False):
+            label = "real" if want_real else "forecast"
+            for provider, intervals, real_starts in layers:
+                for start, end, price in intervals:
+                    if (start in real_starts) != want_real:
+                        continue
+                    if not is_number(price):
+                        # e.g. NaN from a broken tariff: no price is better than one that makes the plan NaN. The slots are
+                        # filled from the price history (or the next provider), never invented
+                        unusable += 1
+                        continue
+                    price = round(price, 2)
+                    for slot in interval_slots(start, end, grid):
+                        if slot not in prices:
+                            prices[slot] = price
+                            if want_real:
+                                real[slot] = price
+                            sources[slot] = f"{provider.source_name}:{label}"
         if unusable:
             _LOGGER.warning("Ignoring %s %s prices that are not a finite number", unusable, kind)
         return dict(sorted(prices.items())), dict(sorted(real.items())), dict(sorted(sources.items()))
@@ -367,8 +392,18 @@ class CombinedPriceProvider:
         """Number of buy price periods in the hour (4 with 15 min prices), also for forecast days."""
         return periods_in_hour(self.buy_prices, timestamp)
 
+    def buy_period_end(self, timestamp: datetime.datetime) -> datetime.datetime:
+        """Where the buy price period at timestamp ends: at the next buy price of its hour, else at the end of the hour.
+
+        A price period the provider left out (a gap) is covered by the one before it here, so the periods of an hour
+        never overlap; an hour without prices of its own (filled from the price history) is one period."""
+        hour_end = reset_time_to_hour(timestamp) + datetime.timedelta(hours=1)
+        later = [price_timestamp for price_timestamp in self.buy_prices if timestamp < price_timestamp < hour_end]
+        return min(later) if later else hour_end
+
     def sell_periods_in_hour(self, timestamp: datetime.datetime) -> int:
-        return periods_in_hour(self.sell_real_prices, timestamp)
+        """Number of sell price periods in the hour (4 with 15 min prices), also for forecast days."""
+        return periods_in_hour(self.sell_prices, timestamp)
 
     def current_price_timestamp(self, timestamp: datetime.datetime, sell_prices: bool = False):
         result = price_at(self.sell_real_prices if sell_prices else self.buy_real_prices, timestamp)

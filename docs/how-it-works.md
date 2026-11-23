@@ -85,9 +85,20 @@ In an hour with solar surplus the sun covers the house, so the battery isn't pla
 Buy and sell prices per hour (or per 15 minutes) from Energi Data Service and/or Strømligning, incl.
 tariffs, refund and sell fee.
 
+**Two price integrations with different intervals.** The providers can have different interval lengths
+(Strømligning's buy price is hourly, Energi Data Service's is every 15 minutes). BattMind puts all prices on one
+common interval: the finest one they all fit on (the greatest common divisor of the interval lengths, for example 15
+minutes for hourly plus 15 minute prices, 5 minutes for 10 plus 15 minute prices). A price that covers a longer
+interval is repeated over every slot of it, and each slot gets the price of the first provider that has one
+(Strømligning before Energi Data Service, real prices before forecasts). So an hourly price covers its whole hour:
+it is never mixed with the other provider's quarters inside that hour. Charging and selling are planned per slot, but
+the overview shows slots that follow each other as one window.
+
 A price that is not a usable number (text, NaN or infinity) is ignored, and so is a sell price whose tariffs are
-not usable numbers: the hour gets its price from the price history, or none, and is never planned with an
-invented price.
+not usable numbers: the missing slot gets the price of the next price integration, an hour with no price at all gets
+its price from the price history, and otherwise it has none. The plan is never made with an invented price: the
+price before a missing slot is not repeated over it. The current price (what is shown and used right now) is still
+the latest price before the moment.
 
 **Forecast prices** (e.g. Carnot) get a small adder of 0.033 kr per day ahead, so the plan prefers known
 prices: a forecast buy price is raised and a forecast sell price is lowered, so buying and selling look a
