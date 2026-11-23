@@ -38,6 +38,9 @@ or in an [issue](https://github.com/dezito/BattMind-Integration/issues), so a pa
 
 | Page | Content |
 |---|---|
+| [Features](features.md) | the full feature list with screenshots |
+| [Entities and services](reference.md) | the main settings, result entities and services |
+| [How BattMind compares](comparison.md) | BattMind next to Predbat, EMHASS and Battery Controller, and its trade-offs |
 | [Dashboard and analysis](dashboard-analysis.md) | every card on the dashboard, and how to read the analysis |
 | [What-if simulator](what-if-simulator.md) | replay the planner on your history with another battery, controller or planning settings without changing the active plan |
 | [Emojis](emojis.md) | what every emoji in the plan, the history and the current rule means |
