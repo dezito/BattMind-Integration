@@ -109,17 +109,22 @@ class CoordinatorLifecycle:
 
     @callback
     def _on_config_entry_changed(self, change: ConfigEntryChange, entry: ConfigEntry) -> None:
-        """A CJP car was added, removed, enabled, disabled or got another charger: start again with the new list.
+        """A CJP car was added, removed, enabled, disabled, got another charger or had its charger moved into or out of the
+        house meter (CJP option charger_in_house_meter): start again with the new lists.
 
         The signal also comes for every state change of a CJP entry (loading, reloading), so the chargers are
-        compared with the ones this start used; only a real difference reloads, and only once.
+        compared with the ones this start used (the subtracted ones and every charger, which is checked for a hung
+        reading); only a real difference reloads, and only once. Only listened to while ignore_cjp_chargers is on: with it
+        off nothing is subtracted, and the list of every charger is read again at the next start.
         """
         if entry.domain != CJP_DOMAIN or self._cjp_reload_scheduled:
             return
-        if cjp_charger_power_entities(self.hass) == self.cjp_chargers:
+        subtracted = cjp_charger_power_entities(self.hass)
+        every_charger = cjp_charger_power_entities(self.hass, include_own_meter=True)
+        if subtracted == self.cjp_chargers and every_charger == self.config["home"]["charger_entity_ids"]:
             return
         self._cjp_reload_scheduled = True
-        _LOGGER.info("The chargers of Cable Juice Planner changed, reloading BattMind to leave out their consumption")
+        _LOGGER.info("The chargers of Cable Juice Planner changed, reloading BattMind to count their consumption right")
         self.hass.config_entries.async_schedule_reload(self.entry.entry_id)
 
     async def _async_apply_restore(self) -> None:

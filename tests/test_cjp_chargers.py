@@ -56,6 +56,36 @@ async def test_chargers_of_the_cjp_cars_only(hass: HomeAssistant) -> None:
     assert cjp_charger_power_entities(hass) == ["sensor.tesla_power", "sensor.zoe_power"]  # not sensor.cjp_house
 
 
+async def test_a_cjp_charger_on_its_own_meter_is_not_subtracted(hass: HomeAssistant) -> None:
+    """The CJP option charger_in_house_meter False: the house consumption does not include that charger, so nothing to subtract.
+    Missing or anything but False keeps the charger (entries stored before the option existed)."""
+    outside = cjp_entry(hass, "sensor.garage_power")
+    hass.config_entries.async_update_entry(outside, options={**outside.options, "charger_in_house_meter": False})
+    inside = cjp_entry(hass, "sensor.zoe_power")
+    hass.config_entries.async_update_entry(inside, options={**inside.options, "charger_in_house_meter": True})
+    cjp_entry(hass, "sensor.tesla_power")  # no option stored
+    unset = cjp_entry(hass, "sensor.kia_power")
+    hass.config_entries.async_update_entry(unset, options={**unset.options, "charger_in_house_meter": None})
+
+    assert cjp_charger_power_entities(hass) == ["sensor.kia_power", "sensor.tesla_power", "sensor.zoe_power"]
+    # still a charger: checked for a hung reading
+    assert cjp_charger_power_entities(hass, include_own_meter=True) == [
+        "sensor.garage_power", "sensor.kia_power", "sensor.tesla_power", "sensor.zoe_power"
+    ]
+
+
+async def test_a_charger_on_its_own_meter_is_still_checked_for_a_hung_reading(hass: HomeAssistant, mock_entry) -> None:
+    car = cjp_entry(hass, "sensor.zoe_power")
+    hass.config_entries.async_update_entry(car, options={**car.options, "charger_in_house_meter": False})
+    mock_entry.add_to_hass(hass)
+
+    coordinator = BattMindCoordinator(hass, mock_entry)
+
+    assert coordinator.cjp_chargers == [] and coordinator.auto_ignored_entities == []
+    assert coordinator.config["home"]["charger_entity_ids"] == ["sensor.zoe_power"]
+    await async_join_workers(hass, coordinator)
+
+
 async def test_the_chargers_are_added_once_and_not_required(hass: HomeAssistant, mock_entry) -> None:
     cjp_entry(hass, "sensor.zoe_power")
     cjp_entry(hass, "sensor.tesla_power")
@@ -211,6 +241,18 @@ async def test_a_changed_set_of_chargers_reloads_battmind_once(hass: HomeAssista
     await hass.config_entries.async_remove(second.entry_id)
     assert await changed()
     assert coordinators[-1].auto_ignored_entities == ["sensor.zoe_wallbox"]
+
+    # the charger moved to its own meter: no longer subtracted, still checked for a hung reading; and back again
+    hass.config_entries.async_update_entry(car, options={**car.options, "charger_in_house_meter": False})
+    assert await changed()
+    assert coordinators[-1].auto_ignored_entities == []
+    assert coordinators[-1].config["home"]["charger_entity_ids"] == ["sensor.zoe_wallbox"]
+    hass.config_entries.async_update_entry(car, options={**car.options, "charger_power_entity_id": "sensor.zoe_meter"})
+    assert await changed()  # only the checked list changed
+    assert coordinators[-1].config["home"]["charger_entity_ids"] == ["sensor.zoe_meter"]
+    hass.config_entries.async_update_entry(car, options={**car.options, "charger_in_house_meter": True})
+    assert await changed()
+    assert coordinators[-1].auto_ignored_entities == ["sensor.zoe_meter"]
 
 
 async def test_no_reload_when_the_chargers_are_not_ignored(hass: HomeAssistant, mock_entry) -> None:

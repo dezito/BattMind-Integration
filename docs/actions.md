@@ -109,7 +109,8 @@ If you don't want that:
 
 Tip: with Cable Juice Planner, BattMind leaves the car's charger out of the consumption forecast by itself
 (**Ignore Cable Juice Planner chargers** on the consumption page, on by default). For any other charger, add its
-power sensor under **Ignored consumers** in the BattMind setup.
+power sensor under **Ignored consumers** in the BattMind setup, but only when the house consumption sensor includes
+that charger: a charger on its own meter is not in it, so there is nothing to subtract.
 
 ### Repeat interval
 
