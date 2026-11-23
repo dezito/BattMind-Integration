@@ -80,8 +80,9 @@ class CoordinatorAutomationTest:
         self._publish_automation_test(
             status="running", steps=[], reason=None, finished=None, automation=None, plan=list(AUTOMATION_TEST_ACTIONS), current=None
         )
+        # not eager: the "every action waits" state above is what the caller sees first, also when the jobs are quick
         self._automation_test_task = task = self.entry.async_create_background_task(
-            self.hass, self._async_automation_test(), name=f"battmind_{self.prefix}_automation_test"
+            self.hass, self._async_automation_test(), name=f"battmind_{self.prefix}_automation_test", eager_start=False
         )
         task.add_done_callback(self._automation_test_ended)
 
