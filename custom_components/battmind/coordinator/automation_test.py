@@ -20,12 +20,14 @@ from homeassistant.util import dt as dt_util
 from ..engine.automation_test import (
     AUTOMATION_TEST_ACTIONS,
     HOLD_MARGIN_SECONDS,
+    MOVE_W,
     PASSES_NEEDED,
     PRECHECK_SKIPS,
     SAMPLE_SECONDS,
     SKIP_REASONS,
     STEP_TIMEOUT,
     STOP_REASONS,
+    WARM_UP_ACTIONS,
     build_automation_test_markdown,
     judge_step,
 )
@@ -41,6 +43,7 @@ class CoordinatorAutomationTest:
         # automation: "found" when the automation made from the blueprint was found in automations.yaml, else "unknown"
         self.automation_test_state: dict[str, Any] = {
             "status": "idle", "steps": [], "reason": None, "finished": None, "markdown": "", "automation": None,
+            "plan": [], "current": None,
         }
         self._automation_test_task: asyncio.Task | None = None
 
@@ -64,6 +67,7 @@ class CoordinatorAutomationTest:
         self.automation_test_state = {
             "status": status, "steps": steps, "reason": reason if reason in STOP_REASONS else None,
             "finished": attributes.get("finished"), "markdown": "", "automation": automation if automation in ("found", "unknown") else None,
+            "plan": [], "current": None,  # only a running test has a plan
         }
         self.automation_test_state["markdown"] = build_automation_test_markdown(self.t, self.automation_test_state)
 
@@ -72,7 +76,10 @@ class CoordinatorAutomationTest:
         """Start the test. Nothing happens while one runs or before BattMind has started."""
         if self.automation_test_state["status"] == "running" or not self.started or self.engine is None:
             return
-        self._publish_automation_test(status="running", steps=[], reason=None, finished=None, automation=None)
+        # every action is a row from the start (waiting), so the user sees what will be tested and how far it is
+        self._publish_automation_test(
+            status="running", steps=[], reason=None, finished=None, automation=None, plan=list(AUTOMATION_TEST_ACTIONS), current=None
+        )
         self._automation_test_task = task = self.entry.async_create_background_task(
             self.hass, self._async_automation_test(), name=f"battmind_{self.prefix}_automation_test"
         )
@@ -82,7 +89,9 @@ class CoordinatorAutomationTest:
     def _automation_test_ended(self, _task: asyncio.Task) -> None:
         """A task that was stopped before it ran never gets to publish its end: the status must not stay on running."""
         if self.automation_test_state["status"] == "running":
-            self._publish_automation_test(status="stopped", reason="stopped", finished=dt_util.now().isoformat(timespec="seconds"))
+            self._publish_automation_test(
+                status="stopped", reason="stopped", finished=dt_util.now().isoformat(timespec="seconds"), plan=[], current=None
+            )
 
     @callback
     def async_stop_automation_test(self) -> None:
@@ -131,14 +140,19 @@ class CoordinatorAutomationTest:
                     steps.append(step)
                     self._publish_automation_test(steps=list(steps))
                     continue
+                self._publish_automation_test(current=action)  # the row of the action that is measured now
+                if action == "battery_stopped" and (stop := await self._async_automation_test_warm_up(limits, begin["unsupported"], without_steps)):
+                    status, reason = "stopped", stop
+                    break
                 step, stop = await self._async_automation_test_step(action, limits)
                 steps.append(step)
-                self._publish_automation_test(steps=list(steps))
+                self._publish_automation_test(steps=list(steps), current=None)
                 if stop:
                     status, reason = "stopped", stop
                     break
         except asyncio.CancelledError:
             status, reason = "stopped", "stopped"
+            self._publish_automation_test(current=None)  # nothing is measured any more, also while the action is put back
         except Exception:  # noqa: BLE001
             _LOGGER.exception("The automation test failed")
             status, reason = "failed", "internal_error"
@@ -147,7 +161,7 @@ class CoordinatorAutomationTest:
             if status == "stopped":  # the steps that were not run are shown, not left out
                 steps.extend({"action": action, "status": "skip", "reason": "not_reached"} for action in AUTOMATION_TEST_ACTIONS[len(steps):])
             self._publish_automation_test(
-                status=status, steps=steps, reason=reason, finished=dt_util.now().isoformat(timespec="seconds")
+                status=status, steps=steps, reason=reason, finished=dt_util.now().isoformat(timespec="seconds"), plan=[], current=None
             )
 
     async def _async_automation_test_release(self) -> None:
@@ -157,6 +171,49 @@ class CoordinatorAutomationTest:
             await asyncio.shield(self.async_run_job("automation_test_release", include_forecast=True))
         except (asyncio.CancelledError, Exception):  # noqa: BLE001
             _LOGGER.warning("The automation test could not put BattMind's own action back; it ends by itself", exc_info=True)
+
+    async def _async_automation_test_warm_up(self, limits: dict, unsupported: list[str], without_steps: set[str]) -> str | None:
+        """Make the battery move before Stop battery, which is only proven by a change (the steps before it leave the battery
+        standing still). Does nothing when the step would be skipped for another reason or the battery moves already. Else the
+        first of WARM_UP_ACTIONS that the battery and the automation have is held until the battery moves; the hold stays on
+        and the step publishes the stop over it. A battery that does not move is left to the step, which then says so.
+
+        Returns the reason the whole test must end (None: go on)."""
+        args = (limits["level_min"], limits["level_max"], limits["margin"])
+        seen_before = (await self.async_run_job("automation_test_sample", False, publish=False)).value
+        if not seen_before or not seen_before["sample"]:
+            return None  # the step says that itself
+        before = seen_before["sample"]
+        check = judge_step("battery_stopped", before, *args, before, limits["discharge_limit_w"])
+        if check["verdict"] != "skip" or check["reason"] != "no_baseline":
+            return None  # it moves already, or the step is not run for another reason (a limit, no load or surplus ...)
+        for action in WARM_UP_ACTIONS:
+            if action in unsupported or action in without_steps:
+                continue
+            if (try_it := judge_step(action, before, *args, before, limits["discharge_limit_w"]))["verdict"] == "skip" and try_it["reason"] in PRECHECK_SKIPS:
+                continue  # a full battery can not be charged, an empty one not discharged
+            held = (await self.async_run_job("automation_test_hold", action, STEP_TIMEOUT + HOLD_MARGIN_SECONDS, include_forecast=True)).value
+            if held == "battery_stopped":
+                return "battery_stopped"
+            if held != "ok":
+                continue
+            started = time.monotonic()
+            while time.monotonic() - started < STEP_TIMEOUT:
+                await asyncio.sleep(SAMPLE_SECONDS)
+                seen = (await self.async_run_job("automation_test_sample", publish=False)).value
+                if seen is None:
+                    continue
+                if seen["abort"] or not seen["held"]:
+                    return seen["abort"] or "expired"
+                sample = seen["sample"]
+                if sample is None:
+                    continue
+                if judge_step(action, sample, *args, before, limits["discharge_limit_w"]).get("reason") == "limit":
+                    break  # the battery got to a limit while it was forced
+                if max(sample["charge"], sample["discharge"]) >= MOVE_W:
+                    return None  # it moves: the hold stays on until the step publishes the stop
+            await self._async_automation_test_release()  # it did not move: not this action, and nothing stays forced
+        return None
 
     async def _async_automation_test_step(self, action: str, limits: dict) -> tuple[dict[str, Any], str | None]:
         """One action: check that it can be proven, publish it, and measure until the battery has shown what it does.

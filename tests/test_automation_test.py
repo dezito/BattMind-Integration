@@ -518,6 +518,12 @@ def test_every_text_of_the_result_exists_in_every_language(language) -> None:
             markdown = build_automation_test_markdown(t, {"status": status, "steps": STEP_RESULTS, "reason": reason})
             assert "{" not in markdown and "ui.automation_test" not in markdown
     assert "ui.automation_test" not in build_automation_test_markdown(t, {"status": "idle", "steps": [], "reason": None})
+    # a running test: every action is a row from the start, waiting or tested now, with the progress and the legend
+    for current in (None, AUTOMATION_TEST_ACTIONS[1]):
+        markdown = build_automation_test_markdown(
+            t, {"status": "running", "steps": STEP_RESULTS[:1], "reason": None, "plan": list(AUTOMATION_TEST_ACTIONS), "current": current}
+        )
+        assert "{" not in markdown and "ui.automation_test" not in markdown
 
 
 def test_the_placeholders_of_a_text_are_the_same_in_every_language() -> None:
@@ -544,6 +550,38 @@ def test_the_markdown_has_a_row_per_action_and_tells_what_was_not_tested() -> No
     assert "3100" in rows[0] and "solcelleoverskud" in rows[2]
     assert "1 af 3" in markdown  # one of three worked (the Danish summary)
     assert "EV" in rows[1]  # the car may have held the battery
+
+
+def _table_rows(markdown: str) -> list[list[str]]:
+    rows = [line for line in markdown.splitlines() if line.startswith("| ") and "---" not in line][1:]  # without the header
+    return [[cell.strip() for cell in row.strip("|").split("|")] for row in rows]
+
+
+def test_a_running_test_lists_every_action_from_the_start_with_the_progress() -> None:
+    plan = list(AUTOMATION_TEST_ACTIONS)
+    done = {"action": plan[0], "status": "ok", "reason": None, "seconds": 70, "charge": 3100, "discharge": 0, "deficit": 0, "surplus": 0}
+    t = translate_with(TEXTS)
+    # started: nothing is done, every action waits and the row of the first one is not yet "testing now"
+    start = build_automation_test_markdown(t, {"status": "running", "steps": [], "reason": None, "plan": plan, "current": None})
+    rows = _table_rows(start)
+    assert [row[0] for row in rows] == ["⏳"] * 6
+    assert [row[1] for row in rows] == [TEXTS[f"ui.automation_test.action.{action}"] for action in plan]
+    assert "0 af 6" in start and "▶️" in start.splitlines()[-1] and "⏳" in start.splitlines()[-1]  # the progress and the legend
+    # one done, the second is measured now, the rest waits; Stop battery is the last row
+    mid = build_automation_test_markdown(t, {"status": "running", "steps": [done], "reason": None, "plan": plan, "current": plan[1]})
+    rows = _table_rows(mid)
+    assert [row[0] for row in rows] == ["✅", "▶️", "⏳", "⏳", "⏳", "⏳"]
+    assert rows[1][2] == TEXTS["ui.automation_test.testing"] and rows[2][2] == TEXTS["ui.automation_test.waiting"]
+    assert rows[-1][1] == TEXTS["ui.automation_test.action.battery_stopped"]
+    assert "1 af 6" in mid
+    # a test that is done (or has no plan, like one restored from before) shows only what has a result, with no waiting rows
+    assert [row[0] for row in _table_rows(build_automation_test_markdown(t, {"status": "done", "steps": [done], "reason": None, "plan": plan}))] == ["✅"]
+    old = build_automation_test_markdown(t, {"status": "running", "steps": [done], "reason": None})
+    assert [row[0] for row in _table_rows(old)] == ["✅"] and "⏳" not in old
+
+
+def test_stop_battery_is_the_last_action_of_the_test() -> None:
+    assert AUTOMATION_TEST_ACTIONS[-1] == "battery_stopped" and len(set(AUTOMATION_TEST_ACTIONS)) == 6
 
 
 def test_a_step_at_a_limit_tells_whether_the_battery_was_full_or_empty() -> None:
@@ -663,14 +701,68 @@ async def test_a_test_runs_every_step_and_puts_the_real_action_back(hass, loaded
     state = _sensor(hass)
     assert state.state == "done"
     steps = {step["action"]: step for step in state.attributes["steps"]}
-    assert [step["status"] for step in steps.values()] == ["ok", "ok", "ok", "ok", "ok", "skip"]
+    assert list(steps) == list(AUTOMATION_TEST_ACTIONS) and list(steps)[-1] == "battery_stopped"  # stop battery is last
+    assert [step["status"] for step in steps.values()] == ["ok", "ok", "ok", "ok", "skip", "ok"]
     assert steps["blocked_solar_charge"]["reason"] == "no_surplus"  # no solar: it can not be proven
     assert "✅" in state.attributes["markdown"] and "🔧" in state.attributes["markdown"]
-    # every action that could be proven was held, in the order of the test, and the real one is back
-    assert [action for i, action in enumerate(held) if i == 0 or action != held[i - 1]] == list(AUTOMATION_TEST_ACTIONS[:5])
+    assert state.attributes["plan"] == [] and state.attributes["current"] is None  # a finished test has no plan left
+    # every action that could be proven was held, in the order of the test, and the real one is back. The battery stood still
+    # after the solar steps, so the forced discharge was held again until it moved: only then Stop battery is proven
+    assert [action for i, action in enumerate(held) if i == 0 or action != held[i - 1]] == [
+        *AUTOMATION_TEST_ACTIONS[:4], "force_discharge", "battery_stopped"
+    ]
     assert hass.states.get(f"sensor.{PREFIX}_powerwall_action").state == real
     assert coordinator.engine._automation_hold is None
     assert hass.states.get(f"switch.{PREFIX}_automation_test_run").state == "off"
+
+
+async def test_a_running_test_shows_every_action_and_how_far_it_is(hass, loaded_entry, fast_runner) -> None:
+    coordinator = loaded_entry.runtime_data
+    seen: list[tuple[str, list[str], str | None, str]] = []
+    battery = _battery()
+
+    def watching(self, held: bool = True) -> dict:
+        if held and self._automation_hold is not None:
+            state = coordinator.automation_test_state
+            seen.append((state["status"], list(state["plan"]), state["current"], state["markdown"]))
+        return battery(self, held)
+
+    with patch.object(type(coordinator.engine), "automation_test_sample", watching):
+        coordinator.async_run_automation_test()
+        started = coordinator.automation_test_state
+        # published at once, before the first step has run: every action waits
+        assert started["status"] == "running" and started["plan"] == list(AUTOMATION_TEST_ACTIONS) and started["steps"] == []
+        assert [row[0] for row in _table_rows(started["markdown"])] == ["⏳"] * 6
+        await _finished(hass)
+    assert seen and all(status == "running" and plan == list(AUTOMATION_TEST_ACTIONS) for status, plan, _, _ in seen)
+    # the action that is measured is the "testing now" row, and the actions after it still wait
+    first = next(item for item in seen if item[2] == "grid_charging")
+    assert _table_rows(first[3])[0][0] == "▶️" and [row[0] for row in _table_rows(first[3])[1:]] == ["⏳"] * 5
+    # when it is done there is no plan left, every action has its result, and Stop battery is the last one
+    state = _sensor(hass)
+    assert state.state == "done" and state.attributes["plan"] == [] and state.attributes["current"] is None
+    assert [step["action"] for step in state.attributes["steps"]] == list(AUTOMATION_TEST_ACTIONS)
+    assert "⏳" not in state.attributes["markdown"] and "▶️" not in state.attributes["markdown"]
+
+
+async def test_a_stopped_test_shows_what_was_not_reached_and_no_waiting_rows(hass, loaded_entry) -> None:
+    coordinator = loaded_entry.runtime_data
+    with patch("custom_components.battmind.coordinator.automation_test.SAMPLE_SECONDS", 0), \
+            patch.object(type(coordinator.engine), "automation_test_sample", _battery({"grid_charging": {}})):
+        coordinator.async_run_automation_test()
+        for _ in range(500):
+            await asyncio.sleep(0.01)
+            if coordinator.engine._automation_hold is not None:
+                break
+        assert coordinator.automation_test_state["current"] == "grid_charging"
+        assert "▶️" in coordinator.automation_test_state["markdown"]
+        coordinator.async_stop_automation_test()
+        await _finished(hass)
+    state = _sensor(hass)
+    assert state.state == "stopped" and state.attributes["plan"] == [] and state.attributes["current"] is None
+    assert [step["action"] for step in state.attributes["steps"]] == list(AUTOMATION_TEST_ACTIONS)
+    assert all(step["reason"] == "not_reached" for step in state.attributes["steps"])  # the stopped step too: it was not finished
+    assert "⏳" not in state.attributes["markdown"] and "▶️" not in state.attributes["markdown"]
 
 
 async def test_a_battery_that_does_not_react_is_a_failed_step_with_what_was_seen(hass, loaded_entry, fast_runner) -> None:
@@ -691,7 +783,58 @@ async def test_a_battery_that_never_moved_proves_nothing_by_standing_still(hass,
         await _start(hass, loaded_entry)
     steps = {step["action"]: step for step in _sensor(hass).attributes["steps"]}
     assert steps["grid_charging"]["status"] == "fail" and steps["force_discharge"]["status"] == "fail"
+    # the warm-up of Stop battery did not get the battery to move either: not tested, and nothing is left forced
     assert steps["battery_stopped"]["status"] == "skip" and steps["battery_stopped"]["reason"] == "no_baseline"
+    assert coordinator.engine._automation_hold is None
+
+
+async def test_stop_battery_makes_a_battery_that_stands_still_move_first_and_uses_the_charge_when_it_cannot_discharge(
+    hass, loaded_entry, fast_runner
+) -> None:
+    coordinator = loaded_entry.runtime_data
+    held: list[str] = []
+    with patch.object(type(coordinator.engine), "unsupported_actions", lambda self: ["force_discharge"]), \
+            patch.object(type(coordinator.engine), "automation_test_sample", _battery(calls=held)):
+        await _start(hass, loaded_entry)
+    steps = {step["action"]: step for step in _sensor(hass).attributes["steps"]}
+    assert steps["force_discharge"]["reason"] == "unsupported"
+    assert steps["battery_stopped"]["status"] == "ok"
+    assert [action for i, action in enumerate(held) if i == 0 or action != held[i - 1]][-2:] == ["grid_charging", "battery_stopped"]
+
+
+async def test_stop_battery_is_not_warmed_up_when_it_would_be_skipped_anyway(hass, loaded_entry, fast_runner) -> None:
+    """No house load and no solar: normal operation would stand still too, so a stop shows nothing and nothing is forced."""
+    coordinator = loaded_entry.runtime_data
+    held: list[str] = []
+    with patch.object(type(coordinator.engine), "automation_test_sample", _battery(idle={"load": 0.0, "use": 0.0}, calls=held)):
+        await _start(hass, loaded_entry)
+    steps = {step["action"]: step for step in _sensor(hass).attributes["steps"]}
+    assert steps["battery_stopped"]["status"] == "skip" and steps["battery_stopped"]["reason"] == "no_flow"
+    assert [action for i, action in enumerate(held) if i == 0 or action != held[i - 1]] == ["grid_charging", "force_discharge"]
+    assert coordinator.engine._automation_hold is None
+
+
+async def test_a_battery_stopped_for_temperature_during_the_warm_up_ends_the_test(hass, loaded_entry, fast_runner) -> None:
+    coordinator = loaded_entry.runtime_data
+    battery = _battery()
+    late = {"solar_only_seen": False}
+
+    def sample(self, held: bool = True) -> dict:
+        hold = self._automation_hold
+        if held and hold is not None:
+            if hold["action"] == "force_solar_only_charging":
+                late["solar_only_seen"] = True
+            elif hold["action"] == "force_discharge" and late["solar_only_seen"]:  # the warm-up of Stop battery
+                self._automation_hold, self._automation_abort = None, "battery_stopped"
+                return {"held": False, "abort": "battery_stopped", "sample": None, "why": None}
+        return battery(self, held)
+
+    with patch.object(type(coordinator.engine), "automation_test_sample", sample):
+        await _start(hass, loaded_entry)
+    state = _sensor(hass)
+    assert state.state == "stopped" and state.attributes["reason"] == "battery_stopped"
+    assert [(step["action"], step["reason"]) for step in state.attributes["steps"]][-1] == ("battery_stopped", "not_reached")
+    assert coordinator.engine._automation_hold is None and state.attributes["plan"] == []
 
 
 async def test_a_lost_sensor_is_a_step_that_was_not_tested(hass, loaded_entry, fast_runner) -> None:
@@ -755,7 +898,7 @@ async def test_a_test_does_not_start_while_the_battery_is_stopped_for_temperatur
     await _start(hass, loaded_entry)
     state = _sensor(hass)
     assert state.state == "failed" and state.attributes["reason"] == "battery_stopped"
-    assert state.attributes["steps"] == []
+    assert state.attributes["steps"] == [] and state.attributes["plan"] == [] and state.attributes["current"] is None  # no table
     assert coordinator.engine._automation_hold is None
 
 
@@ -1023,22 +1166,24 @@ async def test_an_action_without_steps_is_not_held_and_a_missing_automation_is_s
         await _start(hass, loaded_entry)
     state = _sensor(hass)
     steps = {step["action"]: step for step in state.attributes["steps"]}
-    assert [steps[a]["status"] for a in AUTOMATION_TEST_ACTIONS[:3]] == ["ok", "ok", "ok"]
-    assert all(steps[a]["reason"] == "no_steps" for a in AUTOMATION_TEST_ACTIONS[3:])
+    assert [steps[a]["status"] for a in ("grid_charging", "force_discharge")] == ["ok", "ok"]
+    assert all(steps[a]["reason"] == "no_steps" for a in ("discharge_allowed", "force_solar_only_charging", "blocked_solar_charge"))
+    # Stop battery is the last action and runs after the forced discharge here (the steps between have none): it is proven
+    assert steps["battery_stopped"]["status"] == "ok" and "battery_stopped" in held
     assert "discharge_allowed" not in held and "blocked_solar_charge" not in held
     assert "automations.yaml" not in state.attributes["markdown"]  # the automation was found
     with patch("custom_components.battmind.coordinator.automation_test.automations_using_blueprint", return_value=[]),             patch.object(type(coordinator.engine), "automation_test_sample", _battery()):
         await _start(hass, loaded_entry)
     assert "automations.yaml" in _sensor(hass).attributes["markdown"]
-    assert [step["status"] for step in _sensor(hass).attributes["steps"]][:5] == ["ok"] * 5  # unknown: tested as usual
+    assert [step["status"] for step in _sensor(hass).attributes["steps"]][:4] == ["ok"] * 4  # unknown: tested as usual
 
 
 WITHOUT_STOP = [{action: STEPS for action in AUTOMATION_TEST_ACTIONS if action != "battery_stopped"}]
 
 
-async def test_discharge_allowed_is_proven_after_a_forced_discharge_when_stop_battery_has_no_steps(hass, loaded_entry, fast_runner) -> None:
-    """The case of a debug file: Stop battery had no steps, so Discharge allowed started from the forced discharge that
-    still sold, and was never published (no baseline). The end of the sale is the change that proves it."""
+async def test_discharge_allowed_is_proven_after_a_forced_discharge(hass, loaded_entry, fast_runner) -> None:
+    """The case of a debug file: Discharge allowed starts from the forced discharge that still sold (Stop battery is last,
+    and here it has no steps), and was never published (no baseline). The end of the sale is the change that proves it."""
     coordinator = loaded_entry.runtime_data
     held: list[str] = []
     with patch("custom_components.battmind.coordinator.automation_test.automations_using_blueprint", return_value=WITHOUT_STOP), \

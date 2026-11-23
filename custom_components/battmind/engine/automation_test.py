@@ -28,17 +28,22 @@ from .energy.energy import derive_power_values
 _LOGGER = logging.getLogger(__name__)
 
 # the order is chosen so that every step starts from something the previous one moved: the battery is charged and
-# discharged first, so "stop" can be seen as a change, and the two solar actions come last
+# discharged first and the solar actions follow. "Stop battery" (the temperature stop) is last, and it is only proven
+# when the battery moved just before it (judge_step: no_baseline otherwise), so the coordinator moves the battery first
+# (WARM_UP_ACTIONS). It is also the list the result shows from the start (waiting, testing now, done)
 AUTOMATION_TEST_ACTIONS = (
     "grid_charging",
     "force_discharge",
-    "battery_stopped",
     "discharge_allowed",
     "force_solar_only_charging",
     "blocked_solar_charge",
+    "battery_stopped",
 )
+# "Stop battery" is only proven by a change, but it is last and the steps before it leave the battery standing still: when
+# it did not move just before, the first of these actions the battery can run is held until it moves, and then it is stopped
+WARM_UP_ACTIONS = ("force_discharge", "grid_charging")
 # seconds
-STEP_TIMEOUT = 300  # the longest a step waits for the battery to react
+STEP_TIMEOUT = 300  # the longest a step (and the warm-up of Stop battery) waits for the battery to react
 SETTLE_SECONDS = 20  # after the action was published, before the first measurement counts
 WINDOW_SECONDS = 30  # a measurement is the mean of the last seconds
 SAMPLE_SECONDS = 10  # between measurements
@@ -137,7 +142,7 @@ def judge_step(
             return result("skip", "ev")  # the blueprint runs the "while the car is charging" actions instead
         if deficit < LOAD_W:
             return result("skip", "no_load")
-        # a battery that sold before (the forced discharge of the step before, when Stop battery did not run between)
+        # a battery that sold before (the forced discharge of the step before)
         # shows the action by a change too: the sale ends and the battery feeds the house
         sold = before["discharge"] - max(max(before["load"], before["use"]) - before["solar"], 0.0)
         sold_before = sold >= MOVE_W
@@ -334,12 +339,16 @@ class AutomationTest:
 def build_automation_test_markdown(t: Callable[..., str], state: dict) -> str:
     """The result as markdown (the texts are ui.automation_test.*): a table row per action and a summary.
 
-    state: {"status", "steps": [{"action", "status": "ok" | "fail" | "skip", "reason", "seconds", values...}], "reason"}.
+    state: {"status", "steps": [{"action", "status": "ok" | "fail" | "skip", "reason", "seconds", values...}], "reason",
+    "plan": every action of a running test in order, "current": the action that is measured right now or None}.
+    While the test runs, the actions that have no result yet are rows too: waiting, and the one that is tested now.
     """
     if state["status"] == "idle" and not state["steps"]:
         return t("ui.automation_test.not_run")
     icons = {"ok": "✅", "fail": "❌", "skip": "🔧"}
-    if not state["steps"] and state["status"] != "running":
+    running = state["status"] == "running"
+    plan = list(state.get("plan") or []) if running else []
+    if not state["steps"] and not running:
         # it ended before the first step (not ready, a battery that is stopped ...): nothing to tabulate or count
         lines = [f"**{t('ui.automation_test.status.' + state['status'])}**", ""]
         if state.get("reason"):
@@ -355,8 +364,14 @@ def build_automation_test_markdown(t: Callable[..., str], state: dict) -> str:
     for step in state["steps"]:
         counts[step["status"]] += 1
         lines.append(f"| {icons[step['status']]} | {t('ui.automation_test.action.' + step['action'])} | {step_text(t, step)} |")
-    if state["status"] == "running":
-        lines += ["", t("ui.automation_test.running_note")]
+    if running:
+        for action in plan[len(state["steps"]):]:
+            icon, text = ("▶️", t("ui.automation_test.testing")) if action == state.get("current") else ("⏳", t("ui.automation_test.waiting"))
+            lines.append(f"| {icon} | {t('ui.automation_test.action.' + action)} | {text} |")
+        if plan:  # the progress sits between the status and the table
+            lines[2:2] = [t("ui.automation_test.progress", done=len(state["steps"]), total=len(plan)), ""]
+        lines += ["", t("ui.automation_test.running_note"), "", t("ui.automation_test.legend_running" if plan else "ui.automation_test.legend")]
+        return "\n".join(lines)
     else:
         lines += ["", t("ui.automation_test.summary", ok=counts["ok"], fail=counts["fail"], skip=counts["skip"], total=len(state["steps"]))]
         if state.get("automation") == "unknown":

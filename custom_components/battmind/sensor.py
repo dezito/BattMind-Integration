@@ -124,7 +124,7 @@ class BattMindAutomationTestSensor(BattMindUpdatingEntity, SensorEntity, Restore
         state = self.coordinator.automation_test_state
         return {
             "markdown": state["markdown"], "steps": state["steps"], "reason": state["reason"], "finished": state["finished"],
-            "automation": state.get("automation"),
+            "automation": state.get("automation"), "plan": state.get("plan", []), "current": state.get("current"),
         }
 
 
