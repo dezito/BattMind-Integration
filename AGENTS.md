@@ -59,6 +59,13 @@ Read the relevant documentation before changing behavior. In particular:
   history) are the same file as in Cable Juice Planner. Change both together
   and keep `tests/test_detection.py` in sync. What the history cannot decide
   stays unknown and keeps the current value; never turn unknown into a default.
+- The config flow pre-fills the solar and battery power sensors from the Energy dashboard (`flow/energy_prefs.py`, the same
+  file as in CJP; change both together and keep `tests/test_energy_prefs.py` in sync): `suggested_value` only, on empty
+  fields of the first setup; only a sole solar or battery source with an existing `sensor.` whose unit passes
+  `unit_factor_to_w()` in `flow/detection.py` (W, kW, MW, mW, GW; not kWh, not no unit; deliberately stricter than
+  `power_unit_known()`), not used by another entry (`skip_used=True`: one battery per entry). For an inverted or two-sensor
+  battery the suggestion is the sensor the Energy dashboard generates for it, which disappears if that Energy configuration
+  is changed. The battery sign still comes from the recorder; a PyScript import or a restored backup wins.
 - BattMind reads the option `charger_power_entity_id` of Cable Juice Planner
   config entries to leave their chargers out of the house consumption.
   Renaming or moving that option in Cable Juice Planner needs a matching
@@ -468,7 +475,7 @@ electricity supplier charges for selling. Formula:
   entities after their input and keeps registered service names
   (`number.set_value`), except `notify`/`script` services. Since 2026.10 a
   device has `config_entry_id`; `config_entries` is deprecated, so support
-  both (minimum is 2025.1).
+  both (minimum is 2025.12).
 
 ### Health checks (repairs)
 

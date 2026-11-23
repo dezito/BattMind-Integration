@@ -181,7 +181,7 @@ reloaded. If the file is deleted, the latest version is put back on the next res
 
 ## Requirements
 
-- Home Assistant **2025.1** or newer with recorder (default)
+- Home Assistant **2025.12** or newer with recorder (default)
 - A sensor for the home battery's **battery level** (%) and **power** (W)
 - A sensor for the **house consumption** (W)
 - Price integration: [Energi Data Service](https://github.com/MTrab/energidataservice) and/or [Strømligning](https://github.com/MTrab/stromligning)

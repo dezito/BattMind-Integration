@@ -60,6 +60,13 @@ leave the field empty for the default icon.
 
 ### Home battery – sensors
 
+When you set up BattMind, the solar power and battery power fields are pre-filled from the Energy dashboard of Home
+Assistant 2025.12 or newer. Each field is filled only when the dashboard has exactly one source of that kind (solar or
+battery) and that source has a power sensor, and not when another BattMind entry already uses that sensor. For an inverted or two-sensor battery, the battery
+field gets the sensor that the Energy dashboard generates for it; that sensor disappears if the
+Energy configuration is changed. They are only suggestions: you can pick another sensor, or clear the solar field. The
+battery power field is required, so it can be changed but not cleared. The battery sign is still read from the recorder.
+
 - **Battery power:** BattMind expects **positive while discharging, negative while charging**. If your
   sensor is the other way round, **Invert** should be on; the [check page](#check-the-battery-and-consumption-settings)
   suggests it from the recorder.

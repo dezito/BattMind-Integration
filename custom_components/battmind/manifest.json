@@ -3,6 +3,7 @@
   "name": "BattMind",
   "after_dependencies": [
     "blueprint",
+    "energy",
     "recorder",
     "repairs",
     "sun",
