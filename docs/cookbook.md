@@ -42,7 +42,8 @@ The home battery shouldn't be drained into the car – unless there is energy to
 
 1. BattMind setup → **Consumption**: leave **Ignore Cable Juice Planner chargers** on (the default), so the
    cars' chargers aren't in the consumption forecast. A charger that is not set up in Cable Juice Planner goes
-   under **Ignored consumers**.
+   under **Ignored consumers**, unless it is on its own meter that the house consumption sensor does not include
+   (then there is nothing to subtract).
 2. Blueprint → **EV (optional)**:
    - **EV charger power:** the charger's power sensor
    - **While the car is charging:** set the battery's discharge power to 0

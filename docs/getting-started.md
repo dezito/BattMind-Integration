@@ -107,9 +107,16 @@ off and are hidden on the dashboard. See [When the inverter can't run an action]
 - **Ignore Cable Juice Planner chargers** (on by default): with [Cable Juice Planner](cookbook.md#together-with-cable-juice-planner-ev)
   installed, BattMind also subtracts the charger power of every car you have set up there, so you don't add
   them to the list yourself. The page shows the chargers it found. A car added later is picked up
-  automatically (BattMind reloads once), and a charger that is also in your list is subtracted once. Turn it off if the
-  house consumption sensor does not include the chargers, e.g. a separate meter: subtracting them would
-  then take consumption that was never there out of the forecast.
+  automatically (BattMind reloads once), and a charger that is also in your list is subtracted once. A car whose
+  charger has its own meter (*House consumption includes this car's charger* off in that car's Cable Juice Planner
+  settings) is left out, also when that setting is changed later: the house consumption sensor doesn't measure it, so
+  there is nothing to subtract, and don't add it under *Ignored consumers* either (that would take consumption that
+  was never there out of the forecast). BattMind never adds a charger that the sensor doesn't measure, whatever this
+  switch says: if the home battery also supplies such a charger, the forecast is too low for it, so use a house
+  consumption sensor that includes the charger then. Turn this switch off if the house consumption sensor includes
+  none of the chargers, e.g. a separate meter: subtracting them would then take consumption that was never there out
+  of the forecast. For a single car on its own meter, turn off *House consumption includes this car's charger* on that
+  car in Cable Juice Planner instead.
 - **A charger that hangs:** A Cable Juice Planner charger that has not reported for over 30 minutes while it still reads a number other
   than 0 (a hung integration is not *unavailable*) is taken to be stuck: it is not subtracted, in the current hour and in the
   hours since it got stuck, until it reports again, and a warning is logged. The higher consumption is the safe side. It is the

@@ -69,7 +69,13 @@ Read the relevant documentation before changing behavior. In particular:
 - BattMind reads the option `charger_power_entity_id` of Cable Juice Planner
   config entries to leave their chargers out of the house consumption.
   Renaming or moving that option in Cable Juice Planner needs a matching
-  change here.
+  change here. A CJP car with `charger_in_house_meter` explicitly False has
+  its charger on its own meter: it is not subtracted (`utils/cjp.py`), but
+  it stays in `charger_entity_ids` for the stuck-reading check
+  (`include_own_meter=True`). A reload happens when either list changes.
+  BattMind never adds such a charger to the house (decided, documented in
+  `docs/getting-started.md`): a forecast that is too low when the home
+  battery supplies that charger is a known limitation.
 - The integration supports Home Assistant from the `hacs.json` minimum
   version up to the newest release. Use a fallback when a Home Assistant API
   changes. For example, read stored restore states only through
