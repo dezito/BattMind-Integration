@@ -205,6 +205,9 @@ Leave the page empty without solar. With solar:
 | Days to plan | 7 | the plan covers today and the next days. More days give better decisions about saving energy for later, but cost more CPU and rely on price forecasts |
 | Interval | 5 min | how often the plan is checked. It is only recalculated when prices, battery level or settings have changed |
 | Dashboard | on | a ready-made dashboard in the sidebar |
+| Diagnostic file log | off | writes `battmind_<prefix>.log` in the config folder, for [troubleshooting](faq-troubleshooting.md) |
+
+The last page of the setup, **Database**, sets how much history BattMind stores.
 
 Everything can be changed later under **Configure** on the integration.
 
