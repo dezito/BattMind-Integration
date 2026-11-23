@@ -28,7 +28,9 @@ PREFIX_RE = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
 IMPORT_NONE = "none"
 BACKUP_EXPORT = "export"
 CRON_INTERVALS = ["1", "2", "3", "4", "5", "6", "10", "12", "15", "20", "30"]
-PRICE_PROVIDERS = ["energidataservice", "stromligning", "energypriceforecast"]
+PRICE_PROVIDERS = ["energidataservice", "stromligning", "energypriceforecast", "spotforecast", "elprognos", "wattcast"]
+# the providers of wholesale prices: the VAT and the surcharge on the fee page are for them
+SPOT_PRICE_PROVIDERS = ("spotforecast", "elprognos", "wattcast")
 ENERGIDATASERVICE_URL = "https://github.com/MTrab/energidataservice"  # {eds_url} in the step descriptions
 CONFIG_FLOW_STEPS = [
     "battery_entities",
@@ -39,6 +41,9 @@ CONFIG_FLOW_STEPS = [
     "price_provider",
     "prices_energidataservice",
     "prices_energypriceforecast",
+    "prices_spotforecast",
+    "prices_elprognos",
+    "prices_wattcast",
     "prices_stromligning",
     "prices_stromligning_tariffs",
     "price_fees",
@@ -122,6 +127,10 @@ SELECTORS: dict[str, Any] = {
     "energidataservice_sell_entity_id": _entity("sensor", integration="energidataservice"),
     "energypriceforecast_buy_entity_id": _entity("sensor", integration="energypriceforecast"),
     "energypriceforecast_sell_entity_id": _entity("sensor", integration="energypriceforecast"),
+    "spotforecast_buy_entity_id": _entity("sensor", integration="spot_forecast"),
+    "elprognos_buy_entity_id": _entity("sensor", integration="elprisprognos"),
+    "wattcast_buy_entity_id": _entity("sensor", integration="wattcast"),
+    "wattcast_forecast_entity_id": _entity("sensor", integration="wattcast"),
     "stromligning_buy_current_price": _entity("sensor", integration="stromligning"),
     "stromligning_buy_tomorrow_available": _entity("binary_sensor", integration="stromligning"),
     "stromligning_buy_forecasts": _entity("sensor", integration="stromligning"),
@@ -135,6 +144,8 @@ SELECTORS: dict[str, Any] = {
     "stromligning_sell_surcharge": _entity("sensor", integration="stromligning"),
     "refund": _number(0, 10, 0.001, "{valuta_kwh}"),
     "sell_fee": _number(0, 10, 0.001, "{valuta_kwh}"),
+    "spot_vat": _number(0, 50, 0.1, "%"),
+    "spot_surcharge": _number(0, 10, 0.001, "{valuta_kwh}"),
     # solar / weather
     "production_entity_id": _entity("sensor", device_class="power"),
     "inverter_discharging_power_limit": _number(100, 100000, 100, "W"),
@@ -172,6 +183,12 @@ REQUIRED_KEYS = {
     "energidataservice_buy_entity_id",
     "energypriceforecast_buy_entity_id",
     "energypriceforecast_sell_entity_id",
+    "spotforecast_buy_entity_id",
+    "elprognos_buy_entity_id",
+    "wattcast_buy_entity_id",
+    "wattcast_forecast_entity_id",
+    "spot_vat",
+    "spot_surcharge",
     "stromligning_buy_current_price",
     "refund",
     "sell_fee",
@@ -225,7 +242,8 @@ def build_schema(keys: list[str], values: dict[str, Any], currency: str | None =
         elif key == "unsupported_actions":
             schema[vol.Optional(key, default=value)] = field
         elif key in REQUIRED_KEYS:
-            schema[vol.Required(key, default=value)] = field
+            # no value yet (the VAT and the surcharge of the wholesale prices have none to suggest): a required field without a default
+            schema[vol.Required(key) if value is None else vol.Required(key, default=value)] = field
         elif field is OBJECT:
             schema[vol.Optional(key, default=value or {})] = field
         elif key == "dashboard_icon":

@@ -24,7 +24,7 @@
       },
       "price_provider": {
         "title": "Electricity prices",
-        "description": "Choose where the hourly prices come from. With several, the priority is Strømligning, then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour, and the next fills the gaps.",
+        "description": "Choose where the hourly prices come from. With several, the priority is Strømligning, then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour, and the next fills the gaps. The spot forecast integrations (Spot Forecast, Elprisprognos, Wattcast) come last; they give wholesale prices, so the VAT and the surcharge are asked on the fee page.",
         "data": {
           "price_country": "Country",
           "price_providers": "Price providers"
@@ -141,6 +141,38 @@
           "energypriceforecast_sell_entity_id": "The Energy Price Forecast sensor with the wholesale price. The sell price is this price less the sell fee (the retail price is higher than what a sale pays, so it is not used as a sell price). In Energy Price Forecast it is “Price forecast series”"
         }
       },
+      "prices_spotforecast": {
+        "title": "Spot Forecast",
+        "description": "The price sensor of the Spot Forecast integration (spot prices and a 6-day forecast for Germany, Luxembourg, the Netherlands and Southern Norway). It gives the wholesale price without VAT, grid fees and the supplier’s margin: the buy price is made from it with the VAT and the surcharge you enter on the fee page. Choose the sensor “Price” of your zone. The price must be in EUR/kWh.",
+        "data": {
+          "spotforecast_buy_entity_id": "Price sensor"
+        },
+        "data_description": {
+          "spotforecast_buy_entity_id": "The Spot Forecast sensor with the price (its entity ends in _price). It holds the published prices of today and tomorrow and the forecast after them."
+        }
+      },
+      "prices_elprognos": {
+        "title": "Elprisprognos",
+        "description": "The forecast sensor of the Elprisprognos integration (spot prices and a 7-day forecast for the Swedish zones SE1–SE4). It gives the spot price without VAT: the buy price is made from it with the VAT and the surcharge you enter on the fee page. The own VAT and the additional costs of Elprisprognos are not used.",
+        "data": {
+          "elprognos_buy_entity_id": "Forecast sensor"
+        },
+        "data_description": {
+          "elprognos_buy_entity_id": "The Elprisprognos sensor “Elpris prognos SE3”. Its attribute holds the published prices of today and tomorrow and the forecast after them."
+        }
+      },
+      "prices_wattcast": {
+        "title": "Wattcast",
+        "description": "The sensors of the Wattcast integration (spot prices and a 7-day forecast for Finland, Estonia, Latvia and Lithuania). They give the price in ct/kWh without VAT, grid fees and the supplier’s margin: the buy price is made from it with the VAT and the surcharge you enter on the fee page. Wattcast is the only source that may give ct/kWh; the prices are read as euro.",
+        "data": {
+          "wattcast_buy_entity_id": "Price sensor (hour)",
+          "wattcast_forecast_entity_id": "Forecast sensor"
+        },
+        "data_description": {
+          "wattcast_buy_entity_id": "The Wattcast sensor “Price (hour)” or “Price”. It holds the prices of today and tomorrow.",
+          "wattcast_forecast_entity_id": "The Wattcast sensor “Forecast”. It says which prices are published (known_until) and holds the forecast of the days after tomorrow."
+        }
+      },
       "prices_stromligning": {
         "title": "Strømligning",
         "description": "Sensors from the Strømligning integration. The buy price is required; the sell sensors are needed to calculate an accurate sell price.\n\nStrømligning switches its excl. VAT sensors off by default, and a disabled sensor can't be selected here: enable them first under **Settings → Devices & services → Entities** (*Show disabled entities*). The price forecasts also need *Include price forecasts for the next week?* in the Strømligning options.\nDisabled in Strømligning now: {stromligning_disabled}",
@@ -185,11 +217,15 @@
         "data": {
           "refund": "Refund",
           "sell_fee": "Sell fee",
+          "spot_vat": "VAT (spot prices)",
+          "spot_surcharge": "Surcharge (spot prices)",
           "powerwall_wear_cost_per_kwh": "Wear cost"
         },
         "data_description": {
           "refund": "Refund per kWh from state/grid company/supplier, subtracted from the buy price in the price history. 0 if none.",
           "sell_fee": "The fee per kWh that the buyer of your electricity takes for buying it. Subtracted from the sell price, with Energi Data Service and Strømligning together with Energinet's net and system tariff, which selling also costs.",
+          "spot_vat": "The VAT in percent that is added to the wholesale price of the spot price providers. No default: it depends on your country and your contract.",
+          "spot_surcharge": "What is added per kWh to the wholesale price with VAT: grid fee, taxes and your supplier’s margin (with VAT). No default: with 0 the buy price would be too low and the plan too optimistic. Take it from your bill. Give it in the currency of the price sensor.",
           "powerwall_wear_cost_per_kwh": "Cost of wear per kWh taken from the battery (battery price / expected lifetime in kWh). Discharging must earn more than this."
         }
       },
@@ -274,13 +310,14 @@
       "min_above_max": "The minimum level must be lower than the maximum level.",
       "invalid_icon": "Use an icon name like mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
-      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, per MWh or Wh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh).",
+      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, Spot Forecast and Elprisprognos, per MWh or Wh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh). Wattcast’s price sensor must give ct/kWh; any other unit is wrong for it.",
       "price_sensor_not_retail": "This is not the retail price sensor. Choose the retail price sensor of Energy Price Forecast as the buy price (the wholesale price is the sell price).",
       "price_sensor_not_wholesale": "This is the retail price sensor. Choose the wholesale price sensor of Energy Price Forecast as the sell price (the retail price is higher than what a sale pays).",
       "price_sensor_forecast_only": "This sensor has no published prices for today right now, only a forecast. If Energy Price Forecast publishes no prices for your market (for example Finland or Great Britain), set a Nord Pool or ENTSO-e sensor as “Own price source” in Energy Price Forecast (for the buy price, also choose “Own formula” under “Retail price” there: the estimate does not use the own price source) and choose the sensor again. Otherwise try again once the prices are published.",
+      "price_sensor_forecast_only": "This sensor has price rows but none of them is published, so it is probably not the price sensor of the integration (or its attributes differ from what is expected). Choose the price sensor of the integration; for Wattcast, the price sensor and, as the forecast sensor, its forecast sensor (they must not be swapped). If the sensor has just started, try again once the prices are published.",
       "price_currency_mismatch": "This sensor is in another currency than the other price sensors. Use price sensors in one currency (or deselect the other price provider).",
       "no_price_provider": "Choose at least one price provider.",
-      "price_provider_country": "A chosen price provider has no prices in this country. Strømligning only works in Denmark, and Energi Data Service in Denmark, Norway, Sweden, Finland, Estonia, Latvia, Lithuania, France, the Netherlands, Belgium, Austria, Germany and Luxembourg. Choose Energy Price Forecast (most of Europe) or change the country.",
+      "price_provider_country": "A chosen price provider has no prices in this country. Strømligning only works in Denmark, and Energi Data Service in Denmark, Norway, Sweden, Finland, Estonia, Latvia, Lithuania, France, the Netherlands, Belgium, Austria, Germany and Luxembourg. Choose Energy Price Forecast (most of Europe) or change the country. The spot forecast integrations: Spot Forecast in Germany, Luxembourg, the Netherlands and Norway, Elprisprognos in Sweden and Wattcast in Finland, Estonia, Latvia and Lithuania.",
       "price_provider_no_forecast": "None of the chosen price providers gives a price forecast, so planning could only use the prices of today and tomorrow. Choose another price provider as well.",
       "production_required": "A solar forecast requires a solar production sensor."
     },
@@ -305,7 +342,7 @@
       },
       "price_provider": {
         "title": "Electricity prices",
-        "description": "Choose where the hourly prices come from. With several, the priority is Strømligning, then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour, and the next fills the gaps.",
+        "description": "Choose where the hourly prices come from. With several, the priority is Strømligning, then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour, and the next fills the gaps. The spot forecast integrations (Spot Forecast, Elprisprognos, Wattcast) come last; they give wholesale prices, so the VAT and the surcharge are asked on the fee page.",
         "data": {
           "price_country": "Country",
           "price_providers": "Price providers"
@@ -433,6 +470,38 @@
           "energypriceforecast_sell_entity_id": "The Energy Price Forecast sensor with the wholesale price. The sell price is this price less the sell fee (the retail price is higher than what a sale pays, so it is not used as a sell price). In Energy Price Forecast it is “Price forecast series”"
         }
       },
+      "prices_spotforecast": {
+        "title": "Spot Forecast",
+        "description": "The price sensor of the Spot Forecast integration (spot prices and a 6-day forecast for Germany, Luxembourg, the Netherlands and Southern Norway). It gives the wholesale price without VAT, grid fees and the supplier’s margin: the buy price is made from it with the VAT and the surcharge you enter on the fee page. Choose the sensor “Price” of your zone. The price must be in EUR/kWh.",
+        "data": {
+          "spotforecast_buy_entity_id": "Price sensor"
+        },
+        "data_description": {
+          "spotforecast_buy_entity_id": "The Spot Forecast sensor with the price (its entity ends in _price). It holds the published prices of today and tomorrow and the forecast after them."
+        }
+      },
+      "prices_elprognos": {
+        "title": "Elprisprognos",
+        "description": "The forecast sensor of the Elprisprognos integration (spot prices and a 7-day forecast for the Swedish zones SE1–SE4). It gives the spot price without VAT: the buy price is made from it with the VAT and the surcharge you enter on the fee page. The own VAT and the additional costs of Elprisprognos are not used.",
+        "data": {
+          "elprognos_buy_entity_id": "Forecast sensor"
+        },
+        "data_description": {
+          "elprognos_buy_entity_id": "The Elprisprognos sensor “Elpris prognos SE3”. Its attribute holds the published prices of today and tomorrow and the forecast after them."
+        }
+      },
+      "prices_wattcast": {
+        "title": "Wattcast",
+        "description": "The sensors of the Wattcast integration (spot prices and a 7-day forecast for Finland, Estonia, Latvia and Lithuania). They give the price in ct/kWh without VAT, grid fees and the supplier’s margin: the buy price is made from it with the VAT and the surcharge you enter on the fee page. Wattcast is the only source that may give ct/kWh; the prices are read as euro.",
+        "data": {
+          "wattcast_buy_entity_id": "Price sensor (hour)",
+          "wattcast_forecast_entity_id": "Forecast sensor"
+        },
+        "data_description": {
+          "wattcast_buy_entity_id": "The Wattcast sensor “Price (hour)” or “Price”. It holds the prices of today and tomorrow.",
+          "wattcast_forecast_entity_id": "The Wattcast sensor “Forecast”. It says which prices are published (known_until) and holds the forecast of the days after tomorrow."
+        }
+      },
       "prices_stromligning": {
         "title": "Strømligning",
         "description": "Sensors from the Strømligning integration. The buy price is required; the sell sensors are needed to calculate an accurate sell price.\n\nStrømligning switches its excl. VAT sensors off by default, and a disabled sensor can't be selected here: enable them first under **Settings → Devices & services → Entities** (*Show disabled entities*). The price forecasts also need *Include price forecasts for the next week?* in the Strømligning options.\nDisabled in Strømligning now: {stromligning_disabled}",
@@ -477,11 +546,15 @@
         "data": {
           "refund": "Refund",
           "sell_fee": "Sell fee",
+          "spot_vat": "VAT (spot prices)",
+          "spot_surcharge": "Surcharge (spot prices)",
           "powerwall_wear_cost_per_kwh": "Wear cost"
         },
         "data_description": {
           "refund": "Refund per kWh from state/grid company/supplier, subtracted from the buy price in the price history. 0 if none.",
           "sell_fee": "The fee per kWh that the buyer of your electricity takes for buying it. Subtracted from the sell price, with Energi Data Service and Strømligning together with Energinet's net and system tariff, which selling also costs.",
+          "spot_vat": "The VAT in percent that is added to the wholesale price of the spot price providers. No default: it depends on your country and your contract.",
+          "spot_surcharge": "What is added per kWh to the wholesale price with VAT: grid fee, taxes and your supplier’s margin (with VAT). No default: with 0 the buy price would be too low and the plan too optimistic. Take it from your bill. Give it in the currency of the price sensor.",
           "powerwall_wear_cost_per_kwh": "Cost of wear per kWh taken from the battery (battery price / expected lifetime in kWh). Discharging must earn more than this."
         }
       },
@@ -570,13 +643,14 @@
       "min_above_max": "The minimum level must be lower than the maximum level.",
       "invalid_icon": "Use an icon name like mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
-      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, per MWh or Wh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh).",
+      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, Spot Forecast and Elprisprognos, per MWh or Wh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh). Wattcast’s price sensor must give ct/kWh; any other unit is wrong for it.",
       "price_sensor_not_retail": "This is not the retail price sensor. Choose the retail price sensor of Energy Price Forecast as the buy price (the wholesale price is the sell price).",
       "price_sensor_not_wholesale": "This is the retail price sensor. Choose the wholesale price sensor of Energy Price Forecast as the sell price (the retail price is higher than what a sale pays).",
       "price_sensor_forecast_only": "This sensor has no published prices for today right now, only a forecast. If Energy Price Forecast publishes no prices for your market (for example Finland or Great Britain), set a Nord Pool or ENTSO-e sensor as “Own price source” in Energy Price Forecast (for the buy price, also choose “Own formula” under “Retail price” there: the estimate does not use the own price source) and choose the sensor again. Otherwise try again once the prices are published.",
+      "price_sensor_forecast_only": "This sensor has price rows but none of them is published, so it is probably not the price sensor of the integration (or its attributes differ from what is expected). Choose the price sensor of the integration; for Wattcast, the price sensor and, as the forecast sensor, its forecast sensor (they must not be swapped). If the sensor has just started, try again once the prices are published.",
       "price_currency_mismatch": "This sensor is in another currency than the other price sensors. Use price sensors in one currency (or deselect the other price provider).",
       "no_price_provider": "Choose at least one price provider.",
-      "price_provider_country": "A chosen price provider has no prices in this country. Strømligning only works in Denmark, and Energi Data Service in Denmark, Norway, Sweden, Finland, Estonia, Latvia, Lithuania, France, the Netherlands, Belgium, Austria, Germany and Luxembourg. Choose Energy Price Forecast (most of Europe) or change the country.",
+      "price_provider_country": "A chosen price provider has no prices in this country. Strømligning only works in Denmark, and Energi Data Service in Denmark, Norway, Sweden, Finland, Estonia, Latvia, Lithuania, France, the Netherlands, Belgium, Austria, Germany and Luxembourg. Choose Energy Price Forecast (most of Europe) or change the country. The spot forecast integrations: Spot Forecast in Germany, Luxembourg, the Netherlands and Norway, Elprisprognos in Sweden and Wattcast in Finland, Estonia, Latvia and Lithuania.",
       "price_provider_no_forecast": "None of the chosen price providers gives a price forecast, so planning could only use the prices of today and tomorrow. Choose another price provider as well.",
       "production_required": "A solar forecast requires a solar production sensor."
     },
@@ -604,6 +678,9 @@
       "options": {
         "energidataservice": "Energi Data Service",
         "energypriceforecast": "Energy Price Forecast (Europe)",
+        "spotforecast": "Spot Forecast (DE, LU, NL, NO)",
+        "elprognos": "Elprisprognos (Sweden)",
+        "wattcast": "Wattcast (Finland, Baltics)",
         "stromligning": "Strømligning"
       }
     },
@@ -1161,7 +1238,7 @@
     },
     "price_sensor_unit": {
       "title": "Price sensors that BattMind uses give the price in the wrong unit ({prefix})",
-      "description": "BattMind ({prefix}) uses price sensors that give the price in a subunit of the currency (for example ct/kWh or p/kWh) or, for Energi Data Service, per MWh or Wh:\n{entities}\n\nTheir prices are 100 or 1000 times off, so BattMind does not use them: it plans on the stored prices instead. Choose a sensor with the price per kWh in the currency (for example EUR/kWh) in the price settings, or set the unit of the sensor back.\n\nThis repair disappears by itself when the sensors give the price per kWh again."
+      "description": "BattMind ({prefix}) uses price sensors that give the price in a subunit of the currency (for example ct/kWh or p/kWh) or, for Energi Data Service, Spot Forecast and Elprisprognos, per MWh or Wh:\n{entities}\n\nTheir prices are 100 or 1000 times off, so BattMind does not use them: it plans on the stored prices instead. Choose a sensor with the price per kWh in the currency (for example EUR/kWh) in the price settings, or set the unit of the sensor back.\n\nThis repair disappears by itself when the sensors give the price per kWh again.\n\nWattcast’s price sensor must give ct/kWh; any other unit is wrong for it."
     },
     "stromligning_entities": {
       "title": "Strømligning sensors that BattMind needs are not available ({prefix})",

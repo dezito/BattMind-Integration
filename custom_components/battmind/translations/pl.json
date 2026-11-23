@@ -109,6 +109,38 @@
           "energypriceforecast_sell_entity_id": "Czujnik Energy Price Forecast z ceną hurtową. Cena sprzedaży to ta cena minus opłata za sprzedaż (cena detaliczna jest wyższa niż to, co daje sprzedaż, więc nie jest używana jako cena sprzedaży). W Energy Price Forecast nazywa się „Price forecast series”"
         }
       },
+      "prices_spotforecast": {
+        "title": "Spot Forecast",
+        "description": "Czujnik ceny z integracji Spot Forecast (ceny giełdowe i 6-dniowa prognoza dla Niemiec, Luksemburga, Holandii i południowej Norwegii). Podaje cenę hurtową bez VAT, opłat sieciowych i marży sprzedawcy: cena zakupu jest z niej tworzona z VAT i dopłatą, które podajesz na stronie opłat. Wybierz czujnik „Price” swojej strefy. Cena musi być w EUR/kWh.",
+        "data": {
+          "spotforecast_buy_entity_id": "Czujnik ceny"
+        },
+        "data_description": {
+          "spotforecast_buy_entity_id": "Czujnik Spot Forecast z ceną (jego encja kończy się na _price). Zawiera opublikowane ceny na dziś i jutro oraz prognozę na kolejne dni."
+        }
+      },
+      "prices_elprognos": {
+        "title": "Elprisprognos",
+        "description": "Czujnik prognozy z integracji Elprisprognos (ceny giełdowe i 7-dniowa prognoza dla szwedzkich stref SE1–SE4). Podaje cenę giełdową bez VAT: cena zakupu jest z niej tworzona z VAT i dopłatą, które podajesz na stronie opłat. Własny VAT i własne koszty dodatkowe z Elprisprognos nie są używane.",
+        "data": {
+          "elprognos_buy_entity_id": "Czujnik prognozy"
+        },
+        "data_description": {
+          "elprognos_buy_entity_id": "Czujnik Elprisprognos „Elpris prognos SE3”. Jego atrybut zawiera opublikowane ceny na dziś i jutro oraz prognozę na kolejne dni."
+        }
+      },
+      "prices_wattcast": {
+        "title": "Wattcast",
+        "description": "Czujniki z integracji Wattcast (ceny giełdowe i 7-dniowa prognoza dla Finlandii, Estonii, Łotwy i Litwy). Podają cenę w ct/kWh bez VAT, opłat sieciowych i marży sprzedawcy: cena zakupu jest z niej tworzona z VAT i dopłatą, które podajesz na stronie opłat. Wattcast jest jedynym źródłem, które może podawać ct/kWh; ceny są czytane jako euro.",
+        "data": {
+          "wattcast_buy_entity_id": "Czujnik ceny (godzina)",
+          "wattcast_forecast_entity_id": "Czujnik prognozy"
+        },
+        "data_description": {
+          "wattcast_buy_entity_id": "Czujnik Wattcast „Price (hour)” lub „Price”. Zawiera ceny na dziś i jutro.",
+          "wattcast_forecast_entity_id": "Czujnik Wattcast „Forecast”. Mówi, które ceny są opublikowane (known_until), i zawiera prognozę na dni po jutrze."
+        }
+      },
       "prices_stromligning": {
         "data_description": {
           "stromligning_buy_current_price": "Strømligning aktualna cena zakupu",
@@ -151,11 +183,15 @@
         "data_description": {
           "refund": "Kwota zwrotu od państwa/dostawcy",
           "sell_fee": "Opłata za kWh, którą kupujący Twoją energię pobiera za jej zakup. Odejmowana od ceny sprzedaży, w przypadku Energi Data Service i Strømligning razem z taryfą sieciową i systemową Energinet, które również kosztuje sprzedaż.",
+          "spot_vat": "VAT w procentach doliczany do ceny giełdowej u dostawców cen giełdowych. Brak wartości domyślnej: zależy od kraju i umowy.",
+          "spot_surcharge": "Co dolicza się za kWh do ceny giełdowej z VAT: opłata sieciowa, podatki i marża sprzedawcy (z VAT). Brak wartości domyślnej: przy 0 cena zakupu byłaby za niska, a plan zbyt optymistyczny. Weź to z rachunku. Podaj ją w walucie czujnika ceny.",
           "powerwall_wear_cost_per_kwh": "Koszt zużycia magazynu na kWh"
         },
         "data": {
           "refund": "Zwrot",
           "sell_fee": "Opłata za sprzedaż",
+          "spot_vat": "VAT (ceny giełdowe)",
+          "spot_surcharge": "Dopłata (ceny giełdowe)",
           "powerwall_wear_cost_per_kwh": "Koszt zużycia"
         },
         "description": "Kwoty na kWh w walucie cen, które zmieniają wartość ładowania, sprzedaży i korzystania z magazynu.",
@@ -243,7 +279,7 @@
         "data_description": {
           "price_country": "Kraj, którego dotyczą ceny. Decyduje, których dostawców cen można wybrać. Proponowany jest kraj z Home Assistant."
         },
-        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy kilku kolejność to Strømligning, potem Energi Data Service, potem Energy Price Forecast: dla każdej godziny używana jest cena pierwszego, który ją ma, a następny uzupełnia luki.",
+        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy kilku kolejność to Strømligning, potem Energi Data Service, potem Energy Price Forecast: dla każdej godziny używana jest cena pierwszego, który ją ma, a następny uzupełnia luki. Integracje cen giełdowych (Spot Forecast, Elprisprognos, Wattcast) są na końcu; podają ceny hurtowe, więc VAT i dopłata są pytane na stronie opłat.",
         "title": "Ceny energii"
       },
       "user": {
@@ -275,13 +311,14 @@
       "min_above_max": "Poziom minimalny musi być niższy niż maksymalny.",
       "invalid_icon": "Użyj nazwy ikony, np. mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
-      "price_unit_subunit": "Ten czujnik podaje cenę w centach lub pensach (albo, w przypadku Energi Data Service, za MWh lub Wh). Wybierz czujnik z ceną za kWh w walucie (np. EUR/kWh).",
+      "price_unit_subunit": "Ten czujnik podaje cenę w centach lub pensach (albo, w przypadku Energi Data Service, Spot Forecast and Elprisprognos, za MWh lub Wh). Wybierz czujnik z ceną za kWh w walucie (np. EUR/kWh). Czujnik ceny Wattcast musi podawać ct/kWh; każda inna jednostka jest dla niego błędna.",
       "price_sensor_not_retail": "To nie jest czujnik z ceną detaliczną. Jako cenę zakupu wybierz czujnik Energy Price Forecast z ceną detaliczną (cena hurtowa jest ceną sprzedaży).",
       "price_sensor_not_wholesale": "To jest czujnik z ceną detaliczną. Jako cenę sprzedaży wybierz czujnik Energy Price Forecast z ceną hurtową (cena detaliczna jest wyższa niż to, co daje sprzedaż).",
       "price_sensor_forecast_only": "Ten czujnik nie ma teraz opublikowanych cen na dziś, tylko prognozę. Jeśli Energy Price Forecast nie publikuje cen dla Twojego rynku (np. Finlandia lub Wielka Brytania), ustaw w nim czujnik Nord Pool lub ENTSO-e jako „Own price source” (dla ceny zakupu wybierz tam też „Own formula” w „Retail price”: oszacowanie nie korzysta z tego źródła cen) i wybierz czujnik ponownie. W przeciwnym razie spróbuj ponownie, gdy ceny zostaną opublikowane.",
+      "price_sensor_forecast_only": "Ten czujnik ma wiersze cen, ale żaden nie jest opublikowany, więc prawdopodobnie nie jest to czujnik ceny integracji (albo jego atrybuty różnią się od oczekiwanych). Wybierz czujnik ceny integracji; w Wattcast czujnik ceny, a jako czujnik prognozy jego czujnik prognozy (nie mogą być zamienione). Jeśli czujnik właśnie się uruchomił, spróbuj ponownie po opublikowaniu cen.",
       "price_currency_mismatch": "Ten czujnik jest w innej walucie niż pozostałe czujniki cen. Używaj czujników cen w jednej walucie (lub odznacz innego dostawcę cen).",
       "no_price_provider": "Wybierz co najmniej jednego dostawcę cen.",
-      "price_provider_country": "Wybrany dostawca cen nie ma cen w tym kraju. Strømligning działa tylko w Danii, a Energi Data Service w Danii, Norwegii, Szwecji, Finlandii, Estonii, Łotwie, Litwie, Francji, Holandii, Belgii, Austrii, Niemczech i Luksemburgu. Wybierz Energy Price Forecast (większość Europy) albo zmień kraj.",
+      "price_provider_country": "Wybrany dostawca cen nie ma cen w tym kraju. Strømligning działa tylko w Danii, a Energi Data Service w Danii, Norwegii, Szwecji, Finlandii, Estonii, Łotwie, Litwie, Francji, Holandii, Belgii, Austrii, Niemczech i Luksemburgu. Wybierz Energy Price Forecast (większość Europy) albo zmień kraj. Integracje cen giełdowych: Spot Forecast w Niemczech, Luksemburgu, Holandii i Norwegii, Elprisprognos w Szwecji i Wattcast w Finlandii, Estonii, na Łotwie i Litwie.",
       "price_provider_no_forecast": "Żaden z wybranych dostawców cen nie podaje prognozy cen, więc planowanie mogłoby używać tylko cen na dziś i jutro. Wybierz dodatkowo innego dostawcę cen.",
       "prefix_entities_exist": "Encje z tym prefiksem już istnieją (np. z wersji PyScript). Wybierz inny prefiks, aby uruchomić obie jednocześnie.",
       "prefix_in_use": "Ten prefiks jest już używany przez inny wpis BattMind.",
@@ -398,6 +435,38 @@
           "energypriceforecast_sell_entity_id": "Czujnik Energy Price Forecast z ceną hurtową. Cena sprzedaży to ta cena minus opłata za sprzedaż (cena detaliczna jest wyższa niż to, co daje sprzedaż, więc nie jest używana jako cena sprzedaży). W Energy Price Forecast nazywa się „Price forecast series”"
         }
       },
+      "prices_spotforecast": {
+        "title": "Spot Forecast",
+        "description": "Czujnik ceny z integracji Spot Forecast (ceny giełdowe i 6-dniowa prognoza dla Niemiec, Luksemburga, Holandii i południowej Norwegii). Podaje cenę hurtową bez VAT, opłat sieciowych i marży sprzedawcy: cena zakupu jest z niej tworzona z VAT i dopłatą, które podajesz na stronie opłat. Wybierz czujnik „Price” swojej strefy. Cena musi być w EUR/kWh.",
+        "data": {
+          "spotforecast_buy_entity_id": "Czujnik ceny"
+        },
+        "data_description": {
+          "spotforecast_buy_entity_id": "Czujnik Spot Forecast z ceną (jego encja kończy się na _price). Zawiera opublikowane ceny na dziś i jutro oraz prognozę na kolejne dni."
+        }
+      },
+      "prices_elprognos": {
+        "title": "Elprisprognos",
+        "description": "Czujnik prognozy z integracji Elprisprognos (ceny giełdowe i 7-dniowa prognoza dla szwedzkich stref SE1–SE4). Podaje cenę giełdową bez VAT: cena zakupu jest z niej tworzona z VAT i dopłatą, które podajesz na stronie opłat. Własny VAT i własne koszty dodatkowe z Elprisprognos nie są używane.",
+        "data": {
+          "elprognos_buy_entity_id": "Czujnik prognozy"
+        },
+        "data_description": {
+          "elprognos_buy_entity_id": "Czujnik Elprisprognos „Elpris prognos SE3”. Jego atrybut zawiera opublikowane ceny na dziś i jutro oraz prognozę na kolejne dni."
+        }
+      },
+      "prices_wattcast": {
+        "title": "Wattcast",
+        "description": "Czujniki z integracji Wattcast (ceny giełdowe i 7-dniowa prognoza dla Finlandii, Estonii, Łotwy i Litwy). Podają cenę w ct/kWh bez VAT, opłat sieciowych i marży sprzedawcy: cena zakupu jest z niej tworzona z VAT i dopłatą, które podajesz na stronie opłat. Wattcast jest jedynym źródłem, które może podawać ct/kWh; ceny są czytane jako euro.",
+        "data": {
+          "wattcast_buy_entity_id": "Czujnik ceny (godzina)",
+          "wattcast_forecast_entity_id": "Czujnik prognozy"
+        },
+        "data_description": {
+          "wattcast_buy_entity_id": "Czujnik Wattcast „Price (hour)” lub „Price”. Zawiera ceny na dziś i jutro.",
+          "wattcast_forecast_entity_id": "Czujnik Wattcast „Forecast”. Mówi, które ceny są opublikowane (known_until), i zawiera prognozę na dni po jutrze."
+        }
+      },
       "prices_stromligning": {
         "data_description": {
           "stromligning_buy_current_price": "Strømligning aktualna cena zakupu",
@@ -440,11 +509,15 @@
         "data_description": {
           "refund": "Kwota zwrotu od państwa/dostawcy",
           "sell_fee": "Opłata za kWh, którą kupujący Twoją energię pobiera za jej zakup. Odejmowana od ceny sprzedaży, w przypadku Energi Data Service i Strømligning razem z taryfą sieciową i systemową Energinet, które również kosztuje sprzedaż.",
+          "spot_vat": "VAT w procentach doliczany do ceny giełdowej u dostawców cen giełdowych. Brak wartości domyślnej: zależy od kraju i umowy.",
+          "spot_surcharge": "Co dolicza się za kWh do ceny giełdowej z VAT: opłata sieciowa, podatki i marża sprzedawcy (z VAT). Brak wartości domyślnej: przy 0 cena zakupu byłaby za niska, a plan zbyt optymistyczny. Weź to z rachunku. Podaj ją w walucie czujnika ceny.",
           "powerwall_wear_cost_per_kwh": "Koszt zużycia magazynu na kWh"
         },
         "data": {
           "refund": "Zwrot",
           "sell_fee": "Opłata za sprzedaż",
+          "spot_vat": "VAT (ceny giełdowe)",
+          "spot_surcharge": "Dopłata (ceny giełdowe)",
           "powerwall_wear_cost_per_kwh": "Koszt zużycia"
         },
         "description": "Kwoty na kWh w walucie cen, które zmieniają wartość ładowania, sprzedaży i korzystania z magazynu.",
@@ -553,7 +626,7 @@
         "data_description": {
           "price_country": "Kraj, którego dotyczą ceny. Decyduje, których dostawców cen można wybrać. Proponowany jest kraj z Home Assistant."
         },
-        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy kilku kolejność to Strømligning, potem Energi Data Service, potem Energy Price Forecast: dla każdej godziny używana jest cena pierwszego, który ją ma, a następny uzupełnia luki.",
+        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy kilku kolejność to Strømligning, potem Energi Data Service, potem Energy Price Forecast: dla każdej godziny używana jest cena pierwszego, który ją ma, a następny uzupełnia luki. Integracje cen giełdowych (Spot Forecast, Elprisprognos, Wattcast) są na końcu; podają ceny hurtowe, więc VAT i dopłata są pytane na stronie opłat.",
         "title": "Ceny energii"
       }
     },
@@ -573,13 +646,14 @@
       "min_above_max": "Poziom minimalny musi być niższy niż maksymalny.",
       "invalid_icon": "Użyj nazwy ikony, np. mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
-      "price_unit_subunit": "Ten czujnik podaje cenę w centach lub pensach (albo, w przypadku Energi Data Service, za MWh lub Wh). Wybierz czujnik z ceną za kWh w walucie (np. EUR/kWh).",
+      "price_unit_subunit": "Ten czujnik podaje cenę w centach lub pensach (albo, w przypadku Energi Data Service, Spot Forecast and Elprisprognos, za MWh lub Wh). Wybierz czujnik z ceną za kWh w walucie (np. EUR/kWh). Czujnik ceny Wattcast musi podawać ct/kWh; każda inna jednostka jest dla niego błędna.",
       "price_sensor_not_retail": "To nie jest czujnik z ceną detaliczną. Jako cenę zakupu wybierz czujnik Energy Price Forecast z ceną detaliczną (cena hurtowa jest ceną sprzedaży).",
       "price_sensor_not_wholesale": "To jest czujnik z ceną detaliczną. Jako cenę sprzedaży wybierz czujnik Energy Price Forecast z ceną hurtową (cena detaliczna jest wyższa niż to, co daje sprzedaż).",
       "price_sensor_forecast_only": "Ten czujnik nie ma teraz opublikowanych cen na dziś, tylko prognozę. Jeśli Energy Price Forecast nie publikuje cen dla Twojego rynku (np. Finlandia lub Wielka Brytania), ustaw w nim czujnik Nord Pool lub ENTSO-e jako „Own price source” (dla ceny zakupu wybierz tam też „Own formula” w „Retail price”: oszacowanie nie korzysta z tego źródła cen) i wybierz czujnik ponownie. W przeciwnym razie spróbuj ponownie, gdy ceny zostaną opublikowane.",
+      "price_sensor_forecast_only": "Ten czujnik ma wiersze cen, ale żaden nie jest opublikowany, więc prawdopodobnie nie jest to czujnik ceny integracji (albo jego atrybuty różnią się od oczekiwanych). Wybierz czujnik ceny integracji; w Wattcast czujnik ceny, a jako czujnik prognozy jego czujnik prognozy (nie mogą być zamienione). Jeśli czujnik właśnie się uruchomił, spróbuj ponownie po opublikowaniu cen.",
       "price_currency_mismatch": "Ten czujnik jest w innej walucie niż pozostałe czujniki cen. Używaj czujników cen w jednej walucie (lub odznacz innego dostawcę cen).",
       "no_price_provider": "Wybierz co najmniej jednego dostawcę cen.",
-      "price_provider_country": "Wybrany dostawca cen nie ma cen w tym kraju. Strømligning działa tylko w Danii, a Energi Data Service w Danii, Norwegii, Szwecji, Finlandii, Estonii, Łotwie, Litwie, Francji, Holandii, Belgii, Austrii, Niemczech i Luksemburgu. Wybierz Energy Price Forecast (większość Europy) albo zmień kraj.",
+      "price_provider_country": "Wybrany dostawca cen nie ma cen w tym kraju. Strømligning działa tylko w Danii, a Energi Data Service w Danii, Norwegii, Szwecji, Finlandii, Estonii, Łotwie, Litwie, Francji, Holandii, Belgii, Austrii, Niemczech i Luksemburgu. Wybierz Energy Price Forecast (większość Europy) albo zmień kraj. Integracje cen giełdowych: Spot Forecast w Niemczech, Luksemburgu, Holandii i Norwegii, Elprisprognos w Szwecji i Wattcast w Finlandii, Estonii, na Łotwie i Litwie.",
       "price_provider_no_forecast": "Żaden z wybranych dostawców cen nie podaje prognozy cen, więc planowanie mogłoby używać tylko cen na dziś i jutro. Wybierz dodatkowo innego dostawcę cen.",
       "prefix_entities_exist": "Encje z tym prefiksem już istnieją (np. z wersji PyScript). Wybierz inny prefiks, aby uruchomić obie jednocześnie.",
       "prefix_in_use": "Ten prefiks jest już używany przez inny wpis BattMind.",
@@ -1011,7 +1085,7 @@
     },
     "price_sensor_unit": {
       "title": "Czujniki cen używane przez BattMind podają cenę w złej jednostce ({prefix})",
-      "description": "BattMind ({prefix}) używa czujników cen, które podają cenę w podjednostce waluty (np. ct/kWh lub p/kWh) lub, dla Energi Data Service, za MWh lub Wh:\n{entities}\n\nIch ceny są błędne o czynnik 100 lub 1000, więc BattMind ich nie używa: planuje na podstawie zapisanych cen. Wybierz w ustawieniach cen czujnik z ceną za kWh w walucie (np. EUR/kWh) albo przywróć jednostkę czujnika.\n\nTa naprawa zniknie sama, gdy czujniki znów będą podawać cenę za kWh."
+      "description": "BattMind ({prefix}) używa czujników cen, które podają cenę w podjednostce waluty (np. ct/kWh lub p/kWh) lub, dla Energi Data Service, Spot Forecast and Elprisprognos, za MWh lub Wh:\n{entities}\n\nIch ceny są błędne o czynnik 100 lub 1000, więc BattMind ich nie używa: planuje na podstawie zapisanych cen. Wybierz w ustawieniach cen czujnik z ceną za kWh w walucie (np. EUR/kWh) albo przywróć jednostkę czujnika.\n\nTa naprawa zniknie sama, gdy czujniki znów będą podawać cenę za kWh.\n\nCzujnik ceny Wattcast musi podawać ct/kWh; każda inna jednostka jest dla niego błędna."
     },
     "stromligning_entities": {
       "title": "Czujniki Strømligning potrzebne dla BattMind są niedostępne ({prefix})",
@@ -1050,6 +1124,9 @@
       "options": {
         "energidataservice": "Energi Data Service",
         "energypriceforecast": "Energy Price Forecast (Europa)",
+        "spotforecast": "Spot Forecast (DE, LU, NL, NO)",
+        "elprognos": "Elprisprognos (Szwecja)",
+        "wattcast": "Wattcast (Finlandia, kraje bałtyckie)",
         "stromligning": "Strømligning"
       }
     }

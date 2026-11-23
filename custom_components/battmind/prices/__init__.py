@@ -15,6 +15,7 @@ from .base import BasePriceProvider, CombinedPriceProvider, periods_in_hour, pri
 from .currency import detect_price_scale, price_currency_errors, price_sensor_errors
 from .energidataservice import EnergiDataServicePriceProvider
 from .energypriceforecast import EnergyPriceForecastPriceProvider
+from .spotprices import ElprognosPriceProvider, SpotForecastPriceProvider, WattcastPriceProvider
 from .dashboard import price_dashboard_entities
 from .availability import DEFAULT_COUNTRY, default_providers, provider_errors
 from .factory import create_price_provider, providers_from_options
@@ -34,7 +35,10 @@ __all__ = [
     "BasePriceProvider",
     "CombinedPriceProvider",
     "EnergiDataServicePriceProvider",
+    "ElprognosPriceProvider",
     "EnergyPriceForecastPriceProvider",
+    "SpotForecastPriceProvider",
+    "WattcastPriceProvider",
     "StromligningPriceProvider",
     "create_price_provider",
     "default_providers",

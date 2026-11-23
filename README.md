@@ -113,7 +113,8 @@ every rule explained with examples, [inverter setups](docs/inverters/huawei.md) 
 - **Consumption forecast** from own history: average, EMA or trend
 - **Price providers:** [Energi Data Service](https://github.com/MTrab/energidataservice) and/or
   [Strømligning](https://github.com/MTrab/stromligning), incl. sell price, tariffs, selling fee and refund, and
-  [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) for prices and forecasts in most of Europe;
+  [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) for prices and forecasts in most of Europe, and the
+  spot forecast integrations Spot Forecast, Elprisprognos and Wattcast (wholesale prices with your VAT and surcharge);
   forecast prices are corrected with their measured bias
 - **[Cost price of the battery's energy](docs/how-it-works.md#the-cost-of-a-kwh-from-the-battery):** what the energy in the battery has cost (grid, solar, charge/discharge loss and wear)
 - **Detailed charging history and overview** as markdown
@@ -183,7 +184,7 @@ reloaded. If the file is deleted, the latest version is put back on the next res
 - Home Assistant **2025.1** or newer with recorder (default)
 - A sensor for the home battery's **battery level** (%) and **power** (W)
 - A sensor for the **house consumption** (W)
-- Price integration: [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning) and/or [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant)
+- Price integration: [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning), [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) and/or a spot forecast integration
 - Optional:
   - battery temperature sensor for a configurable charge/discharge safety stop
   - solar production (W)
@@ -237,7 +238,7 @@ Setup is done in the UI, split into small pages with help texts:
    **Check the battery and consumption:** the sign of the battery power and whether the consumption includes the
    battery's charging/discharging are suggested from the recorder's history (as far back as needed) with the numbers
    used, so you can check and change them
-4. **Price providers:** Energi Data Service, Strømligning and/or Energy Price Forecast (buy and sell, and the tariffs of Strømligning), refund, selling fee and wear per kWh (after the price pages, so a new installation suggests it in the currency of the prices)
+4. **Price providers:** Energi Data Service, Strømligning, Energy Price Forecast and/or a spot forecast integration (buy and sell, and the tariffs of Strømligning), refund, selling fee and wear per kWh (and the VAT and the surcharge of the spot forecast integrations) (after the price pages, so a new installation suggests it in the currency of the prices)
 5. **Solar panels:** production, the inverter's max. power, fixed sell price or hourly price, and Solcast
 6. **Weather:** hourly and daily forecast (only with solar panels)
 7. **Advanced:** number of days to plan, interval, dashboard and diagnostic file log

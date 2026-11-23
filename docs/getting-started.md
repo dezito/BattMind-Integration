@@ -10,7 +10,7 @@ few days of watching the plan before you trust it.
 | A **battery level** sensor (%) | where the plan starts from |
 | A **battery power** sensor (W or kW) | measures what goes in and out (charging history, cost price, loss) |
 | A **house consumption** sensor (W or kW) – the house's consumption, not the grid import | the consumption forecast per hour |
-| [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning) and/or [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) | buy and sell prices per hour |
+| [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning), [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) and/or a spot forecast integration | buy and sell prices per hour |
 | A way to control the inverter from Home Assistant | BattMind only decides – your automation does it |
 
 Optional, but recommended with solar panels:
@@ -146,10 +146,24 @@ again.
 
 ### Prices
 
-Choose Energi Data Service, Strømligning and/or Energy Price Forecast. With several, the priority is Strømligning,
-then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour,
+Choose Energi Data Service, Strømligning, Energy Price Forecast and/or a spot forecast integration. With several, the priority is Strømligning,
+then Energi Data Service, then Energy Price Forecast, then the spot forecast integrations: the price of the first one that has one is used for every hour,
 and the next fills the gaps (also in the what-if and the analysis). All price sensors must be in the same currency
 (a backup provider in another currency is refused).
+
+**Spot forecast integrations** (wholesale prices with a forecast, for markets where no retail price sensor exists):
+[Spot Forecast](https://github.com/cygnusb/ha-spot-forecast) (Germany, Luxembourg, the Netherlands and Southern Norway; Denmark
+is left out, Energi Data Service and Strømligning are better there), [Elprisprognos](https://github.com/AlexAsplund/ha-elprognos)
+(Sweden) and [Wattcast](https://github.com/SectorTll/wattcast-homeassistant) (Finland, Estonia, Latvia, Lithuania; it gives
+ct/kWh, the only subunit that is accepted, and needs its forecast sensor too). They give the exchange price, not a price a household pays.
+The buy price is made from it: **spot price × (1 + VAT) + surcharge**, where the VAT (%) and the surcharge per kWh (grid fee,
+taxes and the supplier's margin, with VAT) are asked on the fee page and have **no default**: without them there are no prices,
+because a surcharge of 0 would make every buy price too low. The sell price is the spot price less the sell fee. A flat surcharge
+cannot follow a grid tariff that changes through the day, so the plan is less exact than with a retail price. The price page refuses a sensor that has price rows but none of them
+published (it is probably not the price sensor of the integration) and a price per MWh or Wh. The recorded history
+of these sensors is not used (their state is a wholesale price): BattMind stores their published prices in its own price history,
+which fills hours that have no price, but the what-if has no history for them (it needs Energi Data Service, Strømligning or
+Energy Price Forecast in the setup too). Elprisprognos only keeps today's coming hours in its list.
 
 The **country** of the prices is chosen on the same page as the providers (Home Assistant's country is suggested, and a new
 entry outside Denmark starts with Energy Price Forecast). A provider with no prices in the country is refused: Strømligning

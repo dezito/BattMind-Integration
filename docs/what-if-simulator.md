@@ -298,7 +298,7 @@ filled or assumed. Hours without data for every required entity are skipped, so 
 older valid history. The calculation treats each continuous section separated by a gap independently:
 the first section uses the selected starting level and later sections restart at the battery's minimum
 level rather than carrying an unknown state of charge across missing data. If several price providers are configured, each hour uses the price history of the first one
-(Strømligning, then Energi Data Service, then Energy Price Forecast) and falls back to the next for hours where
+(Strømligning, then Energi Data Service, then Energy Price Forecast; the spot forecast integrations have no history, their recorded state is a wholesale price; with only these the what-if is not available) and falls back to the next for hours where
 it has no history, the same priority as the planner. Without a sell sensor, Energy Price Forecast sells like the live planner: the what-if reads the history of the buy sensor as
 the sell history and takes the sell fee off (the setup requires a sell sensor, but an entry restored from a backup may lack
 it). A retail price is higher than what a sale pays, so no module payback or year estimate is given then
