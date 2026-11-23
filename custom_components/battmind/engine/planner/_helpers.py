@@ -116,15 +116,24 @@ def _summary(reason: str) -> tuple[str, list[str], str, str] | None:
     return title, values, other_day, body
 
 
-def _group_hour_rules(rows: list[tuple[datetime.datetime, str]]) -> list[list[tuple[datetime.datetime, str]]]:
-    """Consecutive hours with the same rule (title of the reason) grouped."""
+def _group_hour_rules(
+    rows: list[tuple[datetime.datetime, str]], period_ends: dict[datetime.datetime, datetime.datetime] | None = None
+) -> list[list[tuple[datetime.datetime, str]]]:
+    """Consecutive hours with the same rule (title of the reason) grouped.
+
+    period_ends: where the period that starts at a timestamp ends (price periods shorter than an hour): a row that
+    starts where the previous one ends follows it, so the periods of one window are grouped, a gap starts a new one."""
     groups: list[list[tuple[datetime.datetime, str]]] = []
     for timestamp, reason in rows:
         parts = _summary(reason)
         if groups and parts:
             last_timestamp, last_reason = groups[-1][-1]
             last_parts = _summary(last_reason)
-            consecutive = reset_time_to_hour(timestamp) - reset_time_to_hour(last_timestamp) == datetime.timedelta(hours=1)
+            last_end = (period_ends or {}).get(last_timestamp)
+            if last_end is not None:
+                consecutive = timestamp == last_end
+            else:
+                consecutive = reset_time_to_hour(timestamp) - reset_time_to_hour(last_timestamp) == datetime.timedelta(hours=1)
             if consecutive and last_parts and last_parts[0] == parts[0] and last_parts[2] == parts[2]:
                 groups[-1].append((timestamp, reason))
                 continue

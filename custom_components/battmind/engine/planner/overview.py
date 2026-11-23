@@ -135,9 +135,16 @@ class Overview:
                     (timestamp, value["reason"] if isinstance(value, dict) and "reason" in value else value)
                     for timestamp, value in sorted(joined.items(), key=lambda kv: kv[0])
                 ]
-                for group in _group_hour_rules(rows):
+                # with the rules in control a charge period is shown to end where its price period does (15 minutes with 15
+                # minute prices, the hour without); the optimiser plans whole hours (a session at :00 may charge all of it)
+                period_ends = {} if shadow.get("controls") or not self.price_provider else {
+                    timestamp: self.price_provider.buy_period_end(timestamp) for timestamp in data["charging_sessions"]
+                }
+                for group in _group_hour_rules(rows, period_ends):
                     first, last = group[0][0], group[-1][0]
-                    end = joined.get(last, {}).get("period_end") if isinstance(joined.get(last), dict) else None
+                    end = period_ends.get(last)
+                    if end is None:
+                        end = joined.get(last, {}).get("period_end") if isinstance(joined.get(last), dict) else None
                     if end is None:
                         end = reset_time_to_hour(last) + datetime.timedelta(hours=1)  # every range ends when the next begins
                     reason = group[0][1] if len(group) == 1 else _joined_reason(group)
