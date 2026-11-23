@@ -212,21 +212,30 @@ what each action asks, run the test: turn on **Test my automation** under *Setti
 `sensor.<prefix>_powerwall_action`, measures what the battery does, and shows the result as a table under the switch
 (the attribute `markdown` of `sensor.<prefix>_automation_test`).
 
+The table lists every step from the moment the test starts, so you can see what will be tested and how far it is:
+⏳ waits, ▶️ is tested now, and a step gets its result (✅, ❌ or 🔧) when it is done. A line above the table counts
+the steps that are done, and when the test ends only the results are left. The steps are tested in the order of the
+table below; *Stop battery* is last.
+
 | Step | Passes when | Needs |
 |---|---|---|
 | Charge from grid | the battery charges at 200 W or more than the sun alone could | a battery that is not full |
 | Forced discharge | it discharges 200 W or more than the house uses | a battery above the usage reserve |
-| Stop battery | it neither charges nor discharges (under 100 W) | the battery moving (200 W or more) just before, and the house using 300 W or more than the sun gives, or the sun giving 300 W or more than the house uses (normal operation would then move the battery) |
-| Discharge allowed | it discharges into the house, at least half of what the house lacks or the battery can give, and not more than the house uses; after a sale it fails if the battery still sells at least half of what it sold before | the house using 300 W or more than the sun gives, the battery not discharging just before or selling (discharging 200 W or more than the house lacked from the sun, as the forced discharge of the step before does when *Stop battery* did not stop the battery between), and no car charging |
+| Discharge allowed | it discharges into the house, at least half of what the house lacks or the battery can give, and not more than the house uses; after a sale it fails if the battery still sells at least half of what it sold before | the house using 300 W or more than the sun gives, the battery not discharging just before or selling (discharging 200 W or more than the house lacked from the sun, as the forced discharge of the step before does), and no car charging |
 | Solar charging only | it does not discharge | the house using 300 W or more than the sun gives, and the battery discharging (200 W or more) just before |
 | Solar charging blocked | it does not charge | a solar surplus of 300 W or more, no car charging, and the battery charging (200 W or more) just before |
+| Stop battery | it neither charges nor discharges (under 100 W) | the battery moving (200 W or more) just before (the test moves it first, see below), and the house using 300 W or more than the sun gives, or the sun giving 300 W or more than the house uses (normal operation would then move the battery) |
 
 A step that asks the battery to stop or to do less can only be proven by a change: the measurement taken just before
 the step has to show the opposite, otherwise the step is not proven (a battery that stood still already, or that
-a step before left in a forced mode, would pass without your automation doing anything). *Discharge allowed* is
-proven from both sides: from a battery that stood still (after *Stop battery*), and from a battery that still sold
-(after *Forced discharge*, when *Stop battery* did not stop the battery: no steps, skipped or failed), where the sale
-must end and the battery must still feed the house. Only a battery that fed the house already leaves it not proven,
+a step before left in a forced mode, would pass without your automation doing anything). *Stop battery* is the last
+step, and the steps before it leave the battery standing still, so when the battery does not move just before it (and
+the step would not be skipped for another reason, such as a full battery or no house load), the test first publishes
+*Forced discharge* (or *Charge from grid* when that one can't be run) until the battery moves, up to 5 minutes, and then
+publishes the stop over it. A battery that does not move even then leaves *Stop battery* not tested, with the reason
+that the battery stood still already. *Discharge allowed* is proven from both sides: from a battery that
+still sold (after *Forced discharge*), where the sale must end and the battery must still feed the house, and from a
+battery that stood still (when the step before it was skipped or did not move it). Only a battery that fed the house already leaves it not proven,
 and so does a battery that still gives a little more than the house uses after the sale ended (a battery power
 measured before the inverter can read a few percent above the house).
 
@@ -292,7 +301,7 @@ What the test does and does not do:
 | ↳ `hour_cost_prediction_ema` / `_trend` / `_avg` | the forecast consumption per hour (and `sum_*` accumulated) |
 | ↳ `optimizer_shadow_summary` | totals of the [optimised plan, the rule plan and self consumption](rules/optimizer.md#comparing-the-two), and the profit requirements steering each of them (`requirements`, a steering figure, not money) |
 | ↳ `plan_check` | whether the battery did what the action asked, hour by hour: [see above](#does-the-battery-follow-the-action) |
-| `sensor.<prefix>_automation_test` | the status of the [test of your automation](#test-your-automation) (idle, running, done, stopped, failed); the result is in `markdown` and `steps` |
+| `sensor.<prefix>_automation_test` | the status of the [test of your automation](#test-your-automation) (idle, running, done, stopped, failed); the result is in `markdown` and `steps`; while the test runs `plan` lists every step and `current` the one that is measured now |
 | `switch.<prefix>_automation_test_run` | on while the test runs; turn it on to run the test and off to stop it |
 | `sensor.<prefix>_current_charging_rule` | why, as text. The attributes `worker_thread` and `calculation_seconds` show where and how fast the plan was calculated |
 | `sensor.<prefix>_battery_level_needed` | the battery level needed until the next charge (%), with the forecast in `battery_level_flow_prediction` |
