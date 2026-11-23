@@ -1,4 +1,4 @@
-"""Replay a debug export (custom_components/battmind/management/debug_export.py) in the engine.
+r"""Replay a debug export (custom_components/battmind/management/debug_export.py) in the engine.
 
     <venv python> tests/debug_replay.py battmind_debug_20261025_120000.json.gz [failed | planning | <index>]
 
