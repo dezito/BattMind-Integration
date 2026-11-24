@@ -457,6 +457,14 @@ Keep these invariants when touching any planner rule:
   price data and DBs raw and convert at use, never clamp at 0.
 - The test harness has no sell entity (sell = buy price); use the
   `solar_engine()` helper in `tests/test_engine.py` for realistic scenarios.
+- The sun sentence of the overview (`_solar_day_lines` in `engine/planner/overview.py`, today and tomorrow, below the solar
+  surplus table) is text only and reads the plan's own figures: `solar_kwh_prediction` (only when all 24 hours are there) and
+  `battery_level_flow`. The level at the start of an hour is the end level of the hour before (`_solar_day_start_level`),
+  never the first element of the hour's list: the planner writes `[max, 0.0]` for the hour that hits the maximum. The text
+  never says where the surplus that does not fit goes (it may be sold, charged into a Cable Juice Planner car, or curtailed),
+  and never claims the battery is filled later when solar charging is held back (the whole period optimisation holds it back
+  without that). In tests the solar sensor is set after the plan: configured from the start, the planner overwrites a
+  test's `solar_prediction_db` from the empty history.
 
 ### Sell price (`calculate_sell_price()` in `prices/base.py`)
 

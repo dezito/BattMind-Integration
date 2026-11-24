@@ -23,7 +23,7 @@ row (not in a table with a single row), also inside a group of hours.
 | **Electricity prices** | the buy price incl. taxes, the sell price, the price forecast and the solar forecast. The title shows 🔵 lowest, 🟢 average and 🟣 highest price. A warning with a restart button appears if the price integration is down |
 | **Current rule and action** | `sensor.<prefix>_current_charging_rule` and the action, incl. the battery's power right now |
 | **Charging history** | each charge and discharge with its rule, kWh and price, and totals per month |
-| **Overview** | the key figures of the period, the plan per day (the hours of the day as squares, and a row per stretch of hours with its reason and the battery level; click a row to see the numbers), the full bill of the period (with the card_mod add-on installed, each day starts with a line) without/with the battery (with [Cable Juice Planner](cookbook.md#together-with-cable-juice-planner-ev) also the cars' planned charging and the bill incl. the cars), and the solar forecast per day |
+| **Overview** | the key figures of the period, the plan per day (the hours of the day as squares, and a row per stretch of hours with its reason and the battery level; click a row to see the numbers), the full bill of the period (with the card_mod add-on installed, each day starts with a line) without/with the battery (with [Cable Juice Planner](cookbook.md#together-with-cable-juice-planner-ev) also the cars' planned charging and the bill incl. the cars), and the solar forecast per day, with a sentence about the sun for today and tomorrow (see [The sun in words](#the-sun-in-words)) |
 | **Status** | above the emoji explanation: the battery level and power, house consumption, solar production and kWh charged by solar, the current buy price and `sensor.<prefix>_analysis` (savings this month). Rows whose entity is not configured are left out |
 
 | Battery level forecast | Electricity prices |
@@ -31,6 +31,28 @@ row (not in a table with a single row), also inside a group of hours.
 | ![Battery level forecast with the planned charging and discharging](../images/home-battery-soc-forecast.png) | ![Electricity prices with sell price, price forecast and solar forecast](../images/electricity-prices-per-hour.png) |
 
 At the top: **Force planning** recalculates the plan now. The sidebar has the emoji explanation – see [Emojis](emojis.md).
+
+### The sun in words
+
+With solar configured and *Solar surplus charging* on, the overview has one sentence per day for today and tomorrow, below
+the table of the expected solar surplus. It is text only: it says what the plan already counts on and never changes it. For
+example: *Today: the sun gives about 21.0 kWh of surplus between 09:00 and 16:00. The battery is full (100 %) by 12:00. About
+12.0 kWh of surplus after that does not fit in the battery.*
+
+| Part | Where it comes from |
+|---|---|
+| The sun's surplus and its hours | the plan's forecast of the solar surplus per hour (what is left after the house), the hours with at least 0.1 kWh. For today only the hours that are left |
+| *The battery is full (x %) by …* | the first sun hour whose battery level in the plan, at the end of the hour, is at the maximum level of the solar settings. The level is the plan's, so grid charging counts too |
+| *The battery reaches about x % by …* | the plan's level at the end of the last sun hour, when the battery is not full |
+| *The battery is already full when the sun comes* | the plan's level at the end of the hour before the first sun hour is at the maximum: there is no room for any of the surplus |
+| *About x kWh of surplus after that does not fit in the battery* | the forecast surplus of the sun hours after the full hour, from 0.5 kWh |
+| *Solar charging is held back …* | the hours the plan holds solar charging back to sell the surplus at a higher price: [Optimise solar charging](rules/solar.md), or the whole period optimisation. Whether the battery is filled later is not said |
+
+The surplus is a forecast, so the sentence says *about*. The text does not say where the surplus that does not fit goes: it may be
+sold to the grid, but a car charging with it (Cable Juice Planner) or a limit on the inverter is possible too, and a planned sale in a
+sun hour lets the sun fill the battery again. The kWh in the sentence are the forecast of the hours that are left (for today) and
+are not capped to the room in the battery, unlike the table above it, which is capped and counts the whole day. A day gets no sentence when there is no sun hour left, when solar
+charging is off in the plan, or when the forecast does not cover all 24 hours of the day (an hour of a value would be a guess).
 
 ## Settings
 
