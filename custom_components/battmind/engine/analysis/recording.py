@@ -6,6 +6,8 @@ import logging
 
 from ...const import HISTORY_BUFFER_HOURS
 from ...utils.efficiency import EFFICIENCY_BACKFILL_VERSION, add_efficiency_measurement, measure_efficiency
+from ...utils.taper import add_taper_measurement
+from .plan_check import hour_key
 from ...utils.helpers import days_between, reset_time_to_hour
 from ...utils.power import unit_factor_to_w
 from .helpers import ANALYSIS_DAYS, FLOWS_VERSION, FORECAST_TYPES, PRICE_FORECAST_DAYS, PRICE_HOURS_DAYS, SCORE_VERSION, _is_num, _num, _r, evaluate_price_day, grid_cost, hindsight_cost, hourly_prices, rules_of_entries, summarize_day
@@ -28,6 +30,7 @@ class AnalysisRecording:
             if timestamp.hour == 23:
                 self._analysis_record_plan(timestamp.date() + datetime.timedelta(days=1))
             self._analysis_record_efficiency()
+            self._analysis_record_taper(timestamp.replace(minute=0, second=0, microsecond=0))
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Analysis of the hour %s failed", timestamp)
         self.publish_analysis()
@@ -162,6 +165,56 @@ class AnalysisRecording:
 
     def efficiency_backfilled(self) -> bool:
         return (self.analysis_db.get("efficiency") or {}).get("backfilled") == EFFICIENCY_BACKFILL_VERSION
+
+    def _taper_hours(self) -> set[str]:
+        """The hours (plan check keys) that proved a grid charge: grid charging held at least 3/4 of the hour and the battery took more
+        than the sun could have given (plan_check "ok"). There the battery's own limit, not the source, sets the power. A solar charge
+        is as slow as the sun, a partial or held charge as slow as it was asked to be, and none of them is accepted."""
+        table = self.analysis_db.get("plan_check") or {}
+        return {key for key, entry in table.items() if isinstance(entry, dict) and entry.get("a") == "grid_charging" and entry.get("ok") is True}
+
+    def _taper_measure(self, flow: list, levels: list, start: float, end: float) -> float:
+        """Add the charging power measured between two battery levels per band (utils/taper.py); returns the time measured until.
+
+        Only measurements that end in an hour where the plan asked for grid charging count (see _taper_hours)."""
+        database = self.analysis_db.setdefault("taper", {})
+        details: list = []
+        _, until = measure_efficiency(
+            flow,
+            levels,
+            start,
+            end,
+            unit_factor_to_w(self._wc.units.get(self.config["home"]["entity_ids"]["powerwall_watt_flow_entity_id"])),
+            self.config["home"]["invert_powerwall_watt_flow_entity_id"],
+            self.config["solar"]["powerwall_battery_size"],
+            details,
+        )
+        accepted = self._taper_hours()
+
+        def local(timestamp: float) -> datetime.datetime:
+            return datetime.datetime.fromtimestamp(timestamp, self._wc.tz).replace(tzinfo=None)
+
+        for direction, start_level, end_level, ac_kwh, seconds, ended in details:
+            # the whole measurement is inside accepted hours: a one that began in a solar hour is not the battery's pace
+            if direction == "charging" and hour_key(local(ended)) in accepted and hour_key(local(ended - seconds)) in accepted:
+                # the local day (not the UTC day): a night charge across 00:00 UTC is one night
+                add_taper_measurement(database, start_level, end_level, ac_kwh, seconds, local(ended).date().toordinal())
+        self.mark_dirty("analysis")
+        return until
+
+    def _analysis_record_taper(self, hour_start: datetime.datetime) -> None:
+        """The charging power per battery level band of the hour that ended, measured since the last time (never fails the hour)."""
+        try:
+            ids = self.config["home"]["entity_ids"]
+            flow_id, level_id = ids["powerwall_watt_flow_entity_id"], ids["powerwall_battery_level_entity_id"]
+            if self._wc is None or not flow_id or not level_id:
+                return
+            database = self.analysis_db.setdefault("taper", {})
+            end = (hour_start + datetime.timedelta(hours=1)).replace(tzinfo=self._wc.tz).timestamp()
+            start = max(_num(database.get("until")), end - (HISTORY_BUFFER_HOURS - 2) * 3600)
+            database["until"] = self._taper_measure(self._wc.buffers.get(flow_id) or [], self._wc.buffers.get(level_id) or [], start, end)
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Could not measure the charging power taper")
 
     def analysis_efficiency_backfill(self, data: dict) -> None:
         """The first time: the measurements of the recorder history {"flow": rows, "level": rows} (coordinator).

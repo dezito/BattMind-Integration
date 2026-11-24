@@ -760,6 +760,9 @@
       "enhance_battery_efficiency": {
         "name": "Forbedr batteriets virkningsgrad"
       },
+      "learn_charge_taper": {
+        "name": "Lær ladeeffekt efter batteriniveau"
+      },
       "price_forecast_correction": {
         "name": "Ret prisprognosen"
       },

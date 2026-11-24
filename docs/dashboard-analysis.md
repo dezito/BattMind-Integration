@@ -200,6 +200,33 @@ as the whole-period optimiser does. **Enhance battery efficiency** under **Setti
 whether the curves are used in calculations. Turning it off keeps the graph, the saved curves and the
 measurements, but planning uses the round-trip loss.
 
+#### Charging power by battery level
+
+A battery charges more slowly when it is nearly full, so the full *Max. charging power* is not reached all the way
+to 100 %. BattMind measures this from the same data as the efficiency: every measurement also gives the average AC
+power at a battery level, kept per band of 10 % (`efficiency_curves.taper` in the `analysis` attribute of
+`sensor.battmind_analysis`: the bands, the power, the number of measurements and days, and the caps in use).
+
+- **Careful on purpose.** Only measurements from hours that proved a grid charge count (the plan asked for it for at
+  least 3/4 of the hour and the battery took more than the sun could have given, see the plan check): there the battery
+  sets the power. A charge by the sun is as slow as the sun is, and would teach a taper that is not there.
+  A band's power is the 90th percentile of its measurements, and it needs at least 6 measurements from 3 different
+  days. A cap is only learned when the battery clearly charged faster in another band (below 90 % of the best
+  band's power): a battery that is only ever charged slowly keeps the rate you set. A cap is never above that rate.
+- **How it is used.** An hour is walked through the bands: the battery charges at the power of the band its
+  level is in, so an hour that starts at 85 % takes less than one that starts at 50 %. The optimisation plans within
+  that from the start, the level forecast and the solar charging use it, and the rules' charge hours that ask more
+  than the battery takes are cut to it (the reason of the charge says so). The plan that blocks solar charging to sell
+  the sun does not count on the sun refilling the battery faster than the slowest band takes. Nothing changes without
+  measurements.
+- **It takes a few days.** The history of Home Assistant's recorder has no plan to tell grid charges from solar
+  charges, so it is not read: the taper is learned from the grid charges BattMind plans from now on. A cap stays until
+  newer measurements replace it (the newest 200 of each band are kept).
+- **Where the plan is cut.** The rules' charge hours are cut to what the battery takes; a sale that was paired with a
+  charge that was cut keeps its planned kWh until the next plan (it is made again every interval from the real level).
+- **Settings → Control → Learn charging power by battery level** decides whether the plan counts on it. The
+  measuring goes on when it is off. The [what-if simulator](what-if-simulator.md) does not use it.
+
 <details>
 <summary>Screenshot</summary>
 

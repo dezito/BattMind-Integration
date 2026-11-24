@@ -98,7 +98,8 @@ class FutureChargeRules:
             return
 
         for cheap_timestamp in cheap_timestamps:
-            for i in range(int(round_up(kwh_needed / ctx.max_kwh_charging) + 1)):
+            # hours enough for the energy at the pace of the slowest band (where the battery tapers it takes more of them)
+            for i in range(int(round_up(kwh_needed / self.slowest_charge_kwh(ctx.max_kwh_charging)) + 1)):
                 if finished:
                     break
                 base_timestamp = cheap_timestamp - datetime.timedelta(hours=i)

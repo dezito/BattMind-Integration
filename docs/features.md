@@ -27,6 +27,7 @@ The full feature list. Back to the [README](../README.md) · [Documentation inde
   - **Sell excess kWh:** sell the energy that isn't used before the battery is empty or full again (forced discharge)
   - **Use midnight battery level:** only look until midnight instead of the whole forecast period
   - min. profit per kWh and in total, min. kWh per sale, reserve for the house, and exclude specific selling hours
+- **Charging power by battery level** – BattMind measures how much slower the battery charges when it is nearly full and the plan only counts on the energy it takes ([read more](dashboard-analysis.md#charging-power-by-battery-level))
 - **[Storm warning](rules/storm.md) (optional)**
   - Choose MeteoAlarm's binary sensor under *Configure → Solar panels, weather and storm warning* (off by default): for a wind, snow/ice or thunderstorm warning with a start time at or above the chosen level, the battery is kept at the level the house needs during the warning with no solar plus a buffer for a forecast that is off (at least 20 %), and nothing is sold under it
 - **[Solar](rules/solar.md) (optional)**

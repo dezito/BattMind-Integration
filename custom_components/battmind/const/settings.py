@@ -28,6 +28,9 @@ SWITCH_SETTINGS: dict[str, dict[str, Any]] = {
     "enhance_battery_efficiency": {"default": True},
     # correct the price forecast with its measured bias (engine/analysis)
     "price_forecast_correction": {"default": True},
+    # use the measured charging power per battery level (utils/taper.py): the learning always runs, this decides if the plan counts on it.
+    # Not a what-if setting: the simulator has no measurements of its own and does not simulate the taper
+    "learn_charge_taper": {"default": True},
     # use the consumption forecast type that hit best the last 30 days (engine/analysis)
     "auto_forecast_type": {"default": False},
 }

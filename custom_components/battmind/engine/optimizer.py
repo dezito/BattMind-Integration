@@ -13,6 +13,7 @@ import math
 from dataclasses import dataclass, field, replace
 
 from ..utils.efficiency import EfficiencyCurve, efficiency_at_power
+from ..utils.taper import charge_energy_kwh, level_before_charge
 from .storm import STORM_RULE, STORM_SHORTFALL_PENALTY
 
 HOLD = "force_solar_only_charging"  # the house buys from the grid while the battery keeps its energy
@@ -80,6 +81,9 @@ class OptimizerConfig:
     max_age_hours: float | None = None
     charged_before: tuple = ()  # ((hour, % level added), ...) charged before the first hour (the charging history)
     unaged: float = 0.0  # % level of unknown age
+    # ((band start %, cap kW), ...): the battery takes less than max_charge in these battery level bands (utils/taper.py), () = no taper.
+    # An hour charges at the lowest cap of the bands it can reach; every charge in the optimiser goes through step_hour()
+    charge_taper: tuple = ()
     # Full charge (number full_charge_recommended): the battery has to reach full_level % at some hour up to and
     # including the hour that starts at full_deadline (naive local, like the hours). None: no requirement (the plan is
     # exactly the one without it). It is never a hard constraint: when it can't be met it is dropped (full_dropped).
@@ -128,6 +132,9 @@ def step_hour(
     available = max(level - cfg.level_min, 0.0) * to_kwh
     curve_fallback = cfg.curve_fallback_efficiency or cfg.efficiency
     max_charge = cfg.max_charge * hour.fraction
+    if cfg.charge_taper and (action == "grid_charging" or (cfg.solar_charging and hour.solar > 0.0 and action in ("discharge_allowed", "force_solar_only_charging"))):
+        # the battery charges at the cap of the band its level is in: the hour is walked through the bands (only a charging action needs it)
+        max_charge = charge_energy_kwh(cfg.charge_taper, level, hour.fraction, cfg.max_charge, to_kwh, cfg.efficiency)
     max_discharge = cfg.max_discharge * hour.fraction
     bought = hour.consumption
     exported = hour.solar
@@ -205,7 +212,9 @@ def _later(hours: list[OptimizerHour], cfg: OptimizerConfig) -> list[_Later]:
         if current != day:
             solar, day = 0.0, current
         later[index] = _Later(solar, buy)
-        solar += min(max(hour.solar, 0.0), cfg.max_charge * hour.fraction)
+        # where the battery tapers the sun can't refill it faster than the slowest band: never counted on more than that
+        rate = min([cfg.max_charge, *(cap for _, cap in cfg.charge_taper)]) if cfg.charge_taper else cfg.max_charge
+        solar += min(max(hour.solar, 0.0), rate * hour.fraction)
         buy = max(buy, hour.buy)
     return later
 
@@ -373,6 +382,25 @@ def enforce_storm_floor(
         record(index, action)
         limits[index] = limit
     return actions, limits, changed
+
+
+def taper_cuts(
+    hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfig, actions: list[str], limits: list[float | None], result: OptimizerResult
+) -> dict[int, float]:
+    """{index: kWh} of the grid charge hours of a given plan (the rules') that ask more than the battery takes.
+
+    result is simulate() of the plan with cfg (the battery tapers there); the same hour without the taper is what the plan was
+    made for. Only the taper counts: an hour that asks more than its part of an hour allows is not a taper's doing."""
+    plain = replace(cfg, charge_taper=())
+    cuts: dict[int, float] = {}
+    for index, hour in enumerate(hours):
+        if actions[index] != "grid_charging":
+            continue
+        before = result.levels[index - 1] if index else start_level
+        full = step_hour(hour, before, "grid_charging", plain, limits[index])[3]
+        if result.grid_kwh[index] < full - 0.03:
+            cuts[index] = result.grid_kwh[index]
+    return cuts
 
 
 def _allowed(hour: OptimizerHour, level: float, action: str, cfg: OptimizerConfig, delivered: float, later: _Later | None = None) -> bool:
@@ -925,7 +953,11 @@ def carry_floor(next_hours: list[OptimizerHour], cfg: OptimizerConfig) -> float 
             continue
         required = hour.floor
         for earlier in next_hours[: index + 1][::-1]:
-            required = max(cfg.level_min, required - cfg.max_charge * earlier.fraction * cfg.efficiency * to_percent)
+            # the lowest level the hour can start at and still end at `required` (the battery tapers on the way up)
+            if cfg.charge_taper:
+                required = max(cfg.level_min, level_before_charge(cfg.charge_taper, required, earlier.fraction, cfg.max_charge, cfg.battery_size / 100.0, cfg.efficiency))
+            else:
+                required = max(cfg.level_min, required - cfg.max_charge * earlier.fraction * cfg.efficiency * to_percent)
         carry = required if carry is None else max(carry, required)
     return carry if carry is not None and carry > cfg.level_min + 1e-6 else None
 

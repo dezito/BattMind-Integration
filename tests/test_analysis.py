@@ -213,6 +213,7 @@ def test_efficiency_curves_are_published_for_the_analysis_chart() -> None:
         "discharging": [{"power": 500, "efficiency": 82.0}, {"power": 3000, "efficiency": 94.0}],
         "source": {"charging": "configured", "discharging": "configured"},
         "measured": {"charging": [], "discharging": []},
+        "taper": {"enabled": True, "bands": [], "caps": []},
     }
 
 
@@ -229,6 +230,13 @@ def _measured_engine():
     result = engine.run_job(snap, engine.hour_end, now.replace(minute=0))
     assert result.error is None, result.error
     return engine, now, result, snap.buffers
+
+
+def test_the_charging_power_per_battery_level_is_measured_in_the_same_hour_end() -> None:
+    """The taper is published with the efficiency curves. These charges were not planned as grid charging, so they teach nothing."""
+    engine, now, result, buffers = _measured_engine()
+    taper = result.attributes["analysis"]["efficiency_curves"]["taper"]
+    assert taper == {"enabled": True, "bands": [], "caps": []}
 
 
 def test_efficiency_is_measured_every_hour_and_used_without_a_configured_curve() -> None:

@@ -6,6 +6,7 @@ import logging
 
 from ...const import CHARGING_TYPES
 from ...utils.efficiency import learned_efficiency_curve, measured_efficiency_steps, parse_efficiency_curve
+from ...utils.taper import band_powers, taper_caps
 from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_AUTO_MIN_DAYS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_VERSION, _is_num, _num, forecast_errors, loss_days, measured_loss
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,6 +34,15 @@ class AnalysisPublishing:
                 {**row, "power": round(row["power"]), "efficiency": round(row["efficiency"] * 100, 2), "kwh": round(row["kwh"], 2)}
                 for row in measured
             ]
+        # the charging power per battery level band: what is measured, and the caps the plan counts on
+        result["taper"] = {
+            "enabled": self.enabled("learn_charge_taper"),
+            "bands": [
+                {"band": band, "power": round(row["power"]), "measurements": row["n"], "days": row["days"], "judged": row["judged"]}
+                for band, row in sorted(band_powers(self.analysis_db.get("taper")).items())
+            ],
+            "caps": [{"band": band, "power": round(cap * 1000)} for band, cap in self.charge_taper()],  # the caps the plan counts on
+        }
         return result
 
     def publish_analysis(self) -> None:

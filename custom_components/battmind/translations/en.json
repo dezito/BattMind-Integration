@@ -760,6 +760,9 @@
       "enhance_battery_efficiency": {
         "name": "Enhance battery efficiency"
       },
+      "learn_charge_taper": {
+        "name": "Learn charging power by battery level"
+      },
       "price_forecast_correction": {
         "name": "Correct the price forecast"
       },

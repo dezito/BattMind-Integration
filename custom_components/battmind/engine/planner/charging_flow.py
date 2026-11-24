@@ -66,7 +66,8 @@ class ChargingFlow:
                 solar = charging_plan[day]["solar_kwh_prediction"]
                 solar_surplus = solar[hour] if hour < len(solar) else 0.0
                 if not hour_in(timestamp, charging_plan[day]["blocked_solar_charge_timestamps"]):
-                    solar_added = kwh_to_percentage(min(solar_surplus, max_kwh_charging)) * efficiency
+                    # the sun charges at the battery's own pace: less than the charge rate where it tapers
+                    solar_added = kwh_to_percentage(min(solar_surplus, self.charge_rate_kwh(battery_level, max_kwh_charging))) * efficiency
 
             if hour not in charging_plan[day]["hour_cost_prediction"][forecast_type]:
                 continue

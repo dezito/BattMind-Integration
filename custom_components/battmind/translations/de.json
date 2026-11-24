@@ -611,6 +611,9 @@
       "enhance_battery_efficiency": {
         "name": "Batterieeffizienz verbessern"
       },
+      "learn_charge_taper": {
+        "name": "Ladeleistung nach Akkustand lernen"
+      },
       "price_forecast_correction": {
         "name": "Preisprognose korrigieren"
       },

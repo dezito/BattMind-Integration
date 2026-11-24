@@ -400,6 +400,9 @@ views:
               - entity: switch.battmind_enhance_battery_efficiency
                 name:
                   type: entity
+              - entity: switch.battmind_learn_charge_taper
+                name:
+                  type: entity
               - entity: switch.battmind_price_forecast_correction
                 name:
                   type: entity
