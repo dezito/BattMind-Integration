@@ -139,6 +139,9 @@ SELECTORS: dict[str, Any] = {
     "forecast_entity_id": _entity("sensor", integration="solcast_solar"),
     "hourly_service_entity_id": _entity("weather"),
     "daily_service_entity_id": _entity("weather"),
+    # storm warning: MeteoAlarm's binary sensor (device class safety), and the lowest level that counts
+    "storm_warning_entity_id": _entity("binary_sensor", device_class="safety"),
+    "storm_min_level": _number(2, 4, 1),
     # advanced / database
     "cron_interval": selector.SelectSelector(
         selector.SelectSelectorConfig(options=CRON_INTERVALS, mode=selector.SelectSelectorMode.DROPDOWN)
@@ -181,6 +184,7 @@ REQUIRED_KEYS = {
 }
 LIST_KEYS = {"ignore_consumption_from_entity_ids", "unsupported_actions"}
 INT_KEYS = {
+    "storm_min_level",
     "days_to_predict",
     "cron_interval",
     "power_values_db_data_to_save",

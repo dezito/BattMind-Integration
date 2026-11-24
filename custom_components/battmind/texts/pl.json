@@ -51,6 +51,9 @@
     "negative_price_planner": {
       "description": "Ładowanie przy ujemnych cenach"
     },
+    "full_charge_planner": {
+      "description": "Pełne ładowanie do poziomu maksymalnego (kondycja baterii)"
+    },
     "grid_charge_to_sell": {
       "description": "Kupione, aby sprzedać później"
     },
@@ -77,6 +80,9 @@
     },
     "blocked_solar_charge": {
       "description": "Zablokowane ładowanie z energii słonecznej"
+    },
+    "storm_warning": {
+      "description": "Naładowane lub wstrzymane na czas ostrzeżenia przed burzą"
     }
   },
   "ui": {
@@ -192,6 +198,7 @@
       "solar_day_to_grid": "Około {kwh} kWh nadwyżki po tym nie mieści się w baterii.",
       "solar_day_already_full": "Bateria jest już pełna, gdy wyjdzie słońce: na około {kwh} kWh nadwyżki nie ma miejsca.",
       "solar_day_blocked": "Ładowanie energią słoneczną jest wstrzymane {hours}, aby sprzedać nadwyżkę przy wyższej cenie.",
+      "full_charge_dropped": "Pełne ładowanie odrzucone: bateria nie osiągnie {level} % przed terminem.",
       "last_scheduled": "Ostatnio zaplanowane",
       "plan_title": "Plan ładowania/rozładowania",
       "show_all_days": "Pokaż wszystkie dni",
@@ -450,10 +457,13 @@
         "old_energy_sold": "Sprzedaż starej energii",
         "blocked_solar": "Zablokowane ładowanie z PV",
         "negative_price": "Ujemna cena",
+        "full_charge": "Pełne ładowanie",
         "sell_bought_cheap": "Sprzedaż taniej kupionej energii",
         "buy_to_sell": "Kup, aby sprzedać",
         "sell_before_solar": "Sprzedaż, zanim słońce napełni baterię",
-        "sell_before_cheap_charge": "Sprzedaż przed tanim ładowaniem"
+        "sell_before_cheap_charge": "Sprzedaż przed tanim ładowaniem",
+        "storm": "Ostrzeżenie przed burzą",
+        "storm_hold": "Zachowane na czas ostrzeżenia przed burzą"
       },
       "highest_level_time": "Czas najwyższego poziomu baterii",
       "highest_level": "Najwyższy poziom baterii",
@@ -523,7 +533,9 @@
       "level_after_hour": "Poziom baterii po tej godzinie",
       "solar_sold_for": "Nadwyżka z PV sprzedawana za",
       "no_data": "Brak danych",
-      "no_charging_history": "**Brak historii ładowania**"
+      "no_charging_history": "**Brak historii ładowania**",
+      "full_charge_due": "Dni od ostatniego pełnego ładowania",
+      "storm_keep": "Utrzymuje co najmniej **{level}%** na burzę od {time}: oczekiwane zużycie {kwh} kWh plus {buffer}% zapasu"
     },
     "dashboard_cards": {
       "title": "Brakujące karty dashboardu",
@@ -663,7 +675,7 @@
     "section_solar": "Fotowoltaika",
     "help_control": "* **Steruj baterią optymalizacją całego okresu**: oblicza najtańsze działanie dla każdej godziny całego okresu prognozy naraz (straty, zużycie, PV, ceny zakupu i sprzedaży oraz wymagany zysk) i według niego steruje baterią. Każde działanie jest pokazywane jako odpowiadająca mu reguła, a przełączniki reguł decydują, z których działań może korzystać. Wyłączone: baterią sterują reguły.\n* **Zwiększ wydajność baterii**: plan używa krzywych sprawności baterii zamiast jednej stałej straty ładowania. Zobacz *Sprawność baterii* w analizie.\n* **Typ prognozy**: jak prognozowane jest zużycie na godzinę z historii. EMA najbardziej waży ostatnie dni, trend podąża za rozwojem sytuacji, a średnia traktuje wszystkie dni jednakowo.\n* **Wybieraj typ prognozy automatycznie**: plan używa typu prognozy, który ostatnio najlepiej przewidywał zużycie, i zmienia go tylko, gdy inny jest wyraźnie lepszy. Zobacz *Trafność prognozy* w analizie.\n* **Koryguj prognozę cen**: plan koryguje ceny z prognozy (np. Carnot) o ich zwykłe odchylenie. Zobacz *Prognoza cen* w analizie.",
     "help_profit": "Progi zysku decydują, kiedy bateria jest rozładowywana i kiedy następuje sprzedaż.\n\n* **Min. zysk na kWh**: każda kWh pobrana z baterii (zużyta w domu lub sprzedana) musi zarobić co najmniej tyle na kWh po stratach i zużyciu. Ładowanie z sieci jest planowane tylko wtedy, gdy to rozładowanie się opłaca.\n* **Min. całkowity zysk**: sprzedaż do sieci musi zarobić łącznie co najmniej tyle (na godzinę; nie dotyczy ładowania ani własnego zużycia domu).\n* **Min. nadwyżka kWh do eksportu**: najmniejsza sprzedawana ilość.\n* **Rezerwa dla domu**: procent baterii pozostawiany na własne zużycie domu i niesprzedawany.\n* **Wyklucz godziny sprzedaży**: godziny (np. 17,18,19) bez sprzedaży.",
-    "help_charging": "Nadwyżka PV zawsze ładuje pierwsza; sieć nigdy nie wypiera energii PV, która zostałaby sprzedana taniej niż kosztuje energia z sieci.\n\n* **Najtańsze godziny**: naładuj baterię w najtańszych godzinach na dzienne zużycie (*do pełna*: do maks.).\n  * **Tanie okresy cenowe**: liczba lokalnych okresów niskiej ceny wykrywanych każdego dnia.\n  * **Wzrost ceny w tanich okresach**: o ile cena może wzrosnąć powyżej najniższej ceny w okresie, zanim okres się zakończy.\n  * **Wzrost względem najniższej ceny**: o ile cena w danej godzinie może przekroczyć najniższą cenę dnia, aby nadal kwalifikować się do tej reguły.\n* **Najdroższe godziny**: ładuj na najdroższe godziny, których bateria nie pokrywa.\n* **Potrzebne przed maks. poziomem**: doładuj brakującą odrobinę, zanim słońce naładuje baterię.\n* **Ujemne ceny**: napełnij baterię, gdy ładowanie się opłaca, nawet jeśli energia nie zostanie zużyta.",
+    "help_charging": "Nadwyżka PV zawsze ładuje pierwsza; sieć nigdy nie wypiera energii PV, która zostałaby sprzedana taniej niż kosztuje energia z sieci.\n\n* **Najtańsze godziny**: naładuj baterię w najtańszych godzinach na dzienne zużycie (*do pełna*: do maks.).\n  * **Tanie okresy cenowe**: liczba lokalnych okresów niskiej ceny wykrywanych każdego dnia.\n  * **Wzrost ceny w tanich okresach**: o ile cena może wzrosnąć powyżej najniższej ceny w okresie, zanim okres się zakończy.\n  * **Wzrost względem najniższej ceny**: o ile cena w danej godzinie może przekroczyć najniższą cenę dnia, aby nadal kwalifikować się do tej reguły.\n* **Najdroższe godziny**: ładuj na najdroższe godziny, których bateria nie pokrywa.\n* **Potrzebne przed maks. poziomem**: doładuj brakującą odrobinę, zanim słońce naładuje baterię.\n* **Ujemne ceny**: napełnij baterię, gdy ładowanie się opłaca, nawet jeśli energia nie zostanie zużyta.\n* **Zalecane pełne ładowanie co**: niektóre baterie LFP wymagają od czasu do czasu pełnego naładowania, aby system zarządzania baterią (BMS) mógł się skalibrować. Gdy od ostatniego osiągnięcia przez baterię poziomu maksymalnego (minus 1 %) minęło więcej dni niż tu ustawiono, BattMind ładuje ją z sieci w kierunku tego poziomu w najtańszych godzinach przed końcem jutrzejszego dnia (przed końcem dzisiejszego dnia, gdy jest spóźnione o dobę, także gdy nie zarejestrowano pełnego naładowania i nie ma go w historii). Czeka, aż będą znane ceny do tego terminu, pomija *Min. zysk na kWh*, a słońce ładuje jako pierwsze. Jeśli bateria nie zdąży osiągnąć tego poziomu, plan to zaznacza i rezygnuje z ładowania. Przy *Dni do zaplanowania* równym 1 planowane jest tylko spóźnione pełne ładowanie. 0 = wyłączone.\n* **Ostatnie pełne ładowanie**: kiedy bateria ostatnio osiągnęła poziom maksymalny (minus 1 %); rejestrowane także, gdy liczba wynosi 0.",
     "help_discharging": "* **Tylko z zyskiem**: blokuj rozładowanie w godzinach, gdy koszt kWh w baterii (ze stratami i zużyciem) jest wyższy od ceny.\n* **Priorytet najdroższych godzin**: oszczędzaj baterię na najdroższe godziny do kolejnego ładowania.\n* **Przed słońcem**: zużyj/sprzedaj energię przed słońcem, gdy bateria i tak napełni się z PV, a nadwyżka sprzedawana jest tanio.\n* **Maks. godzin starych kWh**: starsza energia jest zużywana nawet bez zysku i sprzedawana, gdy to się bardziej opłaca.",
     "help_selling": "* **Maksymalizuj zysk**: sprzedawaj w najdroższych okresach, gdy daje to więcej niż własne zużycie.\n* **Sprzedaj nadwyżkę kWh**: sprzedaj energię, która nie zostanie zużyta, zanim bateria będzie pusta lub znów pełna.\n* **Poziom baterii o północy**: patrz tylko do północy zamiast na cały okres prognozy.\n* **Kup, aby sprzedać**: ładuj tanio z sieci tylko po to, by sprzedać kWh, gdy opłaca się to po stratach i zużyciu.",
     "help_solar": "* **Ładowanie z PV**: uwzględnij nadwyżkę PV w planie.\n* **Optymalizuj ładowanie z PV**: sprzedawaj nadwyżkę PV w drogich godzinach, a baterię ładuj w tanich godzinach słonecznych. Tylko gdy słońce i tak później naładuje baterię.",
@@ -865,6 +877,13 @@
     "what_if_reason_module_invalid": "Pojemność modułu musi być większa niż 0 i nie większa niż 1000 kWh, cena nie może być ujemna, a liczba modułów musi wynosić od 1 do 12.",
     "what_if_reason_invalid_inputs": "Jedna z wartości what-if jest nieprawidłowa lub nie ma wartości.",
     "what_if_reason_save_failed": "Nie udało się zapisać wyniku.",
-    "what_if_reason_internal_error": "Symulacja nie powiodła się; zobacz dziennik Home Assistanta."
+    "what_if_reason_internal_error": "Symulacja nie powiodła się; zobacz dziennik Home Assistanta.",
+    "section_storm": "Ostrzeżenie przed burzą",
+    "help_storm": "BattMind utrzymuje baterię naładowaną na czas ostrzeżenia przed burzą z encji wybranej w ustawieniach (MeteoAlarm). Liczą się tylko ostrzeżenia o wietrze, śniegu/lodzie lub burzy z piorunami na wybranym poziomie lub wyższym i tylko te z czasem rozpoczęcia: bez niego nic nie jest planowane, a status to pokazuje.\n\n* **Ostrzeżenie przed burzą**: status ostrzeżenia. *Nadchodzące* lub *Aktywne* oznacza, że plan utrzymuje dla niego poziom baterii. Poniżej: kiedy ostrzeżenie się zaczyna i kończy, utrzymywany poziom baterii, oczekiwane zużycie domu bez słońca oraz zapas na wypadek błędnej prognozy (o ile prognoza mijała się z rzeczywistością w ostatnich 30 dniach, co najmniej 20 %).\n* **Godziny objęte ostrzeżeniem bez czasu końca**: jak długo liczy się ostrzeżenie, które ma czas rozpoczęcia, ale nie ma czasu końca.\n\nUtrzymywany poziom spada godzina po godzinie w miarę trwania burzy i poniżej niego nic się nie sprzedaje. Ładowanie jest planowane w najtańszych godzinach przed momentem, gdy poziom jest potrzebny; jeśli bateria nie zdąży go osiągnąć, jest ładowana najwyżej, jak to możliwe. Bez zasilania awaryjnego pełna bateria nie zasili domu podczas przerwy w dostawie prądu.",
+    "storm_start": "Początek",
+    "storm_end": "Koniec",
+    "storm_keep_percent": "Utrzymywany poziom",
+    "storm_expected_use": "Oczekiwane zużycie",
+    "storm_buffer": "Zapas"
   }
 }

@@ -34,6 +34,8 @@ real BattMind rules and the whole period optimisation, exactly as the live plann
   type and the price forecast correction therefore have no effect in the simulator. The solar surplus
   is the solar production minus that consumption, so solar that ignored consumers used (for example an
   electric car) counts as surplus: the simulation exports it or uses it to charge the battery.
+- **Storm warning:** the [storm warning](rules/storm.md) is not simulated either.
+- **Full charge:** the [periodic full charge](rules/charging.md#-full-charge) is not simulated; it is off in the simulator.
 - **Controller:** with **optimizer_control** on, the hours are executed with the whole period
   optimisation, otherwise with the rule plan, both converted to battery actions the same way as the live
   battery control. The rules can only use what they are allowed to by the rule switches.

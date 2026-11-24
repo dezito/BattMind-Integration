@@ -47,9 +47,10 @@ The full list is in [Features](docs/features.md).
 
 - **Charging plan for 1–7 days** from electricity prices, forecasts and your own consumption history
 - **Two ways to control the battery:** [whole period optimisation](docs/rules/optimizer.md) (default) or rules that decide each hour
-- **[Charging rules](docs/rules/charging.md):** cheapest periods, fill up, most expensive periods, required before max level, negative prices and buy to sell
+- **[Charging rules](docs/rules/charging.md):** cheapest periods, fill up, most expensive periods, required before max level, negative prices, buy to sell and a periodic full charge
 - **[Discharging rules](docs/rules/discharging.md):** profit only, prioritise by energy cost, before the sun and max. age of kWh
 - **[Selling rules](docs/rules/selling.md):** maximise profit, sell excess kWh, minimum profit and excluded hours
+- **[Storm warning](docs/rules/storm.md) (optional):** keeps the battery charged for a MeteoAlarm storm warning
 - **[Solar](docs/rules/solar.md) (optional):** surplus charging, optimised solar charging and a forecast from Solcast and/or own history
 - **[Cost price of the battery's energy](docs/how-it-works.md#the-cost-of-a-kwh-from-the-battery)** including source, loss and wear
 - **Price providers:** [Energi Data Service](https://github.com/MTrab/energidataservice) and/or [Strømligning](https://github.com/MTrab/stromligning), with a [price database](docs/how-it-works.md#prices) as fail-safe

@@ -60,6 +60,12 @@ class FutureSolar:
         # an hour where solar charging was released isn't blocked again before the next hour
         released = ctx.now.hour if day == 0 and self.solar_block_released() else None
         candidates = [h for h in available if h not in busy and h != released]
+        # a full charge is due: solar charging is not blocked up to the hour the plan is full (blocking later hours can't
+        # change that), or up to the deadline while the plan isn't full
+        full_charge = getattr(self, "full_charge_plan", None)
+        if full_charge:
+            cutoff = self.full_charge_reached_at(ctx, full_charge["deadline"]) or full_charge["deadline"]
+            candidates = [h for h in candidates if start.replace(hour=h) > cutoff]
         if not candidates:
             return
 

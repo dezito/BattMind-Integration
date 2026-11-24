@@ -17,6 +17,7 @@ import datetime
 from typing import Callable
 
 from ..energy.energy import POWER_VALUE_KEYS
+from ..full_charge import FULL_CHARGE_OFF
 from ..optimizer import OptimizerConfig, OptimizerHour, breakdown, simulate, step_hour
 from ..state import Snapshot
 from ...utils.helpers import average, days_between, reset_time_to_hour, start_of_day
@@ -74,6 +75,14 @@ class ReplayInputs:
     def is_learning(self) -> bool:
         # the replay knows the actual consumption of every hour
         return False
+
+    def full_charge_status(self) -> dict:
+        # The full charge is off in the replay: the settings copy full_charge_recommended, but the replay engine has no
+        # analysis database (no last full charge, so it would be due in every window) and must never read the live one.
+        return dict(FULL_CHARGE_OFF)
+
+    def full_charge_observe(self) -> None:
+        """The replay doesn't register full charges (see full_charge_status)."""
 
     def shadow_optimize(self, hours, start_level, cfg, end_value):
         if self.enabled("optimizer_control"):

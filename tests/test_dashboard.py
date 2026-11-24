@@ -789,9 +789,11 @@ def test_unsupported_action_hides_its_rules_on_the_settings_view(action: str) ->
     hidden = {f"switch.battmind_{key}" for key in ACTION_SWITCHES[action]}
     assert hidden <= set(all_entities)
     assert not hidden & set(entities)
+    # the settings only grid charging uses: the cheap price numbers, and the full charge (a grid charge)
+    grid_settings = ("number.battmind_cheap", "number.battmind_full_charge_recommended", "sensor.battmind_last_full_charge")
     # everything else stays
     for entity in all_entities:
-        if entity not in hidden and not entity.startswith("number.battmind_cheap"):
+        if entity not in hidden and not (action == "grid_charging" and entity.startswith(grid_settings)):
             assert entity in entities, entity
     for rows in _entities_lists([action]):
         types = [row.get("type") for row in rows]
@@ -799,8 +801,9 @@ def test_unsupported_action_hides_its_rules_on_the_settings_view(action: str) ->
         assert all(not (a == b == "divider") for a, b in zip(types, types[1:])), rows
 
     if action == "grid_charging":
-        # the whole section goes: its switches and the cheap price settings only those rules use
-        assert not any(entity.startswith("number.battmind_cheap") for entity in entities)
+        # the whole section goes: its switches and the settings only those rules use (cheap price, full charge)
+        assert {"number.battmind_full_charge_recommended", "sensor.battmind_last_full_charge"} <= set(all_entities)
+        assert not any(entity.startswith(grid_settings) for entity in entities)
         assert "Charging from the grid" in all_headings
         assert "Charging from the grid" not in headings
     else:

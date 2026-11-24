@@ -26,6 +26,9 @@ class Snapshot:
     sun_events: dict = field(default_factory=dict)
     # Cable Juice Planner cars: {"name", "charge_plan"}; charge_plan None = no plan available
     ev_charging: list[dict] = field(default_factory=list)
+    # the storm warning entity (option storm_warning_entity_id): {"entity_id", "state", "attributes"} with only the attributes
+    # engine/storm.py reads; None without the option
+    storm_alert: dict | None = None
 
 
 @dataclass

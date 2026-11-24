@@ -198,6 +198,12 @@ Leave the page empty without solar. With solar:
 - **Weather:** the hourly and daily forecast. Together with the stored solar history per weather type it
   gives a solar forecast that learns your roof – also without Solcast.
 
+### Storm warning (optional)
+
+Under **Configure → Solar panels, weather and storm warning**. Choose MeteoAlarm's binary sensor to keep the
+battery charged for a storm warning, or leave it empty (default) and the function, its sensor and its number are not
+made. See [Storm warning](rules/storm.md).
+
 ### Planning (advanced)
 
 | Field | Default | Meaning |

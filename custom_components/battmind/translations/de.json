@@ -443,6 +443,18 @@
         "description": "Wird zusammen mit dem gespeicherten Solarverlauf genutzt, um den Solarüberschuss vorherzusagen. Jede Wetter-Integration mit `weather.get_forecasts` funktioniert (Met.no, AccuWeather, OpenWeather, ...).",
         "title": "Wetterprognose"
       },
+      "storm": {
+        "title": "Sturmwarnung",
+        "description": "Hält den Akku für eine Sturmwarnung geladen. Wähle den Binärsensor von MeteoAlarm; leer lassen schaltet die Funktion aus. Es zählen nur Warnungen vor Wind, Schnee/Eis oder Gewitter ab der gewählten Stufe und nur Warnungen mit Startzeit. Der Bedarf ist der erwartete Hausverbrauch während der Warnung ohne Solar plus ein Puffer für eine danebenliegende Prognose (mindestens 20 %). Ohne Notstromversorgung versorgt ein voller Akku das Haus bei einem Stromausfall nicht.",
+        "data": {
+          "storm_warning_entity_id": "Sturmwarnung (MeteoAlarm)",
+          "storm_min_level": "Niedrigste zählende Stufe"
+        },
+        "data_description": {
+          "storm_warning_entity_id": "Binärsensor von MeteoAlarm für deine Region. Leer = aus: Die Funktion, ihr Sensor und ihre Zahl werden nicht angelegt.",
+          "storm_min_level": "2 = gelb, 3 = orange, 4 = rot."
+        }
+      },
       "advanced": {
         "data_description": {
           "cron_interval": "Intervall zwischen Statusprüfungen und Funktionsausführungen",
@@ -483,7 +495,7 @@
           "menu_consumption": "Hausverbrauch",
           "menu_general": "Allgemein",
           "menu_prices": "Strompreise",
-          "menu_solar": "Solaranlage und Wetter"
+          "menu_solar": "Solarmodule, Wetter und Sturmwarnung"
         },
         "description": "Wähle, was du ändern willst. Die Integration wird beim Speichern neu geladen.",
         "title": "BattMind"
@@ -636,6 +648,12 @@
       },
       "powerwall_max_hours_old": {
         "name": "Max. Alter der kWh in der Hausbatterie"
+      },
+      "full_charge_recommended": {
+        "name": "Empfohlene Vollladung alle"
+      },
+      "storm_cover_hours": {
+        "name": "Stunden, die eine Sturmwarnung ohne Endzeit abdeckt"
       },
       "what_if_history_days": {
         "name": "What-if – Verlauf (Tage)"
@@ -873,6 +891,25 @@
       },
       "kwh_charged_by_solar": {
         "name": "kWh durch Solar geladen"
+      },
+      "storm_warning": {
+        "name": "Sturmwarnung",
+        "state": {
+          "no_warning": "Keine Warnung",
+          "entity_unavailable": "Warn-Entität nicht verfügbar",
+          "below_level": "Unter der gewählten Stufe",
+          "other_type": "Keine Sturmwarnung",
+          "no_start": "Keine Startzeit (ignoriert)",
+          "unreadable": "Stufe oder Typ nicht lesbar (ignoriert)",
+          "expired": "Beendet",
+          "invalid": "Ende vor Beginn (ignoriert)",
+          "later": "Beginnt nach dem Plan",
+          "coming": "Bevorstehend",
+          "active": "Aktiv"
+        }
+      },
+      "last_full_charge": {
+        "name": "Letzte Vollladung"
       },
       "analysis": {
         "name": "Ersparnis diesen Monat"

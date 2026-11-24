@@ -455,3 +455,81 @@ class FutureChargeRules:
                 self.add_charging_session_to_day(ctx, buy_timestamp, buy_day, reason=reason)
                 self.add_charging_to_days(ctx, buy_timestamp)
                 break
+
+    def full_charge_reached(self, ctx, deadline) -> bool:
+        """The planned battery level reaches full (max level - FULL_CHARGE_MARGIN) in an hour up to the deadline hour."""
+        return self.full_charge_reached_at(ctx, deadline) is not None
+
+    def full_charge_reached_at(self, ctx, deadline):
+        """The first hour up to the deadline hour the planned level is full (the current hour when full now), else None."""
+        full_level = self.full_charge_plan["full_level"]
+        if ctx.get_battery_level() >= full_level - 1e-6:
+            return ctx.current_hour
+        timestamp = ctx.current_hour
+        while timestamp <= deadline:
+            data = ctx.charging_plan.get(days_between(ctx.current_hour, timestamp))
+            if data is None:
+                break
+            flow = data["battery_level_flow"].get(timestamp.hour)
+            if flow and sum(flow) >= full_level - 1e-6:
+                return timestamp
+            timestamp += datetime.timedelta(hours=1)
+        return None
+
+    def full_charge_planner(self, ctx, day):
+        """💯 Full charge: fill the battery to the max level in the cheapest hours up to the deadline (number
+        full_charge_recommended; no switch).
+
+        Runs on the day of the deadline, after the other charge rules, and once more after the sell rules (they can
+        lower the levels): it only adds what the plan still lacks. It charges for the battery's health, so it has no
+        profit requirement (like negative prices), but the sun goes first: an hour gets at most the room the sun
+        doesn't fill before the deadline (grid_headroom_kwh until the deadline). There is no requirement while grid
+        charging is unsupported (full_charge_status). Sets full_charge_plan["rules_reached"].
+        """
+        plan = self.full_charge_plan
+        if not plan:
+            return
+        deadline = plan["deadline"]
+        if day != days_between(ctx.current_hour, deadline):
+            return
+        if not self.full_charge_reached(ctx, deadline):
+            total_cost, total_kwh = ctx.totals
+            elapsed = plan.get("elapsed_days")
+            for timestamp, price in list(ctx.sorted_by_cheapest_price):
+                if self.full_charge_reached(ctx, deadline):
+                    break
+                if timestamp < ctx.current_hour or reset_time_to_hour(timestamp) > deadline:
+                    continue
+                what_day = days_between(ctx.current_hour, timestamp)
+                if what_day not in ctx.charging_plan:
+                    continue
+                hour_in_charge_hours, kwh_available = self.kwh_available_in_hour(ctx.charge_hours, ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, timestamp)
+                if hour_in_charge_hours and kwh_available <= 0.0:
+                    continue
+                headroom_kwh = self.grid_headroom_kwh(ctx, timestamp, until=deadline)
+                # never more than the room the sun leaves (solar goes first) or the hour's charge power. A top-up smaller
+                # than the smallest charge is fine: add_to_charge_hours() checks the hour's capacity (kwh_available), not the
+                # amount, so the last gap to full can be closed
+                kwh = _floor_kwh(min(kwh_available, headroom_kwh))
+                if kwh <= 0.0:
+                    continue
+                _, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh,
+                    kwh, total_cost, total_kwh, timestamp, price, kwh_available, rules=["full_charge_planner"],
+                )
+                ctx.totals[:] = total_cost, total_kwh
+                if timestamp in ctx.charge_hours and battery_level_added:
+                    ctx.charging_plan[what_day]["total_cost"] += cost_added
+                    elapsed_text = f"{elapsed:.0f}" if isinstance(elapsed, (int, float)) else "–"
+                    reason = (
+                        f"<details><summary>{emoji_parse({'full_charge_planner': True})}{ctx.r('title.full_charge')} ({price}/{battery_level_added:.0f}%)"
+                        f"{self.other_day_text(ctx, day, what_day)}</summary>"
+                        f"{ctx.r('full_charge_due')}: **{elapsed_text}**<br>"
+                        f"{ctx.r('needed_at')}: **{deadline.strftime('%d/%m %H')}:59**<br>"
+                        f"{ctx.r('current_price')}: **{price} {ctx.valuta_kwh}**<br>"
+                        f"{ctx.r('room_without_solar')}: **{headroom_kwh:.2f} kWh**<br>"
+                        f"{ctx.r('level_added')}: **{battery_level_added:.2f}%**<br>"
+                        "</details>"
+                    )
+                    self.add_charging_session_to_day(ctx, timestamp, what_day, reason=reason)
+                    self.add_charging_to_days(ctx, timestamp)
+        plan["rules_reached"] = self.full_charge_reached(ctx, deadline)

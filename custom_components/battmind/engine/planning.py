@@ -30,6 +30,8 @@ class Planning:
             tuple(self.battery_expenses.items()),
             tuple(sorted(settings.items())),
             ev_charging,  # only shown in the overview (🚗 cars), but it has to follow the cars' plans
+            self._snap.storm_alert if self._snap else None,  # a warning that starts, ends or changes level changes the plan
+            self.full_charge_hash(),  # a full charge that becomes due or is done
         )
         return hashlib.blake2b(repr(data).encode(), digest_size=16).hexdigest()
 
@@ -97,6 +99,7 @@ class Planning:
         t = self.t
         current_rules: dict = {}
         try:
+            self.full_charge_check()  # before the plan: a full battery ends a due full charge
             self.cheap_grid_charge_hours(force_recalculate=force_recalculate)
 
             temperature_entity = self.config["home"]["entity_ids"].get("battery_temperature_entity_id", "")
@@ -126,7 +129,8 @@ class Planning:
                 current_rules.update(active_charging_rules(self.charge_hours[charge_hour]))
                 rule = t("ui.charge_if_needed.planned_charging", emoji=emoji_parse(self.charge_hours[charge_hour]))
             elif (sale_period := self.current_period_in_force_discharge()) is not None:
-                usage_floor = max(self.config["solar"]["powerwall_battery_level_min"], self.number("usage_reserve"))
+                # a storm warning keeps its level: nothing is exported under it, whatever the plan lists for the hour
+                usage_floor = max(self.config["solar"]["powerwall_battery_level_min"], self.number("usage_reserve"), self.storm_floor_now())
                 if self.get_battery_level() > usage_floor:
                     action = "force_discharge"
                     current_rules["force_discharge"] = True

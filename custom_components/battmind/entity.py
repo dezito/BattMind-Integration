@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.core import State, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
@@ -20,6 +21,14 @@ LEGACY_DOMAINS = {
     "text": "input_text",
     "sensor": "input_number",
 }
+
+
+def remove_entity(hass, platform: str, coordinator: BattMindCoordinator, key: str) -> None:
+    """Take an entity of this entry out of the entity registry (an optional entity whose option was cleared)."""
+    registry = er.async_get(hass)
+    entity_id = registry.async_get_entity_id(platform, DOMAIN, f"{coordinator.entry.entry_id}_{key}")
+    if entity_id:
+        registry.async_remove(entity_id)
 
 
 class BattMindEntity(Entity):

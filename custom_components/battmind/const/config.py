@@ -48,7 +48,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "powerwall_battery_level_entity_id": "",
             "battery_temperature_entity_id": "",
             "ignore_consumption_from_entity_ids": [],
+            # a storm warning (MeteoAlarm's binary sensor): the battery is kept charged for it. "" = off, and then the
+            # function, its sensor and its number are not made (engine/storm.py)
+            "storm_warning_entity_id": "",
         },
+        # the lowest MeteoAlarm awareness level that counts as a storm: 2 yellow, 3 orange, 4 red
+        "storm_min_level": 3,
         "power_consumption_entity_id_include_powerwall_charging": False,
         "power_consumption_entity_id_include_powerwall_discharging": False,
         "invert_powerwall_watt_flow_entity_id": False,
@@ -132,6 +137,8 @@ OPTION_PATHS: dict[str, str] = {
     "battery_discharging_efficiency_curve": "solar.battery_discharging_efficiency_curve",
     "powerwall_wear_cost_per_kwh": "solar.powerwall_wear_cost_per_kwh",
     "unsupported_actions": "home.unsupported_actions",
+    "storm_warning_entity_id": "home.entity_ids.storm_warning_entity_id",
+    "storm_min_level": "home.storm_min_level",
     # prices
     "energidataservice_buy_entity_id": "prices.entity_ids.energidataservice_buy_entity_id",
     "energidataservice_sell_entity_id": "prices.entity_ids.energidataservice_sell_entity_id",
@@ -228,6 +235,7 @@ FLOW_STEPS: dict[str, list[str]] = {
         "forecast_entity_id",
     ],
     "weather": ["hourly_service_entity_id", "daily_service_entity_id"],
+    "storm": ["storm_warning_entity_id", "storm_min_level"],
     "advanced": [
         "days_to_predict",
         "cron_interval",
@@ -261,7 +269,7 @@ OPTIONS_MENU: dict[str, list[str]] = {
         "prices_stromligning_tariffs",
         "price_fees",
     ],
-    "solar": ["solar", "weather"],
+    "solar": ["solar", "weather", "storm"],
     "advanced": ["advanced", "database"],
 }
 

@@ -465,6 +465,44 @@ Keep these invariants when touching any planner rule:
   and never claims the battery is filled later when solar charging is held back (the whole period optimisation holds it back
   without that). In tests the solar sensor is set after the plan: configured from the start, the planner overwrites a
   test's `solar_prediction_db` from the empty history.
+- Periodic full charge (number `full_charge_recommended`, sensor `last_full_charge`; engine in `engine/full_charge.py`):
+  - The battery counts as full at `powerwall_battery_level_max - FULL_CHARGE_MARGIN` (`const/base.py`). The same
+    margin is used for detection and for the rules' and the optimiser's "reached full" check.
+  - Register only from real battery level samples, never from the 100 % fail-safe value of `get_battery_level()`,
+    and with no hold time (the plan often discharges right after reaching max). After a restart with a stored
+    time, the first sample is only a baseline; a stored time in the future is dropped. An unknown last full
+    charge (nothing stored, nothing in the history) counts as a day overdue, never as just charged.
+  - No requirement is built while grid charging is unsupported (the rule counts as off and the dashboard hides
+    the number and the sensor). `full_charge_planner` has no switch and is never forbidden in
+    `optimize_with_rules`.
+  - The optimiser requirement is optional: `full_deadline=None` must give an identical plan. It must never make
+    the DP infeasible: `_full_charge_layer()` counts as full only at `full_level + step/2` (capped at
+    `level_max`). If the forward pass misses, the plan without the requirement is returned, with `full_reached`
+    and `full_dropped` checked against that plan; the failed plan is kept in `full_missed` so
+    `optimize_with_rules` still learns the max-age limits from it.
+  - `_full_charge_layer()` copies the storm floor penalty and `min_total_profit` from the main DP loop in
+    `optimize()`: keep them in sync.
+  - Only the run of rising hours into the first full hour is labelled `full_charge_planner`; earlier charges keep
+    their own rule's label and can be forbidden. The rule path's top-up may be smaller than the minimum charge
+    (`add_to_charge_hours` checks the hour's capacity, not the amount) but never pushes out solar or exceeds the
+    charge power.
+  - Replay and what-if keep the full charge off (`ReplayInputs.full_charge_status`) and never read the live
+    `last_full_charge`.
+
+- The storm warning (`engine/storm.py` pure rules, `engine/storm_warning.py` engine part) keeps a battery level per hour
+  (`OptimizerHour.floor`). The shortfall penalty is steering only, like `min_profit_per_kwh`: never in costs, totals,
+  `breakdown` or `requirement_cost`. Nothing is sold under the level: `step_hour` caps the export, and
+  `enforce_storm_floor()` makes the rules' plan list only what may be sold (the plan is what runs, a sale runs at full
+  rate until the next replan, and `charge_if_needed` also stops export under `storm_floor_now()`). A charge or hold
+  that the plan needs for the storm is labelled `STORM_RULE`: it belongs to no rule switch and `optimize_with_rules()`
+  never forbids it (the label covers the whole hour, also energy beyond the need: a known limitation). The storm level
+  goes before max. age only where the storm needs the energy (`floor_ahead`, `storm_holds()`). The rules' fix is
+  computed before the optimiser runs, so it also holds when the optimiser fails (`apply_storm_to_rules()`). The warning
+  entity is deliberately not in `configured_entities` (an unavailable warning must not hold up startup), and the
+  snapshot keeps only the attributes the plan reads. A forecast of 0 kWh or a missing hour is "not complete"
+  (`need_complete`), never a favourable default. Warning statuses never use the string `unavailable` (Home Assistant's
+  own state): it is `entity_unavailable`. Without the option no sensor, number or dashboard section exists
+  (`remove_entity()` clears old ones).
 
 ### Sell price (`calculate_sell_price()` in `prices/base.py`)
 

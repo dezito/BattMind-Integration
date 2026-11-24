@@ -73,7 +73,7 @@ FORECAST_AUTO_MARGIN = 0.05  # how much smaller another type's error must be bef
 # rules that charge from the grid / that discharge (sell) the battery, see CHARGING_TYPES
 CHARGE_RULES = (
     "cheapest_hour_fill_planner", "most_expensive_planner", "needed_before_max_level_planner",
-    "negative_price_planner", "grid_charge_to_sell",
+    "negative_price_planner", "full_charge_planner", "grid_charge_to_sell",
 )
 
 

@@ -23,6 +23,7 @@ charging history:
 - efficiency: AC and battery kWh per AC power step for charging and discharging, measured between
   changes of the battery level (utils/efficiency); the measured efficiency curves. The first time
   the recorder history of the battery power and level is measured too (coordinator).
+- full_charge: {"last": aware datetime} when the battery last reached its max. level (engine/full_charge.py).
 
 The first time the energy per hour of the last year is read from the recorder's long-term
 statistics (coordinator); forecasts, plans and scores only exist from now on. Everything is
@@ -51,6 +52,13 @@ class Analysis(AnalysisRecording, AnalysisPublishing, PlanCheck):
         for key in ("hours", "days", "plans", "rule_days", "price_hours", "price_days", "plan_check"):
             if not isinstance(db.get(key), dict):
                 db[key] = {}
+        # the last full charge (engine/full_charge.py): {"last": aware datetime}; an old backup has none, a malformed one
+        # is dropped (unknown, never "just charged")
+        full_charge = db.get("full_charge")
+        if full_charge is not None:
+            last = full_charge.get("last") if isinstance(full_charge, dict) else None
+            if not isinstance(last, datetime.datetime) or last.tzinfo is None:
+                db.pop("full_charge")
         self.analysis_db = db
 
     def price_forecast_corrections(self) -> dict[int, float]:

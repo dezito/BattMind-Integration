@@ -20,6 +20,7 @@ from homeassistant.util import dt as dt_util
 from ..const import HISTORY_BUFFER_HOURS
 from ..engine import Snapshot
 from ..engine.analysis.helpers import ANALYSIS_DAYS
+from ..engine.storm import STORM_ATTRIBUTES
 from ..utils.efficiency import EFFICIENCY_BACKFILL_DAYS
 from ..utils.cjp import CJP_DOMAIN
 from ..utils.helpers import float_or_none
@@ -170,6 +171,7 @@ class CoordinatorData:
             statistics={entity_id: list(rows) for entity_id, rows in self._statistics.items()},
             sun_events=self._sun_events(now),
             ev_charging=self._ev_charging_snapshot(),
+            storm_alert=self._storm_snapshot(),
         )
         if include_prices:
             snapshot.price_data = self._price_snapshot()
@@ -181,6 +183,19 @@ class CoordinatorData:
     def _price_snapshot(self) -> dict:
         provider = self.price_provider
         return provider.snapshot(self.hass.states.get) if provider else {"attributes": {}, "values": {}}
+
+    def _storm_snapshot(self) -> dict | None:
+        """The state of the storm warning entity with only the attributes the plan reads (the others name places)."""
+        entity_id = self.config["home"]["entity_ids"].get("storm_warning_entity_id")
+        if not entity_id:
+            return None
+        state = self.hass.states.get(entity_id)
+        attributes = state.attributes if state else {}
+        return {
+            "entity_id": entity_id,
+            "state": state.state if state else None,
+            "attributes": {key: attributes[key] for key in STORM_ATTRIBUTES if key in attributes},
+        }
 
     def _ev_charging_snapshot(self) -> list[dict]:
         """The planned charging of each Cable Juice Planner car (charge_plan of its current_charging_rule)."""
