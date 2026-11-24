@@ -170,6 +170,8 @@ The overview shows what the energy in the battery has cost right now, split into
   would be pushed out is sold for more than the grid kWh costs (e.g. at negative buy prices).
 - **One thing per hour.** The battery never charges and discharges in the same hour. If an hour has both
   a charge and a sale, the charge wins.
+- **No more charge than the battery takes.** Where the battery charges more slowly (nearly full), the plan counts on
+  what it has measured the battery takes: see [charging power by battery level](dashboard-analysis.md#charging-power-by-battery-level).
 - **The profit requirements follow the energy out of the battery.** **Min. profit per kWh** applies to
   every kWh discharged (used in the house or sold), so grid charging is only planned when that discharge
   pays. **Min. total profit** and **min. kWh for export** apply to every sale to the grid.

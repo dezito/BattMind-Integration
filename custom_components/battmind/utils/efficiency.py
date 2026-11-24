@@ -63,8 +63,12 @@ def _flow_energy(flow: list, keys: list[float], start: float, end: float, factor
 
 def measure_efficiency(
     flow: list, levels: list, start: float, end: float, factor: float, positive_is_charging: bool, battery_size: float,
+    details: list | None = None,
 ) -> tuple[list[tuple[str, float, float, float]], float]:
     """Measurements ("charging"/"discharging", AC kWh, battery kWh, seconds) between start and end.
+
+    details (optional) gets one row per measurement: (direction, level at the start %, level at the end %, AC kWh, seconds, time
+    it ended): what the charging power taper (utils/taper.py) is measured from.
 
     flow and levels are the sorted (epoch, value|None) rows of the battery power (factor converts it
     to W) and the battery level (%). Returns the measurements and the time measured until: the last
@@ -106,6 +110,8 @@ def measure_efficiency(
             and 0.25 <= battery_kwh * 1000.0 / ac_wh <= 4.0
         ):
             measurements.append(("charging" if charging else "discharging", ac_wh / 1000.0, battery_kwh, seconds))
+            if details is not None:
+                details.append(("charging" if charging else "discharging", start_level, end_level, ac_wh / 1000.0, seconds, end_ts))
         first = index
         total = [0.0, 0.0, 0.0, 0.0]
     until = changes[first][0] if changes else start

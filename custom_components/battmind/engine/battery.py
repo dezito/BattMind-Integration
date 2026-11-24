@@ -7,6 +7,7 @@ import math
 
 from ..utils.efficiency import EfficiencyCurve, efficiency_at_power, learned_efficiency_curve, parse_efficiency_curve
 from ..utils.helpers import float_or_none
+from ..utils.taper import TaperCaps, charge_energy_kwh, taper_caps
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +29,24 @@ class Battery:
             _LOGGER.warning("Cant get the battery level from %s (no number for the last %s minutes), using 100", entity_id, int(BATTERY_LEVEL_MAX_AGE.total_seconds() // 60))
             return 100.0
         return value
+
+    def charge_taper(self) -> TaperCaps:
+        """The battery level bands where the battery takes less than its charge rate ((band start %, cap kW), ...), () when it
+        doesn't taper, has too few measurements or the switch learn_charge_taper is off."""
+        if "charge_taper" not in self._job_cache:
+            self._job_cache["charge_taper"] = (
+                taper_caps(self.analysis_db.get("taper"), self.max_kwh_charging) if self.enabled("learn_charge_taper") else ()
+            )
+        return self._job_cache["charge_taper"]
+
+    def charge_rate_kwh(self, level: float | None, max_kwh: float | None = None) -> float:
+        """kWh (AC) the battery can take in an hour that starts at this battery level: the charge rate, or less where the battery
+        tapers (the hour is walked through the bands). Without a level, or a taper, the charge rate."""
+        max_kwh = self.max_kwh_charging if max_kwh is None else max_kwh
+        caps = self.charge_taper()
+        if not caps or level is None:
+            return max_kwh
+        return charge_energy_kwh(caps, level, 1.0, max_kwh, self.percentage_to_kwh(1.0), self.battery_efficiency())
 
     def kwh_to_percentage(self, kwh: float) -> float:
         return kwh / self.config["solar"]["powerwall_battery_size"] * 100

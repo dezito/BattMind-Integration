@@ -119,7 +119,8 @@ replays run sequentially in a what-if thread of their own, on an engine of their
 replay engines, so a range takes longer than one scenario. The simulation never runs on, or holds
 up, BattMind's planning worker: the plan, the optimizer and the live engine keep running while a
 what-if calculates. It only reads the live round trip loss and the measured efficiency curves from
-the live engine, in a short job at the start.
+the live engine, in a short job at the start. The [charging power by battery level](dashboard-analysis.md#charging-power-by-battery-level)
+is not simulated: the replay charges at the configured rate all the way up.
 
 For an optional module comparison, provide **module_capacity** and **module_price** together;
 **module_count** is optional (defaults to 5 and is limited to 12). The comparison starts with the

@@ -611,6 +611,9 @@
       "enhance_battery_efficiency": {
         "name": "Підвищити ефективність акумулятора"
       },
+      "learn_charge_taper": {
+        "name": "Вивчати потужність заряджання за рівнем батареї"
+      },
       "price_forecast_correction": {
         "name": "Коригувати прогноз цін"
       },

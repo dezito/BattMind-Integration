@@ -123,6 +123,7 @@ class FutureCharging(FutureSupport, FutureChargeRules, FutureDischargeRules, Fut
         self.shadow_plan_actions = None
         self.rule_old_energy = {}
         self.rule_storm = {}
+        self.rule_taper = {}
         self.storm_state = None
         try:
             result = self.shadow_plan(ctx, days)
@@ -133,16 +134,17 @@ class FutureCharging(FutureSupport, FutureChargeRules, FutureDischargeRules, Fut
                 self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now, final_recalc=True)
                 for day in days:
                     self.discharge_amount(ctx, day)
-            elif self.apply_max_age_to_rules(ctx) | self.apply_storm_to_rules(ctx):
-                # the rules control the battery: they may not hold back energy older than the max. age either, and they keep the
-                # level of a storm warning (both are looked for with the optimiser's plan next to them)
+            elif self.apply_max_age_to_rules(ctx) | self.apply_storm_to_rules(ctx) | self.apply_taper_to_rules(ctx):
+                # the rules control the battery: they may not hold back energy older than the max. age either, they keep the
+                # level of a storm warning and they plan no more charge than the battery takes (all looked for with the
+                # optimiser's plan next to them)
                 self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now, final_recalc=True)
                 for day in days:
                     self.discharge_amount(ctx, day)
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Whole period optimisation failed, the rules control the battery")
             try:
-                if self.apply_storm_to_rules(ctx):  # the rules keep the level of a storm warning (known before the optimiser ran)
+                if self.apply_storm_to_rules(ctx) | self.apply_taper_to_rules(ctx):  # the rules keep the storm level and the pace of the battery
                     self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now, final_recalc=True)
                     for day in days:
                         self.discharge_amount(ctx, day)

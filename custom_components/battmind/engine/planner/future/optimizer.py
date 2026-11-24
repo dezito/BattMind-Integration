@@ -13,6 +13,7 @@ from ...optimizer import (
     breakdown,
     enforce_max_age,
     enforce_storm_floor,
+    taper_cuts,
     optimize_per_day,
     optimize_with_rules,
     requirement_cost,
@@ -54,6 +55,7 @@ class FutureOptimizer:
             min_sell_kwh=self.number("min_sell_kwh"),
             min_total_profit=self.get_min_total_profit(),
             usage_reserve=self.number("usage_reserve"),
+            charge_taper=self.charge_taper(),
             unsupported=self.unsupported_actions(),
         )
 
@@ -170,14 +172,18 @@ class FutureOptimizer:
         if storm is not None and storm.floors:
             # the rules' plan keeps the level too: it charges in the cheapest hours before it is missed and cancels sales under it
             rule_actions, rule_limits, storm_changes = enforce_storm_floor(hours, start_level, optimizer_config, rule_actions, rule_limits)
-        # known before the optimiser runs: if it fails, the rules still keep the level (future_charging())
-        storm_rules = simulate(hours, start_level, optimizer_config, rule_actions, end_value, rule_limits) if storm_changes else None
+        # known before the optimiser runs: if it fails, the rules still keep the level and the pace of the battery (future_charging())
+        early = simulate(hours, start_level, optimizer_config, rule_actions, end_value, rule_limits) if storm_changes or optimizer_config.charge_taper else None
         self.rule_storm = {
             hours[index].timestamp: (
-                before, after, storm_rules.grid_kwh[index] if after == "grid_charging" else rule_limits[index] or 0.0, hours[index].buy
+                before, after, early.grid_kwh[index] if after == "grid_charging" else rule_limits[index] or 0.0, hours[index].buy
             )
             for index, (before, after) in storm_changes.items()
         }
+        self.rule_taper = (
+            {hours[index].timestamp: kwh for index, kwh in taper_cuts(hours, start_level, optimizer_config, rule_actions, rule_limits, early).items()}
+            if optimizer_config.charge_taper else {}
+        )
         optimal, explanations = self.shadow_optimize(hours, start_level, optimizer_config, end_value)
         rules = simulate(hours, start_level, optimizer_config, rule_actions, end_value, rule_limits)
         if storm is not None:

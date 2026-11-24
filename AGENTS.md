@@ -504,6 +504,17 @@ Keep these invariants when touching any planner rule:
   own state): it is `entity_unavailable`. Without the option no sensor, number or dashboard section exists
   (`remove_entity()` clears old ones).
 
+- The charging power taper (`utils/taper.py`) is learned from the battery's own power and level (the same measurements as
+  the efficiency, `measure_efficiency(details=)`) and only from hours that proved a grid charge (plan check `ok`, grid
+  charging held 3/4 of the hour, the whole measurement inside such hours): a charge limited by the sun must never teach a
+  cap. The recorder history is deliberately not read for it (it has no plan). A cap is the 90th percentile of a band, only
+  relative to the best judged band, never above the configured rate; with `learn_charge_taper` off or too few measurements
+  the plan is exactly as before (every new path returns the old value without caps). Every optimiser charge goes through
+  `step_hour()`, which walks the hour through the bands (`charge_energy_kwh()`); the rules use the same figure
+  (`taper_rate_at()`, the level forecast, `kwh_available_in_hour()`), and `taper_cuts()` + `apply_taper_to_rules()` cut the
+  rules' charge hours that the taper (not the room) limits. The invariant "planned grid charging never exceeds the charge
+  power" therefore means the tapered energy of the hour. The what-if replay has no taper.
+
 ### Sell price (`calculate_sell_price()` in `prices/base.py`)
 
 Decided with the user: selling a kWh costs the **sell fee + Energinet's net

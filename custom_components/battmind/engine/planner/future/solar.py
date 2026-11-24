@@ -55,7 +55,7 @@ class FutureSolar:
             delta[h] = base[h][1] if len(base[h]) > 1 and not (h < len(solar) and solar[h] > 0) else 0.0
             if h < len(solar) and h < len(predicted_prices) and solar[h] > 0:
                 # same conversion as battery_level_flow_prediction()
-                available[h] = ctx.kwh_to_percentage(min(solar[h], ctx.max_kwh_charging)) * ctx.efficiency
+                available[h] = ctx.kwh_to_percentage(min(solar[h], self.taper_rate_at(ctx.charging_plan, ctx.current_hour, start.replace(hour=h), ctx.max_kwh_charging))) * ctx.efficiency
                 prices[h] = average(sell_by_hour[h]) if sell_by_hour.get(h) else float(predicted_prices[h])
         # an hour where solar charging was released isn't blocked again before the next hour
         released = ctx.now.hour if day == 0 and self.solar_block_released() else None
