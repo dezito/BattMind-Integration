@@ -443,6 +443,18 @@
         "description": "Używane razem z zapisaną historią słoneczną do przewidywania nadwyżki słonecznej. Działa każda integracja pogody obsługująca `weather.get_forecasts` (Met.no, AccuWeather, OpenWeather, ...).",
         "title": "Prognoza pogody"
       },
+      "storm": {
+        "title": "Ostrzeżenie przed burzą",
+        "description": "Utrzymuje baterię naładowaną na czas ostrzeżenia przed burzą. Wybierz czujnik binarny MeteoAlarm; pozostaw puste, aby wyłączyć funkcję. Liczą się tylko ostrzeżenia o wietrze, śniegu/lodzie lub burzy z piorunami na wybranym poziomie lub wyższym oraz tylko ostrzeżenia z czasem rozpoczęcia. Zapotrzebowanie to oczekiwane zużycie domu w czasie ostrzeżenia bez energii słonecznej plus zapas na wypadek błędnej prognozy (co najmniej 20 %). Bez zasilania awaryjnego pełna bateria nie zasili domu podczas przerwy w dostawie prądu.",
+        "data": {
+          "storm_warning_entity_id": "Ostrzeżenie przed burzą (MeteoAlarm)",
+          "storm_min_level": "Najniższy poziom, który się liczy"
+        },
+        "data_description": {
+          "storm_warning_entity_id": "Czujnik binarny MeteoAlarm dla Twojego regionu. Puste = wyłączone: funkcja, jej czujnik i liczba nie są tworzone.",
+          "storm_min_level": "2 = żółty, 3 = pomarańczowy, 4 = czerwony."
+        }
+      },
       "advanced": {
         "data_description": {
           "cron_interval": "Interwał między sprawdzaniem statusu a wykonywaniem funkcji",
@@ -483,7 +495,7 @@
           "menu_consumption": "Zużycie domu",
           "menu_general": "Ogólne",
           "menu_prices": "Ceny energii",
-          "menu_solar": "Panele słoneczne i pogoda"
+          "menu_solar": "Panele słoneczne, pogoda i ostrzeżenie przed burzą"
         },
         "description": "Wybierz, co zmienić. Integracja zostanie przeładowana po zapisaniu.",
         "title": "BattMind"
@@ -636,6 +648,12 @@
       },
       "powerwall_max_hours_old": {
         "name": "Maks. wiek kWh w magazynie energii"
+      },
+      "full_charge_recommended": {
+        "name": "Zalecane pełne ładowanie co"
+      },
+      "storm_cover_hours": {
+        "name": "Godziny objęte ostrzeżeniem bez czasu końca"
       },
       "what_if_history_days": {
         "name": "What-if – Historia (dni)"
@@ -873,6 +891,25 @@
       },
       "kwh_charged_by_solar": {
         "name": "kWh naładowane z PV"
+      },
+      "storm_warning": {
+        "name": "Ostrzeżenie przed burzą",
+        "state": {
+          "no_warning": "Brak ostrzeżenia",
+          "entity_unavailable": "Encja ostrzeżenia niedostępna",
+          "below_level": "Poniżej wybranego poziomu",
+          "other_type": "To nie jest ostrzeżenie przed burzą",
+          "no_start": "Brak czasu rozpoczęcia (zignorowano)",
+          "unreadable": "Nie można odczytać poziomu lub typu (zignorowano)",
+          "expired": "Zakończone",
+          "invalid": "Koniec przed początkiem (zignorowano)",
+          "later": "Zaczyna się po planie",
+          "coming": "Nadchodzące",
+          "active": "Aktywne"
+        }
+      },
+      "last_full_charge": {
+        "name": "Ostatnie pełne ładowanie"
       },
       "analysis": {
         "name": "Oszczędności w tym miesiącu"

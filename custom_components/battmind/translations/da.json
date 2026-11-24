@@ -275,7 +275,7 @@
           "menu_battery": "Husbatteri",
           "menu_consumption": "Husets forbrug",
           "menu_prices": "Elpriser",
-          "menu_solar": "Solceller og vejr",
+          "menu_solar": "Solceller, vejr og stormvarsel",
           "menu_advanced": "Planlægning og datalagring",
           "backup": "Backup (eksportér / importér)"
         }
@@ -472,6 +472,18 @@
         "data_description": {
           "hourly_service_entity_id": "Vejr-entitet med timeprognose. Skydække, UV og temperatur bruges til at vurdere soloverskuddet.",
           "daily_service_entity_id": "Vejr-entitet med dagsprognose. Bruges til de timer timeprognosen ikke dækker."
+        }
+      },
+      "storm": {
+        "title": "Stormvarsel",
+        "description": "Hold batteriet opladet til et stormvarsel. Vælg MeteoAlarms binary sensor; lad feltet stå tomt for at slå funktionen fra. Kun varsler om vind, sne/is og torden på eller over det valgte niveau tæller, og kun varsler med et starttidspunkt. Behovet er det forventede husforbrug under varslet uden sol plus en buffer for en prognose, der rammer ved siden af (mindst 20 %). Uden nødstrøm driver et fuldt batteri ikke huset ved strømsvigt.",
+        "data": {
+          "storm_warning_entity_id": "Stormvarsel (MeteoAlarm)",
+          "storm_min_level": "Laveste niveau der tæller"
+        },
+        "data_description": {
+          "storm_warning_entity_id": "MeteoAlarms binary sensor for din region. Tom = fra: funktionen, dens sensor og dens tal oprettes ikke.",
+          "storm_min_level": "2 = gul, 3 = orange, 4 = rød."
         }
       },
       "advanced": {
@@ -786,6 +798,12 @@
       "powerwall_max_hours_old": {
         "name": "Maks. timer gamle kWh i husbatteri"
       },
+      "full_charge_recommended": {
+        "name": "Anbefalet fuld ladning hver"
+      },
+      "storm_cover_hours": {
+        "name": "Timer et stormvarsel uden sluttid dækker"
+      },
       "what_if_history_days": {
         "name": "What-if – Historik (dage)"
       },
@@ -1022,6 +1040,25 @@
       },
       "kwh_charged_by_solar": {
         "name": "kWh ladet af solcellerne"
+      },
+      "storm_warning": {
+        "name": "Stormvarsel",
+        "state": {
+          "no_warning": "Intet varsel",
+          "entity_unavailable": "Varsel-entitet utilgængelig",
+          "below_level": "Under det valgte niveau",
+          "other_type": "Ikke et stormvarsel",
+          "no_start": "Ingen starttid (ignoreret)",
+          "unreadable": "Niveau eller type kan ikke læses (ignoreret)",
+          "expired": "Slut",
+          "invalid": "Slut før start (ignoreret)",
+          "later": "Starter efter planen",
+          "coming": "Kommer",
+          "active": "Aktivt"
+        }
+      },
+      "last_full_charge": {
+        "name": "Sidste fulde opladning"
       },
       "analysis": {
         "name": "Besparelse denne måned"

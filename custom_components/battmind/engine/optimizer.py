@@ -9,9 +9,11 @@ rules; the rule based plan is simulated with the same model, so the totals can b
 from __future__ import annotations
 
 import datetime
+import math
 from dataclasses import dataclass, field, replace
 
 from ..utils.efficiency import EfficiencyCurve, efficiency_at_power
+from .storm import STORM_RULE, STORM_SHORTFALL_PENALTY
 
 HOLD = "force_solar_only_charging"  # the house buys from the grid while the battery keeps its energy
 ACTIONS =("discharge_allowed", "force_solar_only_charging", "grid_charging", "force_discharge", "blocked_solar_charge")
@@ -44,6 +46,12 @@ class OptimizerHour:
     forbidden: set = field(default_factory=set)  # actions not allowed (their rule switch is off)
     block_allowed: bool = True  # False: solar charging may not be blocked (it was released earlier in the hour)
     old_above: float | None = None  # % level above which the energy is older than max_age_hours (set between the rounds)
+    # % level to have at the end of the hour for a storm warning (None: no level to keep). Below it nothing is sold, and
+    # the DP pays STORM_SHORTFALL_PENALTY per kWh it is short (steering only, never in a cost or a total)
+    floor: float | None = None
+    # The highest storm level (%) of this and the later hours (None: none ahead). The storm level goes before the max. age of the
+    # energy: old energy may be held when using the battery in this hour would end under it
+    floor_ahead: float | None = None
 
 
 @dataclass
@@ -72,6 +80,11 @@ class OptimizerConfig:
     max_age_hours: float | None = None
     charged_before: tuple = ()  # ((hour, % level added), ...) charged before the first hour (the charging history)
     unaged: float = 0.0  # % level of unknown age
+    # Full charge (number full_charge_recommended): the battery has to reach full_level % at some hour up to and
+    # including the hour that starts at full_deadline (naive local, like the hours). None: no requirement (the plan is
+    # exactly the one without it). It is never a hard constraint: when it can't be met it is dropped (full_dropped).
+    full_deadline: datetime.datetime | None = None
+    full_level: float | None = None
 
 
 @dataclass
@@ -89,6 +102,13 @@ class OptimizerResult:
     unaged_end: float | None = None  # % level of unknown age left at the end (None: not tracked)
     # False: optimize_with_rules() used up its rounds and the plan still has an action whose rule is switched off
     converged: bool = True
+    # full charge (cfg.full_deadline): the hour the plan first reaches cfg.full_level, and why the requirement was
+    # dropped ("unreachable": no plan reaches it by the deadline; the plan is then the one without the requirement)
+    full_reached: int | None = None
+    full_dropped: str | None = None
+    # the full charge plan whose forward pass used held old energy and so missed full (the result is then the plan without
+    # the requirement): optimize_with_rules() learns the max. age limits from it, so the next round can reach full
+    full_missed: OptimizerResult | None = field(default=None, repr=False)
 
 
 def step_hour(
@@ -139,7 +159,7 @@ def step_hour(
         wanted = min(max_discharge, max_discharge if limit is None else hour.consumption + limit)
         discharge_efficiency = efficiency_at_power(cfg.discharge_efficiency_curve, wanted * 1000.0, curve_fallback)
         house = min(hour.consumption, max_discharge, available * discharge_efficiency)
-        usage_floor = max(cfg.level_min, cfg.usage_reserve)
+        usage_floor = max(cfg.level_min, cfg.usage_reserve, hour.floor or 0.0)
         export_available = max(level - usage_floor, 0.0) * to_kwh * discharge_efficiency - house
         export_wanted = max_discharge if limit is None else limit
         exported_from_battery = min(max(export_available, 0.0), export_wanted, max_discharge - house)
@@ -154,6 +174,18 @@ def step_hour(
     if details is not None:
         details.update(solar_in=solar_in, house=house, sold=delivered - house, grid=grid_kwh, delivered=delivered)
     return min(max(new_level, cfg.level_min), cfg.level_max), cost, delivered, grid_kwh
+
+
+def storm_holds(hour: OptimizerHour, level: float, cfg: OptimizerConfig) -> bool:
+    """True when the battery may hold energy older than the max. age in this hour: using it for the house would end the hour under
+    a storm level that is still to come (this hour's or a later one).
+
+    The storm level goes before the max. age of the energy (decided with the user), but only where the storm needs it: with more
+    energy in the battery than the level ahead, old energy is used as before.
+    """
+    if hour.floor_ahead is None or hour.consumption <= 0.0:
+        return False
+    return step_hour(hour, level, "discharge_allowed", cfg)[0] < hour.floor_ahead - 1e-6
 
 
 @dataclass
@@ -236,7 +268,7 @@ def enforce_max_age(
     for index, hour in enumerate(hours):
         unaged = _unaged_left(unaged, level, cfg)
         old = old_energy(hour, level, cfg, charges, unaged)
-        if old > 0.0 and actions[index] == HOLD and hour.consumption > 0.0:
+        if old > 0.0 and actions[index] == HOLD and hour.consumption > 0.0 and not storm_holds(hour, level, cfg):
             actions[index], limits[index] = "discharge_allowed", None
         previous = level
         level = step_hour(hour, level, actions[index], cfg, limits[index])[0]
@@ -247,11 +279,110 @@ def enforce_max_age(
     return actions, limits, old_levels
 
 
+def _level_from(
+    hours: list[OptimizerHour], level: float, cfg: OptimizerConfig, actions: list[str], limits: list, first: int, stop: int
+) -> float:
+    """The battery level at the end of hours[stop] with these actions, from `level` at the start of hours[first]."""
+    for index in range(first, stop + 1):
+        level = step_hour(hours[index], level, actions[index], cfg, limits[index])[0]
+    return level
+
+
+def enforce_storm_floor(
+    hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfig, actions: list[str], limits: list[float | None]
+) -> tuple[list[str], list[float | None], dict[int, tuple[str, str]]]:
+    """A given plan (the rules') that keeps the storm level of every hour (OptimizerHour.floor).
+
+    Walks the plan. A sale that the level caps (step_hour exports only down to it) is cut to what may be sold, or dropped:
+    the plan lists exactly what the battery may do. At the first hour that ends under its level, the cheapest earlier (or
+    same) hour is changed: a sale is cancelled, house use becomes a hold (the house buys from the grid), or grid charging is
+    planned with as small a part of the charge rate as reaches the level (the full rate when no part does, and the next
+    round goes on). The price of a sale is what it earns, the price of a hold or a charge what the grid kWh cost. Stops when
+    no change raises the level at that hour (the level can't be reached).
+    Returns the actions, the limits and {index: (what it was, what it is now)} of the hours that were changed.
+    """
+    actions, limits = list(actions), list(limits)
+    changed: dict[int, tuple[str, str]] = {}
+    hold = "discharge_allowed" if HOLD in cfg.unsupported else HOLD
+
+    def record(index: int, action: str) -> None:
+        changed[index] = (changed.get(index, (actions[index],))[0], action)
+        actions[index] = action
+
+    for _ in range(8 * len(hours) + 1):
+        level, violation, capped = start_level, None, None
+        levels_before: list[float] = []
+        for index, hour in enumerate(hours):
+            levels_before.append(level)
+            details: dict = {}
+            level = step_hour(hour, level, actions[index], cfg, limits[index], details)[0]
+            if hour.floor is not None and actions[index] == "force_discharge":
+                free: dict = {}
+                step_hour(replace(hour, floor=None), levels_before[index], actions[index], cfg, limits[index], free)
+                if free["sold"] > details["sold"] + 0.01:
+                    capped = (index, details["sold"])
+                    break
+            if hour.floor is not None and level < hour.floor - 1e-6:
+                violation = index
+                break
+        if capped is not None:
+            index, sold = capped
+            if sold < max(cfg.min_sell_kwh, 0.01):
+                record(index, hold)
+                limits[index] = None
+            else:
+                record(index, "force_discharge")
+                limits[index] = math.floor(sold * 100.0) / 100.0
+            continue
+        if violation is None:
+            break
+        floor = hours[violation].floor
+        current = level
+        best = None  # (price, index, action, limit)
+        for index in range(violation + 1):
+            hour = hours[index]
+            before = levels_before[index]
+            candidates: list[tuple[float, str, float | None]] = []
+            if actions[index] == "force_discharge" and hold not in hour.forbidden:
+                candidates.append((hour.sell, hold, None))
+            if actions[index] == "discharge_allowed" and hold != "discharge_allowed" and hour.consumption > 0.0 and hold not in hour.forbidden:
+                candidates.append((hour.buy, hold, None))
+            if (
+                "grid_charging" not in cfg.unsupported
+                and before < cfg.level_max - 0.01
+                and not (actions[index] == "grid_charging" and limits[index] is None)
+            ):
+                for fraction in FRACTIONS:
+                    candidates.append((hour.buy, "grid_charging", None if fraction == 1.0 else cfg.max_charge * hour.fraction * fraction))
+            for price, action, limit in candidates:
+                if action == "grid_charging" and limits[index] is not None and actions[index] == "grid_charging" and limit is not None and limit <= limits[index]:
+                    continue  # not more than the plan charges already
+                trial_actions, trial_limits = list(actions), list(limits)
+                trial_actions[index], trial_limits[index] = action, limit
+                raised = _level_from(hours, before, cfg, trial_actions, trial_limits, index, violation)
+                if raised <= current + 1e-6:
+                    continue
+                if action == "grid_charging" and raised < floor - 1e-6 and limit is not None:
+                    continue  # a smaller part that doesn't reach the level: the full rate is tried
+                if best is None or price < best[0] - 1e-9:
+                    best = (price, index, action, limit)
+                break  # the smallest part that works (or the cancelled sale, or the hold) of this hour
+        if best is None:
+            break
+        _, index, action, limit = best
+        record(index, action)
+        limits[index] = limit
+    return actions, limits, changed
+
+
 def _allowed(hour: OptimizerHour, level: float, action: str, cfg: OptimizerConfig, delivered: float, later: _Later | None = None) -> bool:
     if action in hour.forbidden or action in cfg.unsupported:
         return False
-    if action == HOLD and hour.consumption > 0.0 and hour.old_above is not None and level > hour.old_above + cfg.step:
-        return False  # old energy is used, not held back
+    if (
+        action == HOLD and hour.consumption > 0.0 and hour.old_above is not None and level > hour.old_above + cfg.step
+        and not storm_holds(hour, level, cfg)
+    ):
+        return False  # old energy is used, not held back (unless the storm level needs it)
     if action == "force_discharge":
         return hour.can_sell and delivered - min(delivered, hour.consumption) >= max(cfg.min_sell_kwh, 0.01)
     if action == "grid_charging":
@@ -268,6 +399,62 @@ def _allowed(hour: OptimizerHour, level: float, action: str, cfg: OptimizerConfi
         room = max(cfg.level_max - level, 0.0) * cfg.battery_size / 100.0
         return later.solar * SOLAR_BLOCK_MARGIN * cfg.efficiency >= room - 0.01
     return True
+
+
+# Full charge: what a plan that is not full by the deadline pays in the DP (steering only, never in a cost). Large and finite,
+# so the DP can't become infeasible: when no plan reaches full, every plan of the layer pays it, which is how it is detected.
+FULL_CHARGE_PENALTY = 1e9
+FULL_CHARGE_RULE = "full_charge_planner"
+
+
+def _full_charge_deadline(hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfig) -> int | None:
+    """Index of the last hour of the full charge requirement (cfg.full_deadline), None without one.
+
+    None too when the battery is full already at the start, or when no hour of these hours is before the deadline."""
+    if cfg.full_deadline is None or cfg.full_level is None or start_level >= cfg.full_level - 1e-6:
+        return None
+    return next((i for i in range(len(hours) - 1, -1, -1) if hours[i].timestamp <= cfg.full_deadline), None)
+
+
+def _full_charge_layer(
+    hour: OptimizerHour, levels: list[float], index, options, full: list[float], not_full: list[float] | None,
+    cfg: OptimizerConfig, later: _Later, to_kwh: float,
+) -> tuple[list[float], list[tuple[str, float | None]]]:
+    """One hour of the DP for the plans that have not been full yet (full charge requirement).
+
+    full: the value of the next hour for plans that have been full (the plain DP), not_full: of those that have not
+    (None in the deadline hour: not full at its end pays FULL_CHARGE_PENALTY). Solar charging can't be blocked before
+    the battery has been full. The steering terms are those of optimize().
+
+    The table works on the 0.5 % grid, the plan follows the exact level (up to step / 2 lower): full in the table is
+    step / 2 above full_level, so a plan that is full here is full at its exact level too (at most level_max, which a
+    charge reaches exactly)."""
+    reached = min(cfg.full_level + cfg.step / 2, cfg.level_max) - 1e-6
+    new_value, new_choice = [], []
+    for level in levels:
+        best_cost, best_option = None, options[0]
+        for action, limit in options:
+            if action == "blocked_solar_charge":
+                continue
+            new_level, cost, delivered, _ = step_hour(hour, level, action, cfg, limit)
+            if not _allowed(hour, level, action, cfg, delivered, later):
+                continue
+            if new_level >= reached:
+                after = full[index(new_level)]
+            elif not_full is None:
+                after = full[index(new_level)] + FULL_CHARGE_PENALTY
+            else:
+                after = not_full[index(new_level)]
+            total = cost + delivered * cfg.min_profit_per_kwh + after
+            if hour.floor is not None:  # the storm warning's level, as in optimize()
+                total += max(hour.floor - new_level, 0.0) * to_kwh * STORM_SHORTFALL_PENALTY
+            if action == "force_discharge":
+                total += cfg.min_total_profit
+            if best_cost is None or total < best_cost - 1e-9:
+                best_cost, best_option = total, (action, limit)
+        new_value.append(FULL_CHARGE_PENALTY * 2 if best_cost is None else best_cost)
+        new_choice.append(best_option)
+    return new_value, new_choice
 
 
 def optimize(hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfig, end_value_per_kwh: float) -> OptimizerResult:
@@ -290,6 +477,10 @@ def optimize(hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfi
     options += [("force_discharge", cfg.max_discharge * fraction) for fraction in FRACTIONS]  # capped per hour by its rate
     choice: list[list[tuple[str, float | None]]] = []
     later = _later(hours, cfg)
+    # full charge: a second layer for the plans that have not been full yet, only up to the deadline and only with a requirement
+    deadline = _full_charge_deadline(hours, start_level, cfg)
+    full_value: list[float] | None = None
+    full_choice: list[list[tuple[str, float | None]]] = []
     for position in reversed(range(len(hours))):
         hour = hours[position]
         new_value, new_choice = [], []
@@ -301,23 +492,38 @@ def optimize(hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfi
                     continue
                 # min_profit_per_kwh / min_total_profit only steer the choice, the reported costs are real money
                 total = cost + delivered * cfg.min_profit_per_kwh + value[index(new_level)]
+                if hour.floor is not None:
+                    total += max(hour.floor - new_level, 0.0) * to_kwh * STORM_SHORTFALL_PENALTY
                 if action == "force_discharge":
                     total += cfg.min_total_profit
                 if best_cost is None or total < best_cost - 1e-9:
                     best_cost, best_option = total, (action, limit)
             new_value.append(best_cost)
             new_choice.append(best_option)
+        if deadline is not None and position <= deadline:
+            full_value, layer = _full_charge_layer(
+                hour, levels, index, options, value, full_value if position < deadline else None, cfg, later[position], to_kwh
+            )
+            full_choice = [layer, *full_choice]
         value, choice = new_value, [new_choice, *choice]
 
     result = OptimizerResult()
+    # the deadline hour for the "reached full" check, also when the table can't promise full (the plan may still reach it
+    # between the table's grid and full_level: then it is reached, not dropped)
+    last = deadline
+    # no plan reaches full by the deadline: the requirement is dropped and the plan is the one without it
+    if deadline is not None and full_value[index(start_level)] >= FULL_CHARGE_PENALTY / 2:
+        result.full_dropped, deadline = "unreachable", None
     level, unaged = start_level, cfg.unaged
-    for hour, hour_choice in zip(hours, choice):
+    for position, (hour, hour_choice) in enumerate(zip(hours, choice)):
         action, limit = hour_choice[index(level)]
+        if deadline is not None and position <= deadline and result.full_reached is None:
+            action, limit = full_choice[position][index(level)]
         # the age of the energy follows from this plan's own charges, so it is checked on the way: old
         # energy is never held back (the table above only knows the limits of the previous round)
         unaged = _unaged_left(unaged, level, cfg)
         old = old_energy(hour, level, cfg, result.charged, unaged)
-        if old > 0.0 and action == HOLD and hour.consumption > 0.0:
+        if old > 0.0 and action == HOLD and hour.consumption > 0.0 and not storm_holds(hour, level, cfg):
             action, limit = "discharge_allowed", None
             result.held_old += 1
         previous = level
@@ -332,6 +538,19 @@ def optimize(hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfi
         result.sold_kwh.append(round(delivered - min(delivered, hour.consumption), 2) if action == "force_discharge" else 0.0)
         result.levels.append(round(level, 1))
         result.costs.append(round(cost, 3))
+        if last is not None and position <= last and result.full_reached is None and level >= cfg.full_level - 1e-6:
+            result.full_reached = position  # the exact level, not the 0.5 % grid of the DP
+    if result.full_reached is not None:
+        result.full_dropped = None
+    elif deadline is not None:
+        # the forward pass left the table's plan (old energy is used instead of held) and doesn't reach full: the holds and
+        # charges made for the full charge are not kept, the plan is the one without the requirement. It is dropped unless
+        # that plan reaches full by itself (its levels are rounded to 0.1 %). The failed plan is kept for its max. age limits.
+        plain = optimize(hours, start_level, replace(cfg, full_deadline=None, full_level=None), end_value_per_kwh)
+        plain.full_reached = next((j for j, value in enumerate(plain.levels[: last + 1]) if value >= cfg.full_level - 1e-6), None)
+        plain.full_dropped = None if plain.full_reached is not None else "unreachable"
+        plain.full_missed = result
+        return plain
     result.end_value = (level - cfg.level_min) * to_kwh * end_value_per_kwh
     result.total = sum(result.costs) - result.end_value
     return result
@@ -407,11 +626,34 @@ RULE_SWITCHES = {
 }
 
 
-def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerConfig) -> list[dict | None]:
+def _full_charge_charges(result: OptimizerResult, cfg: OptimizerConfig, start_level: float | None = None) -> set[int]:
+    """The grid charges that bring the plan to full for the full charge requirement (result.full_reached).
+
+    Only the grid charges of the run of hours whose level rises into the first full hour (grid or sun): an earlier charge
+    that is used before that (e.g. a cheap night charge for an expensive morning) is its own rule's, so a switch can forbid
+    it. start_level: the level before the first hour (None: the first hour counts as rising)."""
+    reached = result.full_reached
+    if reached is None:
+        return set()
+    levels = result.levels
+
+    def rises(j: int) -> bool:
+        before = levels[j - 1] if j else start_level
+        return before is None or levels[j] > before + 1e-6
+
+    first = reached
+    while first > 0 and rises(first - 1):
+        first -= 1
+    return {j for j in range(first, reached + 1) if result.actions[j] == "grid_charging" and result.grid_kwh[j] > 0.01}
+
+
+def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerConfig, start_level: float | None = None) -> list[dict | None]:
     """Which rule each optimised action corresponds to, and the hour it is for (index into hours).
 
     {"rule": key of RULE_SWITCHES, "target": index or None, "forbid": (index, action) to forbid when
-    the rule is switched off, "kind": detail}, None for plain self consumption.
+    the rule is switched off, "kind": detail}, None for plain self consumption. A charge or a hold that the plan
+    needs to keep the level of a storm warning is {"rule": STORM_RULE, ...}: it belongs to no switch. start_level
+    (the level before the first hour) is what tells that; without it nothing is labelled for a storm in hour 0.
     """
     count = len(hours)
     full = cfg.level_max - 0.5
@@ -424,6 +666,35 @@ def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerC
     def selling(index: int) -> bool:
         return actions[index] == "force_discharge" and result.sold_kwh[index] > 0.01
 
+    floored = [j for j, hour in enumerate(hours) if hour.floor is not None]
+    limits = [
+        grid if action == "grid_charging" else sold if action == "force_discharge" else None
+        for action, grid, sold in zip(actions, result.grid_kwh, result.sold_kwh)
+    ]
+    hold = "discharge_allowed" if HOLD in cfg.unsupported else HOLD
+    base_shortfall: dict[int, float] = {}  # per hour: how far the plan itself is under the storm level from there on
+
+    def shortfall(plan_actions: list[str], first: int) -> float:
+        """% the plan is under the storm level in the hours from `first` on (the levels before it are the result's)."""
+        level = (levels[first - 1] if first else start_level)
+        total = 0.0
+        for j in range(first, floored[-1] + 1):
+            level = step_hour(hours[j], level, plan_actions[j], cfg, limits[j])[0]
+            if hours[j].floor is not None:
+                total += max(hours[j].floor - level, 0.0)
+        return total
+
+    def storm_needs(index: int, instead: str) -> bool:
+        """The plan is further under the storm level in a later hour when this hour does `instead` of what it does."""
+        if not floored or index > floored[-1] or (index == 0 and start_level is None):
+            return False
+        changed = list(actions)
+        changed[index] = instead
+        if index not in base_shortfall:
+            base_shortfall[index] = shortfall(actions, index)
+        return shortfall(changed, index) > base_shortfall[index] + 1e-6
+
+    full_charges = _full_charge_charges(result, cfg, start_level)
     explanations: list[dict | None] = []
     for i, hour in enumerate(hours):
         explanation = None
@@ -438,7 +709,14 @@ def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerC
             sales = [j for j in window if selling(j)]
             uses = [j for j in window if actions[j] in ("discharge_allowed", "force_discharge") and hours[j].consumption > 0.0]
             solar_full = next((j for j in window if hours[j].solar > 0.0 and levels[j] >= full), None)
-            if sales:
+            # the plan would be under the level a storm warning wants without this charge
+            if storm_needs(i, hold):
+                explanation = {"rule": STORM_RULE, "target": next((j for j in floored if j >= i), None)}
+            elif i in full_charges:
+                # full charge: a grid charge on the way to the plan's first full hour (no switch, never forbidden), also in
+                # a negative price hour or when it is sold later (the sale itself is explained, and forbidden, on its own)
+                explanation = {"rule": FULL_CHARGE_RULE, "target": result.full_reached}
+            elif sales:
                 target = max(sales, key=lambda j: (hours[j].sell, -j))
                 # buying to sell switched off: the sale goes, the charge may still be used for the house
                 explanation = {"rule": "grid_charge_to_sell", "target": target, "forbid": (target, "force_discharge")}
@@ -491,6 +769,9 @@ def explain(hours: list[OptimizerHour], result: OptimizerResult, cfg: OptimizerC
             # no later, more expensive use: the energy is held because using it now doesn't pay
             rule = "prioritize_discharge_hours_by_energy_cost" if target is not None else "only_discharge_on_profit"
             explanation = {"rule": rule, "target": target}
+            # held for the storm: the battery is at the level a storm warning wants in this or a later hour
+            if storm_needs(i, "discharge_allowed"):
+                explanation = {"rule": STORM_RULE, "target": next((j for j in floored if j >= i), None)}
         elif actions[i] == "blocked_solar_charge":
             target = next((j for j in range(i + 1, count) if hours[j].solar > 0.0 and actions[j] != "blocked_solar_charge"), None)
             explanation = {"rule": "optimize_solar_charging", "target": target}
@@ -520,17 +801,22 @@ def optimize_with_rules(
     seen_limits = {tuple(hour.old_above for hour in hours)}
     for _ in range(rounds):
         result = optimize(hours, start_level, cfg, end_value_per_kwh)
-        explanations = explain(hours, result, cfg)
+        explanations = explain(hours, result, cfg, start_level)
         changed = False
         for index, (action, explanation) in enumerate(zip(result.actions, explanations)):
-            if explanation and not any(enabled(switch) for switch in RULE_SWITCHES[explanation["rule"]]):
+            # a charge for a storm warning belongs to no rule switch: it is never forbidden
+            if explanation and explanation["rule"] == FULL_CHARGE_RULE:
+                continue  # the full charge has no switch (only its number): it is never forbidden
+            if explanation and explanation["rule"] != STORM_RULE and not any(enabled(switch) for switch in RULE_SWITCHES[explanation["rule"]]):
                 forbid_index, forbid_action = explanation.get("forbid", (index, action))
                 if forbid_action not in hours[forbid_index].forbidden:
                     hours[forbid_index].forbidden.add(forbid_action)
                     changed = True
         # the limits follow the charges of the latest plan: also drop limits this plan has no old energy for
-        if cfg.max_age_hours is not None and (result.held_old or any(hour.old_above is not None for hour in hours)):
-            limits = old_energy_limits(hours, cfg, result.charged, start_level, result.levels)
+        # (a full charge that missed full because of held old energy: the limits of that plan, so the next round reaches it)
+        aged = result.full_missed if result.full_missed is not None and result.full_missed.held_old else result
+        if cfg.max_age_hours is not None and (aged.held_old or any(hour.old_above is not None for hour in hours)):
+            limits = old_energy_limits(hours, cfg, aged.charged, start_level, aged.levels)
             if limits != [hour.old_above for hour in hours]:
                 # The limits can flip between two plans for ever (the charges of one plan give the limits of the other).
                 # A limit set seen before is a cycle: stop there. Every plan keeps the max. age exactly (optimize()
@@ -623,6 +909,27 @@ def breakdown(
     }
 
 
+def carry_floor(next_hours: list[OptimizerHour], cfg: OptimizerConfig) -> float | None:
+    """The level a day has to end with so that the next day can still reach its storm levels (None: no level is needed).
+
+    Walks back from each hour of the next day that has a level to keep, giving every hour up to it its full charge
+    rate: what is left is what the day before has to bring. The next day optimises on its own from the level the day
+    before ends with, so without this a storm just after midnight could not be charged for in time.
+    """
+    if cfg.battery_size <= 0.0:
+        return None
+    to_percent = 100.0 / cfg.battery_size
+    carry = None
+    for index, hour in enumerate(next_hours):
+        if hour.floor is None:
+            continue
+        required = hour.floor
+        for earlier in next_hours[: index + 1][::-1]:
+            required = max(cfg.level_min, required - cfg.max_charge * earlier.fraction * cfg.efficiency * to_percent)
+        carry = required if carry is None else max(carry, required)
+    return carry if carry is not None and carry > cfg.level_min + 1e-6 else None
+
+
 def optimize_per_day(
     hours: list[OptimizerHour], start_level: float, cfg: OptimizerConfig, end_value_per_kwh: float, enabled
 ) -> tuple[OptimizerResult, list[dict | None]]:
@@ -637,14 +944,37 @@ def optimize_per_day(
     days: dict = {}
     for hour in hours:
         days.setdefault(hour.timestamp.date(), []).append(hour)
-    for day_hours in days.values():
+    # full charge: only the day with the deadline has the requirement; a day before it that reaches full ends it
+    full_pending = cfg.full_deadline is not None and cfg.full_level is not None and start_level < cfg.full_level - 1e-6
+    day_list = list(days.values())
+    for position, day_hours in enumerate(day_list):
         offset = len(merged.actions)
+        # a storm level in the first hours of the next day: this day has to end high enough for it to be reachable
+        carry = carry_floor(day_list[position + 1], cfg) if position + 1 < len(day_list) else None
+        last_floor = day_hours[-1].floor
+        if carry is not None:
+            day_hours[-1].floor = max(last_floor or 0.0, carry)
         # what the earlier days charged is part of the age of the energy
         day_cfg = cfg
         if cfg.max_age_hours is not None:
             unaged = cfg.unaged if merged.unaged_end is None else merged.unaged_end
             day_cfg = replace(cfg, charged_before=(*cfg.charged_before, *merged.charged), unaged=unaged)
+        # the last day that starts before the deadline (its hour itself may be missing from the hours)
+        deadline_day = full_pending and day_hours[0].timestamp <= cfg.full_deadline and (
+            position + 1 == len(day_list) or day_list[position + 1][0].timestamp > cfg.full_deadline
+        )
+        if cfg.full_deadline is not None and not deadline_day:
+            day_cfg = replace(day_cfg, full_deadline=None, full_level=None)
         result, day_explanations = optimize_with_rules(day_hours, level, day_cfg, end_value_per_kwh, enabled)
+        day_hours[-1].floor = last_floor
+        if full_pending:
+            reached = result.full_reached
+            if reached is None and not deadline_day:
+                reached = next((j for j, value in enumerate(result.levels) if value >= cfg.full_level - 1e-6), None)
+            if reached is not None:
+                merged.full_reached, full_pending = offset + reached, False
+            elif deadline_day:
+                merged.full_dropped, full_pending = result.full_dropped, False
         for name in ("actions", "levels", "costs", "grid_kwh", "sold_kwh", "charged", "old"):
             getattr(merged, name).extend(getattr(result, name))
         merged.held_old += result.held_old

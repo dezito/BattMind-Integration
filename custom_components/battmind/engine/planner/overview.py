@@ -117,6 +117,12 @@ class Overview:
                 _LOGGER.exception("Failed to create the key figures of the plan: %s", err)
             now = self.now().replace(tzinfo=None)
             shadow = self.optimizer_shadow or {}
+            # 💯 a due full charge the plan that controls the battery can't reach before its deadline (dropped)
+            full_charge = getattr(self, "full_charge_plan", None)
+            if full_charge and (full_charge.get("optimal_dropped") if shadow.get("controls") else not full_charge.get("rules_reached")):
+                # the level the plan aims at (max - FULL_CHARGE_MARGIN): 99, or 94.5 for a max. level of 95.5 (not rounded away)
+                level_text = f"{round(full_charge['full_level'], 1):g}"
+                overview.append(f"\n💯 {t(f'{prefix}.full_charge_dropped', level=level_text)}\n")
             level_key = "battery_level" if shadow.get("controls") else "rules_battery_level"  # the plan that controls the battery
             levels = {_naive(hour["hour"]): hour.get(level_key) for hour in shadow.get("hours", []) if isinstance(hour, dict) and hour.get("hour")}
             body: list[str] = []

@@ -70,19 +70,22 @@ class FutureSupport:
         predicted = data["solar_cost_prediction"] if data else []
         return float(predicted[hour_timestamp.hour]) if hour_timestamp.hour < len(predicted) else 0.0
 
-    def grid_headroom_kwh(self, ctx, timestamp, price=None):
+    def grid_headroom_kwh(self, ctx, timestamp, price=None, until=None):
         """Grid kWh that can be charged at timestamp without pushing solar surplus out of the battery.
 
         Grid energy stays in the battery until it runs down to min level, so the highest
         predicted level (incl. solar) from the charge hour until then must stay below max.
         With price: solar first is soft - when the solar surplus that would be pushed out is
         sold for more than the grid kWh costs (e.g. negative buy prices), it may be pushed out.
+        until (the full charge's deadline hour): the levels after that hour don't count.
         """
         minimum = ctx.config["solar"]["powerwall_battery_level_min"]
         maximum = ctx.config["solar"]["powerwall_battery_level_max"]
         highest = minimum
         loop_timestamp = reset_time_to_hour(timestamp)
         while (data := ctx.charging_plan.get(days_between(ctx.current_hour, loop_timestamp))) is not None:
+            if until is not None and loop_timestamp > until:
+                break
             flow = data["battery_level_flow"].get(loop_timestamp.hour)
             if flow:
                 level = sum(flow)

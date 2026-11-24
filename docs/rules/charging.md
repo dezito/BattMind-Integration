@@ -8,6 +8,9 @@ These rules decide when the battery charges from the grid. All of them:
 - leave room for the **solar surplus** – grid charging never takes charge power or battery room the sun
   will use, unless that solar is sold for more than the grid kWh costs
 
+The [full charge](#-full-charge) is the exception to the first two: it charges for the battery's health,
+not for profit, so it ignores *Min. profit per kWh*.
+
 With the [whole period optimisation](optimizer.md) on, the switches decide which kinds of charging the
 optimisation may use. The optimisation also values the energy left in the battery at the end of the period,
 so it can charge for energy that is only used after the period (see
@@ -116,3 +119,38 @@ and earns 1.50 kr: 0.84 kr profit per kWh.
 > In Denmark the sell price is the spot price without tariffs and taxes, while the buy price includes them.
 > So the sell price is usually much lower than the buy price, and this rule only plans something on days
 > with a very big price difference.
+
+---
+
+## 💯 Full charge
+
+**Number:** *Recommended full charge every* (days, `number.<prefix>_full_charge_recommended`, 0–60,
+default 0 = off) · **Sensor:** *Last full charge* (`sensor.<prefix>_last_full_charge`)
+
+There is no switch: the number turns the rule on and off.
+
+Some LFP home batteries need a full charge now and then, so the battery management system can calibrate
+and balance the cells. Set the number to how often the battery maker recommends it. The target is the
+configured **Maximum level**: if your battery needs 100 %, set the maximum level to 100 %.
+
+- **The battery counts as full** when it reaches its maximum level minus 1 %. The moment is stored in
+  `sensor.<prefix>_last_full_charge` straight away, without a hold time. It is recorded while the number is
+  0 too, and a full charge that the sun reaches on its own counts.
+- **The first time**, when nothing is recorded yet, BattMind looks back in the battery level history (about
+  the last 2 days). If it finds nothing, the battery counts as a day overdue, never as just charged.
+- **When more days than the number have passed**, BattMind plans a grid charge up towards the maximum level
+  (both the rules and the optimisation do; the battery counts as full at the maximum level minus 1 %, as
+  above) in the cheapest hours before the end of tomorrow. The deadline rolls: when the full charge is already a day overdue, it is the end of today.
+- **It waits until the deadline's prices are known.** With a deadline at the end of tomorrow, that is
+  tomorrow's prices. Before that, it plans nothing and doesn't mention it.
+- **It ignores min. profit per kWh**, like [negative prices](#-negative-prices): the charge is for the
+  battery's health, not for a later saving. **Solar still goes first:** grid charging doesn't take charge
+  power or battery room that the sun fills before the deadline, and solar charging is not blocked before the
+  plan has reached the full charge (after that, the plan may block it again).
+- **If the battery can't reach the maximum level before the deadline** (for example too little charge power
+  or too little time), the overview says so and the full charge is dropped.
+- **With grid charging [unsupported](../actions.md#when-the-inverter-cant-run-an-action)** the full charge
+  is simply off: nothing is planned, nothing is dropped, and the dashboard hides the number and the sensor.
+- The deadline has to be inside the plan (*Days to plan*): with a plan of 1 day, it only plans a full charge
+  that is already a day overdue (deadline today). It is not part of the
+  [what-if simulator](../what-if-simulator.md).

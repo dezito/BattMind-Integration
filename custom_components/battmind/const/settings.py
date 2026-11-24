@@ -98,6 +98,16 @@ NUMBER_SETTINGS: dict[str, dict[str, Any]] = {
         "unit": "h",
         "default": 48,
     },
+    # a full charge every this many days (battery management system calibration of some LFP batteries), 0 = off. No
+    # switch: the number turns it on. Not a what-if setting: the replay has the full charge off (engine/full_charge.py)
+    "full_charge_recommended": {
+        "min": 0,
+        "max": 60,
+        "step": 1,
+        "mode": "box",
+        "unit": "d",
+        "default": 0,
+    },
 }
 
 FORECAST_TYPE_OPTIONS = [
@@ -201,6 +211,17 @@ WHAT_IF_FLAGS = {
 # the state of the what_if_status sensor
 WHAT_IF_STATUSES = ("idle", "running", "stopping", "stopped", "failed")
 
+# Storm warning (option storm_warning_entity_id): the status sensor and the number only exist while the option is set, so they
+# are not in SENSOR_KEYS and NUMBER_SETTINGS (every entity of those is always made)
+STORM_SENSOR_KEY = "storm_warning"
+STORM_NUMBER_KEY = "storm_cover_hours"
+# hours a warning without an end time covers, counted from its start (engine/storm.py STORM_DEFAULT_HOURS)
+STORM_NUMBER: dict[str, Any] = {"min": 1, "max": 72, "step": 1, "mode": "box", "unit": "h", "default": 12}
+# the state of the status sensor (engine/storm.py STATUS_*)
+STORM_STATUSES = (
+    "no_warning", "entity_unavailable", "below_level", "other_type", "no_start", "unreadable", "expired", "invalid", "later", "coming", "active",
+)
+
 # Output sensors (icons in icons.json)
 SENSOR_KEYS = (
     "current_charging_rule",
@@ -211,4 +232,6 @@ SENSOR_KEYS = (
     "battery_level_needed",
     "kwh_charged_by_solar",
     "analysis",
+    # when the battery last reached its max. level (full charge), stored in the analysis database
+    "last_full_charge",
 )

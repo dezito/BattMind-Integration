@@ -16,6 +16,15 @@ One of these is usually the reason:
 - **It isn't one of the cheapest periods**, or it costs more than *increase for cheapest price* above the
   day's cheapest hour.
 
+## Why does it charge to the maximum level although it doesn't pay?
+
+If *Recommended full charge every* is above 0 and more days than that have passed since *Last full charge*
+(the battery last reached its maximum level minus 1 %), BattMind plans a 💯 [full charge](rules/charging.md#-full-charge)
+in the cheapest hours before the end of tomorrow (before the end of today when the full charge is already a
+day overdue), whatever *Min. profit per kWh* says. When BattMind has no *Last full charge* and finds none in the
+battery level history, the battery counts as a day overdue. It is meant for LFP batteries that need it. Set the
+number to 0 to switch it off.
+
 ## It planned to charge tonight, but the battery wasn't charged in the morning
 
 Usually the plan changed during the night. BattMind recalculates the plan every few minutes, and it moves

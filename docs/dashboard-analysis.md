@@ -62,7 +62,7 @@ All rules, grouped, each group with a **Read more**:
 |---|---|
 | Control | [whole period optimisation](rules/optimizer.md), forecast type, [choose the forecast type automatically](#forecast-accuracy), [correct the price forecast](how-it-works.md#prices) |
 | Profit requirements | [min. profit per kWh, min. total profit, min. kWh for export, excluded sell hours](rules/selling.md#profit-requirements) |
-| Charging from the grid | [cheapest periods, fill up, most expensive periods, required before max level, negative prices](rules/charging.md) |
+| Charging from the grid | [cheapest periods, fill up, most expensive periods, required before max level, negative prices, full charge (recommended full charge every, last full charge)](rules/charging.md) |
 | Discharging | [profit only, prioritise by energy cost, before the sun, max. age of kWh](rules/discharging.md) |
 | Selling | [maximise profit, sell excess kWh, use midnight battery level, buy to sell](rules/selling.md) |
 | Solar | [solar surplus charging, optimise solar charging](rules/solar.md) |

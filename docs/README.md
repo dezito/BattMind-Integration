@@ -16,9 +16,10 @@ every rule does, and how to connect it to your inverter.
 | Page | Content |
 |---|---|
 | [Whole period optimisation](rules/optimizer.md) | the default way of controlling the battery, and how it relates to the rules |
-| [Charging from the grid](rules/charging.md) | cheapest periods, fill up, most expensive periods, required before max level, negative prices, buy to sell |
+| [Charging from the grid](rules/charging.md) | cheapest periods, fill up, most expensive periods, required before max level, negative prices, buy to sell, full charge |
 | [Discharging](rules/discharging.md) | profit only, prioritise by energy cost, before the sun, max. age of kWh |
 | [Selling](rules/selling.md) | maximise profit, sell excess kWh, use midnight battery level, profit requirements, excluded sell hours |
+| [Storm warning](rules/storm.md) | keep the battery charged for a MeteoAlarm storm warning (optional) |
 | [Solar](rules/solar.md) | solar surplus charging, optimised solar charging, the solar forecast |
 
 ## Inverters

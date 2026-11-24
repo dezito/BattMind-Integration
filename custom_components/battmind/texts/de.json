@@ -51,6 +51,9 @@
     "negative_price_planner": {
       "description": "Laden bei negativen Preisen"
     },
+    "full_charge_planner": {
+      "description": "Vollladung auf den maximalen Stand (Batteriegesundheit)"
+    },
     "grid_charge_to_sell": {
       "description": "Gekauft, um später zu verkaufen"
     },
@@ -77,6 +80,9 @@
     },
     "blocked_solar_charge": {
       "description": "Blockiertes Solarladen"
+    },
+    "storm_warning": {
+      "description": "Für eine Sturmwarnung geladen oder zurückgehalten"
     }
   },
   "ui": {
@@ -192,6 +198,7 @@
       "solar_day_to_grid": "Etwa {kwh} kWh Überschuss danach passen nicht mehr in den Akku.",
       "solar_day_already_full": "Der Akku ist schon voll, wenn die Sonne kommt: für etwa {kwh} kWh Überschuss ist kein Platz.",
       "solar_day_blocked": "Das Laden mit Solarstrom wird {hours} zurückgehalten, damit der Überschuss bei höherem Preis verkauft wird.",
+      "full_charge_dropped": "Vollladung verworfen: Die Batterie kann {level} % nicht vor Fristende erreichen.",
       "last_scheduled": "Zuletzt geplant",
       "plan_title": "Lade-/Entladeplan",
       "show_all_days": "Alle Tage anzeigen",
@@ -450,10 +457,13 @@
         "old_energy_sold": "Alten Strom verkaufen",
         "blocked_solar": "Solarladen blockiert",
         "negative_price": "Negativer Preis",
+        "full_charge": "Vollladung",
         "sell_bought_cheap": "Günstig gekauften Strom verkaufen",
         "buy_to_sell": "Kaufen zum Verkaufen",
         "sell_before_solar": "Verkaufen, bevor die Sonne die Batterie füllt",
-        "sell_before_cheap_charge": "Verkaufen vor günstigem Laden"
+        "sell_before_cheap_charge": "Verkaufen vor günstigem Laden",
+        "storm": "Sturmwarnung",
+        "storm_hold": "Für die Sturmwarnung zurückgehalten"
       },
       "highest_level_time": "Zeitpunkt des höchsten Batteriestands",
       "highest_level": "Höchster Batteriestand",
@@ -523,7 +533,9 @@
       "level_after_hour": "Batteriestand nach der Stunde",
       "solar_sold_for": "Solarüberschuss verkauft für",
       "no_data": "Keine Daten",
-      "no_charging_history": "**Kein Ladeverlauf**"
+      "no_charging_history": "**Kein Ladeverlauf**",
+      "full_charge_due": "Tage seit der letzten Vollladung",
+      "storm_keep": "Hält mindestens **{level}%** für den Sturm ab {time}: erwarteter Verbrauch {kwh} kWh plus {buffer}% Puffer"
     },
     "dashboard_cards": {
       "title": "Dashboard-Karten fehlen",
@@ -663,7 +675,7 @@
     "section_solar": "Solar",
     "help_control": "* **Batterie mit Optimierung des ganzen Zeitraums steuern**: berechnet die günstigste Aktion für jede Stunde des ganzen Prognosezeitraums auf einmal (Ladeverlust, Verschleiß, Solar, Kauf- und Verkaufspreise und die Gewinnanforderungen) und steuert damit die Batterie. Jede Aktion wird als die entsprechende Regel angezeigt, und die Regel-Schalter bestimmen, welche Aktionen sie nutzen darf. Aus: die Regeln steuern die Batterie.\n* **Batterieeffizienz verbessern**: der Plan nutzt die Wirkungsgradkurven der Batterie statt eines festen Ladeverlusts. Siehe *Batteriewirkungsgrad* in der Analyse.\n* **Prognosetyp**: wie der Verbrauch pro Stunde aus der Historie vorhergesagt wird. EMA gewichtet die neuesten Tage am stärksten, Trend folgt der Entwicklung, und Durchschnitt gewichtet alle Tage gleich.\n* **Prognosetyp automatisch wählen**: der Plan nutzt den Prognosetyp, der den Verbrauch zuletzt am besten vorhergesagt hat, und wechselt nur, wenn ein anderer deutlich besser ist. Siehe *Prognosegenauigkeit* in der Analyse.\n* **Preisprognose korrigieren**: der Plan korrigiert die Prognosepreise (z. B. Carnot) um ihre übliche Abweichung. Siehe *Preisprognose* in der Analyse.",
     "help_profit": "Die Gewinnschwellen bestimmen, wann die Batterie entladen wird und wann verkauft wird.\n\n* **Min. Gewinn pro kWh**: jede kWh aus der Batterie (im Haus verbraucht oder verkauft) muss nach Ladeverlust und Verschleiß mindestens so viel pro kWh verdienen. Laden aus dem Netz wird nur geplant, wenn sich diese Entladung lohnt.\n* **Min. Gesamtgewinn**: ein Verkauf ins Netz muss insgesamt mindestens so viel verdienen (pro Stunde; gilt nicht für das Laden oder den Eigenverbrauch des Hauses).\n* **Min. überschüssige kWh für Export**: kleinste Menge pro Verkauf.\n* **Reserve für das Haus**: der Batterieanteil in Prozent, der für den Eigenverbrauch des Hauses zurückgehalten und nicht verkauft wird.\n* **Verkaufsstunden ausschließen**: Stunden (z. B. 17,18,19) ohne Verkauf.",
-    "help_charging": "Solarüberschuss lädt immer zuerst; das Netz verdrängt nie Solarstrom, der günstiger verkauft würde als der Netzstrom kostet.\n\n* **Günstigste Stunden**: Batterie in den günstigsten Stunden für den Tagesverbrauch füllen (*auffüllen*: bis Max).\n  * **Günstige Preiszeiträume**: Anzahl der lokalen Niedrigpreiszeiträume pro Tag.\n  * **Preisanstieg für günstige Preiszeiträume**: wie stark der Preis über den niedrigsten Preis des Zeitraums steigen darf, bevor der Zeitraum endet.\n  * **Anstieg gegenüber dem günstigsten Preis**: wie stark der Stundenpreis über dem niedrigsten Tagespreis liegen darf, damit diese Regel noch gilt.\n* **Teuerste Stunden**: für die teuersten Stunden laden, die die Batterie nicht abdeckt.\n* **Bedarf vor Max-Level**: das wenige laden, das fehlt, bevor die Sonne die Batterie füllt.\n* **Negative Preise**: Batterie füllen, wenn sich das Laden lohnt, auch wenn der Strom nie genutzt wird.",
+    "help_charging": "Solarüberschuss lädt immer zuerst; das Netz verdrängt nie Solarstrom, der günstiger verkauft würde als der Netzstrom kostet.\n\n* **Günstigste Stunden**: Batterie in den günstigsten Stunden für den Tagesverbrauch füllen (*auffüllen*: bis Max).\n  * **Günstige Preiszeiträume**: Anzahl der lokalen Niedrigpreiszeiträume pro Tag.\n  * **Preisanstieg für günstige Preiszeiträume**: wie stark der Preis über den niedrigsten Preis des Zeitraums steigen darf, bevor der Zeitraum endet.\n  * **Anstieg gegenüber dem günstigsten Preis**: wie stark der Stundenpreis über dem niedrigsten Tagespreis liegen darf, damit diese Regel noch gilt.\n* **Teuerste Stunden**: für die teuersten Stunden laden, die die Batterie nicht abdeckt.\n* **Bedarf vor Max-Level**: das wenige laden, das fehlt, bevor die Sonne die Batterie füllt.\n* **Negative Preise**: Batterie füllen, wenn sich das Laden lohnt, auch wenn der Strom nie genutzt wird.\n* **Empfohlene Vollladung alle**: Manche LFP-Batterien brauchen ab und zu eine Vollladung, damit das Batteriemanagementsystem kalibrieren kann. Sind mehr Tage als hier eingestellt vergangen, seit die Batterie zuletzt ihren maximalen Stand (minus 1 %) erreicht hat, lädt BattMind sie in den günstigsten Stunden vor Ende von morgen aus dem Netz in Richtung dieses Stands (vor Ende von heute, sobald sie einen Tag überfällig ist, auch wenn keine Vollladung erfasst ist und im Verlauf keine gefunden wird). Es wartet, bis die Preise bis zu dieser Frist bekannt sind, ignoriert *Min. Gewinn pro kWh*, und die Sonne lädt zuerst. Erreicht die Batterie den Stand nicht rechtzeitig, sagt der Plan das und verwirft die Ladung. Bei *Zu planende Tage* = 1 wird nur eine überfällige Vollladung geplant. 0 = aus.\n* **Letzte Vollladung**: wann die Batterie zuletzt ihren maximalen Stand (minus 1 %) erreicht hat; auch erfasst, solange die Zahl 0 ist.",
     "help_discharging": "* **Nur mit Gewinn**: Entladung in Stunden sperren, in denen die kWh-Kosten der Batterie (inkl. Verlust und Verschleiß) über dem Preis liegen.\n* **Teuerste Stunden priorisieren**: Batterie für die teuersten Stunden aufsparen, bis sie wieder geladen wird.\n* **Vor der Sonne**: Batterie vor der Sonne nutzen/verkaufen, wenn sie ohnehin voll Solarstrom wird und der Überschuss billig verkauft wird.\n* **Max. Stunden alte kWh**: älterer Strom wird auch ohne Gewinn genutzt und verkauft, wenn das mehr bringt.",
     "help_selling": "* **Gewinn maximieren**: in den teuersten Perioden verkaufen, wenn das mehr bringt als selbst nutzen.\n* **Überschüssige kWh verkaufen**: den Strom verkaufen, der nicht genutzt wird, bevor die Batterie leer oder wieder voll ist.\n* **Batteriestand um Mitternacht**: nur bis Mitternacht statt über den ganzen Prognosezeitraum schauen.\n* **Kaufen um zu verkaufen**: günstig aus dem Netz laden, nur um die kWh wieder zu verkaufen, wenn es sich nach Verlust und Verschleiß lohnt.",
     "help_solar": "* **Solarladung**: Solarüberschuss in den Plan einbeziehen.\n* **Solarladung optimieren**: Solarüberschuss in den teuren Stunden verkaufen und die Batterie stattdessen in den günstigen Solarstunden füllen. Nur wenn die Batterie später ohnehin von der Sonne gefüllt wird.",
@@ -865,6 +877,13 @@
     "what_if_reason_module_invalid": "Die Modulkapazität muss über 0 und höchstens 1000 kWh liegen, der Preis darf nicht negativ sein und die Modulanzahl muss von 1 bis 12 reichen.",
     "what_if_reason_invalid_inputs": "Einer der What-if-Werte ist ungültig oder hat keinen Wert.",
     "what_if_reason_save_failed": "Das Ergebnis konnte nicht gespeichert werden.",
-    "what_if_reason_internal_error": "Die Simulation ist fehlgeschlagen; siehe das Home-Assistant-Protokoll."
+    "what_if_reason_internal_error": "Die Simulation ist fehlgeschlagen; siehe das Home-Assistant-Protokoll.",
+    "section_storm": "Sturmwarnung",
+    "help_storm": "BattMind hält den Akku für eine Sturmwarnung geladen, und zwar nach der Entität, die in den Einstellungen gewählt ist (MeteoAlarm). Es zählen nur Warnungen vor Wind, Schnee/Eis oder Gewitter ab der gewählten Stufe und nur Warnungen mit Startzeit: ohne Startzeit wird nichts geplant, und der Status zeigt das.\n\n* **Sturmwarnung**: der Status der Warnung. *Bevorstehend* oder *Aktiv* bedeutet, dass der Plan dafür einen Ladestand hält. Darunter: wann die Warnung beginnt und endet, der gehaltene Ladestand, der erwartete Hausverbrauch ohne Solar und der Puffer für eine danebenliegende Prognose (wie stark die Prognose in den letzten 30 Tagen danebenlag, mindestens 20 %).\n* **Stunden, die eine Sturmwarnung ohne Endzeit abdeckt**: wie lange eine Warnung gezählt wird, wenn sie eine Startzeit, aber keine Endzeit hat.\n\nDer zu haltende Ladestand sinkt Stunde für Stunde, solange der Sturm dauert, und darunter wird nichts verkauft. Das Laden wird in die günstigsten Stunden vor dem Bedarf gelegt; erreicht der Akku den Stand nicht rechtzeitig, wird er so hoch wie möglich geladen. Ohne Notstromversorgung versorgt ein voller Akku das Haus bei einem Stromausfall nicht.",
+    "storm_start": "Beginnt",
+    "storm_end": "Endet",
+    "storm_keep_percent": "Gehaltener Ladestand",
+    "storm_expected_use": "Erwarteter Verbrauch",
+    "storm_buffer": "Puffer"
   }
 }

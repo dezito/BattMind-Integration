@@ -16,6 +16,7 @@ The full feature list. Back to the [README](../README.md) · [Documentation inde
   - **Required before max level:** only charge what is missing before the solar panels fill the battery
   - **Negative prices:** fill the battery when charging pays, even if the energy is never used
   - **Buy to sell:** charge cheaply from the grid only to sell the kWh again when it pays after loss and wear
+  - **Full charge:** for LFP batteries that need a periodic full charge for battery-management-system calibration: when the battery has not reached its maximum level for the set number of days, charge it to the maximum level in the cheapest hours before the end of tomorrow (no switch, 0 days = off)
 - **[Discharging rules](rules/discharging.md)**
   - **Profit only:** block discharging in hours where the battery's kWh cost (incl. loss and wear) is higher than the price
   - **Prioritise by energy cost:** save the battery for the most expensive hours until it is charged again
@@ -26,6 +27,8 @@ The full feature list. Back to the [README](../README.md) · [Documentation inde
   - **Sell excess kWh:** sell the energy that isn't used before the battery is empty or full again (forced discharge)
   - **Use midnight battery level:** only look until midnight instead of the whole forecast period
   - min. profit per kWh and in total, min. kWh per sale, reserve for the house, and exclude specific selling hours
+- **[Storm warning](rules/storm.md) (optional)**
+  - Choose MeteoAlarm's binary sensor under *Configure → Solar panels, weather and storm warning* (off by default): for a wind, snow/ice or thunderstorm warning with a start time at or above the chosen level, the battery is kept at the level the house needs during the warning with no solar plus a buffer for a forecast that is off (at least 20 %), and nothing is sold under it
 - **[Solar](rules/solar.md) (optional)**
   - **Solar surplus charging:** include the solar surplus in the plan
   - **Optimise solar charging:** sell the solar surplus in the expensive hours and fill the battery in the cheap solar hours instead

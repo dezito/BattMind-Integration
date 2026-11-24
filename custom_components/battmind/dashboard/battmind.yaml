@@ -477,6 +477,60 @@ views:
               - entity: switch.battmind_negative_price_planner
                 name:
                   type: entity
+              - type: divider
+              - entity: number.battmind_full_charge_recommended
+                name:
+                  type: entity
+              - entity: sensor.battmind_last_full_charge
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+      - type: grid
+        cards:
+          - type: heading
+            heading: '@@section_storm@@'
+            icon: mdi:weather-hurricane
+          - type: markdown
+            content: "<details><summary>@@read_more@@</summary>\n\n@@help_storm@@\n\n</details>"
+            grid_options:
+              columns: full
+          - type: entities
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: sensor.battmind_storm_warning
+                name:
+                  type: entity
+              - type: attribute
+                entity: sensor.battmind_storm_warning
+                attribute: start
+                name: '@@storm_start@@'
+                format: datetime
+              - type: attribute
+                entity: sensor.battmind_storm_warning
+                attribute: end
+                name: '@@storm_end@@'
+                format: datetime
+              - type: attribute
+                entity: sensor.battmind_storm_warning
+                attribute: keep_percent
+                name: '@@storm_keep_percent@@'
+                suffix: '%'
+              - type: attribute
+                entity: sensor.battmind_storm_warning
+                attribute: expected_use_kwh
+                name: '@@storm_expected_use@@'
+                suffix: kWh
+              - type: attribute
+                entity: sensor.battmind_storm_warning
+                attribute: buffer_percent
+                name: '@@storm_buffer@@'
+                suffix: '%'
+              - type: divider
+              - entity: number.battmind_storm_cover_hours
+                name:
+                  type: entity
             grid_options:
               columns: full
       - type: grid

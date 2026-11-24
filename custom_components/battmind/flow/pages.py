@@ -193,6 +193,9 @@ class BattMindFlowPages:
     async def async_step_weather(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("weather", user_input)
 
+    async def async_step_storm(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("storm", user_input)
+
     async def async_step_advanced(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("advanced", user_input)
 

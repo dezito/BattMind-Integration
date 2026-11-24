@@ -200,6 +200,8 @@ With *Control the battery with the whole period optimisation* off, the plan is b
    4. 🔥 [Most expensive periods](rules/charging.md#-most-expensive-periods)
    5. 🩹 [Required before max level](rules/charging.md#-required-before-max-level)
    6. ⏳ [Prioritise by energy cost](rules/discharging.md#-prioritise-by-energy-cost)
+   7. 💯 [Full charge](rules/charging.md#-full-charge), only when it is due (no switch). It runs once more
+      after the selling rules, because a sale can lower the levels it has to lift
 3. **Selling**, day by day, in this order:
    1. 🌄 [Before the sun](rules/discharging.md#-before-the-sun)
    2. 🤑 [Maximise profit](rules/selling.md#-maximise-profit)
@@ -223,6 +225,14 @@ ones planned. The order matters:
 
 The optimisation is still calculated, so the overview can compare the rule plan with it.
 
+### A full charge now and then
+
+Some LFP batteries need to reach their maximum level regularly. With *Recommended full charge every*
+above 0, and more days than that since the battery last reached its maximum level (minus 1 %), the plan
+charges it from the grid in the cheapest hours before the end of tomorrow (or today, when it is a day
+overdue). This is the one grid charge that is not planned for a profit: it needs the prices up to the
+deadline and ignores min. profit per kWh, but the sun still goes first. See [Full charge](rules/charging.md#-full-charge).
+
 ## From plan to action
 
 Every interval, the action for the current hour is chosen in this order:
@@ -242,5 +252,11 @@ What each action should make the inverter do is described under [Actions](action
 - **Prices missing:** single hours are filled from the [price database](#prices). If all prices are gone,
   BattMind keeps the last prices for 2 hours, then plans entirely with the database.
 - **A rule fails:** the other rules still run, and you get a notification with the error.
+- **A full charge can't be reached before the deadline** (for example too little charge power or too little
+  time): the overview says so and drops it. Without prices up to the deadline it waits instead. With grid
+  charging unsupported by the inverter the full charge is simply off. Solar charging is not blocked before
+  the plan has reached the full charge (after that, the plan may block it again), and a full charge the sun
+  reaches on its own counts. With
+  *Days to plan* of 1, only a full charge that is a day overdue is planned.
 - **The optimisation fails:** the rules control the battery.
 - **The whole calculation fails 3 times in a row:** the integration is reloaded. Until then, the last action is kept.

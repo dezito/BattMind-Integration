@@ -275,7 +275,7 @@
           "menu_battery": "Home battery",
           "menu_consumption": "House consumption",
           "menu_prices": "Electricity prices",
-          "menu_solar": "Solar panels and weather",
+          "menu_solar": "Solar panels, weather and storm warning",
           "menu_advanced": "Planning and data storage",
           "backup": "Backup (export / import)"
         }
@@ -472,6 +472,18 @@
         "data_description": {
           "hourly_service_entity_id": "Weather entity supporting hourly forecasts. Cloud cover, UV and temperature are used to estimate the solar surplus.",
           "daily_service_entity_id": "Weather entity supporting daily forecasts. Used for the hours the hourly forecast does not cover."
+        }
+      },
+      "storm": {
+        "title": "Storm warning",
+        "description": "Keep the battery charged for a storm warning. Choose MeteoAlarm's binary sensor; leave it empty to turn the function off. Only warnings of wind, snow/ice or thunderstorms at or above the chosen level count, and only warnings with a start time. The need is the expected house use during the warning with no solar, plus a buffer for a forecast that is off (at least 20 %). Without a backup power supply a full battery does not run the house in a power cut.",
+        "data": {
+          "storm_warning_entity_id": "Storm warning (MeteoAlarm)",
+          "storm_min_level": "Lowest level that counts"
+        },
+        "data_description": {
+          "storm_warning_entity_id": "MeteoAlarm's binary sensor for your region. Empty = off: the function, its sensor and its number are not made.",
+          "storm_min_level": "2 = yellow, 3 = orange, 4 = red."
         }
       },
       "advanced": {
@@ -786,6 +798,12 @@
       "powerwall_max_hours_old": {
         "name": "Max. age of kWh in home battery"
       },
+      "full_charge_recommended": {
+        "name": "Recommended full charge every"
+      },
+      "storm_cover_hours": {
+        "name": "Hours a storm warning without an end time covers"
+      },
       "what_if_history_days": {
         "name": "What-if – History (days)"
       },
@@ -1022,6 +1040,25 @@
       },
       "kwh_charged_by_solar": {
         "name": "kWh charged by solar"
+      },
+      "storm_warning": {
+        "name": "Storm warning",
+        "state": {
+          "no_warning": "No warning",
+          "entity_unavailable": "Warning entity unavailable",
+          "below_level": "Below the chosen level",
+          "other_type": "Not a storm warning",
+          "no_start": "No start time (ignored)",
+          "unreadable": "Level or type unreadable (ignored)",
+          "expired": "Ended",
+          "invalid": "End before start (ignored)",
+          "later": "Starts after the plan",
+          "coming": "Coming",
+          "active": "Active"
+        }
+      },
+      "last_full_charge": {
+        "name": "Last full charge"
       },
       "analysis": {
         "name": "Savings this month"

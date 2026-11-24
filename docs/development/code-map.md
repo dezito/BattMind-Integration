@@ -15,6 +15,8 @@ custom_components/battmind/             The HA integration (HACS payload)
 │   │   ├── replay.py                    What-if replay of the planner on the history
 │   │   └── future/                      Future-period planning rules and context
 │   ├── pricing.py                       Price helpers, incl. `sell_value()`
+│   ├── storm.py / storm_warning.py      Storm warning: pure rules (window, need, level per hour) and the engine part (snapshot alert, floors, status, the rules' fix)
+│   ├── full_charge.py                   Full charge: last full charge detection, due state and deadline, requirement for the rules and the optimiser
 │   ├── diagnostics.py                   Engine debug information
 │   ├── energy/                          Price, solar, forecast, and energy inputs
 │   ├── history/                         Recorder queries and stored history

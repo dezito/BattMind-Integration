@@ -160,6 +160,7 @@ def external_entities(config: dict[str, Any]) -> dict[str, str]:
     prices = config["prices"]["entity_ids"]
     home = config["home"]["entity_ids"]
     production = config["solar"]["entity_ids"]["production_entity_id"]
+    storm_warning = home.get("storm_warning_entity_id")
     mapping = {
         # status section on the overview
         "sensor.powerwall_charge": home["powerwall_battery_level_entity_id"],
@@ -168,6 +169,9 @@ def external_entities(config: dict[str, Any]) -> dict[str, str]:
         "sensor.solar_power_production": production,
         # only created with solar production (sensor.py); the prefix is replaced afterwards
         "sensor.battmind_kwh_charged_by_solar": "sensor.battmind_kwh_charged_by_solar" if production else "",
+        # only created with a storm warning entity (sensor.py, number.py): without it the storm section is left out
+        "sensor.battmind_storm_warning": "sensor.battmind_storm_warning" if storm_warning else "",
+        "number.battmind_storm_cover_hours": "number.battmind_storm_cover_hours" if storm_warning else "",
         **price_dashboard_entities(prices),
     }
     # Solcast: forecast_today plus the per-day sensors next to it
@@ -188,6 +192,9 @@ _ACTION_SETTINGS = {
         "number.battmind_cheap_price_periods",
         "number.battmind_cheap_price_period_rise_threshold",
         "number.battmind_cheapest_price_rise_threshold",
+        # the full charge is a grid charge: its number and sensor mean nothing without grid charging
+        "number.battmind_full_charge_recommended",
+        "sensor.battmind_last_full_charge",
     ),
 }
 

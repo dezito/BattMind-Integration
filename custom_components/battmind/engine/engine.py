@@ -36,6 +36,8 @@ from ..const import (
 from .analysis.analysis import Analysis
 from .automation_test import AutomationTest
 from .energy.energy import Energy
+from .full_charge import FullCharge
+from .storm_warning import StormWarning
 from .history.history import History
 from .planner.planner import Planner
 from ..utils.formatting import format_charging_rule, get_list_values, translate
@@ -63,7 +65,7 @@ POWER_CACHE_SETTLED = datetime.timedelta(hours=2)
 POWER_CACHE_MAX_AGE = datetime.timedelta(hours=52)
 
 
-class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Planning, Diagnostics, AutomationTest):
+class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Planning, Diagnostics, AutomationTest, FullCharge, StormWarning):
     """Holds the BattMind state and implements the algorithm."""
 
     def __init__(self, config: dict, prefix: str, texts: dict[str, str]) -> None:
@@ -122,6 +124,11 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         # the hour in which the battery last ran something else than blocked_solar_charge
         self.unblocked_hour: datetime.datetime | None = None
         self.error_count = 0
+        # full charge (engine/full_charge.py): whether the battery was full at the last check (None: not checked yet), the
+        # epoch time up to which the battery level buffer was checked, and the full charge of the last plan
+        self._full_charge_full: bool | None = None
+        self._full_charge_scanned: float | None = None
+        self.full_charge_plan: dict | None = None
 
         # per job
         self._snap: Snapshot | None = None
@@ -185,6 +192,9 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self.load_charging_history(databases.get("charging_history"))
         self.load_analysis_db(databases.get("analysis"))
         self.publish_analysis()
+        # the last full charge: the stored time, or the first time the battery level history (sensor last_full_charge)
+        self.full_charge_check()
+        self.full_charge_publish()
         _LOGGER.info(
             "Loaded databases: charging history %s entries, power values %s hours, price history %s days, solar %s hours",
             len(self.charging_history_db), len(self.power_values_db), len(self.kwh_avg_prices_db.get("mean", [])),
@@ -201,6 +211,7 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
 
     def hour_end(self, timestamp: datetime.datetime):
         """Runs at minute 59: store the hour in the databases and the charging history."""
+        self.full_charge_check()  # a peak of the hour between two plans is in the battery level buffer
         self.current_battery_level_expenses()
         self.solar_available_append_to_db(
             self.local_energy_available(period=60, without_all_exclusion=True, solar_only=True)

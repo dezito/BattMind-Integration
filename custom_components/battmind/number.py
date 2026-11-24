@@ -9,9 +9,9 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import NUMBER_SETTINGS, WHAT_IF_INPUT_NUMBERS, WHAT_IF_OVERRIDE_NUMBERS
+from .const import NUMBER_SETTINGS, STORM_NUMBER, STORM_NUMBER_KEY, WHAT_IF_INPUT_NUMBERS, WHAT_IF_OVERRIDE_NUMBERS
 from .coordinator import BattMindCoordinator
-from .entity import BattMindEntity, BattMindUpdatingEntity
+from .entity import BattMindEntity, BattMindUpdatingEntity, remove_entity
 from .utils.helpers import float_or_none
 
 # the entities read the coordinator's data and change only the integration's own settings
@@ -21,6 +21,11 @@ PARALLEL_UPDATES = 0
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator: BattMindCoordinator = entry.runtime_data
     async_add_entities(BattMindNumber(coordinator, key, info) for key, info in NUMBER_SETTINGS.items())
+    # the hours a storm warning without an end time covers: only with a storm warning entity (option storm_warning_entity_id)
+    if coordinator.config["home"]["entity_ids"].get("storm_warning_entity_id"):
+        async_add_entities([BattMindNumber(coordinator, STORM_NUMBER_KEY, STORM_NUMBER)])
+    else:
+        remove_entity(hass, "number", coordinator, STORM_NUMBER_KEY)
     # the what-if inputs and the scenario settings, kept apart from the planner settings
     async_add_entities(BattMindWhatIfNumber(coordinator, key, info, False) for key, info in WHAT_IF_INPUT_NUMBERS.items())
     async_add_entities(

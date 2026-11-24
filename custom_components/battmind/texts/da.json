@@ -51,6 +51,9 @@
     "negative_price_planner": {
       "description": "Ladning ved negative priser"
     },
+    "full_charge_planner": {
+      "description": "Fuld ladning til maksimum niveau (batteriets sundhed)"
+    },
     "grid_charge_to_sell": {
       "description": "Købt for at sælge senere"
     },
@@ -77,6 +80,9 @@
     },
     "blocked_solar_charge": {
       "description": "Blokeret solcelle opladning"
+    },
+    "storm_warning": {
+      "description": "Opladet eller holdt tilbage til et stormvarsel"
     }
   },
   "ui": {
@@ -192,6 +198,7 @@
       "solar_day_to_grid": "Derefter er der ikke plads til cirka {kwh} kWh overskud i batteriet.",
       "solar_day_already_full": "Batteriet er allerede fuldt, når solen kommer: der er ikke plads til cirka {kwh} kWh overskud.",
       "solar_day_blocked": "Solopladningen holdes tilbage kl. {hours}, så overskuddet sælges, når prisen er højere.",
+      "full_charge_dropped": "Fuld ladning droppet: batteriet kan ikke nå {level} % inden fristen.",
       "last_scheduled": "Sidst planlagt",
       "plan_title": "Ladnings- og afladningsplan",
       "show_all_days": "Se alle dage",
@@ -450,10 +457,13 @@
         "old_energy_sold": "Sælger gammel strøm",
         "blocked_solar": "Blokeret solcelle ladning",
         "negative_price": "Negativ pris",
+        "full_charge": "Fuld ladning",
         "sell_bought_cheap": "Sælger strøm købt billigt",
         "buy_to_sell": "Køb for at sælge",
         "sell_before_solar": "Sælger før solen fylder batteriet",
-        "sell_before_cheap_charge": "Sælger før billig opladning"
+        "sell_before_cheap_charge": "Sælger før billig opladning",
+        "storm": "Stormvarsel",
+        "storm_hold": "Holdes til stormvarslet"
       },
       "highest_level_time": "Højeste batteriniveau tidspunkt",
       "highest_level": "Højeste batteriniveau",
@@ -523,7 +533,9 @@
       "level_after_hour": "Batteriniveau efter timen",
       "solar_sold_for": "Solcelleoverskud sælges til",
       "no_data": "Ingen data",
-      "no_charging_history": "**Ingen lade historik**"
+      "no_charging_history": "**Ingen lade historik**",
+      "full_charge_due": "Dage siden sidste fulde ladning",
+      "storm_keep": "Holder mindst **{level}%** til stormen fra {time}: forventet forbrug {kwh} kWh plus {buffer}% buffer"
     },
     "dashboard_cards": {
       "title": "Dashboard-kort mangler",
@@ -663,7 +675,7 @@
     "section_solar": "Solceller",
     "help_control": "* **Styr batteriet med optimering af hele perioden**: beregner den billigste handling for hver time i hele prognoseperioden på én gang (ladetab, slid, sol, købs- og salgspriser og kravene til fortjeneste) og styrer batteriet efter den. Hver handling vises som den regel, den svarer til, og regel-kontakterne bestemmer, hvilke handlinger den må bruge. Slået fra: reglerne styrer batteriet.\n* **Forbedr batteriets virkningsgrad**: planen bruger batteriets virkningsgradskurver i stedet for ét fast ladetab. Se *Batteriets virkningsgrad* i analysen.\n* **Prognosetype**: hvordan forbruget pr. time forudsiges ud fra historikken. EMA vægter de nyeste dage højest, trend følger udviklingen, og gennemsnit vægter alle dage ens.\n* **Vælg prognosetype automatisk**: planen bruger den prognosetype, der har ramt forbruget bedst på det seneste, og skifter kun, når en anden er klart bedre. Se *Prognosens træfsikkerhed* i analysen.\n* **Ret prisprognosen**: planen retter prognosepriserne (f.eks. Carnot) med, hvor meget de plejer at ramme ved siden af. Se *Prisprognose* i analysen.",
     "help_profit": "Fortjenestegrænserne bestemmer, hvornår batteriet aflades, og hvornår der sælges.\n\n* **Min. profit per kWh**: hver kWh ud af batteriet (brugt i huset eller solgt) skal nå denne fortjeneste pr. kWh efter ladetab og slid. Ladning fra nettet planlægges kun, når den afladning betaler sig.\n* **Min. total profit**: et salg til nettet skal nå denne fortjeneste i alt pr. time (gælder ikke ladning eller husets eget forbrug).\n* **Min. overskydende kWh til salg**: mindste mængde der sælges ad gangen.\n* **Reserve til huset**: batteriprocenten, der holdes tilbage til husets eget forbrug og ikke sælges.\n* **Ekskluder salgstimer**: timer (fx 17,18,19) hvor der ikke sælges.",
-    "help_charging": "Soloverskud lader altid først; nettet fortrænger aldrig sol, der ellers sælges billigere end net-strømmen koster.\n\n* **Billigste timer**: fyld batteriet i de billigste timer til dagens forbrug (*fyld op*: til max).\n  * **Billige prisperioder**: antal lokale lavprisperioder, der findes pr. dag.\n  * **Stigning for billige prisperioder**: hvor meget prisen må stige over periodens laveste pris, før perioden slutter.\n  * **Stigning for billigste pris**: hvor meget en time må ligge over dagens laveste pris for stadig at kunne bruges af denne regel.\n* **Dyreste timer**: lad til de dyreste timer, batteriet ikke dækker.\n* **Brug for inden max niveau**: lad det lidt der mangler, før solen fylder batteriet.\n* **Negative priser**: fyld batteriet, når ladningen betaler sig, selv hvis strømmen aldrig bruges.",
+    "help_charging": "Soloverskud lader altid først; nettet fortrænger aldrig sol, der ellers sælges billigere end net-strømmen koster.\n\n* **Billigste timer**: fyld batteriet i de billigste timer til dagens forbrug (*fyld op*: til max).\n  * **Billige prisperioder**: antal lokale lavprisperioder, der findes pr. dag.\n  * **Stigning for billige prisperioder**: hvor meget prisen må stige over periodens laveste pris, før perioden slutter.\n  * **Stigning for billigste pris**: hvor meget en time må ligge over dagens laveste pris for stadig at kunne bruges af denne regel.\n* **Dyreste timer**: lad til de dyreste timer, batteriet ikke dækker.\n* **Brug for inden max niveau**: lad det lidt der mangler, før solen fylder batteriet.\n* **Negative priser**: fyld batteriet, når ladningen betaler sig, selv hvis strømmen aldrig bruges.\n* **Anbefalet fuld ladning hver**: nogle LFP-batterier skal have en fuld ladning med jævne mellemrum, så batteristyringen (BMS) kan kalibrere. Når der er gået flere dage end her, siden batteriet sidst nåede sit maksimum niveau (minus 1 %), lader BattMind det fra nettet op mod det niveau i de billigste timer inden udgangen af i morgen (inden udgangen af i dag, når den er en dag forsinket, også når ingen fuld ladning er registreret og ingen findes i historikken). Det venter, til priserne frem til fristen er kendt, ser bort fra *Min. profit per kWh*, og solen lader først. Kan batteriet ikke nå derop i tide, siger planen det og dropper ladningen. Med *Dage der planlægges* på 1 planlægges kun en forsinket fuld ladning. 0 = fra.\n* **Sidste fulde opladning**: hvornår batteriet sidst nåede sit maksimum niveau (minus 1 %); registreres også, mens tallet er 0.",
     "help_discharging": "* **Kun ved profit**: bloker afladning i timer, hvor batteriets kWh-pris (inkl. tab og slid) er højere end elprisen.\n* **Prioriter dyreste timer**: gem batteriet til de dyreste timer, indtil det lades igen.\n* **Før solen**: brug/sælg batteriet før solen, når det alligevel bliver fuldt af sol, og overskuddet sælges billigt.\n* **Maks. timer gamle kWh**: strøm ældre end dette bruges selv uden fortjeneste og sælges, når det giver mere.",
     "help_selling": "* **Maksimer profit**: sælg i de dyreste perioder, når det giver mere end selv at bruge strømmen.\n* **Sælg overskydende kWh**: sælg den strøm, der ikke bruges, før batteriet er tomt eller fuldt igen.\n* **Brug batteriniveau ved midnat**: kig kun til midnat i stedet for hele prognoseperioden.\n* **Køb for at sælge**: lad billigt fra nettet kun for at sælge strømmen igen, når det betaler sig efter tab og slid.",
     "help_solar": "* **Solcelleopladning**: medtag soloverskuddet i planen.\n* **Optimer solcelleopladning**: sælg soloverskuddet i de dyre timer og fyld batteriet i de billige soltimer i stedet. Kun når solen alligevel fylder batteriet senere.",
@@ -865,6 +877,13 @@
     "what_if_reason_module_invalid": "Modulkapaciteten skal være over 0 og højst 1000 kWh, prisen må ikke være negativ, og antallet af moduler skal være fra 1 til 12.",
     "what_if_reason_invalid_inputs": "En af what-if-værdierne er ugyldig eller mangler en værdi.",
     "what_if_reason_save_failed": "Resultatet kunne ikke gemmes.",
-    "what_if_reason_internal_error": "Simuleringen mislykkedes; se Home Assistants log."
+    "what_if_reason_internal_error": "Simuleringen mislykkedes; se Home Assistants log.",
+    "section_storm": "Stormvarsel",
+    "help_storm": "BattMind holder batteriet opladet til et stormvarsel fra den entitet, der er valgt i indstillingerne (MeteoAlarm). Kun varsler om vind, sne/is eller torden på eller over det valgte niveau tæller, og kun varsler med et starttidspunkt: uden starttid planlægges der intet, og status viser det.\n\n* **Stormvarsel**: varslets status. *Kommer* eller *Aktivt* betyder, at planen holder et batteriniveau til det. Under den: hvornår varslet starter og slutter, det niveau batteriet holdes på, det forventede husforbrug uden sol og den buffer, der lægges på, fordi prognosen rammer ved siden af (hvor meget prognosen ramte forkert de seneste 30 dage, mindst 20 %).\n* **Timer et stormvarsel uden sluttid dækker**: hvor længe et varsel tælles, når det har et starttidspunkt men intet sluttidspunkt.\n\nNiveauet aftager time for time, mens stormen varer, og der sælges ikke under det. Opladningen lægges i de billigste timer, før niveauet skal bruges; når batteriet ikke kan nå det i tide, lades det så højt som muligt. Uden nødstrøm driver et fuldt batteri ikke huset ved strømsvigt.",
+    "storm_start": "Starter",
+    "storm_end": "Slutter",
+    "storm_keep_percent": "Niveau der holdes",
+    "storm_expected_use": "Forventet forbrug",
+    "storm_buffer": "Buffer"
   }
 }
