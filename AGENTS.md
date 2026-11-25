@@ -264,7 +264,8 @@ private agent memory). Update or remove a note when it stops being true.
   believed; both directions need their runs. With a measured efficiency curve in use it stays the configured size:
   that curve was measured with it, so correcting both would count twice. The charging history keeps kWh; the level a row
   is worth is always calculated from them with the size in use (`current_battery_level_expenses()`, `age_limits()`, the
-  history table), never read from the stored `percentage`, which is on the scale of the time it was written. Every
+  history table), never read from the stored `percentage` (only the history table falls back to it for a row without kWh), which is on the scale
+  of the last combine. Every
   `measure_efficiency` call (efficiency,
   taper, capacity) and the capacity summary's reference stay on the configured size, so the measuring never feeds on
   itself; the what-if has no measurements and uses the configured or scenario size. The size is in `plan_inputs_hash`.

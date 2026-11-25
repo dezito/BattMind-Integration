@@ -642,3 +642,41 @@ def test_the_max_age_walk_follows_the_size_in_use(switch: bool, expected_percent
     limits = engine.run_job(snap, engine.age_limits, ctx, 50.0).value
 
     assert limits["charged_before"][0][1] == pytest.approx(expected_percentage)
+
+
+def test_the_max_age_walk_still_counts_the_efficiency_and_reads_bad_kwh_as_nothing() -> None:
+    engine, snap = _sized(True)
+    snap.settings["force_powerwall_max_hours_old_discharge"] = True
+    first, second, third = (snap.now - datetime.timedelta(hours=hours) for hours in (1, 2, 3))
+    ctx = SimpleNamespace(
+        battery_expenses={first: {"kWh": 2.0, "percentage": 20.0}, second: {"kWh": None, "percentage": 20.0}, third: {"kWh": "x"}},
+        efficiency=0.9, kwh_to_percentage=engine.kwh_to_percentage, config=engine.config,
+    )
+
+    limits = engine.run_job(snap, engine.age_limits, ctx, 50.0).value
+
+    assert limits["charged_before"] == ((first.replace(minute=0, second=0, microsecond=0), pytest.approx(2.0 / 8.8 * 100.0 * 0.9)),)
+
+
+def test_the_cost_walk_counts_a_row_without_a_stored_percentage() -> None:
+    engine, snap = _sized(True)
+    engine.charging_history_db = _history(snap.now)
+    for entry in engine.charging_history_db.values():
+        del entry["charged"]["percentage"]  # the kWh are all it needs
+
+    assert engine.run_job(snap, engine.current_battery_level_expenses).value["kwh"] == pytest.approx(3.52, abs=0.01)
+
+
+def test_the_history_table_keeps_a_row_it_can_only_read_a_percentage_from_and_survives_a_size_of_zero() -> None:
+    engine, snap = _sized(False, None)
+    now = snap.now - datetime.timedelta(hours=2)
+    only_percentage = {"charged": {"percentage": 20.0, "kWh_from_local_energy": 0.0, "cost": 1.0}}  # no kWh
+    with_kwh = {"charged": {"percentage": 20.0, "kWh": 2.0, "kWh_from_grid": 2.0, "kWh_from_local_energy": 0.0, "cost": 2.0, "price": 1.0}}
+    engine.charging_history_db = {now: only_percentage, now - datetime.timedelta(hours=1): with_kwh}
+
+    assert engine.run_job(snap, engine.charging_history_combine_and_set).error is None
+    assert now in engine.charging_history_db  # not dropped as an empty row
+
+    engine.config["solar"]["powerwall_battery_size"] = 0.0
+    assert engine.run_job(snap, engine.charging_history_combine_and_set).error is None  # a size of 0 raised before only at hour end
+    assert len(engine.charging_history_db) == 2

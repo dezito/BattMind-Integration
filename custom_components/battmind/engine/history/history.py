@@ -103,6 +103,16 @@ class History(HistoryStorage, HistoryQueries):
             for key in total:
                 total[key].setdefault(month, 0.0)
 
+        def _level(block: dict, kwh: float) -> float:
+            """The battery level the energy of a row is worth at the size in use now, calculated from its kWh (the stored percentage
+            is on the scale of the last combine); without kWh, or with a size of 0, what was stored."""
+            if kwh > 0.0:
+                try:
+                    return self.kwh_to_percentage(kwh)
+                except ZeroDivisionError:
+                    pass
+            return _num(block.get("percentage", 0.0))
+
         def _read_session(session: dict):
             energy_summary = session.get("energy_summary", {}) if isinstance(session.get("energy_summary", {}), dict) else {}
             prices = session.get("prices", {}) if isinstance(session.get("prices", {}), dict) else {}
@@ -114,12 +124,12 @@ class History(HistoryStorage, HistoryQueries):
             return (
                 prices,
                 c_kwh,
-                self.kwh_to_percentage(c_kwh),  # (at the size in use now, not the one of the time it was written)
+                _level(charged, c_kwh),
                 _num(charged.get("cost", 0.0)),
                 c_local,
                 _num(charged.get("kWh_from_grid", max(c_kwh - c_local, 0.0))),
                 _num(discharged.get("kWh", 0.0)),
-                self.kwh_to_percentage(_num(discharged.get("kWh", 0.0))),
+                _level(discharged, _num(discharged.get("kWh", 0.0))),
                 _num(discharged.get("cost", 0.0)),
                 float(savings) if isinstance(savings, (int, float)) else 0.0,
                 dict(session.get("rules", {})) if isinstance(session.get("rules", {}), dict) else {},
