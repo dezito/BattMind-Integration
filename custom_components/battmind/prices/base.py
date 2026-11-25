@@ -102,12 +102,12 @@ WATTCAST_BUY_KEY = "wattcast_buy_entity_id"
 
 def price_unit_error(key: str, unit: Any) -> bool:
     """A price sensor whose unit makes its prices 100 or 1000 times off: a price in a subunit of the currency (ct/kWh,
-    p/kWh) on any price key, a price per MWh or per Wh on an Energi Data Service, Spot Forecast or Elprisprognos key (Energy Price Forecast converts its own
+    p/kWh) on any price key, a price per MWh or per Wh on an Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot, Octopus or Nord Pool key (Energy Price Forecast converts its own
     price per MWh, see price_unit_divisor())."""
     if key == WATTCAST_BUY_KEY:
         # Wattcast gives ct/kWh (euro) and nothing else: that unit is its own and known, any other is wrong
         return isinstance(unit, str) and bool(unit.strip()) and unit.strip().lower() != "ct/kwh"
-    return is_price_subunit(unit) or (key.startswith(("energidataservice_", "spotforecast_", "elprognos_")) and (is_price_per_mwh(unit) or is_price_per_wh(unit)))
+    return is_price_subunit(unit) or (key.startswith(("energidataservice_", "spotforecast_", "elprognos_", "epexspot_", "gespot_", "octopus_", "nordpool_")) and (is_price_per_mwh(unit) or is_price_per_wh(unit)))
 
 
 def sell_adder_sign(config: dict) -> float:
@@ -326,7 +326,7 @@ class CombinedPriceProvider:
         return {"attributes": attributes, "values": values}
 
     def price_unit_divisors(self, get_state: GetState) -> dict[str, float | None]:
-        """{entity_id: divisor} of the Energy Price Forecast and Energi Data Service sensors whose recorded history (the statistics
+        """{entity_id: divisor} of the Energy Price Forecast, Energi Data Service, EPEX Spot, GE-Spot and Nord Pool sensors whose recorded history (the statistics
         and states of the sensor itself) is not a price per kWh as it is: 1000.0 for a price per MWh of Energy Price Forecast, and
         None where the history is left out, never read as kWh: an Energy Price Forecast sensor that is not in Home Assistant (its
         unit is not known) and a sensor whose unit makes its prices 100 or 1000 times too large (price_unit_error: ct/kWh, or per
@@ -335,7 +335,7 @@ class CombinedPriceProvider:
         divisors: dict[str, float | None] = {}
         for provider in self.providers:
             source = getattr(provider, "source_name", "")
-            if source not in ("energypriceforecast", "energidataservice"):
+            if source not in ("energypriceforecast", "energidataservice", "epexspot", "gespot", "nordpool"):
                 continue
             for entity_id in (provider.buy_entity_id, provider.sell_entity_id):
                 if not entity_id:
@@ -376,21 +376,38 @@ class CombinedPriceProvider:
                 _LOGGER.warning("Can't update prices from %s: %s", provider.source_name, err)
         self.buy_prices, self.buy_real_prices, self.buy_price_sources = self._combine("buy")
         self.sell_prices, self.sell_real_prices, self.sell_price_sources = self._combine("sell")
+        self._apply_sells_nothing()
+
+    def _apply_sells_nothing(self) -> None:
+        """A provider that says a sale is worth nothing (Octopus without an export tariff) makes it so in every hour of the buy prices: the sell
+        prices of a provider with a forecast, for the days after tomorrow, are not a price this user can get."""
+        provider = next((p for p in self.providers if getattr(p, "sells_nothing", False)), None)
+        if provider is None or not self.buy_prices:
+            return
+        self.sell_prices = {timestamp: round(provider.calculate_sell_price(timestamp, 0.0), self.decimals) for timestamp in self.buy_prices}
+        self.sell_real_prices = {timestamp: self.sell_prices[timestamp] for timestamp in self.buy_real_prices}
+        self.sell_price_sources = {timestamp: f"{provider.source_name}:{'real' if timestamp in self.buy_real_prices else 'forecast'}" for timestamp in self.buy_prices}
 
     def _combine(self, kind: str) -> tuple[dict, dict, dict]:
         prices: dict = {}
         real: dict = {}
         sources: dict = {}
         unusable = 0
+        claimed_hours: set = set()  # the hours that a provider before has real prices in
         for provider in self.providers:
+            own_hours: set = set()
             for timestamp, price in getattr(provider, f"{kind}_real_prices").items():
                 if not is_number(price):
                     # e.g. NaN from a broken tariff: no price is better than one that makes the plan NaN. The hour is
                     # filled from the price history (or the next provider), never invented
                     unusable += 1
-                elif timestamp not in prices:
+                # a real price of a provider before this one is the price of the whole hour: the rows of another period (quarters of an
+                # hourly price) of a later provider are not mixed into it
+                elif timestamp not in prices and reset_time_to_hour(timestamp) not in claimed_hours:
+                    own_hours.add(reset_time_to_hour(timestamp))
                     prices[timestamp] = real[timestamp] = round(price, self.decimals)
                     sources[timestamp] = f"{provider.source_name}:real"
+            claimed_hours |= own_hours
         # a forecast never enters an hour with a real price, also not one of another provider with other periods (an hourly
         # real price and forecast quarters): the real price is the price of the whole hour
         real_hours = {reset_time_to_hour(timestamp) for timestamp in real}

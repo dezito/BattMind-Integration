@@ -10,7 +10,7 @@ few days of watching the plan before you trust it.
 | A **battery level** sensor (%) | where the plan starts from |
 | A **battery power** sensor (W or kW) | measures what goes in and out (charging history, cost price, loss) |
 | A **house consumption** sensor (W or kW) – the house's consumption, not the grid import | the consumption forecast per hour |
-| [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning), [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) and/or a spot forecast integration | buy and sell prices per hour |
+| [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning), [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) and/or a spot forecast integration, EPEX Spot, GE-Spot, Octopus Energy or Nord Pool | buy and sell prices per hour |
 | A way to control the inverter from Home Assistant | BattMind only decides – your automation does it |
 
 Optional, but recommended with solar panels:
@@ -147,7 +147,7 @@ again.
 ### Prices
 
 Choose Energi Data Service, Strømligning, Energy Price Forecast and/or a spot forecast integration. With several, the priority is Strømligning,
-then Energi Data Service, then Energy Price Forecast, then the spot forecast integrations: the price of the first one that has one is used for every hour,
+then Energi Data Service, then Octopus Energy, Nord Pool, EPEX Spot and GE-Spot, then Energy Price Forecast, then the spot forecast integrations: the price of the first one that has one is used for every hour,
 and the next fills the gaps (also in the what-if and the analysis). All price sensors must be in the same currency
 (a backup provider in another currency is refused).
 
@@ -164,6 +164,24 @@ published (it is probably not the price sensor of the integration) and a price p
 of these sensors is not used (their state is a wholesale price): BattMind stores their published prices in its own price history,
 which fills hours that have no price, but the what-if has no history for them (it needs Energi Data Service, Strømligning or
 Energy Price Forecast in the setup too). Elprisprognos only keeps today's coming hours in its list.
+
+**Providers of your own published prices** ([EPEX Spot](https://github.com/mampfes/ha_epex_spot), [GE-Spot](https://github.com/enoch85/ge-spot),
+[Octopus Energy](https://github.com/BottlecapDave/HomeAssistant-OctopusEnergy) for the United Kingdom and [Nord Pool](https://github.com/custom-components/nordpool)
+from HACS): their sensors already have the VAT, the surcharge and the fees you set up in them, so the **buy price is what the sensor says**
+(no VAT or surcharge of ours is asked for). They give today and tomorrow and **no forecast**, so each works only next to a provider with a
+forecast (Energy Price Forecast, Energi Data Service with Carnot, or a spot forecast integration), and they come **before the estimating
+providers** in the priority: the days after tomorrow come from the other provider's own formula, so the level can step between tomorrow and
+the day after. The price chart of the dashboard (the same for every provider) shows 7 days in one chart: the prices the plan is made on, the
+published ones and, shaded from the first forecast period on, the forecast for the rest (tomorrow is shaded until its prices are out); it follows the price updates (about once an hour), not every minute. A forecast
+price is the forecast provider's price with its small adder per day ahead and the measured correction; the sell series is the sell price the plan has
+(the wholesale price less the sell fee, or one from the price history where no provider has one), not what a fixed solar sell price settles. The **sell price** is the wholesale price less the sell fee: EPEX Spot's *Market Price* sensor (its *Total Price* sensor is
+the buy price), a second Nord Pool sensor without VAT and costs (add the integration twice, the second with VAT off), GE-Spot's `raw_value`
+(only from a source that has a market price, not Strømligning or Amber; tomorrow's rows only once tomorrow is complete) and Octopus Energy's export rates
+(optional: without an export tariff a sale is worth nothing in every hour, also in the days after tomorrow that another provider fills, never the buy price). The page refuses a sensor in cents or øre or per MWh or Wh,
+a sensor without price rows (Home Assistant's own Nord Pool has none), the same sensor as buy and sell price, a sensor in the wrong field (EPEX Spot's
+Market Price and Total Price swapped, an Octopus Energy import event as export or the other way, a gas event) and EPEX Spot's sources Tibber and Energyforecast.de, whose price is not
+the exchange price. Octopus Energy's rates are in pounds: a rate above 5 is taken for pence and gives no prices. A price page with its sensors
+asks for no VAT and surcharge; those are only for the wholesale prices of the spot forecast integrations.
 
 The **country** of the prices is chosen on the same page as the providers (Home Assistant's country is suggested, and a new
 entry outside Denmark starts with Energy Price Forecast). A provider with no prices in the country is refused: Strømligning

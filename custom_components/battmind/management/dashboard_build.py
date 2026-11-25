@@ -10,8 +10,7 @@ At setup it is rewritten for this config entry:
 * cards bound to an external entity that is not configured are removed
 * the switches and settings of rules that need an unsupported battery action are removed
 * ``@@key@@`` placeholders -> ``dashboard.key`` of texts/<language>.json (BattMind's language),
-  ``@@forecast_span@@`` -> days_to_predict - 0.5 days, ``@@sell_fee_value@@`` -> the sell fee, ``@@spot_vat@@`` / ``@@spot_surcharge@@`` -> the VAT and the surcharge of the spot forecast
-  providers (NaN when missing),
+  ``@@forecast_span@@`` -> days_to_predict - 0.5 days,
   ``@@valuta@@`` / ``@@valuta_kwh@@`` -> the currency of Home Assistant
 
 The result is written to .storage and served as a Lovelace dashboard that can be edited in
@@ -285,16 +284,6 @@ def _represent_str(dumper: yaml.SafeDumper, value: str) -> yaml.ScalarNode:
 _Dumper.add_representer(str, _represent_str)
 
 
-def _spot_number(value: Any) -> str:
-    """The VAT or surcharge of the spot forecast providers as the number the chart reads; "NaN" when it is missing or is not a finite
-    number (a hand-edited backup): the chart then shows no price, and the build does not fail on it."""
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return "NaN"
-    return f"{number:g}" if number == number and abs(number) != float("inf") else "NaN"
-
-
 def render_dashboard(
     config: dict[str, Any], prefix: str, existing: set[str] | None = None, currency: str | None = None,
     entry_id: str = "",
@@ -309,12 +298,6 @@ def render_dashboard(
     texts = load_texts(normalize_language(config.get("language")), currency)
     # the charts show the forecast period: days_to_predict minus the half day already passed
     texts["dashboard.forecast_span"] = f"{max(float(config['days_to_predict']) - 0.5, 0.5):g}d"
-    # the sell price charts subtract the same sell fee as the planner
-    texts["dashboard.sell_fee_value"] = f"{abs(float(config['prices'].get('sell_fee', 0.0))):g}"
-    # the charts of the spot forecast providers make the buy price from the wholesale price with the planner's VAT and surcharge: NaN
-    # when one is missing (the chart then shows no price, like the planner), never 0
-    for key in ("spot_vat", "spot_surcharge"):
-        texts[f"dashboard.{key}"] = _spot_number(config["prices"].get(key))
     template = _translate(template, texts)
     missing = {source for source, target in mapping.items() if not target}
     if existing is not None and DEBUG_BUTTON_SWITCH not in existing:

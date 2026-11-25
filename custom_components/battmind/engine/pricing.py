@@ -8,6 +8,7 @@ from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER, price_decimals, price_scale
 from ..utils.helpers import day_of_week, days_between, minutes_between, reset_time_to_hour, start_of_day
 from ..prices import price_at
 from ..prices.base import sell_adder_sign
+from ..prices.chart_rows import price_chart_rows
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +32,9 @@ class Pricing:
                 title=f"{self.title} error",
                 notification_id=f"{self.name}_update_grid_prices_error",
             )
+        # the prices of the plan (real and forecast) for the price chart of the dashboard, after every price update, also one that failed: the
+        # chart shows what the plan has now (the cached or offline prices, or none), never the rows of an earlier update
+        self.set_attr("powerwall_action", "price_chart", self.price_chart_rows())
 
     def get_hour_prices(self, update_prices: bool = False, sell_prices: bool = False) -> dict:
         """Prices per period. Returned dicts are shared - do not modify them.
@@ -132,6 +136,20 @@ class Pricing:
 
     def get_sell_prices(self, update_prices: bool = False) -> dict:
         return self.get_hour_prices(update_prices=update_prices, sell_prices=True)
+
+    def price_chart_rows(self) -> list[dict]:
+        """The buy and sell prices the plan is made on, per price period for the next 7 days (real and forecast in one list), for the
+        price charts of the dashboard. A price that is not there is left out: the chart shows what the plan has, never a favorable default."""
+        def prices(sell: bool) -> dict:
+            try:
+                return self.get_sell_prices() if sell else self.get_grid_prices()
+            except Exception as err:  # noqa: BLE001 - a missing sell price (a provider without one) must not stop the buy prices
+                _LOGGER.debug("No %s prices for the price chart: %s", "sell" if sell else "buy", err)
+                return {}
+
+        return price_chart_rows(
+            prices(False), prices(True), self.grid_price_cache.get("sources", {}), start_of_day(self.now()), 7, price_decimals(self.config)
+        )
 
     def get_price_forecast_value(self, data: list | None = None) -> float:
         """get_forecast_value of a list of prices: rounded to the decimals of the price currency (2 for kroner)."""

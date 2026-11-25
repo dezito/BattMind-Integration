@@ -33,31 +33,53 @@
         type: custom:config-template-card
         variables:
           today_prices: |
-            (states['sensor.energy_price_forecast'].attributes.raw_today || []).map(item => Number(item.value) / (String(states['sensor.energy_price_forecast'].attributes.unit_of_measurement || '').toLowerCase().endsWith('mwh') ? 1000 : 1)).filter(Number.isFinite)
+            const adapt = (states, mode) => {
+              const rows = { raw_today: [], raw_tomorrow: [], raw_forecast: [], unit_of_measurement: '' };
+              // the prices the plan is made on, one row per price period (real, or a forecast), the sell price less the sell fee
+              const planned = states['sensor.battmind_powerwall_action']?.attributes?.price_chart;
+              (Array.isArray(planned) ? planned : []).forEach(r => {
+                const value = r ? (mode === 'buy' ? r.buy : r.sell) : null;
+                if (r && r.time && typeof value === 'number' && Number.isFinite(value)) (r.forecast ? rows.raw_forecast : rows.raw_today).push({ start: r.time, value: value });
+              });
+              return rows;
+            };
+            adapt(states, 'buy').raw_today.map(item => Number(item.value)).filter(Number.isFinite)
           tomorrow_prices: |
-            (states['sensor.energy_price_forecast'].attributes.raw_tomorrow || []).map(item => Number(item.value) / (String(states['sensor.energy_price_forecast'].attributes.unit_of_measurement || '').toLowerCase().endsWith('mwh') ? 1000 : 1)).filter(Number.isFinite)
+            const adapt = (states, mode) => {
+              const rows = { raw_today: [], raw_tomorrow: [], raw_forecast: [], unit_of_measurement: '' };
+              // the prices the plan is made on, one row per price period (real, or a forecast), the sell price less the sell fee
+              const planned = states['sensor.battmind_powerwall_action']?.attributes?.price_chart;
+              (Array.isArray(planned) ? planned : []).forEach(r => {
+                const value = r ? (mode === 'buy' ? r.buy : r.sell) : null;
+                if (r && r.time && typeof value === 'number' && Number.isFinite(value)) (r.forecast ? rows.raw_forecast : rows.raw_today).push({ start: r.time, value: value });
+              });
+              return rows;
+            };
+            adapt(states, 'buy').raw_tomorrow.map(item => Number(item.value)).filter(Number.isFinite)
           forecast_prices: |
-            (states['sensor.energy_price_forecast'].attributes.raw_forecast || []).map(item => Number(item.value) / (String(states['sensor.energy_price_forecast'].attributes.unit_of_measurement || '').toLowerCase().endsWith('mwh') ? 1000 : 1)).filter(Number.isFinite)
-          total_hours: >
-            const allPrices = [...vars.today_prices,
-            ...vars.tomorrow_prices, ...vars.forecast_prices];
-            allPrices.length
-          lowest_price: >
-            let min = 999; const allPrices = [...vars.today_prices,
-            ...vars.tomorrow_prices, ...vars.forecast_prices];
-            allPrices.forEach(price => {
+            const adapt = (states, mode) => {
+              const rows = { raw_today: [], raw_tomorrow: [], raw_forecast: [], unit_of_measurement: '' };
+              // the prices the plan is made on, one row per price period (real, or a forecast), the sell price less the sell fee
+              const planned = states['sensor.battmind_powerwall_action']?.attributes?.price_chart;
+              (Array.isArray(planned) ? planned : []).forEach(r => {
+                const value = r ? (mode === 'buy' ? r.buy : r.sell) : null;
+                if (r && r.time && typeof value === 'number' && Number.isFinite(value)) (r.forecast ? rows.raw_forecast : rows.raw_today).push({ start: r.time, value: value });
+              });
+              return rows;
+            };
+            adapt(states, 'buy').raw_forecast.map(item => Number(item.value)).filter(Number.isFinite)
+          total_hours: |
+            const allPrices = [...vars.today_prices, ...vars.tomorrow_prices, ...vars.forecast_prices]; allPrices.length
+          lowest_price: |
+            let min = 999; const allPrices = [...vars.today_prices, ...vars.tomorrow_prices, ...vars.forecast_prices]; allPrices.forEach(price => {
               if (price < min) min = price;
             }); min * 1.05
-          highest_price: >
-            let max = -999; const allPrices = [...vars.today_prices,
-            ...vars.tomorrow_prices, ...vars.forecast_prices];
-            allPrices.forEach(price => {
+          highest_price: |
+            let max = -999; const allPrices = [...vars.today_prices, ...vars.tomorrow_prices, ...vars.forecast_prices]; allPrices.forEach(price => {
               if (price > max) max = price;
             }); max * 0.95
-          mean_price: >
-            let sum = 0.0; const allPrices = [...vars.today_prices,
-            ...vars.tomorrow_prices, ...vars.forecast_prices];
-            allPrices.forEach(price => {
+          mean_price: |
+            let sum = 0.0; const allPrices = [...vars.today_prices, ...vars.tomorrow_prices, ...vars.forecast_prices]; allPrices.forEach(price => {
               sum += price;
             }); const mean = sum / vars.total_hours; mean
           step_under_mean: |
@@ -76,7 +98,8 @@
           price10: vars.mean_price + vars.step_over_mean * 4
           price11: vars.highest_price
           total_span: 24 * 7 - 1
-        entities: []
+        entities:
+          - sensor.battmind_powerwall_action
         card:
           type: custom:apexcharts-card
           apex_config:
@@ -141,11 +164,7 @@
           brush:
             selection_span: ${total_span + "h"}
           header:
-            title: >-
-              ${"@@price_chart_title@@ 🔵" +
-              vars.lowest_price.toFixed(2) + " 🟢" +
-              vars.mean_price.toFixed(2) + " 🟣" +
-              vars.highest_price.toFixed(2)}
+            title: '${vars.total_hours ? ("@@price_chart_title@@ 🔵" + vars.lowest_price.toFixed(2) + " 🟢" + vars.mean_price.toFixed(2) + " 🟣" + vars.highest_price.toFixed(2)) : "@@price_chart_title@@"}'
             show: true
             standard_format: false
             show_states: false
@@ -178,8 +197,18 @@
               unit: '@@valuta@@'
               color: green
               data_generator: |
-                const buy = entity.attributes || {};
-                const sell = hass.states['sensor.energy_price_forecast_sell']?.attributes || {};
+                const adapt = (states, mode) => {
+                  const rows = { raw_today: [], raw_tomorrow: [], raw_forecast: [], unit_of_measurement: '' };
+                  // the prices the plan is made on, one row per price period (real, or a forecast), the sell price less the sell fee
+                  const planned = states['sensor.battmind_powerwall_action']?.attributes?.price_chart;
+                  (Array.isArray(planned) ? planned : []).forEach(r => {
+                    const value = r ? (mode === 'buy' ? r.buy : r.sell) : null;
+                    if (r && r.time && typeof value === 'number' && Number.isFinite(value)) (r.forecast ? rows.raw_forecast : rows.raw_today).push({ start: r.time, value: value });
+                  });
+                  return rows;
+                };
+                const buy = adapt(hass.states, 'buy');
+                const sell = adapt(hass.states, 'spot');
                 const buyRows = [...(buy.raw_today || []), ...(buy.raw_forecast || []), ...(buy.raw_tomorrow || [])];
                 const sellRows = [...(sell.raw_today || []), ...(sell.raw_forecast || []), ...(sell.raw_tomorrow || [])];
                 const buyDiv = String(buy.unit_of_measurement || '').toLowerCase().endsWith('mwh') ? 1000 : 1;
@@ -229,12 +258,20 @@
               color: white
               stroke_width: 0
               data_generator: |
-                const buy = hass.states['sensor.energy_price_forecast']?.attributes || {};
-                // the planner's sell price: the sell sensor (else the buy sensor) minus the configured sell fee
-                // (the prices have no tariffs in them)
-                const sell = hass.states['sensor.energy_price_forecast_sell']?.attributes || buy;
-                const sellFee = Number('@@sell_fee_value@@') || 0;
-                const sellCosts = () => sellFee;
+                const adapt = (states, mode) => {
+                  const rows = { raw_today: [], raw_tomorrow: [], raw_forecast: [], unit_of_measurement: '' };
+                  // the prices the plan is made on, one row per price period (real, or a forecast), the sell price less the sell fee
+                  const planned = states['sensor.battmind_powerwall_action']?.attributes?.price_chart;
+                  (Array.isArray(planned) ? planned : []).forEach(r => {
+                    const value = r ? (mode === 'buy' ? r.buy : r.sell) : null;
+                    if (r && r.time && typeof value === 'number' && Number.isFinite(value)) (r.forecast ? rows.raw_forecast : rows.raw_today).push({ start: r.time, value: value });
+                  });
+                  return rows;
+                };
+                const buy = adapt(hass.states, 'buy');
+                // the planner's sell price (the sell fee is already off)
+                const sell = adapt(hass.states, 'spot');
+                const sellCosts = () => 0;
                 const buyRows = [...(buy.raw_today || []), ...(buy.raw_forecast || []), ...(buy.raw_tomorrow || [])];
                 const sellRows = [...(sell.raw_today || []), ...(sell.raw_forecast || []), ...(sell.raw_tomorrow || [])];
                 const sellDiv = String(sell.unit_of_measurement || '').toLowerCase().endsWith('mwh') ? 1000 : 1;
@@ -253,9 +290,19 @@
               type: area
               name: '@@solar_forecast@@'
               data_generator: |
+                const adapt = (states, mode) => {
+                  const rows = { raw_today: [], raw_tomorrow: [], raw_forecast: [], unit_of_measurement: '' };
+                  // the prices the plan is made on, one row per price period (real, or a forecast), the sell price less the sell fee
+                  const planned = states['sensor.battmind_powerwall_action']?.attributes?.price_chart;
+                  (Array.isArray(planned) ? planned : []).forEach(r => {
+                    const value = r ? (mode === 'buy' ? r.buy : r.sell) : null;
+                    if (r && r.time && typeof value === 'number' && Number.isFinite(value)) (r.forecast ? rows.raw_forecast : rows.raw_today).push({ start: r.time, value: value });
+                  });
+                  return rows;
+                };
                 const hourKey = value => { const d = new Date(value); d.setMinutes(0, 0, 0); return d.getTime(); };
-                const buy = hass.states['sensor.energy_price_forecast']?.attributes || {};
-                const sell = hass.states['sensor.energy_price_forecast_sell']?.attributes || {};
+                const buy = adapt(hass.states, 'buy');
+                const sell = adapt(hass.states, 'spot');
                 const buyRows = [...(buy.raw_today || []), ...(buy.raw_forecast || []), ...(buy.raw_tomorrow || [])];
                 const sellRows = [...(sell.raw_today || []), ...(sell.raw_forecast || []), ...(sell.raw_tomorrow || [])];
                 const times = [...new Set([...buyRows, ...sellRows].map(row => new Date(row.start).getTime()).filter(Number.isFinite))].sort((a, b) => a - b);
@@ -289,22 +336,33 @@
               opacity: 0.25
               color: purple
               data_generator: |
+                const adapt = (states, mode) => {
+                  const rows = { raw_today: [], raw_tomorrow: [], raw_forecast: [], unit_of_measurement: '' };
+                  // the prices the plan is made on, one row per price period (real, or a forecast), the sell price less the sell fee
+                  const planned = states['sensor.battmind_powerwall_action']?.attributes?.price_chart;
+                  (Array.isArray(planned) ? planned : []).forEach(r => {
+                    const value = r ? (mode === 'buy' ? r.buy : r.sell) : null;
+                    if (r && r.time && typeof value === 'number' && Number.isFinite(value)) (r.forecast ? rows.raw_forecast : rows.raw_today).push({ start: r.time, value: value });
+                  });
+                  return rows;
+                };
                 try {
-                  var eds = (entity && entity.attributes) ? entity.attributes : {};
+                  var eds = adapt(hass.states, 'buy');
+                  if (!(eds.raw_forecast || []).length) return [];
 
                   // Start: the first forecast hour (most accurate)
                   var start = null;
                   if (eds.raw_forecast && eds.raw_forecast.length && eds.raw_forecast[0] && eds.raw_forecast[0].start) {
                     start = new Date(eds.raw_forecast[0].start).getTime();
                   }
-                  
+
                   // Fallback: tomorrow 00:00 local time
                   if (!start || isNaN(start)) {
                     var now = new Date();
                     start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0).getTime();
                   }
-                  
-                  
+
+
                   // Use the same rows as the ones plotted
                   var rows = [];
                   if (eds.raw_today) rows = rows.concat(eds.raw_today);
@@ -366,13 +424,23 @@
               stroke_width: 0
               curve: stepline
               data_generator: |
-                const prices = hass.states['sensor.energy_price_forecast']?.attributes || {};
-                const sell = hass.states['sensor.energy_price_forecast_sell']?.attributes || {};
+                const adapt = (states, mode) => {
+                  const rows = { raw_today: [], raw_tomorrow: [], raw_forecast: [], unit_of_measurement: '' };
+                  // the prices the plan is made on, one row per price period (real, or a forecast), the sell price less the sell fee
+                  const planned = states['sensor.battmind_powerwall_action']?.attributes?.price_chart;
+                  (Array.isArray(planned) ? planned : []).forEach(r => {
+                    const value = r ? (mode === 'buy' ? r.buy : r.sell) : null;
+                    if (r && r.time && typeof value === 'number' && Number.isFinite(value)) (r.forecast ? rows.raw_forecast : rows.raw_today).push({ start: r.time, value: value });
+                  });
+                  return rows;
+                };
+                const prices = adapt(hass.states, 'buy');
+                const sell = adapt(hass.states, 'spot');
                 const rows = [...(prices.raw_today || []), ...(prices.raw_forecast || []), ...(prices.raw_tomorrow || []), ...(sell.raw_today || []), ...(sell.raw_forecast || []), ...(sell.raw_tomorrow || [])];
                 const hours = new Set((entity.attributes.charge_timestamps || []).map(ts => {
                   const d = new Date(ts); d.setMinutes(0, 0, 0); return d.getTime();
                 }));
-                const times = [...new Set(rows.map(row => new Date(row.start).getTime()).filter(Number.isFinite))].sort((a, b) => a - b);
+                const times = [...new Set([...rows.map(row => new Date(row.start).getTime()), ...hours].filter(Number.isFinite))].sort((a, b) => a - b);
                 return times.map(time => {
                   const hour = new Date(time); hour.setMinutes(0, 0, 0);
                   return [time, hours.has(hour.getTime()) ? 1 : 0];
@@ -390,13 +458,23 @@
               stroke_width: 0
               curve: stepline
               data_generator: |
-                const prices = hass.states['sensor.energy_price_forecast']?.attributes || {};
-                const sell = hass.states['sensor.energy_price_forecast_sell']?.attributes || {};
+                const adapt = (states, mode) => {
+                  const rows = { raw_today: [], raw_tomorrow: [], raw_forecast: [], unit_of_measurement: '' };
+                  // the prices the plan is made on, one row per price period (real, or a forecast), the sell price less the sell fee
+                  const planned = states['sensor.battmind_powerwall_action']?.attributes?.price_chart;
+                  (Array.isArray(planned) ? planned : []).forEach(r => {
+                    const value = r ? (mode === 'buy' ? r.buy : r.sell) : null;
+                    if (r && r.time && typeof value === 'number' && Number.isFinite(value)) (r.forecast ? rows.raw_forecast : rows.raw_today).push({ start: r.time, value: value });
+                  });
+                  return rows;
+                };
+                const prices = adapt(hass.states, 'buy');
+                const sell = adapt(hass.states, 'spot');
                 const rows = [...(prices.raw_today || []), ...(prices.raw_forecast || []), ...(prices.raw_tomorrow || []), ...(sell.raw_today || []), ...(sell.raw_forecast || []), ...(sell.raw_tomorrow || [])];
                 const hours = new Set((entity.attributes.force_discharge_timestamps || []).map(ts => {
                   const d = new Date(ts); d.setMinutes(0, 0, 0); return d.getTime();
                 }));
-                const times = [...new Set(rows.map(row => new Date(row.start).getTime()).filter(Number.isFinite))].sort((a, b) => a - b);
+                const times = [...new Set([...rows.map(row => new Date(row.start).getTime()), ...hours].filter(Number.isFinite))].sort((a, b) => a - b);
                 return times.map(time => {
                   const hour = new Date(time); hour.setMinutes(0, 0, 0);
                   return [time, hours.has(hour.getTime()) ? 1 : 0];

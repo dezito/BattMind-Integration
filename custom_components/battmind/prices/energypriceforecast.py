@@ -37,10 +37,9 @@ class EnergyPriceForecastPriceProvider(BasePriceProvider):
 
     @classmethod
     def dashboard_entities(cls, prices: dict[str, str]) -> dict[str, str]:
-        return {
-            "sensor.energy_price_forecast": prices["energypriceforecast_buy_entity_id"],
-            "sensor.energy_price_forecast_sell": prices["energypriceforecast_sell_entity_id"],
-        }
+        # the chart draws the plan's prices (attribute price_chart of the plan entity) and only watches the buy sensor of the provider:
+        # the card with the restart button when it is unavailable
+        return {"sensor.energy_price_forecast": prices["energypriceforecast_buy_entity_id"]}
 
     def _divisor(self, entity_id: str) -> float:
         """1000 for a sensor that gives the price per MWh (its prices are converted to kWh), else 1."""

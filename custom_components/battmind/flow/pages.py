@@ -6,6 +6,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
 from ..const import FLOW_STEPS, PRICE_PROVIDER_KEYS, default_options, price_scale
@@ -49,7 +50,7 @@ class BattMindFlowPages:
             return "energidataservice" in self._providers
         if step == "prices_energypriceforecast":
             return "energypriceforecast" in self._providers
-        if step in ("prices_spotforecast", "prices_elprognos", "prices_wattcast"):
+        if step in ("prices_spotforecast", "prices_elprognos", "prices_wattcast", "prices_epexspot", "prices_gespot", "prices_octopus", "prices_nordpool"):
             return step.removeprefix("prices_") in self._providers
         if step == "prices_stromligning":
             return "stromligning" in self._providers
@@ -116,7 +117,9 @@ class BattMindFlowPages:
             errors = validate_step(step, values)
             if step.startswith("prices_"):
                 get_state = self.hass.states.get  # type: ignore[attr-defined]
-                errors = {**price_currency_errors({**self._options, **values}, keys, get_state), **price_sensor_errors(values, get_state), **errors}
+                registry = er.async_get(self.hass)  # type: ignore[attr-defined]
+                unique_id_of = lambda entity_id: getattr(registry.async_get(entity_id), "unique_id", None)  # noqa: E731
+                errors = {**price_currency_errors({**self._options, **values}, keys, get_state), **price_sensor_errors(values, get_state, unique_id_of), **errors}
             if not errors:
                 self._options.update(values)
                 return await self._async_next()
@@ -244,6 +247,18 @@ class BattMindFlowPages:
 
     async def async_step_prices_wattcast(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("prices_wattcast", user_input)
+
+    async def async_step_prices_epexspot(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_epexspot", user_input)
+
+    async def async_step_prices_gespot(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_gespot", user_input)
+
+    async def async_step_prices_octopus(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_octopus", user_input)
+
+    async def async_step_prices_nordpool(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_nordpool", user_input)
 
     async def async_step_prices_stromligning(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("prices_stromligning", user_input)

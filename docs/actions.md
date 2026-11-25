@@ -157,6 +157,7 @@ actions:
 |---|---|
 | `sensor.<prefix>_powerwall_action` | the action now |
 | ↳ `battery_level_flow` | the forecast battery level per hour |
+| ↳ `price_chart` | the buy and sell prices the plan is made on, per price period for 7 days (`time`, `buy`, `sell`, `forecast`), real and forecast in one list: what the price chart of the dashboard draws |
 | ↳ `charge_timestamps`, `force_discharge_timestamps`, `discharge_timestamps`, `blocked_solar_charge_timestamps`, `force_solar_only_charging_timestamps`, `force_powerwall_max_hours_old_discharge_timestamps` | the planned hours per action, for your own automations or charts |
 | ↳ `hour_cost_prediction_ema` / `_trend` / `_avg` | the forecast consumption per hour (and `sum_*` accumulated) |
 | ↳ `optimizer_shadow_summary` | totals of the [optimised plan, the rule plan and self consumption](rules/optimizer.md#comparing-the-two), and the profit requirements steering each of them (`requirements`, a steering figure, not money) |

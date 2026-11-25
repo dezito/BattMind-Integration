@@ -915,3 +915,55 @@ def test_unsupported_actions_ignore_unknown_values() -> None:
     config = build_config({**OPTIONS, "unsupported_actions": ["force_discharge", "discharge_allowed", "battery_stopped", "x"]})
     assert unsupported_actions(config) == {"force_discharge"}
     assert unsupported_actions(build_config(OPTIONS)) == frozenset()
+
+
+def test_every_price_update_publishes_the_prices_the_plan_is_made_on_for_the_price_chart() -> None:
+    """Attribute price_chart of sensor.battmind_powerwall_action, set with every price update (not by the plan, which may not run): one
+    row per price period for 7 days, real and forecast in one list. The dashboard's price chart of every provider is drawn from it."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 30))
+    engine = started_engine(now, 50)
+    result = engine.run_job(snapshot(now, 50), engine.update_grid_prices)
+    assert result.error is None, result.error
+    rows = result.attributes["powerwall_action"]["price_chart"]
+    times = [datetime.datetime.fromisoformat(row["time"]) for row in rows]
+    midnight = datetime.datetime.combine(DAY, datetime.time())
+    assert times == sorted(set(times)) and times[0] == midnight and times[-1] < midnight + datetime.timedelta(days=7)
+    buy, sell = engine.get_grid_prices(), engine.get_sell_prices()
+    for row, time in zip(rows, times):
+        assert row["buy"] == pytest.approx(buy[time], abs=0.006)
+        assert row["sell"] == (pytest.approx(sell[time], abs=0.006) if time in sell else None)
+    # and the prices of the test itself (_price_rows): 1.0 + 0.6 (7-16) or 1.5 (17-20) + hour/100 today, 0.8 tomorrow
+    by_time = dict(zip(times, rows))
+    assert by_time[midnight + datetime.timedelta(hours=8)]["buy"] == 1.68 and by_time[midnight + datetime.timedelta(hours=18)]["buy"] == 2.68
+    assert by_time[midnight + datetime.timedelta(days=1, hours=3)]["buy"] == 0.83
+    # today and tomorrow are published prices, the days after a forecast
+    forecast_from = midnight + datetime.timedelta(days=2)
+    assert not any(row["forecast"] for row, time in zip(rows, times) if time < forecast_from)
+    assert all(row["forecast"] for row, time in zip(rows, times) if time >= forecast_from) and times[-1] >= forecast_from
+    # the sell price is the wholesale (here: the buy) price less the sell fee, once
+    fee = abs(float(engine.config["prices"]["sell_fee"]))
+    real = next(row for row in rows if not row["forecast"] and row["sell"] is not None)
+    assert real["sell"] == pytest.approx(real["buy"] - fee, abs=0.011)
+
+
+def test_a_failed_price_update_publishes_what_the_plan_has_never_the_rows_of_an_earlier_update(monkeypatch) -> None:
+    """A sell price that cannot be had is no sell price (never the buy price); without buy prices there is nothing to draw: the chart
+    must not keep the rows of an update that worked."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 30))
+    engine = started_engine(now, 50)
+
+    def published() -> list:
+        result = engine.run_job(snapshot(now, 50), engine.update_grid_prices)
+        return result.attributes["powerwall_action"]["price_chart"]
+
+    rows = published()
+    assert rows and any(row["sell"] is not None for row in rows)
+
+    def fail(*args, **kwargs):
+        raise ValueError("no prices")
+
+    monkeypatch.setattr(engine, "get_sell_prices", fail)
+    without_sell = published()
+    assert [row["buy"] for row in without_sell] == [row["buy"] for row in rows] and all(row["sell"] is None for row in without_sell)
+    monkeypatch.setattr(engine, "get_grid_prices", fail)
+    assert published() == []
