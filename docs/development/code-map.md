@@ -30,6 +30,7 @@ custom_components/battmind/             The HA integration (HACS payload)
 │   ├── health_checks.py                 HealthWatcher: the health repairs of an entry (sensors, units, value scale, prices, plan, frozen consumption)
 │   └── value_checks.py                  Pure checks of sensor values in the wrong scale (shared with Cable Juice Planner)
 ├── utils/                               Shared codecs, formatting, and calculations
+│   └── solar_forecast.py                Forecast.Solar / Helios Forecast energy platform -> hourly solar rows (shared with Cable Juice Planner)
 ├── sensor.py / number.py / switch.py    Main HA entity platforms
 ├── select.py / button.py / text.py      Other HA entity platforms
 ├── entity.py / repairs.py               Shared entity base and repair flows

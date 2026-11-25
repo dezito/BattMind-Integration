@@ -55,6 +55,36 @@ def test_every_language_renders_without_placeholders(language: str) -> None:
     assert [view["path"] for view in views] == ["overview", "settings", "analysis", "what-if"]
 
 
+@pytest.mark.parametrize(
+    ("platform", "forecast"),
+    [("forecast_solar", "sensor.energy_production_today"), ("helios_forecast", "sensor.helios_forecast_power_now")],
+)
+def test_the_solcast_entities_are_not_mapped_to_another_forecast_integration(platform: str, forecast: str) -> None:
+    """The charts read Solcast's detailedHourly. Forecast.Solar's energy_production_today would match the _today rule
+    and Helios' power_now is in W: with those the Solcast entities stay unmapped (no solar forecast in the charts)."""
+    from custom_components.battmind.management.dashboard_build import external_entities
+
+    config = build_config({**OPTIONS, "forecast_entity_id": forecast})
+    solcast = {key: value for key, value in external_entities(config, platform).items() if key.startswith("sensor.solcast_pv_forecast_forecast_")}
+    assert len(solcast) == 7 and set(solcast.values()) == {""}
+    content = render_dashboard(config, "battmind", forecast_platform=platform)
+    assert forecast not in content and "sensor.energy_production_tomorrow" not in content
+    # a Solcast sensor, and a sensor whose integration is unknown, are mapped as before
+    solcast_config = build_config({**OPTIONS, "forecast_entity_id": "sensor.my_solcast_today"})
+    mapping = external_entities(solcast_config, "solcast_solar")
+    assert mapping["sensor.solcast_pv_forecast_forecast_today"] == "sensor.my_solcast_today"
+    assert mapping["sensor.solcast_pv_forecast_forecast_day_3"] == "sensor.my_solcast_day_3"
+    assert external_entities(solcast_config) == mapping
+    assert "sensor.my_solcast_day_3" in render_dashboard(solcast_config, "battmind", forecast_platform="solcast_solar")
+
+
+@pytest.mark.parametrize("language", list(LANGUAGES))
+def test_the_solar_forecast_analysis_names_the_forecast_integration(language: str) -> None:
+    content = rendered(language)
+    label = load_texts(language)["dashboard.solar_integration"]
+    assert f"('forecast', '{label}')" in content and "'Solcast'" not in content
+
+
 def _what_if_view(language: str, prefix: str = "battmind", **options) -> dict:
     content = render_dashboard(build_config({**OPTIONS, "language": language, **options}), prefix)
     return next(view for view in yaml.safe_load(content)["views"] if view["path"] == "what-if")

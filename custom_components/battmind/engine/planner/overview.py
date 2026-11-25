@@ -246,7 +246,8 @@ class Overview:
             if day > 1 or not data:
                 continue
             solar = data.get("solar_kwh_prediction") or []
-            if len(solar) != 24:
+            # an hour without a value is 0.0 in the list: the day is complete only when all 24 hours had one
+            if len(solar) != 24 or data.get("solar_known_hours", len(solar)) != 24:
                 continue
             surplus = [_finite(value) or 0.0 for value in solar]
             hours = [hour for hour in range(24) if (day > 0 or hour >= now.hour) and surplus[hour] >= SOLAR_DAY_MIN_KWH]

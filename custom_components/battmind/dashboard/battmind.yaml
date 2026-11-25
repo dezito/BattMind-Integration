@@ -1634,7 +1634,7 @@ views:
 
               | @@source@@ | @@days@@ | @@mae@@ kWh | @@bias@@ kWh |
               |:---|---:|---:|---:|
-              {% for key, label in [('plan', '@@solar_plan@@'), ('database', '@@solar_database@@'), ('forecast', 'Solcast')] if s[key] -%}
+              {% for key, label in [('plan', '@@solar_plan@@'), ('database', '@@solar_database@@'), ('forecast', '@@solar_integration@@')] if s[key] -%}
               | {{ label }} | {{ s[key].days }} | {{ n(s[key].mae) }} | {{ n(s[key].bias) }} |
               {% endfor %}
               {%- else -%}

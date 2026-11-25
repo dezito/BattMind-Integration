@@ -22,6 +22,8 @@ from ..const import (
 )
 from ..utils.helpers import get_dict_value_with_path
 from ..utils.efficiency import parse_efficiency_curve
+from ..utils.solar_forecast import KEY_SEMANTICS
+from ..utils.solcast import SOLCAST_PLATFORM
 
 
 PREFIX_RE = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
@@ -57,16 +59,19 @@ def _entity(
     domain: str | list[str],
     *,
     device_class: str | None = None,
-    integration: str | None = None,
+    integration: str | tuple[str, ...] | None = None,
     multiple: bool = False,
 ) -> selector.EntitySelector:
-    """Entity picker limited to the relevant entities (domain + device class or integration)."""
+    """Entity picker limited to the relevant entities (domain + device class or integration).
+
+    Several integrations give one filter each: the picker offers an entity that matches any of them.
+    """
     entity_filter: dict[str, Any] = {"domain": domain}
     if device_class:
         entity_filter["device_class"] = device_class
-    if integration:
-        entity_filter["integration"] = integration
-    return selector.EntitySelector(selector.EntitySelectorConfig(filter=[entity_filter], multiple=multiple))
+    integrations = (integration,) if isinstance(integration, str) else integration or ()
+    filters = [{**entity_filter, "integration": name} for name in integrations] or [entity_filter]
+    return selector.EntitySelector(selector.EntitySelectorConfig(filter=filters, multiple=multiple))
 
 
 def _number(minimum: float, maximum: float, step: float, unit: str | None = None) -> selector.NumberSelector:
@@ -136,7 +141,8 @@ SELECTORS: dict[str, Any] = {
     "production_entity_id": _entity("sensor", device_class="power"),
     "inverter_discharging_power_limit": _number(100, 100000, 100, "W"),
     "production_price": _number(-1, 10, 0.01, "{valuta_kwh}"),
-    "forecast_entity_id": _entity("sensor", integration="solcast_solar"),
+    # Solcast (its detailedHourly), or Forecast.Solar / Helios Forecast (their solar forecast for the Energy dashboard)
+    "forecast_entity_id": _entity("sensor", integration=(SOLCAST_PLATFORM, *KEY_SEMANTICS)),
     "hourly_service_entity_id": _entity("weather"),
     "daily_service_entity_id": _entity("weather"),
     # storm warning: MeteoAlarm's binary sensor (device class safety), and the lowest level that counts

@@ -70,13 +70,36 @@ normal operation run as usual. `sensor.<prefix>_current_charging_rule` shows *Le
 
 The plan uses the **solar surplus**: solar production minus the house's consumption. Two sources are combined:
 
-- **Solcast:** the forecast production minus the forecast consumption
+- **The forecast integration** (Solcast, Forecast.Solar or Helios Forecast): the forecast production minus the
+  forecast consumption
 - **Own history:** BattMind stores the measured surplus per hour and per weather score (cloud cover, UV and
   temperature from the weather forecast). For a forecast hour it looks up the hours with the same weather score
 
-With both, Solcast counts 75 % and the history 25 %. When the history has no measurement for the hour and
-weather score (or the scores next to it), Solcast is used alone instead of being averaged with an unknown
-0. Without Solcast, the history alone is used, so the forecast also works without Solcast after a few weeks.
+With both, the forecast integration counts 75 % and the history 25 %. When the history has no measurement for the
+hour and weather score (or the scores next to it), the forecast integration is used alone instead of being averaged
+with an unknown 0. Without a forecast for the hour, the history alone is used, so the forecast also works without a
+forecast integration after a few weeks. An hour with neither a solar forecast nor a weather forecast (e.g. the hours
+before now when the weather only has an hourly forecast from now on) counts as no sun.
+
+Solcast gives the production per hour in the `detailedHourly` attribute of its day sensors. Forecast.Solar and Helios
+Forecast are read from the forecast they give the Energy dashboard (energy per period, keyed by time), turned into
+the same hourly rows:
+
+- Helios Forecast keys a value by the **start** of its hour, Forecast.Solar by the **end** of its period (the sunrise,
+  the whole hours and the sunset). A Forecast.Solar value therefore counts in the hour before its key; its first value
+  has no known start and is not used.
+- The energy of a period is spread over the time it covers and added up per hour of the Home Assistant time zone. On
+  the day the clocks go back, the hour that occurs twice gets the energy of both; the hour skipped in spring gets none.
+- Only hours the forecast covers completely are used. A missing hour, a value that is not a number or is negative,
+  and a partly covered hour at either end of the forecast are not counted as a forecast of 0: they are planned from
+  the weather forecast and the stored solar history. An hour with neither counts as no sun.
+  Values more than a day old or more than 16 days ahead are ignored.
+- Forecast.Solar has one entry per roof plane. The planes listed together with the selected one as the forecast of a
+  solar source in the Energy dashboard are added up, only for the hours every plane covers; a plane that is not
+  loaded means no forecast until it is.
+
+Helios Forecast learns from your own production and Forecast.Solar does not; both are blended with the history in
+the same way as Solcast.
 
 In an hour with solar surplus the sun covers the house, so the battery isn't planned to discharge in it.
 

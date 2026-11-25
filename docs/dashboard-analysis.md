@@ -20,7 +20,7 @@ row (not in a table with a single row), also inside a group of hours.
 | Card | Shows |
 |---|---|
 | **Battery level forecast** | the forecast battery level for the plan, with the planned 🟢 charging, 🟡 discharging, 🔴 stop (solar only) and forced discharge |
-| **Electricity prices** | the buy price incl. taxes, the sell price, the price forecast and the solar forecast. The title shows 🔵 lowest, 🟢 average and 🟣 highest price. A warning with a restart button appears if the price integration is down |
+| **Electricity prices** | the buy price incl. taxes, the sell price, the price forecast and the solar forecast (drawn only for Solcast). The title shows 🔵 lowest, 🟢 average and 🟣 highest price. A warning with a restart button appears if the price integration is down |
 | **Current rule and action** | `sensor.<prefix>_current_charging_rule` and the action, incl. the battery's power right now |
 | **Charging history** | each charge and discharge with its rule, kWh and price, and totals per month |
 | **Overview** | the key figures of the period, the plan per day (the hours of the day as squares, and a row per stretch of hours with its reason and the battery level; click a row to see the numbers), the full bill of the period (with the card_mod add-on installed, each day starts with a line) without/with the battery (with [Cable Juice Planner](cookbook.md#together-with-cable-juice-planner-ev) also the cars' planned charging and the bill incl. the cars), and the solar forecast per day, with a sentence about the sun for today and tomorrow (see [The sun in words](#the-sun-in-words)) |
@@ -333,7 +333,8 @@ hours, and the kWh and money bought from the grid in them. Many such days sugges
 
 The solar surplus the plan expected for the next day (saved the evening before) against the measured
 surplus: **Plan** is the combined forecast, **History (weather)** the part from the stored solar history,
-**Solcast** the forecast integration. **Bias** > 0: too much sun was expected.
+**Forecast integration** the solar forecast integration you selected (Solcast, Forecast.Solar or Helios Forecast).
+**Bias** > 0: too much sun was expected.
 
 <details>
 <summary>Screenshot</summary>

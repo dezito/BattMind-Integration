@@ -63,7 +63,11 @@ class EnergyForecast:
             return 50.0
 
     def get_solar_kwh_forecast(self) -> dict:
-        """{hour: (kWh surplus, sell price)} from Solcast minus the predicted consumption."""
+        """{hour: (kWh surplus, sell price)} from the solar forecast integration minus the predicted consumption.
+
+        The rows are Solcast's detailedHourly, or the hourly rows of Forecast.Solar or Helios Forecast in the same shape
+        (utils/solar_forecast.py): period_start in the local time zone and pv_estimate in kWh for the hour.
+        """
         if not self.config["solar"]["entity_ids"]["forecast_entity_id"]:
             return {}
         sell_prices = self.get_sell_prices()
@@ -80,7 +84,7 @@ class EnergyForecast:
                     surplus_kwh = round(max(data["pv_estimate"] * 1000.0 - consumption, 0.0) / 1000.0, 3)
                     forecast[date] = (surplus_kwh, self.sell_value(sell_prices[date]))
             except (KeyError, TypeError, AttributeError) as err:
-                _LOGGER.error("Invalid Solcast data in %s: %s", entity_id, err)
+                _LOGGER.error("Invalid solar forecast data in %s: %s", entity_id, err)
         return forecast
 
     def _database_solar(self, score: float, date: datetime.datetime) -> tuple[float, float, bool]:
@@ -106,7 +110,14 @@ class EnergyForecast:
         return max(average(values), 0.0) / 1000, sell_price, bool(values)
 
     def local_energy_prediction(self) -> None:
-        """Predict the solar surplus per hour for today + the next days (self.solar_prediction_db)."""
+        """Predict the solar surplus per hour for today + the next days (self.solar_prediction_db).
+
+        "total" and "total_sell" are read by position (index = hour of the day). An hour with neither weather nor a solar
+        forecast row (e.g. Forecast.Solar has no row before sunrise) is 0.0 (no known sun) up to the last known hour of the
+        day, so the hours after it keep their place; the hours after the last known hour stay absent (readers count a
+        missing hour as 0). "known_hours" is the number of hours that had a value: 24 for a complete day.
+        "total_database" and "total_forecast" only hold the known values (they are only summed).
+        """
         if not self.inverter_available():
             return
         solcast = self.get_solar_kwh_forecast()
@@ -115,6 +126,7 @@ class EnergyForecast:
 
         for day in range(int(self.config["days_to_predict"]) + 1):
             prediction = {key: [] for key in ("total_database", "total_database_sell", "total_forecast", "total_forecast_sell", "total", "total_sell")}
+            known_hours = 0
             for hour in range(24):
                 timestamp = today + datetime.timedelta(days=day, hours=hour)
                 # only the remaining part of the current hour
@@ -141,6 +153,12 @@ class EnergyForecast:
                     prediction["total_forecast"].append(round(kwh, 1))
                     prediction["total_forecast_sell"].append(round(sell, 1))
                 if hour_kwh:
+                    # an earlier hour without any value: 0.0 so this hour keeps its index
+                    padding = [0.0] * (hour - len(prediction["total"]))
+                    prediction["total"].extend(padding)
+                    prediction["total_sell"].extend(padding)
                     prediction["total"].append(round(average(hour_kwh), 1))
                     prediction["total_sell"].append(round(average(hour_sell), 1))
+                    known_hours += 1
+            prediction["known_hours"] = known_hours
             self.solar_prediction_db[day] = prediction

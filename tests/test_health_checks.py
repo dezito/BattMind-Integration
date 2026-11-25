@@ -306,6 +306,41 @@ async def test_a_sensor_judged_by_the_strom_or_solcast_repair_is_left_out(hass: 
     assert issue(hass, entry, "entities_missing") is None
 
 
+@pytest.mark.parametrize(
+    ("platform", "unique_id", "entity_id", "unit"),
+    [
+        ("helios_forecast", "x_power_now", "sensor.helios_forecast_power_now", "W"),
+        ("forecast_solar", "x_energy_production_today", "sensor.energy_production_today", "kWh"),
+    ],
+)
+async def test_a_forecast_solar_or_helios_sensor_gets_only_the_missing_check(
+    hass: HomeAssistant, entry: MockConfigEntry, platform: str, unique_id: str, entity_id: str, unit: str
+) -> None:
+    """The Solcast repair is silent for these sensors and their unit (W or kWh) is not judged: the forecast comes from the
+    energy platform. Unavailable is no repair; a sensor that is gone is (entities_missing)."""
+    set_source_states(hass)
+    registry = er.async_get(hass)
+    assert registry.async_get_or_create("sensor", platform, unique_id, suggested_object_id=entity_id.split(".")[1]).entity_id == entity_id
+    hass.states.async_set(entity_id, "1200", {"unit_of_measurement": unit})
+    config = {**MOCK_OPTIONS, "forecast_entity_id": entity_id}
+    dependency = DependencyWatcher(hass, entry, PREFIX, [], entity_id, solcast_endings_for_days(7))
+    dependency.start()
+    try:
+        assert dependency.covered_entities() == set()
+        await start_watcher(hass, entry, covered=dependency.covered_entities(), entities=[*CONFIGURED, entity_id], config=config)
+        for name in ("entities_missing", "entity_units", "power_without_unit", "solcast_entities"):
+            assert issue(hass, entry, name) is None, name
+        hass.states.async_set(entity_id, "unavailable")
+        await hourly_check(hass)
+        assert issue(hass, entry, "entities_missing") is None
+        registry.async_remove(entity_id)
+        hass.states.async_remove(entity_id)
+        await hourly_check(hass)
+        assert f"- {entity_id}" in issue(hass, entry, "entities_missing").translation_placeholders["missing"]
+    finally:
+        dependency.stop()
+
+
 async def test_the_missing_check_waits_until_home_assistant_has_started(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     set_source_states(hass)
     hass.states.async_remove(PRODUCTION)

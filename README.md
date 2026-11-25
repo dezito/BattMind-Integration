@@ -51,7 +51,7 @@ The full list is in [Features](docs/features.md).
 - **[Discharging rules](docs/rules/discharging.md):** profit only, prioritise by energy cost, before the sun and max. age of kWh
 - **[Selling rules](docs/rules/selling.md):** maximise profit, sell excess kWh, minimum profit and excluded hours
 - **[Storm warning](docs/rules/storm.md) (optional):** keeps the battery charged for a MeteoAlarm storm warning
-- **[Solar](docs/rules/solar.md) (optional):** surplus charging, optimised solar charging and a forecast from Solcast and/or own history
+- **[Solar](docs/rules/solar.md) (optional):** surplus charging, optimised solar charging and a forecast from Solcast, Forecast.Solar or Helios Forecast and/or own history
 - **[Cost price of the battery's energy](docs/how-it-works.md#the-cost-of-a-kwh-from-the-battery)** including source, loss and wear
 - **Price providers:** [Energi Data Service](https://github.com/MTrab/energidataservice) and/or [Strømligning](https://github.com/MTrab/stromligning), with a [price database](docs/how-it-works.md#prices) as fail-safe
 - **[Analysis](docs/dashboard-analysis.md#analysis)** and a **[what-if simulator](docs/what-if-simulator.md)**
@@ -107,7 +107,9 @@ The main entities and services are listed in [Entities and services](docs/refere
 - Optional:
   - battery temperature sensor for a configurable charge/discharge safety stop
   - solar production (W)
-  - [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar)
+  - a solar forecast: [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar),
+    [Forecast.Solar](https://www.home-assistant.io/integrations/forecast_solar/) or
+    [Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast)
   - a weather integration that supports `weather.get_forecasts` with cloud cover, e.g.
     [Meteorologisk institutt](https://www.home-assistant.io/integrations/met/),
     [AccuWeather](https://www.home-assistant.io/integrations/accuweather/) or

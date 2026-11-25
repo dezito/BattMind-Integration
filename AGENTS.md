@@ -458,7 +458,7 @@ Keep these invariants when touching any planner rule:
 - The test harness has no sell entity (sell = buy price); use the
   `solar_engine()` helper in `tests/test_engine.py` for realistic scenarios.
 - The sun sentence of the overview (`_solar_day_lines` in `engine/planner/overview.py`, today and tomorrow, below the solar
-  surplus table) is text only and reads the plan's own figures: `solar_kwh_prediction` (only when all 24 hours are there) and
+  surplus table) is text only and reads the plan's own figures: `solar_kwh_prediction` (only when all 24 hours are really known: `solar_known_hours` == 24, not just `len` == 24) and
   `battery_level_flow`. The level at the start of an hour is the end level of the hour before (`_solar_day_start_level`),
   never the first element of the hour's list: the planner writes `[max, 0.0]` for the hour that hits the maximum. The text
   never says where the surplus that does not fit goes (it may be sold, charged into a Cable Juice Planner car, or curtailed),
@@ -514,6 +514,18 @@ Keep these invariants when touching any planner rule:
   (`taper_rate_at()`, the level forecast, `kwh_available_in_hour()`), and `taper_cuts()` + `apply_taper_to_rules()` cut the
   rules' charge hours that the taper (not the room) limits. The invariant "planned grid charging never exceeds the charge
   power" therefore means the tapered energy of the hour. The what-if replay has no taper.
+
+- Solar forecast sources: `forecast_entity_id` accepts Solcast (read from `detailedHourly`) or a sensor of Forecast.Solar
+  or Helios Forecast, read through the HA energy platform (`async_get_solar_forecast`) and normalised by
+  `utils/solar_forecast.py` into Solcast-shaped hourly rows in `snapshot.solcast`.
+  - `KEY_SEMANTICS` lists the supported integrations: Helios keys are hour starts, Forecast.Solar keys are period ends.
+    Missing, invalid, partial or out-of-window hours are left out, never 0. Forecast.Solar planes are summed via the
+    Energy dashboard prefs only for hours all planes cover.
+  - `utils/solar_forecast.py` and `tests/test_solar_forecast.py` are byte-identical with Cable Juice Planner; change
+    both together. The Solcast repair and the dashboard's Solcast entities apply only to Solcast.
+  - The solar prediction lists (`solar_prediction_db[day]['total'/'total_sell']`, `solar_kwh_prediction`) are indexed by
+    hour of the day: hours without any value are 0.0 up to the last known hour, and `known_hours` /
+    `solar_known_hours` counts the real ones. A complete day means `known_hours == 24`, never `len == 24` alone.
 
 ### Sell price (`calculate_sell_price()` in `prices/base.py`)
 
