@@ -154,7 +154,7 @@
           "production_entity_id": "Produkcja energii słonecznej (W)",
           "inverter_discharging_power_limit": "Limit mocy rozładowania falownika (W)",
           "production_price": "Ustaw -1.0, aby używać ceny godzinowej sprzedaży",
-          "forecast_entity_id": "Prognoza produkcji (W) (Obsługiwana integracja: Solcast PV Forecast)"
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar lub Helios Forecast. Solcast: np. sensor.solcast_pv_forecast_forecast_today, kolejne dni są znajdowane automatycznie. Forecast.Solar: dowolny z jego czujników; połacie dachu z tego samego źródła słonecznego w panelu Energia są sumowane. Helios Forecast: np. sensor.helios_forecast_power_now."
         },
         "data": {
           "forecast_entity_id": "Prognoza słoneczna (opcjonalnie)",
@@ -162,7 +162,7 @@
           "production_entity_id": "Produkcja słoneczna",
           "production_price": "Stała cena sprzedaży nadwyżki słonecznej"
         },
-        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.\n\nSolcast domyślnie wyłącza czujniki prognozy od dnia 3: włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*) i włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast, w przeciwnym razie te dni są planowane bez Solcast.\nWyłączone teraz czujniki Solcast: {solcast_disabled}",
+        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.\n\nForecast.Solar i Helios Forecast są odczytywane z ich prognozy słonecznej dla panelu Energia; godziny, których nie obejmują, są planowane na podstawie prognozy pogody i zapisanej historii słonecznej; godzina bez żadnej z nich liczy się jako brak słońca.\n\nSolcast domyślnie wyłącza czujniki prognozy od dnia 3: włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*) i włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast, w przeciwnym razie te dni są planowane bez Solcast.\nWyłączone teraz czujniki Solcast: {solcast_disabled}",
         "title": "Panele słoneczne"
       },
       "weather": {
@@ -420,7 +420,7 @@
           "production_entity_id": "Produkcja energii słonecznej (W)",
           "inverter_discharging_power_limit": "Limit mocy rozładowania falownika (W)",
           "production_price": "Ustaw -1.0, aby używać ceny godzinowej sprzedaży",
-          "forecast_entity_id": "Prognoza produkcji (W) (Obsługiwana integracja: Solcast PV Forecast)"
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar lub Helios Forecast. Solcast: np. sensor.solcast_pv_forecast_forecast_today, kolejne dni są znajdowane automatycznie. Forecast.Solar: dowolny z jego czujników; połacie dachu z tego samego źródła słonecznego w panelu Energia są sumowane. Helios Forecast: np. sensor.helios_forecast_power_now."
         },
         "data": {
           "forecast_entity_id": "Prognoza słoneczna (opcjonalnie)",
@@ -428,7 +428,7 @@
           "production_entity_id": "Produkcja słoneczna",
           "production_price": "Stała cena sprzedaży nadwyżki słonecznej"
         },
-        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.\n\nSolcast domyślnie wyłącza czujniki prognozy od dnia 3: włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*) i włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast, w przeciwnym razie te dni są planowane bez Solcast.\nWyłączone teraz czujniki Solcast: {solcast_disabled}",
+        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.\n\nForecast.Solar i Helios Forecast są odczytywane z ich prognozy słonecznej dla panelu Energia; godziny, których nie obejmują, są planowane na podstawie prognozy pogody i zapisanej historii słonecznej; godzina bez żadnej z nich liczy się jako brak słońca.\n\nSolcast domyślnie wyłącza czujniki prognozy od dnia 3: włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*) i włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast, w przeciwnym razie te dni są planowane bez Solcast.\nWyłączone teraz czujniki Solcast: {solcast_disabled}",
         "title": "Panele słoneczne"
       },
       "weather": {

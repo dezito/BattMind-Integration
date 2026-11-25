@@ -16,7 +16,9 @@ few days of watching the plan before you trust it.
 Optional, but recommended with solar panels:
 
 - a **solar production** sensor (W or kW)
-- [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar)
+- a solar forecast: [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar),
+  [Forecast.Solar](https://www.home-assistant.io/integrations/forecast_solar/) (built into Home Assistant) or
+  [Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast)
 - a weather integration with `weather.get_forecasts` (Met.no, AccuWeather, OpenWeather …)
 
 For the dashboard you need the HACS frontend cards `apexcharts-card`, `mushroom`, `config-template-card`, `timer-bar-card`
@@ -195,8 +197,39 @@ Leave the page empty without solar. With solar:
   *Hourly detail* on under *Forecast attributes breakdown* in the Solcast options. A **repair** lists the sensors that are disabled, named
   differently or without hourly detail; the days without Solcast are planned from the weather forecast and
   the stored solar history.
+- **Forecast.Solar or Helios Forecast:** see [Forecast.Solar or Helios Forecast](#forecastsolar-or-helios-forecast)
+  below.
 - **Weather:** the hourly and daily forecast. Together with the stored solar history per weather type it
-  gives a solar forecast that learns your roof – also without Solcast.
+  gives a solar forecast that learns your roof – also without a forecast integration.
+
+#### Forecast.Solar or Helios Forecast
+
+Instead of Solcast the **Solar forecast** field also takes a sensor of
+[Forecast.Solar](https://www.home-assistant.io/integrations/forecast_solar/) or
+[Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast). BattMind reads the hourly forecast these
+integrations give the Energy dashboard of Home Assistant, not the state of the sensor, so any sensor of the
+integration works:
+
+- **Helios Forecast:** e.g. `sensor.helios_forecast_power_now`. Helios learns your roof from your production, so
+  give it your solar production sensor in its own setup.
+- **Forecast.Solar:** any sensor of it, e.g. `sensor.energy_production_today`. Forecast.Solar has one entry per roof
+  plane. If you added the planes as the forecast of a solar source in the Energy dashboard
+  (**Settings → Dashboards → Energy**, the solar panels), every plane of that source is added up; otherwise only the
+  plane of the selected sensor is used. An hour that one of the planes does not cover gets no forecast at all
+  (never half of one), and while a plane is not loaded the whole forecast waits for it. A plane you disabled is left
+  out.
+- The free plan of Forecast.Solar covers today and tomorrow. BattMind plans the hours a forecast does not cover (and
+  any hour while the integration has no forecast) from the weather forecast and the stored solar history, the same
+  as without a forecast integration. An hour with neither counts as no sun.
+- Only whole hours are used: the hour of the first sunrise in the forecast and an hour at the end of the forecast that
+  is only covered in part are planned the same way.
+- Helios Forecast sums its own forecast points per hour. If it had to drop some of them, the hour looks complete to
+  BattMind and is too low.
+- The forecast counts 75 % and the stored solar history 25 %, as with Solcast (see
+  [How it works](how-it-works.md#solar-forecast)). Forecast.Solar does not learn from your production; Helios does,
+  so with Helios your own production counts in both parts.
+- The Solcast repair does not apply to these integrations, and the solar forecast in the price charts of the
+  dashboard is drawn only for Solcast.
 
 ### Storm warning (optional)
 

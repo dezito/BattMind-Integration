@@ -88,6 +88,8 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self._statistics: dict[str, list[tuple[float, float]]] = {}
         self._statistics_refreshed = 0.0
         self._entity_platforms: dict[str, str | None] = {}
+        # why the last read of a Forecast.Solar / Helios Forecast forecast gave no rows (None: it gave rows), logged once
+        self._solar_forecast_problem: str | None = None
         self._sun_cache: dict[datetime.date, dict] = {}
 
         # The ignored consumption: the sensors the user listed plus (unless switched off) the chargers of the CJP cars, once

@@ -179,7 +179,7 @@
       },
       "solar": {
         "title": "Solceller",
-        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\nDeaktiverede Solcast-sensorer nu: {solcast_disabled}",
+        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.\n\nForecast.Solar og Helios Forecast læses fra deres solprognose til Energi-dashboardet; de timer, de ikke dækker, planlægges ud fra vejrudsigten og den gemte solhistorik; en time uden nogen af dem regnes som ingen sol.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\nDeaktiverede Solcast-sensorer nu: {solcast_disabled}",
         "data": {
           "production_entity_id": "Solproduktion",
           "inverter_discharging_power_limit": "Inverterens effektgrænse",
@@ -190,7 +190,7 @@
           "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW). Lad feltet være tomt hvis du ikke har solceller.",
           "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
           "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
-          "forecast_entity_id": "Solcast PV Forecast sensor, f.eks. sensor.solcast_pv_forecast_forecast_today. De kommende dage findes automatisk."
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar eller Helios Forecast. Solcast: f.eks. sensor.solcast_pv_forecast_forecast_today, de kommende dage findes automatisk. Forecast.Solar: en vilkårlig af dens sensorer; tagfladerne i samme solkilde i Energi-dashboardet lægges sammen. Helios Forecast: f.eks. sensor.helios_forecast_power_now."
         }
       },
       "weather": {
@@ -448,7 +448,7 @@
       },
       "solar": {
         "title": "Solceller",
-        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\nDeaktiverede Solcast-sensorer nu: {solcast_disabled}",
+        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.\n\nForecast.Solar og Helios Forecast læses fra deres solprognose til Energi-dashboardet; de timer, de ikke dækker, planlægges ud fra vejrudsigten og den gemte solhistorik; en time uden nogen af dem regnes som ingen sol.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\nDeaktiverede Solcast-sensorer nu: {solcast_disabled}",
         "data": {
           "production_entity_id": "Solproduktion",
           "inverter_discharging_power_limit": "Inverterens effektgrænse",
@@ -459,7 +459,7 @@
           "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW). Lad feltet være tomt hvis du ikke har solceller.",
           "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
           "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
-          "forecast_entity_id": "Solcast PV Forecast sensor, f.eks. sensor.solcast_pv_forecast_forecast_today. De kommende dage findes automatisk."
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar eller Helios Forecast. Solcast: f.eks. sensor.solcast_pv_forecast_forecast_today, de kommende dage findes automatisk. Forecast.Solar: en vilkårlig af dens sensorer; tagfladerne i samme solkilde i Energi-dashboardet lægges sammen. Helios Forecast: f.eks. sensor.helios_forecast_power_now."
         }
       },
       "weather": {

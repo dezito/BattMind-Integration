@@ -25,6 +25,7 @@ from ..utils.efficiency import EFFICIENCY_BACKFILL_DAYS
 from ..utils.cjp import CJP_DOMAIN
 from ..utils.helpers import float_or_none
 from ..utils.power import merge_rows
+from ..utils.solar_forecast import KEY_SEMANTICS, async_solar_forecast_rows
 from ..utils.solcast import SOLCAST_ENDINGS, strip_forecast_suffix
 from .constants import FORECAST_TIMEOUT, STATISTICS_REFRESH_SECONDS
 
@@ -177,7 +178,9 @@ class CoordinatorData:
             snapshot.price_data = self._price_snapshot()
         if include_forecast:
             snapshot.forecast_dict = await self._async_weather_forecasts()
-            snapshot.solcast = self._solcast_snapshot()
+            # the hourly solar forecast rows: Solcast's own detailedHourly, else the energy platform of Forecast.Solar
+            # or Helios Forecast (utils/solar_forecast.py), normalised to the same rows
+            snapshot.solcast = self._solcast_snapshot() or await self._async_energy_forecast_snapshot()
         return snapshot
 
     def _price_snapshot(self) -> dict:
@@ -224,6 +227,23 @@ class CoordinatorData:
             if state is not None:
                 result[state.entity_id] = list(state.attributes.get("detailedHourly") or [])
         return result
+
+    async def _async_energy_forecast_snapshot(self) -> dict[str, list]:
+        """The rows of a Forecast.Solar or Helios Forecast sensor, under the configured sensor (the debug export and its
+        replay keep them there). No rows (the forecast is unavailable, see utils/solar_forecast.py) is the same as no
+        forecast: the stored solar history is used. A changed reason is logged once, not at every plan."""
+        forecast_entity = self.config["solar"]["entity_ids"]["forecast_entity_id"]
+        platform = self._entity_platforms.get(forecast_entity) if forecast_entity else None
+        if platform not in KEY_SEMANTICS:
+            return {}
+        rows, problem = await async_solar_forecast_rows(self.hass, forecast_entity, dt_util.get_default_time_zone())
+        if problem != self._solar_forecast_problem:
+            if problem:
+                _LOGGER.warning("No solar forecast from %s (%s): the stored solar history is used instead", platform, problem)
+            elif self._solar_forecast_problem:
+                _LOGGER.info("The solar forecast from %s is available again", platform)
+            self._solar_forecast_problem = problem
+        return {forecast_entity: rows} if rows else {}
 
     async def _async_weather_forecasts(self) -> dict:
         result: dict[str, list] = {"hourly": [], "daily": []}

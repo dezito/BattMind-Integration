@@ -33,11 +33,13 @@ from homeassistant.components.lovelace import dashboard as lovelace_dashboard
 from homeassistant.components.lovelace.const import LOVELACE_DATA, MODE_STORAGE
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.json import cached_json_fragment, json_fragment
 from homeassistant.helpers.storage import Store
 
 from ..const import DOMAIN, dashboard_icon, normalize_language, unsupported_actions, unsupported_switches
 from ..utils.formatting import load_texts
+from ..utils.solar_forecast import KEY_SEMANTICS
 from ..prices import price_dashboard_entities
 from .dashboard_cards import async_update_card_notification, async_watch_card_resources
 
@@ -155,8 +157,11 @@ def _has_legacy_what_if_card(node: Any) -> bool:
     return False
 
 
-def external_entities(config: dict[str, Any]) -> dict[str, str]:
-    """Template entity id -> configured entity id ("" = not configured)."""
+def external_entities(config: dict[str, Any], forecast_platform: str | None = None) -> dict[str, str]:
+    """Template entity id -> configured entity id ("" = not configured).
+
+    forecast_platform: the integration of the solar forecast sensor (entity registry), None when unknown.
+    """
     prices = config["prices"]["entity_ids"]
     home = config["home"]["entity_ids"]
     production = config["solar"]["entity_ids"]["production_entity_id"]
@@ -174,8 +179,10 @@ def external_entities(config: dict[str, Any]) -> dict[str, str]:
         "number.battmind_storm_cover_hours": "number.battmind_storm_cover_hours" if storm_warning else "",
         **price_dashboard_entities(prices),
     }
-    # Solcast: forecast_today plus the per-day sensors next to it
-    forecast = config["solar"]["entity_ids"]["forecast_entity_id"]
+    # Solcast: forecast_today plus the per-day sensors next to it. The charts read their detailedHourly, which
+    # Forecast.Solar and Helios Forecast don't have (and Forecast.Solar's energy_production_today would match the
+    # _today rule): with those the Solcast entities stay unmapped, so the charts show no solar forecast
+    forecast = config["solar"]["entity_ids"]["forecast_entity_id"] if forecast_platform not in KEY_SEMANTICS else ""
     base = forecast[: -len("today")] if forecast.endswith("_today") else ""
     mapping["sensor.solcast_pv_forecast_forecast_today"] = forecast
     for day in _SOLCAST_DAYS:
@@ -294,13 +301,15 @@ _Dumper.add_representer(str, _represent_str)
 def render_dashboard(
     config: dict[str, Any], prefix: str, existing: set[str] | None = None, currency: str | None = None,
     entry_id: str = "",
+    forecast_platform: str | None = None,
 ) -> str:
     """Build the dashboard YAML for one instance (blocking file I/O).
 
     existing: entity ids that exist in Home Assistant; the debug button is removed when its switch is not among them
     currency: hass.config.currency (None = the currency of the language's texts)
+    forecast_platform: the integration of the solar forecast sensor (see external_entities)
     """
-    mapping = external_entities(config)
+    mapping = external_entities(config, forecast_platform)
     template = yaml.safe_load(template_text())
     texts = load_texts(normalize_language(config.get("language")), currency)
     # the charts show the forecast period: days_to_predict minus the half day already passed
@@ -353,9 +362,12 @@ async def async_setup_dashboard(
     path = dashboard_file(hass, entry.entry_id)
 
     existing_ids = set(hass.states.async_entity_ids())
+    forecast_entity = config["solar"]["entity_ids"]["forecast_entity_id"]
+    forecast_entry = er.async_get(hass).async_get(forecast_entity) if forecast_entity else None
+    forecast_platform = forecast_entry.platform if forecast_entry else None
 
     def _render() -> bool:
-        content = render_dashboard(config, prefix, existing_ids, hass.config.currency, entry.entry_id)
+        content = render_dashboard(config, prefix, existing_ids, hass.config.currency, entry.entry_id, forecast_platform)
         return _write_if_changed(path, content)
 
     try:

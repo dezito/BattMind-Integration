@@ -22,6 +22,8 @@ class Snapshot:
     statistics: dict[str, list] = field(default_factory=dict)
     price_data: dict | None = None
     forecast_dict: dict = field(default_factory=lambda: {"hourly": [], "daily": []})
+    # normalised hourly solar forecast rows by entity id: Solcast's detailedHourly, or the rows of Forecast.Solar or Helios
+    # Forecast in the same shape (utils/solar_forecast.py); the name stays for the debug exports that hold it
     solcast: dict[str, list] = field(default_factory=dict)
     sun_events: dict = field(default_factory=dict)
     # Cable Juice Planner cars: {"name", "charge_plan"}; charge_plan None = no plan available

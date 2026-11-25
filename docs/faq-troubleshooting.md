@@ -78,6 +78,25 @@ It is measured with the battery power sensor. A wrong sign, a sensor in kW label
 also includes the inverter's own consumption gives a wrong loss. Check the sensor before you change the
 configured loss.
 
+## The solar forecast from Forecast.Solar or Helios Forecast is not used
+
+BattMind reads the forecast that the integration gives the Energy dashboard. When it gets none, the log has a warning
+*No solar forecast from forecast_solar (…)* (or `helios_forecast`) with the reason, once until the reason changes,
+and the solar surplus is planned from the weather forecast and the stored solar history only (an hour with neither
+counts as no sun). Usual reasons:
+
+- the integration's config entry is not loaded (still starting, or its setup failed): check it under
+  **Settings → Devices & services**
+- Forecast.Solar with several roof planes: one plane listed with the selected one in the Energy dashboard's solar
+  source is not loaded. BattMind never uses half a forecast, so it waits for every plane
+- the forecast covers no whole hour yet
+
+Hours after the end of the forecast (the free plan of Forecast.Solar covers today and tomorrow) are always planned
+from the weather forecast and the history. BattMind does not check how old the forecast is: if the integration stops
+updating but still answers, its last forecast is used for the hours ahead it covers (as with Solcast), and values more
+than a day old are ignored. Check the integration itself when the forecast looks stale. See
+[Forecast.Solar or Helios Forecast](getting-started.md#forecastsolar-or-helios-forecast).
+
 ## What happens when prices are missing?
 
 Single hours without a price (e.g. the days after tomorrow without a price forecast) are filled from

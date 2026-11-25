@@ -144,6 +144,35 @@ async def test_solcast_needs_production(hass: HomeAssistant) -> None:
     assert result["errors"] == {"production_entity_id": "production_required"}
 
 
+def test_the_solar_forecast_picker_offers_the_three_integrations() -> None:
+    """One filter per integration (the picker offers an entity that matches any of them), still a single sensor picker."""
+    from custom_components.battmind.flow.schema import SELECTORS
+
+    config = SELECTORS["forecast_entity_id"].config
+    assert [item["integration"] for item in config["filter"]] == ["solcast_solar", "forecast_solar", "helios_forecast"]
+    assert all(item["domain"] == ["sensor"] for item in config["filter"]) and not config.get("multiple")
+    # the selector does not check the value against the filter: an old Solcast option (and a backup or a PyScript
+    # import with one) is still valid, as are the new integrations' sensors
+    for value in ("sensor.solcast_pv_forecast_forecast_today", "sensor.helios_forecast_power_now", "sensor.energy_production_today"):
+        assert SELECTORS["forecast_entity_id"](value) == value
+    # the other pickers are built as before
+    assert SELECTORS["energidataservice_buy_entity_id"].config["filter"] == [{"domain": ["sensor"], "integration": "energidataservice"}]
+    assert SELECTORS["production_entity_id"].config["filter"] == [{"domain": ["sensor"], "device_class": ["power"]}]
+
+
+@pytest.mark.parametrize("forecast", ["sensor.helios_forecast_power_now", "sensor.energy_production_today"])
+async def test_a_forecast_solar_or_helios_sensor_is_accepted(hass: HomeAssistant, forecast: str) -> None:
+    result = await _to_price_provider(hass)
+    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
+    result = await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.03})
+    result = await _configure(
+        hass, result, "solar",
+        {"production_entity_id": PRODUCTION, "forecast_entity_id": forecast, "inverter_discharging_power_limit": 6000, "production_price": -1},
+    )
+    assert result["step_id"] == "weather" and not result.get("errors")
+
+
 async def test_invalid_prefix(hass: HomeAssistant) -> None:
     result = await _start(hass, prefix="1-bad prefix")
     assert result["type"] is FlowResultType.FORM

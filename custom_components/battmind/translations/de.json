@@ -154,7 +154,7 @@
           "production_entity_id": "Solarproduktion (Watt)",
           "inverter_discharging_power_limit": "Wechselrichter Entlade-Leistungsgrenze (Watt)",
           "production_price": "Auf -1.0 setzen, um den stündlichen Verkaufspreis zu verwenden",
-          "forecast_entity_id": "Solarprognose (Watt) (Unterstützte Integration: Solcast PV Forecast)"
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar oder Helios Forecast. Solcast: z. B. sensor.solcast_pv_forecast_forecast_today, die folgenden Tage werden automatisch gefunden. Forecast.Solar: ein beliebiger seiner Sensoren; die Dachflächen derselben Solarquelle im Energie-Dashboard werden addiert. Helios Forecast: z. B. sensor.helios_forecast_power_now."
         },
         "data": {
           "forecast_entity_id": "Solarprognose (optional)",
@@ -162,7 +162,7 @@
           "production_entity_id": "Solarproduktion",
           "production_price": "Fester Verkaufspreis für den Solarüberschuss"
         },
-        "description": "Optional. Mit Solar sagt BattMind den Überschuss voraus, der den Akku kostenlos lädt, kann das Solarladen in günstigere Stunden verschieben und summiert `sensor.{prefix}_kwh_charged_by_solar`. Ohne Solar leer lassen.\n\nSolcast schaltet die Prognosesensoren ab Tag 3 standardmäßig aus: aktiviere sie unter **Einstellungen → Geräte & Dienste → Entitäten** (*Deaktivierte Entitäten anzeigen*) und schalte *Stündliche Details* unter *Aufschlüsselung der Prognoseattribute* in den Solcast-Optionen ein, sonst werden diese Tage ohne Solcast geplant.\nJetzt deaktivierte Solcast-Sensoren: {solcast_disabled}",
+        "description": "Optional. Mit Solar sagt BattMind den Überschuss voraus, der den Akku kostenlos lädt, kann das Solarladen in günstigere Stunden verschieben und summiert `sensor.{prefix}_kwh_charged_by_solar`. Ohne Solar leer lassen.\n\nForecast.Solar und Helios Forecast werden aus ihrer Solarprognose für das Energie-Dashboard gelesen; Stunden, die sie nicht abdecken, werden aus der Wettervorhersage und dem gespeicherten Solarverlauf geplant; eine Stunde ohne beides zählt als keine Sonne.\n\nSolcast schaltet die Prognosesensoren ab Tag 3 standardmäßig aus: aktiviere sie unter **Einstellungen → Geräte & Dienste → Entitäten** (*Deaktivierte Entitäten anzeigen*) und schalte *Stündliche Details* unter *Aufschlüsselung der Prognoseattribute* in den Solcast-Optionen ein, sonst werden diese Tage ohne Solcast geplant.\nJetzt deaktivierte Solcast-Sensoren: {solcast_disabled}",
         "title": "Solaranlage"
       },
       "weather": {
@@ -420,7 +420,7 @@
           "production_entity_id": "Solarproduktion (Watt)",
           "inverter_discharging_power_limit": "Wechselrichter Entlade-Leistungsgrenze (Watt)",
           "production_price": "Auf -1.0 setzen, um den stündlichen Verkaufspreis zu verwenden",
-          "forecast_entity_id": "Solarprognose (Watt) (Unterstützte Integration: Solcast PV Forecast)"
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar oder Helios Forecast. Solcast: z. B. sensor.solcast_pv_forecast_forecast_today, die folgenden Tage werden automatisch gefunden. Forecast.Solar: ein beliebiger seiner Sensoren; die Dachflächen derselben Solarquelle im Energie-Dashboard werden addiert. Helios Forecast: z. B. sensor.helios_forecast_power_now."
         },
         "data": {
           "forecast_entity_id": "Solarprognose (optional)",
@@ -428,7 +428,7 @@
           "production_entity_id": "Solarproduktion",
           "production_price": "Fester Verkaufspreis für den Solarüberschuss"
         },
-        "description": "Optional. Mit Solar sagt BattMind den Überschuss voraus, der den Akku kostenlos lädt, kann das Solarladen in günstigere Stunden verschieben und summiert `sensor.{prefix}_kwh_charged_by_solar`. Ohne Solar leer lassen.\n\nSolcast schaltet die Prognosesensoren ab Tag 3 standardmäßig aus: aktiviere sie unter **Einstellungen → Geräte & Dienste → Entitäten** (*Deaktivierte Entitäten anzeigen*) und schalte *Stündliche Details* unter *Aufschlüsselung der Prognoseattribute* in den Solcast-Optionen ein, sonst werden diese Tage ohne Solcast geplant.\nJetzt deaktivierte Solcast-Sensoren: {solcast_disabled}",
+        "description": "Optional. Mit Solar sagt BattMind den Überschuss voraus, der den Akku kostenlos lädt, kann das Solarladen in günstigere Stunden verschieben und summiert `sensor.{prefix}_kwh_charged_by_solar`. Ohne Solar leer lassen.\n\nForecast.Solar und Helios Forecast werden aus ihrer Solarprognose für das Energie-Dashboard gelesen; Stunden, die sie nicht abdecken, werden aus der Wettervorhersage und dem gespeicherten Solarverlauf geplant; eine Stunde ohne beides zählt als keine Sonne.\n\nSolcast schaltet die Prognosesensoren ab Tag 3 standardmäßig aus: aktiviere sie unter **Einstellungen → Geräte & Dienste → Entitäten** (*Deaktivierte Entitäten anzeigen*) und schalte *Stündliche Details* unter *Aufschlüsselung der Prognoseattribute* in den Solcast-Optionen ein, sonst werden diese Tage ohne Solcast geplant.\nJetzt deaktivierte Solcast-Sensoren: {solcast_disabled}",
         "title": "Solaranlage"
       },
       "weather": {

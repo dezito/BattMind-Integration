@@ -208,6 +208,16 @@ def test_a_broken_figure_is_a_zero_not_an_error() -> None:
     assert lines_for(engine)[0].startswith("I dag: solen giver cirka 63.0 kWh overskud mellem 03:00 og 24:00.")
 
 
+def test_a_day_whose_hours_were_not_all_known_has_no_text() -> None:
+    """24 figures, but only 20 hours had a value (the others are 0.0 for no known sun, e.g. Forecast.Solar before sunrise
+    without weather): the hour of a value would be a guess, so no text."""
+    engine, _ = planned(0, 30, {}, solar=True, days=3)
+    assert engine.plan[0]["solar_known_hours"] == 24
+    assert lines_for(engine)[0].startswith("I dag: solen giver")
+    engine.plan[0]["solar_known_hours"] = 20
+    assert all(not line.startswith("I dag") for line in lines_for(engine))
+
+
 def test_the_text_never_removes_the_table_when_it_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     from custom_components.battmind.engine.planner.overview import Overview
 

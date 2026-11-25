@@ -33,7 +33,9 @@ The full feature list. Back to the [README](../README.md) · [Documentation inde
 - **[Solar](rules/solar.md) (optional)**
   - **Solar surplus charging:** include the solar surplus in the plan
   - **Optimise solar charging:** sell the solar surplus in the expensive hours and fill the battery in the cheap solar hours instead
-  - forecast from [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar) and/or own history per cloud cover
+  - forecast from [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar),
+    [Forecast.Solar](https://www.home-assistant.io/integrations/forecast_solar/) or
+    [Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast) and/or own history per cloud cover
 - **Consumption forecast** from own history: average, EMA or trend
 - **Price providers:** [Energi Data Service](https://github.com/MTrab/energidataservice) and/or
   [Strømligning](https://github.com/MTrab/stromligning), incl. sell price, tariffs, selling fee and refund;
