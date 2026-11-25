@@ -232,6 +232,14 @@ class Analysis(AnalysisRecording, AnalysisPublishing, PlanCheck):
             start += 3600
         return keys
 
+    @staticmethod
+    def _local_day_hours(date: str, tz) -> int:
+        """The hours the local day has: 24, 23 on the day summer time starts, 25 on the day it ends."""
+        day = datetime.date.fromisoformat(date)
+        start = datetime.datetime.combine(day, datetime.time(0)).replace(tzinfo=tz).timestamp()
+        end = datetime.datetime.combine(day + datetime.timedelta(days=1), datetime.time(0)).replace(tzinfo=tz).timestamp()
+        return round((end - start) / 3600)
+
     def _analysis_correct_flows(self, date: str, day: dict, rows: dict[str, dict], complete_hours: set[str], previous_soc: float | None, minimum: float, tz) -> bool:
         """A day recorded before FLOWS_VERSION, checked against the hourly mean statistics (the mean of the hour is the time
         weighted mean, whatever the states did in it). When charged or discharged differ by more than
@@ -250,7 +258,8 @@ class Analysis(AnalysisRecording, AnalysisPublishing, PlanCheck):
         if any(abs(_num(fresh[key]) - _num(day.get(key))) > FLOWS_SCORE_TOLERANCE_KWH for key in ("charged", "discharged")):
             for key in DAY_SUMS:
                 day[key] = fresh[key]
-            day.pop("score", None)
+            if day.pop("score", None) is not None:
+                day["no_score"] = "history"
         day["flows"] = FLOWS_VERSION
         return True
 

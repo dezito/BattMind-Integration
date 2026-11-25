@@ -51,6 +51,8 @@ def _buffers() -> dict:
 
 def _run_day(engine) -> None:
     buffers = _buffers()
+    # the day before ended where this one starts (a day is only scored from a measured start level)
+    engine.analysis_db["days"].setdefault((DAY - datetime.timedelta(days=1)).isoformat(), {"final": True, "soc_end": 20.0, "soc_exact": True})
     for hour in range(24):
         now = datetime.datetime.combine(DAY, datetime.time(hour, 59))
         snap = snapshot(now, _level(hour))
@@ -186,7 +188,7 @@ def test_a_day_is_recorded_and_published() -> None:
     assert day["soc_end"] == _level(23)
     assert set(day["forecast"]) == {"hours", "use", "ema", "trend", "average"}
     score = day["score"]
-    assert score["optimal"] <= score["actual"]
+    assert score["optimal_neutral"] <= score["no_battery"] and score["noise"] > 0
     # tomorrow's plan is saved at 23
     assert (DAY + datetime.timedelta(days=1)).isoformat() in engine.analysis_db["plans"]
 
@@ -409,7 +411,7 @@ def _recorded_day(charged: float, **extra) -> dict:
         "soc_start": 50.0, "soc_end": 50.0, "price_hours": 24, "price_sum": 36.0,
         "forecast": {"hours": 24, "use": 12.0, "ema": [1.0, 0.5], "trend": [1.0, 0.5], "average": [1.0, 0.5]},
         "expensive": {"hours": 1, "kwh": 0.5, "cost": 1.0},
-        "score": {"actual": 20.0, "no_battery": 18.0, "optimal": 15.0, "v": SCORE_VERSION},
+        "score": {"actual": 20.0, "no_battery": 18.0, "optimal": 15.0, "optimal_neutral": 15.0, "v": SCORE_VERSION},
         **extra,
     }
 
@@ -455,7 +457,7 @@ def test_backfill_corrects_the_hours_that_are_still_kept_and_scores_the_day_agai
     yesterday = DAY - datetime.timedelta(days=1)
     for hour in range(24):
         engine.analysis_db["hours"][f"{yesterday.isoformat()}T{hour:02d}"] = {
-            "home": 0.5, "ignored": 0.0, "use": 0.5, "solar": 0.0, "soc": 50.0, "buy": 1.5, "sell": 1.0, "pred": {},
+            "home": 0.5, "ignored": 0.0, "use": 0.5, "solar": 0.0, "soc": 50.0, "buy": 1.5, "sell": 1.0, "pred": {}, "sv": SCORE_VERSION,
             "charge": 3.0 if hour == 2 else 0.0, "discharge": 1.0 if hour == 18 else 0.0,
         }
     # the night that never charged; home and use were calculated from the charging (consumption that includes it)
@@ -779,7 +781,7 @@ def test_published_loss_leaves_out_outliers_and_old_scores() -> None:
     # the battery level jumped: a loss of 80 % that day
     jumped = (DAY - datetime.timedelta(days=13)).isoformat()
     days[jumped] = {"charged": 10.0, "discharged": 2.0, "soc_start": 50.0, "soc_end": 50.0, "final": True}
-    days[(DAY - datetime.timedelta(days=1)).isoformat()]["score"] = {"actual": 1.0, "no_battery": 3.0, "optimal": 0.0, "v": SCORE_VERSION}
+    days[(DAY - datetime.timedelta(days=1)).isoformat()]["score"] = {"actual": 1.0, "no_battery": 3.0, "optimal": 0.0, "optimal_neutral": 0.0, "v": SCORE_VERSION}
     days[(DAY - datetime.timedelta(days=2)).isoformat()]["score"] = {"actual": 3.0, "no_battery": 3.0, "optimal": 0.0}
 
     result = engine.run_job(snapshot(datetime.datetime.combine(DAY, datetime.time(0, 5)), 50.0), engine.publish_analysis)

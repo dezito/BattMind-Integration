@@ -7,7 +7,7 @@ import logging
 from ...const import CHARGING_TYPES
 from ...utils.efficiency import learned_efficiency_curve, measured_efficiency_steps, parse_efficiency_curve
 from ...utils.taper import band_powers, taper_caps
-from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_AUTO_MIN_DAYS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_VERSION, _is_num, _num, forecast_errors, loss_days, measured_loss
+from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_AUTO_MIN_DAYS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_MIN_POSSIBLE, SCORE_VERSION, _is_num, _num, forecast_errors, loss_days, measured_loss, score_figures
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -299,20 +299,24 @@ class AnalysisPublishing:
 
         # hindsight score --------------------------------------------------------
         scores = []
+        score_missing: dict[str, int] = {}  # the closed days of the last 30 without a score, per reason
+        recent_first = (today - datetime.timedelta(days=30)).isoformat()
         for date, day in sorted(closed.items()):
             score = day.get("score")
             # a score of an older hindsight model is not comparable
-            if not isinstance(score, dict) or score.get("v") != SCORE_VERSION:
+            if not isinstance(score, dict) or score.get("v") != SCORE_VERSION or not _is_num(score.get("optimal_neutral")):
+                if date >= recent_first:
+                    reason = "version" if isinstance(score, dict) else day.get("no_score") or "history"
+                    score_missing[reason] = score_missing.get(reason, 0) + 1
                 continue
-            saved = score["no_battery"] - score["actual"]
-            possible = score["no_battery"] - score["optimal"]
+            saved, possible = score_figures(score)
             scores.append({
                 "date": date,
                 "saved": round(saved, 2),
                 "possible": round(possible, 2),
-                "score": round(min(max(saved / possible, -1.0), 1.0), 3) if possible > 0.05 else None,
+                "score": round(min(max(saved / possible, -1.0), 1.0), 3) if possible > max(_num(score.get("noise")), SCORE_MIN_POSSIBLE) else None,
             })
-        recent_scores = [row for row in scores if row["date"] >= (today - datetime.timedelta(days=30)).isoformat()]
+        recent_scores = [row for row in scores if row["date"] >= recent_first]
         possible_30 = sum(row["possible"] for row in recent_scores)
 
         # expensive hours with an empty battery ----------------------------------
@@ -347,8 +351,9 @@ class AnalysisPublishing:
             "price_forecast": price_forecast,
             "solar_forecast": {key: solar_errors(source) for key, source in (("plan", "plan_solar"), ("database", "solar_database"), ("forecast", "solar_forecast"))},
             "scores": scores[-ANALYSIS_TABLE_DAYS:],
-            "score_30": round(sum(row["saved"] for row in recent_scores) / possible_30, 3) if possible_30 > 0.05 else None,
+            "score_30": round(sum(row["saved"] for row in recent_scores) / possible_30, 3) if possible_30 > SCORE_MIN_POSSIBLE else None,
             "score_days": len(recent_scores),
+            "score_missing": score_missing,
             "expensive": expensive[-ANALYSIS_TABLE_DAYS:],
             "expensive_30": {
                 "days": len(expensive_30),

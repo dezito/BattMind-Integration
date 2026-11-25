@@ -283,16 +283,53 @@ with the smallest error the last 30 days instead:
 
 How much of the possible saving was reached each day:
 
-`score = (cost without battery − actual cost) ÷ (cost without battery − best possible cost)`
+`score = saved ÷ possible`
 
-The best possible cost is calculated afterwards with the day's actual consumption, solar and prices, the
-same start and end level, power, loss and wear, and the same battery model as the optimiser: the efficiency
-at each hour's charge/discharge power (when the efficiency curves are used) and the profit requirements
-(*min. profit per kWh*, *min. total profit*, *min. kWh to sell*). A trade that would not have met them is
-not counted as a possible saving. Forecast errors still count against the score – 100 % would require
-knowing the future. The battery's own standby consumption (many batteries use tens of watts around the
-clock, which the battery power sensor shows as 0 W) is not part of the best possible cost either: energy
-that was charged and then used up this way counts in the actual cost only.
+- **Possible** is what the battery could have saved that day: the cost without the battery minus the best
+  possible cost, for a battery that ends the day at the level it started.
+- **Saved** is possible minus what the plan lost: the actual cost minus the best possible cost for a plan that
+  nets the same battery energy as the day did (by the efficiency model; the measured end level is only a check
+  that the day's energy adds up).
+
+So energy left in the battery for tomorrow, or taken from what was charged yesterday, is neither a gain nor a
+loss, and a plan that is the best possible one scores 100 % whatever level the day ends at.
+
+The best possible cost is calculated afterwards with the day's actual consumption, solar and prices, the same
+power limits, wear and profit requirements (*min. profit per kWh*, *min. total profit*, *min. kWh to sell*), and
+the efficiency at each hour's charge/discharge power (when the efficiency curves are used). A trade that would not
+have met the requirements is not counted as a possible saving. Big moves are whole steps of about 0.05 kWh of
+battery level (up to 0.2 kWh for the biggest batteries); in every hour the best plan can also cover the whole house load or store the whole solar surplus
+exactly, so a small load or surplus is neither lost nor invented. Forecast errors still count against the score –
+100 % would require knowing the future. A day whose possible saving is no more than the rounding of
+the model (a few level steps at the day's highest price) shows – instead of a score; the 30 day figure still
+adds those days' saved and possible amounts.
+
+What is left out of the score:
+
+- **Ignored consumers and Cable Juice Planner chargers** (also a charger on its own meter). What they took from
+  the solar surplus and then from the battery is taken out of the day's solar and discharge, so the battery
+  charging a car is not counted as a sale to the grid, and the best possible plan is not asked to keep that
+  energy either.
+- **The battery's standby consumption** (many batteries use tens of watts around the clock, which the battery
+  power sensor shows as 0 W) and the efficiency model's own error. The best possible plan has to net the same
+  battery energy as the day did, by the same efficiencies, so a battery that lost 1 kWh in standby is not blamed
+  for it.
+
+Only days that can be trusted are scored. A day has no score when an hour was not recorded, the house
+consumption or battery power sensor was lost for a large part of an hour, the buy or sell price of an hour is not
+a real price (a forecast, an estimate from the price history or an offline price), the battery level at the start or end was
+not measured (never the 100 % fail-safe), the day's energy does not add up (more than 30 % of the usable battery
+off, for example a jump of the level, or an ignored consumer took more battery energy than the battery has room
+to refill), the battery cannot be modelled, the hours were recorded by an older version, or it is the day the
+clocks go back (25 hours). The hourly price is the
+mean of its price periods, and only when every period has a real price. The battery level is read from the
+sensor itself, never held over from before it was lost. Days from the long-term statistics have no
+hourly prices and are not scored. Below the table the dashboard lists the days of the last 30 without a score and
+why.
+
+A day that starts with a full battery and has no cheap hour left to charge in has little possible saving of its
+own: its use of yesterday's energy is not counted as a saving that day. The score of a single day can therefore
+jump; the 30 day figure adds saved and possible over all days.
 
 <details>
 <summary>Screenshot</summary>

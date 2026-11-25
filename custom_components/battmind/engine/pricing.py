@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import datetime
 import logging
+import math
 
 from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER
 from ..utils.helpers import day_of_week, days_between, minutes_between, reset_time_to_hour, start_of_day
 from ..prices import price_at
 from ..prices.base import sell_adder_sign
+from ..prices.intervals import interval_slots, price_grid_minutes
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -132,6 +134,23 @@ class Pricing:
 
     def get_sell_prices(self, update_prices: bool = False) -> dict:
         return self.get_hour_prices(update_prices=update_prices, sell_prices=True)
+
+    def real_hour_price(self, hour: datetime.datetime, sell_prices: bool = False) -> float | None:
+        """The mean of the price slots of the hour (the raw price: sell_value() is applied by the caller), only when every slot has
+        a real price of a provider. None for a forecast, a price filled from the price history, the offline prices or a slot
+        without a price: the analysis never records an estimate as what the hour cost."""
+        prices = self.get_sell_prices() if sell_prices else self.get_grid_prices()
+        cache = self.sell_price_cache if sell_prices else self.grid_price_cache
+        if cache.get("using_offline_prices"):
+            return None
+        sources = cache.get("sources") or {}
+        values = []
+        for slot in interval_slots(hour, hour + datetime.timedelta(hours=1), price_grid_minutes(prices)):
+            price = prices.get(slot)
+            if not isinstance(price, (int, float)) or isinstance(price, bool) or not math.isfinite(price) or not str(sources.get(slot, "")).endswith(":real"):
+                return None
+            values.append(price)
+        return sum(values) / len(values)
 
     def sell_value(self, price: float) -> float:
         """What a sold kWh is worth at this hourly sell price.

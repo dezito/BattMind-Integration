@@ -101,7 +101,13 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self.config["home"]["entity_ids"]["ignore_consumption_from_entity_ids"] = [*listed, *self.auto_ignored_entities]
         self.config["home"]["auto_ignored_entity_ids"] = list(self.auto_ignored_entities)
         # every charger, also one on its own meter: still checked for a hung reading
-        self.config["home"]["charger_entity_ids"] = cjp_charger_power_entities(hass, include_own_meter=True)
+        every_charger = cjp_charger_power_entities(hass, include_own_meter=True)
+        self.config["home"]["charger_entity_ids"] = every_charger
+        # the ones on their own meter, whatever ignore_cjp_chargers says: the house consumption does not include them, but the battery or
+        # the sun may feed them, which the hindsight score leaves out; their history is kept, they are not required at start
+        in_house = cjp_charger_power_entities(hass)
+        self.config["home"]["own_meter_charger_entity_ids"] = [entity_id for entity_id in every_charger if entity_id not in in_house]
+        own_meter = self.config["home"]["own_meter_charger_entity_ids"]
         self._cjp_reload_scheduled = False
 
         home = self.config["home"]["entity_ids"]
@@ -115,6 +121,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
                 battery_level,
                 solar["production_entity_id"],
                 *(home["ignore_consumption_from_entity_ids"] or []),
+                *own_meter,
             ) if e
         })
         # hourly mean statistics are used for the power averages, not for the battery level
@@ -125,9 +132,9 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
             *self.config["prices"]["entity_ids"].values(),
             *self.config["forecast"]["entity_ids"].values(),
             solar["forecast_entity_id"],
-        } - {""} - set(self.auto_ignored_entities))
+        } - {""} - set(self.auto_ignored_entities) - set(own_meter))
         # the states and units of the snapshot also cover the chargers found by BattMind (they are read in the right unit)
-        self.snapshot_entities = sorted({*self.configured_entities, *self.auto_ignored_entities})
+        self.snapshot_entities = sorted({*self.configured_entities, *self.auto_ignored_entities, *own_meter})
 
         self._log_listener: QueueListener | None = None
         self._log_handler: QueueHandler | None = None

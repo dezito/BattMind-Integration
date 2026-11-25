@@ -9,8 +9,8 @@ from ...utils.efficiency import EFFICIENCY_BACKFILL_VERSION, add_efficiency_meas
 from ...utils.taper import add_taper_measurement
 from .plan_check import hour_key
 from ...utils.helpers import days_between, reset_time_to_hour
-from ...utils.power import unit_factor_to_w
-from .helpers import ANALYSIS_DAYS, FLOWS_VERSION, FORECAST_TYPES, PRICE_FORECAST_DAYS, PRICE_HOURS_DAYS, SCORE_VERSION, _is_num, _num, _r, evaluate_price_day, grid_cost, hindsight_cost, hourly_prices, rules_of_entries, summarize_day
+from ...utils.power import unique_entity_ids, unit_factor_to_w
+from .helpers import ANALYSIS_DAYS, FLOWS_VERSION, FORECAST_TYPES, PRICE_FORECAST_DAYS, PRICE_HOURS_DAYS, SCORE_GAP_MIN_POINTS, SCORE_VERSION, _is_num, _num, _r, day_score, evaluate_price_day, hourly_prices, rules_of_entries, summarize_day
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,9 +53,16 @@ class AnalysisRecording:
         end = start.replace(minute=59, second=59)
         row = self._analysis_row(self.power_values(start, end))
         row["flows"] = FLOWS_VERSION
-        row["soc"] = round(self.get_battery_level(), 1)
-        row["buy"] = _r(self.get_grid_prices().get(start))
-        row["sell"] = _r(self.get_sell_prices().get(start))
+        # the level of a real sample only (never the 100 % fail-safe), the hour's mean of the real prices of its slots only
+        level = self.get_battery_level_or_none(stale_ok=False)  # the live state: a level held from before a lost sensor is not measured
+        row["soc"] = None if level is None else round(level, 1)
+        row["sv"] = SCORE_VERSION  # the hour is recorded like the score needs it (real hourly prices, a measured level, the gap flag)
+        row["buy"] = _r(self.real_hour_price(start))
+        row["sell"] = _r(self.real_hour_price(start, sell_prices=True))
+        if own := self._analysis_own_kwh(start, end):
+            row["own"] = own
+        if self._analysis_gap(start, end):
+            row["gap"] = True  # the hour is a measurement of 0 W where a sensor was lost: a day with it is not scored
         today = self._plan_today()
         predictions = today.get("hour_cost_prediction", {}) if start.date() == self.now().date() else {}
         row["pred"] = {
@@ -80,57 +87,104 @@ class AnalysisRecording:
 
     def _analysis_day(self, date: datetime.date, final: bool) -> None:
         key = date.isoformat()
-        rows = [row for hour, row in sorted(self.analysis_db["hours"].items()) if hour[:10] == key]
+        keys = sorted(hour for hour in self.analysis_db["hours"] if hour[:10] == key)
+        rows = [self.analysis_db["hours"][hour] for hour in keys]
         if not rows:
             return
         solar = self.config["solar"]
         previous = self.analysis_db["days"].get((date - datetime.timedelta(days=1)).isoformat(), {})
         day = summarize_day(rows, previous.get("soc_end"), solar["powerwall_battery_level_min"])
+        # the level at the end of the day is the level of its last hour: after a missed last hour the next day does not start from it
+        day["soc_exact"] = bool(day["soc_exact"]) and keys[-1].endswith("T23")
         if all(row.get("flows") == FLOWS_VERSION for row in rows):
             day["flows"] = FLOWS_VERSION  # an hour recorded the old way is left for the backfill to check
         if final:
             day["final"] = True
-            if (score := self._analysis_score(rows, day)) is not None:
+            score, reason = self._analysis_score(date, {hour for hour in self.analysis_db["hours"] if hour[:10] == key}, rows, day, previous)
+            if score is not None:
                 day["score"] = score
+            else:
+                day["no_score"] = reason  # why, published as the days without a score
         self.analysis_db["days"][key] = day
 
-    def _analysis_score(self, rows: list[dict], day: dict) -> dict | None:
-        """The day's grid cost: actual, without the battery and with the best possible battery use."""
-        if len(rows) < 20 or not all(_is_num(row.get("buy")) and _is_num(row.get("sell")) for row in rows):
-            return None
-        if not _is_num(day.get("soc_start")) or not _is_num(day.get("soc_end")):
-            return None
+    def _analysis_own_kwh(self, start: datetime.datetime, end: datetime.datetime) -> float:
+        """kWh a charger on its own meter (a CJP car with charger_in_house_meter off) took in the hour: it is not in the house
+        consumption, but the battery or the sun may have fed it, which the score leaves out like an ignored consumer."""
+        home = self.config["home"]
+        ignored = set(unique_entity_ids(home["entity_ids"]["ignore_consumption_from_entity_ids"]))
+        own = [entity_id for entity_id in unique_entity_ids(home.get("own_meter_charger_entity_ids") or []) if entity_id not in ignored]
+        return round(sum(abs(self._ignored_watt(entity_id, start, end)) for entity_id in own) / 1000, 3)
+
+    def _analysis_gap(self, start: datetime.datetime, end: datetime.datetime) -> bool:
+        """The house consumption or the battery power gave no number for too much of the hour (a lost sensor is 0 W in the energy)."""
+        if self._wc is None:
+            return False
+        ids = self.config["home"]["entity_ids"]
+        start_ts = start.replace(tzinfo=self._wc.tz).timestamp()
+        for key in ("power_consumption_entity_id", "powerwall_watt_flow_entity_id"):
+            entity_id = ids.get(key)
+            if not entity_id:
+                continue
+            rows = self._wc.buffers.get(entity_id)
+            # a buffer that starts inside the hour holds its first state backwards in time: the hour before it is not measured
+            if not rows or rows[0][0] > start_ts or len(self._wc.short_values(entity_id, start, end)) < SCORE_GAP_MIN_POINTS:
+                return True
+        return False
+
+    def _analysis_score(self, date: datetime.date, present: set[str], rows: list[dict], day: dict, previous: dict) -> tuple[dict | None, str | None]:
+        """The day's grid cost: actual, without the battery and with the best possible battery use (helpers.day_score), or why
+        there is no score. A day is only scored when every hour of the local day was recorded from sensors that gave
+        numbers, with real prices, and the battery level at both ends is a real measurement."""
+        tz = self._wc.tz if self._wc is not None else None
+        key = date.isoformat()
+        # an hour recorded before this model (prices of the :00 slot of any source, the fail-safe level, no gap flag) is not trusted
+        if any(row.get("sv") != SCORE_VERSION for row in rows):
+            return None, "version"
+        expected = self._hour_keys(key, tz)
+        # the hour that occurs twice when the clocks go back is one key: its energy is lost, the day is not scored
+        if not expected <= present or self._local_day_hours(key, tz) != len(expected):
+            return None, "hours"
+        if any(row.get("gap") for row in rows):
+            return None, "gap"
+        if not all(_is_num(row.get("buy")) and _is_num(row.get("sell")) for row in rows):
+            return None, "prices"
+        if (
+            not _is_num(day.get("soc_start")) or not _is_num(day.get("soc_end")) or not _is_num(previous.get("soc_end"))
+            or previous.get("soc_exact") is not True or not _is_num(rows[-1].get("soc"))
+        ):
+            return None, "soc"
         solar = self.config["solar"]
-        wear = abs(solar["powerwall_wear_cost_per_kwh"])
         # the hours store the raw sell price, a sale is worth sell_value() of it
-        loads = [
-            {"load": _num(row["home"]) - _num(row.get("ignored")) - _num(row["solar"]), "buy": row["buy"], "sell": self.sell_value(row["sell"])}
+        hours = [
+            {
+                "use": max(_num(row["home"]) - _num(row.get("ignored")), 0.0),
+                "solar": _num(row["solar"]),
+                "ignored": _num(row.get("ignored")) + _num(row.get("own")),
+                "charge": _num(row["charge"]),
+                "discharge": _num(row["discharge"]),
+                "buy": row["buy"],
+                "sell": self.sell_value(row["sell"]),
+            }
             for row in rows
         ]
-        no_battery = sum(grid_cost(load["load"], load["buy"], load["sell"]) for load in loads)
-        actual = sum(
-            grid_cost(load["load"] + _num(row["charge"]) - _num(row["discharge"]), load["buy"], load["sell"]) + wear * _num(row["charge"])
-            for load, row in zip(loads, rows)
-        )
-        optimal = hindsight_cost(
-            loads,
+        levels = [self.percentage_to_kwh(level) for level in (day["soc_start"], day["soc_end"], *(row["soc"] for row in rows if _is_num(row.get("soc"))))]
+        return day_score(
+            hours,
             self.percentage_to_kwh(day["soc_start"]),
             self.percentage_to_kwh(day["soc_end"]),
             self.percentage_to_kwh(solar["powerwall_battery_level_min"]),
             self.percentage_to_kwh(solar["powerwall_battery_level_max"]),
+            levels,
             self.max_kwh_charging,
             self.max_kwh_discharging,
             # the optimiser's efficiency at the hour's power and its profit requirements
             self.charging_efficiency,
             self.discharging_efficiency,
-            wear,
+            abs(solar["powerwall_wear_cost_per_kwh"]),
             min_profit_per_kwh=self.get_min_profit_per_kwh(),
             min_total_profit=self.get_min_total_profit(),
             min_sell_kwh=self.number("min_sell_kwh"),
         )
-        if optimal is None:
-            return None
-        return {"actual": round(actual, 3), "no_battery": round(no_battery, 3), "optimal": round(min(optimal, actual), 3), "v": SCORE_VERSION}
 
     def _efficiency_measure(self, flow: list, levels: list, start: float, end: float) -> float:
         """Add the measurements of the battery power and level rows between start and end; returns the time measured until."""
