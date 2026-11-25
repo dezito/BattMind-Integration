@@ -763,6 +763,9 @@
       "learn_charge_taper": {
         "name": "Learn charging power by battery level"
       },
+      "learn_battery_capacity": {
+        "name": "Use measured battery capacity"
+      },
       "price_forecast_correction": {
         "name": "Correct the price forecast"
       },

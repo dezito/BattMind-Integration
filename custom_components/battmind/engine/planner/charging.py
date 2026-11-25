@@ -88,7 +88,7 @@ class ChargingHours:
         except Exception:  # noqa: BLE001
             pass
         try:
-            min_charging_kwh_ev = config["solar"]["powerwall_battery_size"] / 100 / 2
+            min_charging_kwh_ev = self.battery_size_used()[0] / 100 / 2
         except Exception:  # noqa: BLE001
             pass
 

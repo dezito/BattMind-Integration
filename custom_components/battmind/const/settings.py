@@ -31,6 +31,10 @@ SWITCH_SETTINGS: dict[str, dict[str, Any]] = {
     # use the measured charging power per battery level (utils/taper.py): the learning always runs, this decides if the plan counts on it.
     # Not a what-if setting: the simulator has no measurements of its own and does not simulate the taper
     "learn_charge_taper": {"default": True},
+    # count on the measured usable battery capacity (utils/capacity.py, engine/battery.py battery_size_used()) when it is clearly below
+    # the configured one: the measuring always runs, this decides if the plan counts on it. Off by default: it changes what the plan
+    # thinks the battery holds. Not a what-if setting: the simulator has no measurements of its own
+    "learn_battery_capacity": {"default": False},
     # use the consumption forecast type that hit best the last 30 days (engine/analysis)
     "auto_forecast_type": {"default": False},
 }

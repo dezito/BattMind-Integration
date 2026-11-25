@@ -131,6 +131,9 @@
       },
       "learn_charge_taper": {
         "default": "mdi:battery-charging-high"
+      },
+      "learn_battery_capacity": {
+        "default": "mdi:battery-heart-variant"
       }
     },
     "number": {

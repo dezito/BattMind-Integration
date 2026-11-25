@@ -763,6 +763,9 @@
       "learn_charge_taper": {
         "name": "Lær ladeeffekt efter batteriniveau"
       },
+      "learn_battery_capacity": {
+        "name": "Brug målt batterikapacitet"
+      },
       "price_forecast_correction": {
         "name": "Ret prisprognosen"
       },

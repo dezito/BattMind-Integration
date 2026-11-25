@@ -41,7 +41,7 @@ class FutureOptimizer:
         """The battery model of the optimizer from the configuration and the current settings."""
         solar = self.config["solar"]
         return OptimizerConfig(
-            battery_size=solar["powerwall_battery_size"],
+            battery_size=self.battery_size_used()[0],  # the configured size, or the measured one (battery.py)
             level_min=solar["powerwall_battery_level_min"],
             level_max=solar["powerwall_battery_level_max"],
             max_charge=max_kwh_charging,
@@ -73,8 +73,9 @@ class FutureOptimizer:
         charged_before = []
         for key in sorted((key for key in ctx.battery_expenses if isinstance(key, datetime.datetime)), reverse=True):
             entry = ctx.battery_expenses[key]
-            # the history counts the kWh charged from the grid/sun, the battery level what got into the battery
-            percentage = (float_or_none(entry.get("percentage") if isinstance(entry, dict) else None) or 0.0) * ctx.efficiency
+            # the history counts the kWh charged from the grid/sun, the battery level what got into the battery; the level comes from
+            # the stored kWh at the size in use now (the stored percentage is on the scale of the time it was written)
+            percentage = ctx.kwh_to_percentage(float_or_none(entry.get("kWh") if isinstance(entry, dict) else None) or 0.0) * ctx.efficiency
             taken = min(max(percentage, 0.0), max(remaining, 0.0))
             if taken > 0.0:
                 charged_before.append((reset_time_to_hour(key), taken))

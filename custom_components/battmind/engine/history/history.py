@@ -114,12 +114,12 @@ class History(HistoryStorage, HistoryQueries):
             return (
                 prices,
                 c_kwh,
-                _num(charged.get("percentage", 0.0)),
+                self.kwh_to_percentage(c_kwh),  # (at the size in use now, not the one of the time it was written)
                 _num(charged.get("cost", 0.0)),
                 c_local,
                 _num(charged.get("kWh_from_grid", max(c_kwh - c_local, 0.0))),
                 _num(discharged.get("kWh", 0.0)),
-                _num(discharged.get("percentage", 0.0)),
+                self.kwh_to_percentage(_num(discharged.get("kWh", 0.0))),
                 _num(discharged.get("cost", 0.0)),
                 float(savings) if isinstance(savings, (int, float)) else 0.0,
                 dict(session.get("rules", {})) if isinstance(session.get("rules", {}), dict) else {},

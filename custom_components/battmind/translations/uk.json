@@ -614,6 +614,9 @@
       "learn_charge_taper": {
         "name": "Вивчати потужність заряджання за рівнем батареї"
       },
+      "learn_battery_capacity": {
+        "name": "Використовувати виміряну ємність батареї"
+      },
       "price_forecast_correction": {
         "name": "Коригувати прогноз цін"
       },

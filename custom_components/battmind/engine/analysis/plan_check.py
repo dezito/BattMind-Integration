@@ -244,7 +244,7 @@ class PlanCheck:
         level_min = max(float(solar["powerwall_battery_level_min"]), self.number("usage_reserve"))
         entry = judge_hour(
             seconds, row, self._plan_check_level(start), level_min, float(solar["powerwall_battery_level_max"]),
-            self._plan_check_ambiguous(start), level_margin(float(solar["powerwall_battery_size"])),
+            self._plan_check_ambiguous(start), level_margin(self.battery_size_used()[0]),
         )
         table = self.analysis_db["plan_check"]
         if entry is None:
