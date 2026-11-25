@@ -18,14 +18,21 @@ BATTERY_LEVEL_MAX_AGE = datetime.timedelta(hours=2)
 class Battery:
     """Battery level, charging loss and efficiency."""
 
-    def get_battery_level(self) -> float:
+    def get_battery_level_or_none(self, stale_ok: bool = True) -> float | None:
+        """The battery level from a real sample (the sensor, or with stale_ok its last number if it was lost less than
+        BATTERY_LEVEL_MAX_AGE ago), None when there is none: never the fail-safe level of get_battery_level()."""
         entity_id = self.config["home"]["entity_ids"]["powerwall_battery_level_entity_id"]
         value = float_or_none(self.entity_state(entity_id))
         if value is not None and not math.isfinite(value):
             value = None  # "nan" and "inf" are not a battery level: handled like an unavailable sensor
-        if value is None and self._wc is not None:
+        if value is None and stale_ok and self._wc is not None:
             value = self._wc.last_numeric(entity_id, self.now() - BATTERY_LEVEL_MAX_AGE)
+        return value
+
+    def get_battery_level(self) -> float:
+        value = self.get_battery_level_or_none()
         if value is None:
+            entity_id = self.config["home"]["entity_ids"]["powerwall_battery_level_entity_id"]
             _LOGGER.warning("Cant get the battery level from %s (no number for the last %s minutes), using 100", entity_id, int(BATTERY_LEVEL_MAX_AGE.total_seconds() // 60))
             return 100.0
         return value

@@ -238,6 +238,24 @@ private agent memory). Update or remove a note when it stops being true.
   `next_version.py` and the release-notes prompt in sync with the CJP copies.
   Do not bump `manifest.json` `version` by hand: the release workflow sets it
   in the zip from the tag.
+- The hindsight score (`day_score()` in `engine/analysis/helpers.py`, stored per closed day, published by
+  `publishing.py`, explained in `docs/dashboard-analysis.md`) compares the day's plan with a level neutral baseline:
+  possible = cost without battery - `optimal_neutral` (the best plan that ends at the start level), saved = possible -
+  (actual - optimal). `optimal` is the best plan that nets the same battery energy as the day did (start + stored -
+  delivered, by the efficiency model); the measured end level is only a plausibility check (`SCORE_MAX_DRIFT`), so
+  standby use and model error are not blamed on the plan. Ignored consumers and CJP chargers, also those on their own
+  meter (`own_meter_charger_entity_ids`), are not part of the score: they take the solar surplus first, then the
+  battery, and that energy is taken out of the day's solar and discharge and out of what the best plan must net.
+  Only measured data is scored: the hourly price is the mean of its price slots and only when every slot is a real
+  price (`real_hour_price()`, source `:real`); the battery level comes only from the live state
+  (`get_battery_level_or_none(stale_ok=False)`, never the 100 % fail-safe); recorded hours carry `sv`
+  (`SCORE_VERSION`) and `gap`. A day with a missing hour, a lost sensor, a price that is not real, an unmeasured level,
+  energy that does not add up, the 25-hour day or hours of an older version gets `no_score` with a reason, published
+  as `score_missing`. Raise `SCORE_VERSION` whenever the model changes (older scores are then hidden; the hours are
+  kept only a day, so they cannot be calculated again). `optimal` is capped at `actual`, so tests of the model use
+  `optimal_raw`: `tests/test_hindsight_score.py` requires that a best possible plan scores 100 % when the day ends
+  higher, ends lower, loses energy in standby, feeds an ignored consumer, or has loads and surpluses smaller than a
+  level step. Keep a new case of that kind with any model change.
 
 ### HACS default-catalog review
 

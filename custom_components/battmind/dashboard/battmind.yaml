@@ -1461,6 +1461,7 @@ views:
             content: |-
               {% macro n(v, d=2) %}{{ v | round(d) if v is number else '–' }}{% endmacro %}
               {% set a = states.sensor.battmind_analysis.attributes %}
+              {% set reasons = {'hours': '@@score_no_hours@@', 'gap': '@@score_no_gap@@', 'prices': '@@score_no_prices@@', 'soc': '@@score_no_soc@@', 'drift': '@@score_no_drift@@', 'battery': '@@score_no_battery@@', 'history': '@@score_no_history@@', 'version': '@@score_no_version@@'} %}
               {% if a.scores -%}
               @@score_intro_1@@ **{{ (a.score_30 * 100) | round(0) | int ~ ' %' if a.score_30 is number else '–' }}** @@score_intro_2@@ ({{ a.score_days }} @@days@@)
 
@@ -1469,9 +1470,14 @@ views:
               {% for d in a.scores | reverse -%}
               | {{ d.date[8:10] }}/{{ d.date[5:7] }} | {{ (d.score * 100) | round(0) | int ~ ' %' if d.score is number else '–' }} | {{ n(d.saved) }} | {{ n(d.possible) }} |
               {% endfor %}
-              {%- else -%}
+              {% endif %}
+              {% if a.score_missing %}
+
+              @@score_missing_intro@@ {% for reason, count in a.score_missing.items() %}{{ count }} × {{ reasons.get(reason, reason) }}{{ '; ' if not loop.last else '.' }}{% endfor %}
+              {% endif %}
+              {% if not a.scores and not a.score_missing %}
               <ha-alert alert-type="info">@@no_data_yet@@</ha-alert>
-              {%- endif %}
+              {% endif %}
             grid_options:
               columns: full
       # planned against actual

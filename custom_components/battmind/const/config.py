@@ -64,6 +64,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         # all the chargers of Cable Juice Planner, also when they are not added automatically (set by the coordinator, not an option):
         # the only ignored sensors that are checked for a hung reading (engine/energy/energy.py)
         "charger_entity_ids": [],
+        # the chargers that are on their own meter (not in the house consumption): read for the hindsight score only (set by the coordinator)
+        "own_meter_charger_entity_ids": [],
         # battery actions the inverter can't run (CONTROLLABLE_ACTIONS); their rules are off
         "unsupported_actions": [],
     },

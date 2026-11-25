@@ -83,6 +83,10 @@ async def test_a_charger_on_its_own_meter_is_still_checked_for_a_hung_reading(ha
 
     assert coordinator.cjp_chargers == [] and coordinator.auto_ignored_entities == []
     assert coordinator.config["home"]["charger_entity_ids"] == ["sensor.zoe_power"]
+    # the hindsight score needs its energy: its history is kept and its unit read, but it must not hold BattMind up
+    assert coordinator.config["home"]["own_meter_charger_entity_ids"] == ["sensor.zoe_power"]
+    assert "sensor.zoe_power" in coordinator.buffered_entities and "sensor.zoe_power" in coordinator.snapshot_entities
+    assert "sensor.zoe_power" not in coordinator.configured_entities
     await async_join_workers(hass, coordinator)
 
 
@@ -119,6 +123,8 @@ async def test_switched_off_adds_no_charger(hass: HomeAssistant, mock_entry) -> 
     assert coordinator.config["home"]["entity_ids"]["ignore_consumption_from_entity_ids"] == ["sensor.pool"]
     assert coordinator.auto_ignored_entities == [] and coordinator.cjp_chargers == []
     assert coordinator.config["home"]["charger_entity_ids"] == ["sensor.zoe_power"]  # still a charger, so still checked for a hung reading
+    # in the house meter, only not subtracted: it is no charger on its own meter, so the score does not count it twice
+    assert coordinator.config["home"]["own_meter_charger_entity_ids"] == []
     await async_join_workers(hass, coordinator)
 
 

@@ -44,6 +44,7 @@ tests/                                   Pytest suite
 ├── test_engine.py / test_planner_rules.py  Engine and planning behavior
 ├── test_solar_optimizer.py / test_efficiency.py  Solar and efficiency calculations
 ├── test_analysis.py / test_debug_states.py      Analysis and published state
+├── test_hindsight_score.py                         Hindsight score: best plan, baseline, unscored days, real hourly prices
 ├── test_recorder_history.py             Recorder fallbacks for what-if data
 ├── test_config_flow.py / test_init.py           Setup and lifecycle
 ├── test_backup.py / test_debug_export.py        Persistence and export
