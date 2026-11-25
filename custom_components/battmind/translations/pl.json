@@ -614,6 +614,9 @@
       "learn_charge_taper": {
         "name": "Ucz się mocy ładowania według poziomu baterii"
       },
+      "learn_battery_capacity": {
+        "name": "Używaj zmierzonej pojemności baterii"
+      },
       "price_forecast_correction": {
         "name": "Koryguj prognozę cen"
       },

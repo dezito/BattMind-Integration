@@ -227,6 +227,58 @@ power at a battery level, kept per band of 10 % (`efficiency_curves.taper` in th
 - **Settings → Control → Learn charging power by battery level** decides whether the plan counts on it. The
   measuring goes on when it is off. The [what-if simulator](what-if-simulator.md) does not use it.
 
+#### Measured capacity
+
+Below the efficiency table, **Measured capacity** shows what the battery's power sensor saw per 100 % of battery level,
+next to the configured battery size (`battery_capacity` in the `analysis` attribute of `sensor.battmind_analysis`). It is
+always measured. Whether the plan counts on it is decided by a switch (below); the efficiency curves, the taper and the
+measuring itself always use the configured size.
+
+- **Two bounds, not one number.** The power sensor gives the energy that went through it, and the efficiency is not known
+  exactly. Per 100 % of level, the energy that went in while charging is the capacity ÷ the charging efficiency, so it is
+  an *upper* bound of the usable capacity (the inverter's own use pushes it up too). The energy that came out while
+  discharging is the capacity × the discharging efficiency, so it is a *lower* bound. They are never blended. Their
+  ratio, discharging ÷ charging, is the round trip of the runs; it is not the same figure as the measured loss above,
+  which comes from whole days and includes what the battery uses while idle.
+- **What counts.** A run is an unbroken stretch of the same measurements as the efficiency (see above) in one direction
+  that covers at least 40 points of battery level. Both ends are the times the level changed, so the rounding of the
+  level is the same at both ends and cancels. A run ends when a measurement is skipped, the direction changes, there is a
+  gap, or the level jumps by more than 10 points in one step (a calibration of the battery; the jump itself is in no
+  run). A run without a new measurement for 2 hours is closed. A bound is shown from 3 runs per direction (the median;
+  the newest 20 are kept). BattMind measures what its recorded buffers of the battery power and level hold (the last 50
+  hours, filled from the recorder when the integration starts); the longer recorder history that the efficiency reads the
+  first time is not used for this. Another power sensor, level sensor or sign starts the measuring again.
+- **What it says.** It only suggests, because it assumes that the battery level follows the energy in the battery evenly
+  (a battery management system that recalibrates, or a battery whose level is not linear, moves the figures) and the
+  measurements allow a little energy the other way and idle time. If a charging bound is more than 5 % below the
+  configured capacity, the usable capacity looks smaller than configured (*smaller than configured*); if a discharging
+  bound is more than 5 % above it, it looks larger (*larger than configured*). If more energy comes out than goes in
+  per point, that points to a measurement problem: the sensor may measure the two directions differently, or the level does not follow
+  the energy evenly (*check the sensor*). Otherwise the measurements do not contradict the configured capacity.
+- **Settings → Control → Use measured battery capacity** (off by default; the switch is also above the table) decides
+  whether the plan counts on the measured capacity. On, and only when the measurements say *smaller than configured* (the
+  charging bound is more than 5 % below the configured capacity, with runs in both directions: at least 3 each), the plan
+  uses the charging bound rounded down to 0.1 kWh instead of the configured battery size: for the conversion between
+  battery level and kWh, the optimiser, the rules, the storm floor, the cost of what the battery holds, the measured loss
+  and the cycles. It is never more than the configured size, and a bound under half of it is not believed (then the
+  configured size is used, and **Used now** says *configured*). **Used now** shows what the plan counts on and why:
+  *configured* (the switch is off, the measurements do not say smaller, or the bound is not believed), *measured*, or
+  *configured: a measured efficiency curve is in use*. In that last case the configured size stays: the measured curve was
+  measured with it, so it already follows the battery in the energy the plan converts, and changing the size as well
+  would correct twice (a charging curve is capped at 100 %, so what the capped part would have corrected is not
+  corrected: the plan then keeps more loss than measured, never less). With configured curves or the fixed round-trip
+  loss the size is the only thing that can follow the measurements. The size is part of what makes the plan replan, and
+  the card follows it after the next plan. The [what-if simulator](what-if-simulator.md) uses the configured (or
+  scenario) size, and the hindsight score the size the plan counted on when the day was scored.
+- **Limits.** The measurements give a bound, not the capacity, and assume that the level follows the energy evenly. The
+  charging bound is an upper limit of what the battery holds, so the plan is nearer the runs than with the configured
+  size and normally still not past them; with a very good configured efficiency (about 98 % or better) or a discharging
+  efficiency below the measured round trip it can land a little on the pessimistic side (more loss than measured). The
+  charging history keeps the energy in kWh and the level it is worth is calculated from it with the size in use, so the
+  cost and the age of the energy in the battery follow a change of the size at once. A changed configured battery size,
+  power sensor, level sensor or sign starts the measuring again. Check *Used now* and the plan after turning the switch on; turn it off to go back to the configured
+  size at once.
+
 <details>
 <summary>Screenshot</summary>
 

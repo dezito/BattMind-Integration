@@ -23,6 +23,9 @@ charging history:
 - efficiency: AC and battery kWh per AC power step for charging and discharging, measured between
   changes of the battery level (utils/efficiency); the measured efficiency curves. The first time
   the recorder history of the battery power and level is measured too (coordinator).
+- capacity: episodes of at least 40 points of battery level per direction with the AC kWh the battery power sensor saw (utils/capacity),
+  shown as the bounds of the usable capacity; always measured hourly from the buffers. The plan counts on it only through
+  battery_size_used() (engine/battery.py) with the switch learn_battery_capacity.
 - full_charge: {"last": aware datetime} when the battery last reached its max. level (engine/full_charge.py).
 
 The first time the energy per hour of the last year is read from the recorder's long-term
@@ -35,6 +38,7 @@ import datetime
 import logging
 
 from ..energy.energy import derive_power_values
+from ...utils.capacity import clean_capacity
 from ...utils.power import unique_entity_ids, unit_factor_to_w
 from .plan_check import PlanCheck
 from .publishing import AnalysisPublishing
@@ -59,7 +63,10 @@ class Analysis(AnalysisRecording, AnalysisPublishing, PlanCheck):
             last = full_charge.get("last") if isinstance(full_charge, dict) else None
             if not isinstance(last, datetime.datetime) or last.tzinfo is None:
                 db.pop("full_charge")
+        # the measured battery capacity bounds (utils/capacity.py); a malformed entry is dropped
+        db["capacity"] = clean_capacity(db.get("capacity"))
         self.analysis_db = db
+        self._job_cache.pop("battery_size", None)
 
     def price_forecast_corrections(self) -> dict[int, float]:
         """Currency/kWh added to the price forecast per days ahead: minus its bias the last 30 days.
@@ -97,12 +104,13 @@ class Analysis(AnalysisRecording, AnalysisPublishing, PlanCheck):
             self.mark_dirty("analysis")
         return choice
 
-    def forecast_state(self) -> tuple[bool, str]:
-        """The switch auto_forecast_type and the consumption forecast type in use."""
-        return bool(self.enabled("auto_forecast_type")), self.forecast_type
+    def forecast_state(self) -> tuple[bool, str, tuple[float, str]]:
+        """The switch auto_forecast_type, the consumption forecast type in use and the battery size the plan counts on."""
+        return bool(self.enabled("auto_forecast_type")), self.forecast_type, self.battery_size_used()
 
     def republish_forecast_if_changed(self) -> None:
-        """The analysis shows the type in use: published again when the switch or the automatic choice changed."""
+        """The analysis shows the type in use and the battery size in use: published again when the switch, the automatic choice
+        or the size changed."""
         if self.published_forecast_state is not None and self.published_forecast_state != self.forecast_state():
             self.publish_analysis()
 

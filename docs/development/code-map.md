@@ -30,7 +30,8 @@ custom_components/battmind/             The HA integration (HACS payload)
 │   ├── health_checks.py                 HealthWatcher: the health repairs of an entry (sensors, units, value scale, prices, plan, frozen consumption)
 │   └── value_checks.py                  Pure checks of sensor values in the wrong scale (shared with Cable Juice Planner)
 ├── utils/                               Shared codecs, formatting, and calculations
-│   └── solar_forecast.py                Forecast.Solar / Helios Forecast energy platform -> hourly solar rows (shared with Cable Juice Planner)
+│   ├── solar_forecast.py                Forecast.Solar / Helios Forecast energy platform -> hourly solar rows (shared with Cable Juice Planner)
+│   └── capacity.py                      Battery capacity bounds measured from the battery power and level (`analysis_db["capacity"]`, always); the plan counts on them only through `battery_size_used()` in `engine/battery.py` with the switch `learn_battery_capacity`
 ├── sensor.py / number.py / switch.py    Main HA entity platforms
 ├── select.py / button.py / text.py      Other HA entity platforms
 ├── entity.py / repairs.py               Shared entity base and repair flows
@@ -43,6 +44,7 @@ tests/                                   Pytest suite
 ├── conftest.py                          Shared fixtures and simulated HA entities
 ├── test_engine.py / test_planner_rules.py  Engine and planning behavior
 ├── test_solar_optimizer.py / test_efficiency.py  Solar and efficiency calculations
+├── test_capacity.py                     Measured capacity bounds (runs, bounds, restart, jumps) and the size the plan counts on (switch, efficiency sources, floor, hash)
 ├── test_analysis.py / test_debug_states.py      Analysis and published state
 ├── test_hindsight_score.py                         Hindsight score: best plan, baseline, unscored days, real hourly prices
 ├── test_recorder_history.py             Recorder fallbacks for what-if data

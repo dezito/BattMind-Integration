@@ -256,6 +256,20 @@ private agent memory). Update or remove a note when it stops being true.
   `optimal_raw`: `tests/test_hindsight_score.py` requires that a best possible plan scores 100 % when the day ends
   higher, ends lower, loses energy in standby, feeds an ignored consumer, or has loads and surpluses smaller than a
   level step. Keep a new case of that kind with any model change.
+- Measured capacity (`utils/capacity.py`, `analysis_db["capacity"]`, published as `battery_capacity`) is always measured; the
+  figures are two bounds that are never blended: charging (AC kWh per 100 % level) is an upper bound of the usable
+  capacity, discharging a lower bound, because the efficiency is not known. Only `battery_size_used()` (`engine/battery.py`)
+  lets the plan count on it, and only with the switch `learn_battery_capacity` on (default off) when the status is `below`:
+  then min(configured, charging bound rounded down to 0.1 kWh), and a bound under half the configured size is not
+  believed; both directions need their runs. With a measured efficiency curve in use it stays the configured size:
+  that curve was measured with it, so correcting both would count twice. The charging history keeps kWh; the level a row
+  is worth is always calculated from them with the size in use (`current_battery_level_expenses()`, `age_limits()`, the
+  history table), never read from the stored `percentage` (only the history table falls back to it for a row without kWh), which is on the scale
+  of the last combine. Every
+  `measure_efficiency` call (efficiency,
+  taper, capacity) and the capacity summary's reference stay on the configured size, so the measuring never feeds on
+  itself; the what-if has no measurements and uses the configured or scenario size. The size is in `plan_inputs_hash`.
+  Do not add another reader of `analysis_db["capacity"]`; new code uses `battery_size_used()` or `percentage_to_kwh()`.
 
 ### HACS default-catalog review
 

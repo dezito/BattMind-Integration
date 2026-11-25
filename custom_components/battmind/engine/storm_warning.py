@@ -69,7 +69,7 @@ class StormWarning:
         solar = self.config["solar"]
         minimum, maximum = solar["powerwall_battery_level_min"], solar["powerwall_battery_level_max"]
         buffer, source = self.storm_buffer()
-        plan = storm_plan(window, hours, gross_kwh, efficiency, solar["powerwall_battery_size"], minimum, maximum, buffer, source)
+        plan = storm_plan(window, hours, gross_kwh, efficiency, self.battery_size_used()[0], minimum, maximum, buffer, source)
         for hour in hours:
             floor = plan.floors.get(hour.timestamp)
             if floor is not None:

@@ -5,6 +5,7 @@ import datetime
 import logging
 
 from ...const import HISTORY_BUFFER_HOURS
+from ...utils.capacity import add_capacity_measurements, clean_capacity
 from ...utils.efficiency import EFFICIENCY_BACKFILL_VERSION, add_efficiency_measurement, measure_efficiency
 from ...utils.taper import add_taper_measurement
 from .plan_check import hour_key
@@ -31,6 +32,7 @@ class AnalysisRecording:
                 self._analysis_record_plan(timestamp.date() + datetime.timedelta(days=1))
             self._analysis_record_efficiency()
             self._analysis_record_taper(timestamp.replace(minute=0, second=0, microsecond=0))
+            self._analysis_record_capacity(timestamp.replace(minute=0, second=0, microsecond=0))
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Analysis of the hour %s failed", timestamp)
         self.publish_analysis()
@@ -269,6 +271,49 @@ class AnalysisRecording:
             database["until"] = self._taper_measure(self._wc.buffers.get(flow_id) or [], self._wc.buffers.get(level_id) or [], start, end)
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Could not measure the charging power taper")
+
+    def _analysis_record_capacity(self, hour_start: datetime.datetime) -> None:
+        """The battery capacity bounds of the hour that ended (utils/capacity.py), measured since the last time (never fails the hour).
+
+        Always measured, whatever the switch learn_battery_capacity says (it only decides whether the plan counts on the result,
+        engine/battery.py battery_size_used()). The configured capacity is only given to measure_efficiency as the plausibility check
+        of a measurement, never as part of the measured value, so the plan's size never feeds back into the measuring. It measures
+        what the buffers hold (HISTORY_BUFFER_HOURS, filled from the recorder when the entry starts), at most the last
+        HISTORY_BUFFER_HOURS - 2 hours the first time; the long recorder history of the efficiency backfill is not read for it.
+
+        The power and level sensors, the sign and the configured battery size are kept with the measurements: when one of them
+        changes, what was measured is dropped (it measured another battery or another sign)."""
+        try:
+            ids = self.config["home"]["entity_ids"]
+            flow_id, level_id = ids["powerwall_watt_flow_entity_id"], ids["powerwall_battery_level_entity_id"]
+            if self._wc is None or not flow_id or not level_id:
+                return
+            positive_is_charging = bool(self.config["home"]["invert_powerwall_watt_flow_entity_id"])
+            identity = [flow_id, level_id, positive_is_charging, round(float(self.config["solar"]["powerwall_battery_size"]), 3)]
+            database = self.analysis_db["capacity"] = clean_capacity(self.analysis_db.get("capacity"))
+            if database.get("sensors") != identity:
+                # another sensor, sign or battery size (a module added): what was measured is not this battery's any more
+                database = self.analysis_db["capacity"] = {**clean_capacity(None), "sensors": identity}
+            end = (hour_start + datetime.timedelta(hours=1)).replace(tzinfo=self._wc.tz).timestamp()
+            # (a time measured until in the future, from a clock that jumped or a restored backup, must not stop the measuring)
+            start = max(min(_num(database.get("until")), end), end - (HISTORY_BUFFER_HOURS - 2) * 3600)
+            details: list = []
+            _, until = measure_efficiency(
+                self._wc.buffers.get(flow_id) or [],
+                self._wc.buffers.get(level_id) or [],
+                start,
+                end,
+                unit_factor_to_w(self._wc.units.get(flow_id)),
+                positive_is_charging,
+                self.config["solar"]["powerwall_battery_size"],
+                details,
+            )
+            add_capacity_measurements(database, details, end)
+            database["until"] = until
+            self._job_cache.pop("battery_size", None)  # (read earlier in the hour end: the new runs can change it)
+            self.mark_dirty("analysis")
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Could not measure the battery capacity")
 
     def analysis_efficiency_backfill(self, data: dict) -> None:
         """The first time: the measurements of the recorder history {"flow": rows, "level": rows} (coordinator).

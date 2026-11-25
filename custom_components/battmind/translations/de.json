@@ -614,6 +614,9 @@
       "learn_charge_taper": {
         "name": "Ladeleistung nach Akkustand lernen"
       },
+      "learn_battery_capacity": {
+        "name": "Gemessene Batteriekapazität verwenden"
+      },
       "price_forecast_correction": {
         "name": "Preisprognose korrigieren"
       },

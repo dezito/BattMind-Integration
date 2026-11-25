@@ -5,6 +5,7 @@ import datetime
 import logging
 
 from ...const import CHARGING_TYPES
+from ...utils.capacity import capacity_summary
 from ...utils.efficiency import learned_efficiency_curve, measured_efficiency_steps, parse_efficiency_curve
 from ...utils.taper import band_powers, taper_caps
 from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_AUTO_MIN_DAYS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_MIN_POSSIBLE, SCORE_VERSION, _is_num, _num, forecast_errors, loss_days, measured_loss, score_figures
@@ -56,7 +57,7 @@ class AnalysisPublishing:
 
     def _publish_analysis(self) -> None:
         solar_cfg = self.config["solar"]
-        size = float(solar_cfg["powerwall_battery_size"]) or 1.0
+        size = self.battery_size_used()[0] or 1.0  # (the size the plan counts on)
         wear = abs(solar_cfg["powerwall_wear_cost_per_kwh"])
         today = self.now().date()
         days = self.analysis_db["days"]
@@ -347,6 +348,13 @@ class AnalysisPublishing:
             "self_sufficiency": {"last_7": sufficiency(last_7), "last_30": sufficiency(last_30), "all": sufficiency(all_days)},
             "forecast": forecast,
             "efficiency_curves": self._efficiency_curves(),
+            "battery_capacity": {
+                **capacity_summary(self.analysis_db.get("capacity"), solar_cfg["powerwall_battery_size"]),
+                # what the plan counts on: the switch, the kWh per 100 % and where it comes from (configured, measured, or
+                # efficiency: configured because a measured efficiency curve already takes the difference into account)
+                "enabled": bool(self.enabled("learn_battery_capacity")),
+                "used": {"kwh": round(self.battery_size_used()[0], 2), "source": self.battery_size_used()[1]},
+            },
             "plans": plans,
             "price_forecast": price_forecast,
             "solar_forecast": {key: solar_errors(source) for key, source in (("plan", "plan_solar"), ("database", "solar_database"), ("forecast", "solar_forecast"))},

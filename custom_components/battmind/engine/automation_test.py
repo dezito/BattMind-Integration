@@ -331,7 +331,7 @@ class AutomationTest:
         return {
             "level_min": max(float(solar["powerwall_battery_level_min"]), self.number("usage_reserve")),
             "level_max": float(solar["powerwall_battery_level_max"]),
-            "margin": level_margin(float(solar["powerwall_battery_size"])),
+            "margin": level_margin(self.battery_size_used()[0]),
             "discharge_limit_w": float(solar["powerwall_discharging_power"]),
         }
 

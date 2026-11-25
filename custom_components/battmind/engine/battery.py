@@ -5,6 +5,7 @@ import datetime
 import logging
 import math
 
+from ..utils.capacity import capacity_summary, used_capacity
 from ..utils.efficiency import EfficiencyCurve, efficiency_at_power, learned_efficiency_curve, parse_efficiency_curve
 from ..utils.helpers import float_or_none
 from ..utils.taper import TaperCaps, charge_energy_kwh, taper_caps
@@ -55,11 +56,43 @@ class Battery:
             return max_kwh
         return charge_energy_kwh(caps, level, 1.0, max_kwh, self.percentage_to_kwh(1.0), self.battery_efficiency())
 
+    def measured_efficiency_in_use(self) -> bool:
+        """The plan uses a measured efficiency curve (for a direction without a configured one): it was measured with the configured
+        battery size, so it already takes a size that is too big into account (utils/efficiency.py)."""
+        if not self.enabled("enhance_battery_efficiency"):
+            return False
+        return any(
+            not parse_efficiency_curve(self.config["solar"].get(f"battery_{direction}_efficiency_curve")) and self.learned_efficiency_curve(direction)
+            for direction in ("charging", "discharging")
+        )
+
+    def battery_size_used(self) -> tuple[float, str]:
+        """(kWh per 100 % of the battery level the plan counts on, where it comes from).
+
+        The configured size ("configured"), except with the switch learn_battery_capacity on, when the measured capacity is clearly
+        below it (utils/capacity.used_capacity: the charging bound, rounded down, never above the configured size): then that
+        ("measured"). With a measured efficiency curve in use the configured size stays ("efficiency"): that curve was measured with
+        it and already absorbs the difference, so changing the size too would correct twice. The measuring itself, the efficiency
+        and the taper measurements, and the what-if (no measurements of its own) always use the configured size.
+
+        It must never call charging_efficiency(), discharging_efficiency() or get_charging_loss(): get_charging_loss() calls
+        percentage_to_kwh(), which calls this (measured_efficiency_in_use() only looks at the curves, never at the loss)."""
+        if "battery_size" not in self._job_cache:
+            configured = float(self.config["solar"]["powerwall_battery_size"])
+            size, source = configured, "configured"
+            if self.enabled("learn_battery_capacity"):
+                database = getattr(self, "analysis_db", None) or {}
+                learned = used_capacity(capacity_summary(database.get("capacity"), configured), configured)
+                if learned is not None:
+                    size, source = (configured, "efficiency") if self.measured_efficiency_in_use() else (learned, "measured")
+            self._job_cache["battery_size"] = (size, source)
+        return self._job_cache["battery_size"]
+
     def kwh_to_percentage(self, kwh: float) -> float:
-        return kwh / self.config["solar"]["powerwall_battery_size"] * 100
+        return kwh / self.battery_size_used()[0] * 100
 
     def percentage_to_kwh(self, percentage: float) -> float:
-        return percentage * self.config["solar"]["powerwall_battery_size"] / 100
+        return percentage * self.battery_size_used()[0] / 100
 
     def kwh_needed_for_charging(self, target_level=None, battery=None) -> float:
         target_level = self.config["solar"]["powerwall_battery_level_min"] if target_level is None else target_level

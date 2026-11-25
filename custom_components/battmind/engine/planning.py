@@ -32,6 +32,7 @@ class Planning:
             ev_charging,  # only shown in the overview (🚗 cars), but it has to follow the cars' plans
             self._snap.storm_alert if self._snap else None,  # a warning that starts, ends or changes level changes the plan
             self.charge_taper(),  # a new measurement can change what the battery takes
+            self.battery_size_used(),  # the measured capacity the plan counts on (switch learn_battery_capacity)
             self.full_charge_hash(),  # a full charge that becomes due or is done
         )
         return hashlib.blake2b(repr(data).encode(), digest_size=16).hexdigest()

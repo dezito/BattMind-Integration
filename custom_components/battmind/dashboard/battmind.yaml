@@ -403,6 +403,9 @@ views:
               - entity: switch.battmind_learn_charge_taper
                 name:
                   type: entity
+              - entity: switch.battmind_learn_battery_capacity
+                name:
+                  type: entity
               - entity: switch.battmind_price_forecast_correction
                 name:
                   type: entity
@@ -1199,6 +1202,64 @@ views:
               |:---|:---|---:|---:|
               | **@@efficiency_charging@@** | {{ status(e, 'charging') }} |
               | **@@efficiency_discharging@@** | {{ status(e, 'discharging') }} |
+            grid_options:
+              columns: full
+          # the usable capacity as the battery's own power and level show it (always measured; the plan counts on it only with the switch)
+          - type: entities
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: switch.battmind_learn_battery_capacity
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+          - type: markdown
+            visibility:
+              - condition: state
+                entity: switch.battmind_learn_battery_capacity
+                state: 'off'
+            content: '<ha-alert alert-type="info">@@capacity_off@@</ha-alert>'
+            grid_options:
+              columns: full
+          - type: markdown
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+            content: |-
+              {% set c = states.sensor.battmind_analysis.attributes.battery_capacity or {} %}
+              {% set up = c.charging or {} %}
+              {% set low = c.discharging or {} %}
+              {% macro kwh(v) -%}
+              {{ (v | round(1) ~ ' kWh') if v is number else '–' }}
+              {%- endmacro %}
+              **@@capacity_title@@**: @@capacity_note@@
+
+              | | @@capacity_kwh_per_full@@ | @@capacity_episodes@@ |
+              |:---|---:|---:|
+              | **@@capacity_configured@@** | {{ kwh(c.configured) }} | |
+              | **@@capacity_charging_bound@@** | {{ kwh(up.kwh) }} | {{ up.episodes or 0 }} |
+              | **@@capacity_discharging_bound@@** | {{ kwh(low.kwh) }} | {{ low.episodes or 0 }} |
+              | **@@capacity_round_trip@@** | {{ ((c.round_trip * 100) | round(1) ~ ' %') if c.round_trip is number else '–' }} | |
+
+              {% set used = c.used or {} -%}
+              **@@capacity_used@@**: {{ kwh(used.kwh) }} ({% if used.source == 'measured' %}@@capacity_source_measured@@{% elif used.source == 'efficiency' %}@@capacity_source_efficiency@@{% else %}@@capacity_source_configured@@{% endif %})
+
+              {% set s = c.status or 'too_few' -%}
+              {%- if s == 'below' %}@@capacity_status_below@@{% elif s == 'above' %}@@capacity_status_above@@{% elif s == 'within' %}@@capacity_status_within@@{% elif s == 'inconsistent' %}@@capacity_status_inconsistent@@{% else %}@@capacity_status_too_few@@{% endif %}
             grid_options:
               columns: full
       # where the house got its energy from
