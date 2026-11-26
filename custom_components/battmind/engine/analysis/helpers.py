@@ -408,10 +408,13 @@ def score_figures(score: dict) -> tuple[float, float]:
 
 
 def old_score_figures(score) -> tuple[float, float] | None:
-    """(saved, possible) of a score stored by an older hindsight model (SCORE_VERSION 1-2), by the formula it was shown with
-    then: saved = without battery - actual, possible = without battery - optimal. None without its numbers."""
+    """(saved, possible) of a score stored by an older hindsight model, by the formula it was shown with then: from version 3
+    (it stores optimal_neutral) score_figures(), version 1-2 saved = without battery - actual, possible = without battery -
+    optimal. None without its numbers. Raising SCORE_VERSION to a model with another formula adds the outgoing one here."""
     if not isinstance(score, dict) or not all(_is_num(score.get(key)) for key in ("actual", "no_battery", "optimal")):
         return None
+    if "optimal_neutral" in score:
+        return score_figures(score) if _is_num(score["optimal_neutral"]) else None
     return score["no_battery"] - score["actual"], score["no_battery"] - score["optimal"]
 
 

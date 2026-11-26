@@ -104,6 +104,9 @@ class AnalysisRecording:
         if final:
             day["final"] = True
             score, reason = self._analysis_score(date, {hour for hour in self.analysis_db["hours"] if hour[:10] == key}, rows, day, previous)
+            known = self.analysis_db["days"].get(key, {}).get("score")
+            if score is None and reason == "version" and isinstance(known, dict):
+                score = known  # hours of an older version can not be scored again: the old score is kept (shown marked)
             if score is not None:
                 day["score"] = score
             else:

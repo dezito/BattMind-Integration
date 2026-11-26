@@ -304,10 +304,13 @@ class AnalysisPublishing:
         recent_first = (today - datetime.timedelta(days=30)).isoformat()
         for date, day in sorted(closed.items()):
             score = day.get("score")
-            current = isinstance(score, dict) and score.get("v") == SCORE_VERSION and _is_num(score.get("optimal_neutral"))
-            # a score of an older hindsight model is shown by its own formula, marked "old": it is not comparable, so it is
-            # left out of the 30 day figure (version 1-2: saved = without battery - actual, possible = without battery - optimal)
-            figures = score_figures(score) if current else old_score_figures(score)
+            current = isinstance(score, dict) and score.get("v") == SCORE_VERSION
+            # a score of an older hindsight model is shown by the formula of its version (old_score_figures), marked "old": it
+            # is not comparable, so it is left out of the 30 day figure
+            if current:
+                figures = score_figures(score) if _is_num(score.get("optimal_neutral")) else None
+            else:
+                figures = old_score_figures(score)
             if figures is None:
                 if date >= recent_first:
                     reason = "version" if isinstance(score, dict) else day.get("no_score") or "history"

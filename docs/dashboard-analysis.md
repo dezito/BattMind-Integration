@@ -74,6 +74,10 @@ The plan is recalculated 5 seconds after a change.
 
 What the battery earns, and how well BattMind plans. Everything is published on `sensor.<prefix>_analysis`.
 
+The page is organised in groups, each with its own heading: **Results** (what the battery earns), **The plan** (how well
+it was followed), **Forecasts** (the forecasts BattMind plans with, against what happened) and **Battery** (what BattMind
+has measured about the battery), and last the **History**.
+
 The first time, the energy per hour of the last year is read from Home Assistant's **long-term
 statistics** (the sensors need a `state_class`). Forecast errors, plans and scores only exist from the
 first start, so those sections fill up over the first days.
@@ -128,6 +132,70 @@ savings. Both tables show the same money from two sides – don't add them up.
 
 </details>
 
+### Hindsight score
+
+How much of the possible saving was reached each day:
+
+`score = saved ÷ possible`
+
+- **Possible** is what the battery could have saved that day: the cost without the battery minus the best
+  possible cost, for a battery that ends the day at the level it started.
+- **Saved** is possible minus what the plan lost: the actual cost minus the best possible cost for a plan that
+  nets the same battery energy as the day did (by the efficiency model; the measured end level is only a check
+  that the day's energy adds up).
+
+So energy left in the battery for tomorrow, or taken from what was charged yesterday, is neither a gain nor a
+loss, and a plan that is the best possible one scores 100 % whatever level the day ends at.
+
+The best possible cost is calculated afterwards with the day's actual consumption, solar and prices, the same
+power limits, wear and profit requirements (*min. profit per kWh*, *min. total profit*, *min. kWh to sell*), and
+the efficiency at each hour's charge/discharge power (when the efficiency curves are used). A trade that would not
+have met the requirements is not counted as a possible saving. Big moves are whole steps of about 0.05 kWh of
+battery level (up to 0.2 kWh for the biggest batteries); in every hour the best plan can also cover the whole house load or store the whole solar surplus
+exactly, so a small load or surplus is neither lost nor invented. Forecast errors still count against the score –
+100 % would require knowing the future. A day whose possible saving is no more than the rounding of
+the model (a few level steps at the day's highest price) shows – instead of a score; the 30 day figure still
+adds those days' saved and possible amounts.
+
+What is left out of the score:
+
+- **Ignored consumers and Cable Juice Planner chargers** (also a charger on its own meter). What they took from
+  the solar surplus and then from the battery is taken out of the day's solar and discharge, so the battery
+  charging a car is not counted as a sale to the grid, and the best possible plan is not asked to keep that
+  energy either.
+- **The battery's standby consumption** (many batteries use tens of watts around the clock, which the battery
+  power sensor shows as 0 W) and the efficiency model's own error. The best possible plan has to net the same
+  battery energy as the day did, by the same efficiencies, so a battery that lost 1 kWh in standby is not blamed
+  for it.
+
+Only days that can be trusted are scored. A day has no score when an hour was not recorded, the house
+consumption or battery power sensor was lost for a large part of an hour, the buy or sell price of an hour is not
+a real price (a forecast, an estimate from the price history or an offline price), the battery level at the start or end was
+not measured (never the 100 % fail-safe), the day's energy does not add up (more than 30 % of the usable battery
+off, for example a jump of the level, or an ignored consumer took more battery energy than the battery has room
+to refill), the battery cannot be modelled, the hours were recorded by an older version, or it is the day the
+clocks go back (25 hours). The hourly price is the
+mean of its price periods, and only when every period has a real price. The battery level is read from the
+sensor itself, never held over from before it was lost. Days from the long-term statistics have no
+hourly prices and are not scored. Below the table the dashboard lists the days of the last 30 without a score and
+why.
+
+When the calculation of the score changes, a day scored by an older version keeps its stored figures: it is shown
+in the table with 🔄, by the formula of that version. Those days cannot be compared with the newer ones, so they
+are not part of the 30 day figure, and they are not listed as days without a score. A day whose hours were
+recorded by an older version and that has no stored score is still listed as one.
+
+A day that starts with a full battery and has no cheap hour left to charge in has little possible saving of its
+own: its use of yesterday's energy is not counted as a saving that day. The score of a single day can therefore
+jump; the 30 day figure adds saved and possible over all days.
+
+<details>
+<summary>Screenshot</summary>
+
+<p align="center"><img src="../images/hindsight-score.png" alt="Hindsight score per day" width="380"></p>
+
+</details>
+
 ### Cycles and wear
 
 One cycle = discharged kWh equal to the battery size. **Wear** = wear per kWh × charged kWh. Use it to
@@ -137,6 +205,143 @@ check the wear you set against the battery's guarantee (e.g. 6000 cycles).
 <summary>Screenshot</summary>
 
 <p align="center"><img src="../images/cycles-and-wear.png" alt="Cycles, wear and savings per month" width="760"></p>
+
+</details>
+
+### Self-sufficiency
+
+Where the house's consumption came from per hour: first solar, then the battery, the rest from the grid.
+**Self-sufficiency** = (solar + battery) ÷ consumption. **Export** is solar and battery energy sold.
+
+<details>
+<summary>Screenshot</summary>
+
+<p align="center"><img src="../images/self-sufficiency.png" alt="Self-sufficiency per month" width="760"></p>
+
+</details>
+
+### Planned against actual
+
+Every evening at 23 BattMind saves what the plan wants to charge from the grid and sell the next day, and
+compares it with what happened. Big differences come from forecast errors, and from plans that change
+during the day when prices or the battery level change.
+
+<details>
+<summary>Screenshot</summary>
+
+<p align="center"><img src="../images/planned-against-actual.png" alt="Planned grid charging and sale against actual" width="760"></p>
+
+</details>
+
+### Empty in the expensive hours
+
+Days where the battery was empty (at most 2 % above the min. level) in one of the day's 4 most expensive
+hours, and the kWh and money bought from the grid in them. Many such days suggest:
+- the battery is too small for the evening, or
+- the consumption forecast is too low (see **Forecast accuracy**), or
+- the profit requirements are so high that BattMind doesn't charge.
+
+<details>
+<summary>Screenshot</summary>
+
+<p align="center"><img src="../images/empty-in-expensive-hours.png" alt="Days with an empty battery in the most expensive hours" width="380"></p>
+
+</details>
+
+### Forecast accuracy
+
+The average error per hour between the consumption the plan expected and the measured one, for each
+forecast type. ✅ marks the type the plan uses, ⭐ the most accurate the last 30 days.
+
+| Column | Meaning |
+|---|---|
+| Avg. kWh/hour | what each type expected per hour on average over 30 days. The 📏 **Actual** row at the top is the measured consumption |
+| Error 7 / 30 days | the average error per hour in kWh |
+| Relative | the error as a share of the consumption |
+| Bias | > 0: the plan expected too much on average |
+
+The error is counted hour by hour, so a type can hit the average and still miss a lot in the single
+hours: the type closest to the actual average is not always ⭐. When another type is more accurate, a
+warning shows the numbers behind the suggestion: both types' error, how much smaller it is, and what
+each expected against the actual consumption. Choose the type under *Settings → Forecast type*.
+
+Which type is best can change over time (e.g. into winter). With **Choose the forecast type automatically**
+on (off by default; the switch is in this section and under *Settings → Control*), the plan uses the type
+with the smallest error the last 30 days instead:
+
+- it starts after 7 days of measurements; until then the selected type is used
+- it starts at the selected type and only switches when another type has at least 5 % less error, so it
+  does not swap back and forth between nearly equal types
+- an info line under the table shows the type in use, or how many days it is still waiting for
+
+<details>
+<summary>Screenshot</summary>
+
+<p align="center"><img src="../images/forecast-accuracy.png" alt="Forecast accuracy of the consumption forecast types" width="760"></p>
+
+</details>
+
+### Consumption forecast
+
+The predicted consumption per hour for the forecast period with the three forecast types, and the accumulated
+consumption. The selected forecast type is used in the plan; [Forecast accuracy](#forecast-accuracy) shows which one is
+most accurate.
+
+<details>
+<summary>Screenshot</summary>
+
+<p align="center"><img src="../images/consumption-forecast.png" alt="Consumption forecast per hour with the three forecast types" width="100%"></p>
+
+</details>
+
+### Solar forecast
+
+The solar surplus the plan expected for the next day (saved the evening before) against the measured
+surplus: **Plan** is the combined forecast, **History (weather)** the part from the stored solar history,
+**Forecast integration** the solar forecast integration you selected (Solcast, Forecast.Solar or Helios Forecast).
+**Bias** > 0: too much sun was expected.
+
+<details>
+<summary>Screenshot</summary>
+
+<p align="center"><img src="../images/solar-forecast.png" alt="Planned against measured solar surplus per day" width="760"></p>
+
+</details>
+
+### Price forecast
+
+How well the price integration's forecast (e.g. Carnot in Energi Data Service, or Strømligning) hit the
+real buy price. Every hour BattMind saves the forecast for the coming days, without its own small adder
+per day ahead. When the real prices of a day are published (around 13:00 the day before), they are compared
+with what the forecast said 1, 2, 3 … days before.
+
+| Column | Meaning |
+|---|---|
+| Days ahead | how many days before the forecast was made. 1 = the day before, before the real prices came |
+| Days | days compared the last 30 days |
+| Error 7 / 30 days | the average error per hour in kr/kWh |
+| Bias | > 0: the forecast was too high on average |
+| Worst hour | the biggest error in a single hour |
+| Cheapest found | how many of the day's 4 cheapest hours by the forecast really were among the 4 cheapest – the hours the plan charges in. In brackets the extra price per kWh of picking them by the forecast |
+| Most expensive found | the same for the 4 most expensive hours – the hours the plan uses the battery in |
+| Correction | what the plan adds to the forecast prices for that day ahead: minus the bias, after 7 days of measurements and at most ±0.50 kr. – while there are too few days, or when *Correct the price forecast* (*Settings → Control*) is off |
+
+The level of the forecast matters less than the order of the hours: a forecast that is 0.30 kr too high
+but finds the right cheap and expensive hours plans almost as well as the real prices. The charts show the
+real price against the forecast 1 to 7 days before per hour (from 2 days ago to 4 days ahead), the
+corrected forecast the plan uses for the coming hours, and the error per day for the last 31 days.
+
+The measurements always use the forecast as the price integration published it, never the corrected one,
+so the correction does not measure itself.
+
+Only the buy price is measured, and only hours with a forecast from the price integration. Hours BattMind
+fills from its own price history are not included. The first numbers come at 13:00 the day after the first
+start, "3 days ahead" after 3 days.
+
+<details>
+<summary>Screenshot</summary>
+
+<p align="center"><img src="../images/price-forecast.png" alt="The price forecast against the real price per day ahead" width="760"></p>
 
 </details>
 
@@ -286,206 +491,9 @@ measuring itself always use the configured size.
 
 </details>
 
-### Self-sufficiency
-
-Where the house's consumption came from per hour: first solar, then the battery, the rest from the grid.
-**Self-sufficiency** = (solar + battery) ÷ consumption. **Export** is solar and battery energy sold.
-
-<details>
-<summary>Screenshot</summary>
-
-<p align="center"><img src="../images/self-sufficiency.png" alt="Self-sufficiency per month" width="760"></p>
-
-</details>
-
-### Forecast accuracy
-
-The average error per hour between the consumption the plan expected and the measured one, for each
-forecast type. ✅ marks the type the plan uses, ⭐ the most accurate the last 30 days.
-
-| Column | Meaning |
-|---|---|
-| Avg. kWh/hour | what each type expected per hour on average over 30 days. The 📏 **Actual** row at the top is the measured consumption |
-| Error 7 / 30 days | the average error per hour in kWh |
-| Relative | the error as a share of the consumption |
-| Bias | > 0: the plan expected too much on average |
-
-The error is counted hour by hour, so a type can hit the average and still miss a lot in the single
-hours: the type closest to the actual average is not always ⭐. When another type is more accurate, a
-warning shows the numbers behind the suggestion: both types' error, how much smaller it is, and what
-each expected against the actual consumption. Choose the type under *Settings → Forecast type*.
-
-Which type is best can change over time (e.g. into winter). With **Choose the forecast type automatically**
-on (off by default; the switch is in this section and under *Settings → Control*), the plan uses the type
-with the smallest error the last 30 days instead:
-
-- it starts after 7 days of measurements; until then the selected type is used
-- it starts at the selected type and only switches when another type has at least 5 % less error, so it
-  does not swap back and forth between nearly equal types
-- an info line under the table shows the type in use, or how many days it is still waiting for
-
-<details>
-<summary>Screenshot</summary>
-
-<p align="center"><img src="../images/forecast-accuracy.png" alt="Forecast accuracy of the consumption forecast types" width="760"></p>
-
-</details>
-
-### Hindsight score
-
-How much of the possible saving was reached each day:
-
-`score = saved ÷ possible`
-
-- **Possible** is what the battery could have saved that day: the cost without the battery minus the best
-  possible cost, for a battery that ends the day at the level it started.
-- **Saved** is possible minus what the plan lost: the actual cost minus the best possible cost for a plan that
-  nets the same battery energy as the day did (by the efficiency model; the measured end level is only a check
-  that the day's energy adds up).
-
-So energy left in the battery for tomorrow, or taken from what was charged yesterday, is neither a gain nor a
-loss, and a plan that is the best possible one scores 100 % whatever level the day ends at.
-
-The best possible cost is calculated afterwards with the day's actual consumption, solar and prices, the same
-power limits, wear and profit requirements (*min. profit per kWh*, *min. total profit*, *min. kWh to sell*), and
-the efficiency at each hour's charge/discharge power (when the efficiency curves are used). A trade that would not
-have met the requirements is not counted as a possible saving. Big moves are whole steps of about 0.05 kWh of
-battery level (up to 0.2 kWh for the biggest batteries); in every hour the best plan can also cover the whole house load or store the whole solar surplus
-exactly, so a small load or surplus is neither lost nor invented. Forecast errors still count against the score –
-100 % would require knowing the future. A day whose possible saving is no more than the rounding of
-the model (a few level steps at the day's highest price) shows – instead of a score; the 30 day figure still
-adds those days' saved and possible amounts.
-
-What is left out of the score:
-
-- **Ignored consumers and Cable Juice Planner chargers** (also a charger on its own meter). What they took from
-  the solar surplus and then from the battery is taken out of the day's solar and discharge, so the battery
-  charging a car is not counted as a sale to the grid, and the best possible plan is not asked to keep that
-  energy either.
-- **The battery's standby consumption** (many batteries use tens of watts around the clock, which the battery
-  power sensor shows as 0 W) and the efficiency model's own error. The best possible plan has to net the same
-  battery energy as the day did, by the same efficiencies, so a battery that lost 1 kWh in standby is not blamed
-  for it.
-
-Only days that can be trusted are scored. A day has no score when an hour was not recorded, the house
-consumption or battery power sensor was lost for a large part of an hour, the buy or sell price of an hour is not
-a real price (a forecast, an estimate from the price history or an offline price), the battery level at the start or end was
-not measured (never the 100 % fail-safe), the day's energy does not add up (more than 30 % of the usable battery
-off, for example a jump of the level, or an ignored consumer took more battery energy than the battery has room
-to refill), the battery cannot be modelled, the hours were recorded by an older version, or it is the day the
-clocks go back (25 hours). The hourly price is the
-mean of its price periods, and only when every period has a real price. The battery level is read from the
-sensor itself, never held over from before it was lost. Days from the long-term statistics have no
-hourly prices and are not scored. Below the table the dashboard lists the days of the last 30 without a score and
-why.
-
-When the calculation of the score changes, a day scored by an older version keeps its stored figures: it is shown
-in the table with 🔄, by the formula of that version (version 1–2: saved is the cost without the battery minus the
-actual cost, possible is the cost without the battery minus the best possible cost). Those days cannot be compared
-with the newer ones, so they are not part of the 30 day figure, and they are not listed as days without a score. A
-day whose hours were recorded by an older version has no stored score and is still listed as one.
-
-A day that starts with a full battery and has no cheap hour left to charge in has little possible saving of its
-own: its use of yesterday's energy is not counted as a saving that day. The score of a single day can therefore
-jump; the 30 day figure adds saved and possible over all days.
-
-<details>
-<summary>Screenshot</summary>
-
-<p align="center"><img src="../images/hindsight-score.png" alt="Hindsight score per day" width="380"></p>
-
-</details>
-
-### Planned against actual
-
-Every evening at 23 BattMind saves what the plan wants to charge from the grid and sell the next day, and
-compares it with what happened. Big differences come from forecast errors, and from plans that change
-during the day when prices or the battery level change.
-
-<details>
-<summary>Screenshot</summary>
-
-<p align="center"><img src="../images/planned-against-actual.png" alt="Planned grid charging and sale against actual" width="760"></p>
-
-</details>
-
-### Empty in the expensive hours
-
-Days where the battery was empty (at most 2 % above the min. level) in one of the day's 4 most expensive
-hours, and the kWh and money bought from the grid in them. Many such days suggest:
-- the battery is too small for the evening, or
-- the consumption forecast is too low (see **Forecast accuracy**), or
-- the profit requirements are so high that BattMind doesn't charge.
-
-<details>
-<summary>Screenshot</summary>
-
-<p align="center"><img src="../images/empty-in-expensive-hours.png" alt="Days with an empty battery in the most expensive hours" width="380"></p>
-
-</details>
-
-### Solar forecast
-
-The solar surplus the plan expected for the next day (saved the evening before) against the measured
-surplus: **Plan** is the combined forecast, **History (weather)** the part from the stored solar history,
-**Forecast integration** the solar forecast integration you selected (Solcast, Forecast.Solar or Helios Forecast).
-**Bias** > 0: too much sun was expected.
-
-<details>
-<summary>Screenshot</summary>
-
-<p align="center"><img src="../images/solar-forecast.png" alt="Planned against measured solar surplus per day" width="760"></p>
-
-</details>
-
-### Price forecast
-
-How well the price integration's forecast (e.g. Carnot in Energi Data Service, or Strømligning) hit the
-real buy price. Every hour BattMind saves the forecast for the coming days, without its own small adder
-per day ahead. When the real prices of a day are published (around 13:00 the day before), they are compared
-with what the forecast said 1, 2, 3 … days before.
-
-| Column | Meaning |
-|---|---|
-| Days ahead | how many days before the forecast was made. 1 = the day before, before the real prices came |
-| Days | days compared the last 30 days |
-| Error 7 / 30 days | the average error per hour in kr/kWh |
-| Bias | > 0: the forecast was too high on average |
-| Worst hour | the biggest error in a single hour |
-| Cheapest found | how many of the day's 4 cheapest hours by the forecast really were among the 4 cheapest – the hours the plan charges in. In brackets the extra price per kWh of picking them by the forecast |
-| Most expensive found | the same for the 4 most expensive hours – the hours the plan uses the battery in |
-| Correction | what the plan adds to the forecast prices for that day ahead: minus the bias, after 7 days of measurements and at most ±0.50 kr. – while there are too few days, or when *Correct the price forecast* (*Settings → Control*) is off |
-
-The level of the forecast matters less than the order of the hours: a forecast that is 0.30 kr too high
-but finds the right cheap and expensive hours plans almost as well as the real prices. The charts show the
-real price against the forecast 1 to 7 days before per hour (from 2 days ago to 4 days ahead), the
-corrected forecast the plan uses for the coming hours, and the error per day for the last 31 days.
-
-The measurements always use the forecast as the price integration published it, never the corrected one,
-so the correction does not measure itself.
-
-Only the buy price is measured, and only hours with a forecast from the price integration. Hours BattMind
-fills from its own price history are not included. The first numbers come at 13:00 the day after the first
-start, "3 days ahead" after 3 days.
-
-<details>
-<summary>Screenshot</summary>
-
-<p align="center"><img src="../images/price-forecast.png" alt="The price forecast against the real price per day ahead" width="760"></p>
-
-</details>
-
 ### History
 
-The required battery level until the next charge (48 hours), kWh charged by solar (7 days) and the
-consumption forecast per hour with the three forecast types.
-
-<details>
-<summary>Screenshot</summary>
-
-<p align="center"><img src="../images/consumption-forecast.png" alt="Consumption forecast per hour with the three forecast types" width="100%"></p>
-
-</details>
+The required battery level until the next charge (48 hours) and kWh charged by solar (7 days).
 
 ### What-if simulator
 
