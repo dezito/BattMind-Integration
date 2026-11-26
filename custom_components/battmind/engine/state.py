@@ -40,6 +40,12 @@ class JobResult:
     states: dict[str, Any] = field(default_factory=dict)
     attributes: dict[str, dict[str, Any]] = field(default_factory=dict)
     notifications: list[tuple[str, str, str]] = field(default_factory=list)
+    # push notifications (management/notifier.py): kind -> (True active / False over / None not evaluated, text parameters)
+    conditions: dict[str, tuple[bool | None, dict[str, Any]]] = field(default_factory=dict)
+    # something learned: kind -> whether it is ready now
+    ready: dict[str, bool | None] = field(default_factory=dict)
+    # the daily summary of a date: {"date": iso date, ...text parameters}, None when there is none to send
+    summary: dict[str, Any] | None = None
     db_saves: dict[str, Any] = field(default_factory=dict)
     solar_kwh_increment: float = 0.0
     value: Any = None

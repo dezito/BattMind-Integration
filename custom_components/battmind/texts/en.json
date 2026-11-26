@@ -86,6 +86,74 @@
     }
   },
   "ui": {
+    "push": {
+      "battery_level_lost": {
+        "title": "BattMind: battery level lost",
+        "problem": "The battery level ({entity}) has not given a number for 2 hours. The plan assumes a full battery until it is back.",
+        "resolved": "The battery level is back."
+      },
+      "plan_not_followed": {
+        "title": "BattMind: the plan is not followed",
+        "problem": "The battery did not do what the plan asked in {mismatches} of the last {checked} hours checked ({percent} % matched). Check the automation that carries out the actions.",
+        "resolved": "The battery follows the plan again."
+      },
+      "entities_missing": {
+        "title": "BattMind: sensors missing",
+        "problem": "A sensor BattMind needs is missing or disabled:\n{entities}",
+        "resolved": "Every sensor BattMind needs is there again."
+      },
+      "consumption_frozen": {
+        "title": "BattMind: house consumption frozen",
+        "problem": "The house consumption sensor {entity} has shown {value} since {since}. A frozen value gives a wrong plan.",
+        "resolved": "The house consumption sensor moves again."
+      },
+      "sensors_unavailable": {
+        "title": "BattMind: sensors unavailable",
+        "problem": "These sensors have been unavailable for more than 30 minutes:\n{entities}",
+        "resolved": "The sensors are available again."
+      },
+      "temperature_stop": {
+        "title": "BattMind: the battery is stopped",
+        "problem": "{detail}",
+        "resolved": "The battery temperature is back in range, the battery runs again."
+      },
+      "startup_failed": {
+        "title": "BattMind: could not start",
+        "problem": "BattMind stopped while starting: {error}",
+        "resolved": "BattMind has started."
+      },
+      "job_failing": {
+        "title": "BattMind: the plan cannot be calculated",
+        "problem": "The plan could not be calculated three times in a row ({error}). BattMind reloads itself.",
+        "resolved": "The plan is calculated again."
+      },
+      "history_failing": {
+        "title": "BattMind: the charging history fails",
+        "problem": "The charging history of the last hour could not be saved after three tries: {error}",
+        "resolved": "The charging history is saved again."
+      },
+      "storm": {
+        "title": "BattMind: storm warning",
+        "problem": "Storm warning (level {level}) from {start} to {end}. The battery is kept at {keep} % or more for it.",
+        "resolved": "The storm warning is over."
+      },
+      "learning_consumption": {
+        "title": "BattMind has learned your consumption",
+        "once": "There is enough history for the consumption forecast. The rules that sell from the battery and block solar charging now run."
+      },
+      "learning_efficiency": {
+        "title": "BattMind has measured the efficiency",
+        "once": "BattMind has measured the efficiency of your battery at different powers (see the analysis)."
+      },
+      "learning_capacity": {
+        "title": "BattMind has measured the capacity",
+        "once": "BattMind has measured the usable capacity of your battery (see the analysis). The plan counts on it only if *Use measured battery capacity* is on."
+      },
+      "daily_summary": {
+        "title": "BattMind: plan for {day}",
+        "summary": "Grid charging {grid} kWh ({hours}), sale {sale} kWh. The battery is at {level} % now. The plan changes with the prices and the forecast."
+      }
+    },
     "common": {
       "valuta": "£",
       "valuta_kwh": "£/kWh",
@@ -791,7 +859,7 @@
     "day": "Day",
     "saved": "Saved",
     "possible": "Possible",
-    "score_explain": "Shows how much of the possible saving was reached. **Possible** is what the battery could have saved that day, calculated afterwards: the cost without the battery minus the lowest possible cost with the day's actual consumption, solar and prices, losses, wear and the profit requirements, and the battery ending the day where it started. **Saved** is possible minus what the plan lost against the best plan that nets the same battery energy as the day did, so energy kept in the battery for tomorrow, or used from yesterday, is neither a gain nor a loss. Energy that ignored consumers and Cable Juice Planner chargers took from the sun or the battery, and the battery's own standby use, are not part of the score. A day only gets a score when every hour is measured, with real prices and a measured battery level; the days without a score, and why, are listed below the table. A day with very little possible saving shows – instead of a score. Forecast errors are included.",
+    "score_explain": "Shows how much of the possible saving was reached. **Possible** is what the battery could have saved that day, calculated afterwards: the cost without the battery minus the lowest possible cost with the day's actual consumption, solar and prices, losses, wear and the profit requirements, and the battery ending the day where it started. **Saved** is possible minus what the plan lost against the best plan that nets the same battery energy as the day did, so energy kept in the battery for tomorrow, or used from yesterday, is neither a gain nor a loss. Energy that ignored consumers and Cable Juice Planner chargers took from the sun or the battery, and the battery's own standby use, are not part of the score. A day only gets a score when every hour is measured, with real prices and a measured battery level; the days without a score, and why, are listed below the table. A day with very little possible saving shows – instead of a score. Forecast errors are included. A day scored with an older version of the calculation is shown with 🔄 by the formula of then, and is not included in the 30 day figure.",
     "score_missing_intro": "Days without a score in the last 30 days:",
     "score_no_hours": "an hour was not recorded",
     "score_no_gap": "a sensor was lost",
@@ -801,6 +869,7 @@
     "score_no_battery": "the battery could not be modelled",
     "score_no_history": "an older day without hourly data",
     "score_no_version": "a day scored with an older model",
+    "score_old_note": "🔄 = calculated with an older version of the score. It cannot be compared with the newer days and is not included in the 30 day figure.",
     "section_planned": "Planned against actual",
     "planned_summary_1": "Planned grid charging",
     "planned_summary_2": "charged",

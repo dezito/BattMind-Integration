@@ -277,6 +277,7 @@
           "menu_prices": "Elpriser",
           "menu_solar": "Solceller, vejr og stormvarsel",
           "menu_advanced": "Planlægning og datalagring",
+          "menu_notifications": "Push-beskeder",
           "backup": "Backup (eksportér / importér)"
         }
       },
@@ -484,6 +485,26 @@
         "data_description": {
           "storm_warning_entity_id": "MeteoAlarms binary sensor for din region. Tom = fra: funktionen, dens sensor og dens tal oprettes ikke.",
           "storm_min_level": "2 = gul, 3 = orange, 4 = rød."
+        }
+      },
+      "notifications": {
+        "title": "Push-beskeder",
+        "description": "Send push-beskeder gennem de notify-tjenester eller -entiteter, du vælger (for eksempel mobilappen). Lad listen stå tom for ikke at sende nogen. En besked sendes, når noget ændrer sig: et problem opstår (og en besked, når det er forbi), en stormadvarsel, noget BattMind har lært, eller en gang om dagen et resumé af morgendagens plan. Manglende eller uklare data siger aldrig, at et problem er forbi. Beskederne er på det sprog, du har valgt til BattMind.",
+        "data": {
+          "notify_list": "Send gennem",
+          "notify_problems": "Problemer",
+          "notify_storm": "Stormadvarsel",
+          "notify_learning": "Læring færdig",
+          "notify_summary": "Dagligt resumé",
+          "notify_summary_hour": "Send resuméet fra (time)"
+        },
+        "data_description": {
+          "notify_list": "Notify-tjenester (notify.mobile_app_...) og notify-entiteter. Tom = ingen push-beskeder.",
+          "notify_problems": "Batteriniveauet er mistet, planen følges ikke, sensorer mangler, er frosset eller utilgængelige, batteriet er stoppet af temperaturen, eller BattMind kan ikke starte, regne eller gemme ladehistorikken. Der kommer også en besked, når det er forbi.",
+          "notify_storm": "En stormadvarsel er på vej eller i gang, og når den er forbi.",
+          "notify_learning": "Én gang hver: forbrugsprognosen, effektivitetskurverne og den målte kapacitet er klar.",
+          "notify_summary": "Én gang om dagen: hvad der er planlagt til i morgen (opladning fra nettet og salg). Sendes, når morgendagens priser kendes.",
+          "notify_summary_hour": "Resuméet sendes ved slutningen af den første time fra dette klokkeslæt, hvor morgendagens priser kendes (0-23)."
         }
       },
       "advanced": {

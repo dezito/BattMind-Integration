@@ -70,6 +70,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "unsupported_actions": [],
     },
     "language": "da",
+    # push notifications (management/notifier.py): the notify services and notify entities the user chose ("notify.<name>"), none =
+    # nothing is sent; what is sent: problems, a storm, what was learned, and a daily summary of tomorrow's plan from this hour
+    "notify_list": [],
+    "notify_problems": True,
+    "notify_storm": True,
+    "notify_learning": True,
+    "notify_summary": True,
+    "notify_summary_hour": 20,
     "prices": {
         "entity_ids": {
             "energidataservice_buy_entity_id": "",
@@ -116,6 +124,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
 OPTION_PATHS: dict[str, str] = {
     # general
     "language": "language",
+    "notify_list": "notify_list",
+    "notify_problems": "notify_problems",
+    "notify_storm": "notify_storm",
+    "notify_learning": "notify_learning",
+    "notify_summary": "notify_summary",
+    "notify_summary_hour": "notify_summary_hour",
     # battery / home
     "powerwall_battery_level_entity_id": "home.entity_ids.powerwall_battery_level_entity_id",
     "powerwall_watt_flow_entity_id": "home.entity_ids.powerwall_watt_flow_entity_id",
@@ -238,6 +252,7 @@ FLOW_STEPS: dict[str, list[str]] = {
     ],
     "weather": ["hourly_service_entity_id", "daily_service_entity_id"],
     "storm": ["storm_warning_entity_id", "storm_min_level"],
+    "notifications": ["notify_list", "notify_problems", "notify_storm", "notify_learning", "notify_summary", "notify_summary_hour"],
     "advanced": [
         "days_to_predict",
         "cron_interval",
@@ -272,6 +287,7 @@ OPTIONS_MENU: dict[str, list[str]] = {
         "price_fees",
     ],
     "solar": ["solar", "weather", "storm"],
+    "notifications": ["notifications"],
     "advanced": ["advanced", "database"],
 }
 

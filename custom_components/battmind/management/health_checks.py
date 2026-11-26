@@ -95,6 +95,14 @@ CONSUMPTION_GRACE = datetime.timedelta(minutes=30)
 STORE_CONSUMPTION_FROZEN = "consumption_frozen"
 # the checks also run this often, so a change that nothing announced is still found
 RECHECK_INTERVAL = datetime.timedelta(hours=1)
+# sensors_unavailable (a push notification only, no repair): a sensor has been unavailable this long (its last_changed is that old)
+UNAVAILABLE_AFTER = datetime.timedelta(minutes=30)
+# the repairs that are also pushed (management/notifier.py): repair -> kind of the push notification
+PUSH_KINDS = {
+    ISSUE_ENTITIES_MISSING: "entities_missing",
+    ISSUE_PLAN_NOT_FOLLOWED: "plan_not_followed",
+    ISSUE_CONSUMPTION_FROZEN: "consumption_frozen",
+}
 # plan_not_followed: the plan check (engine/analysis/plan_check.py) must have judged at least this many hours ...
 PLAN_MIN_CHECKED_HOURS = 24
 # ... and at least this many of them must not match the action the battery was given ...
@@ -256,6 +264,7 @@ class HealthWatcher:
         covered: Callable[[], set[str]],
         text: Callable[[str, str | None], str],
         price_units: Callable[[], tuple[list[tuple[str, str]], bool] | None] | None = None,
+        notifier: Any = None,
     ) -> None:
         """config: the BattMind configuration (build_config); entities: the configured entities of the entry;
         covered: the sensors the Strømligning and Solcast repairs already judge (called at each check); text: the
@@ -269,6 +278,8 @@ class HealthWatcher:
         self._covered = covered
         self._text = text
         self._price_units = price_units
+        # the push notifications (management/notifier.py): None without (the repairs are the same)
+        self._notifier = notifier
         self.configured = set(entities)
         self._entities = sorted(self.configured)
         home = config["home"]["entity_ids"]
@@ -283,6 +294,9 @@ class HealthWatcher:
         # the sensors BattMind reads with a unit: power (utils/power.py) and the battery level, only those it is configured with
         self._unit_entities = [(entity_id, False) for entity_id in power if entity_id in self.configured]
         level = home["powerwall_battery_level_entity_id"]
+        self._battery_level: str = level or ""
+        # the sensors the plan can not be made without: sensors_unavailable is about these only
+        self._essential: list[str] = unique_entity_ids([home["power_consumption_entity_id"], home["powerwall_watt_flow_entity_id"]])
         if level in self.configured:
             self._unit_entities.append((level, True))
         # the house consumption sensor of consumption_frozen ("" when none is configured)
@@ -445,6 +459,7 @@ class HealthWatcher:
             ("price_unit_scale", self._check_price_units),
             ("plan_not_followed", self._check_plan),
             ("consumption_frozen", self._check_consumption_frozen),
+            ("sensors_unavailable", self._check_unavailable),
         )
         for name, check in checks:
             if self._stopped:
@@ -475,6 +490,31 @@ class HealthWatcher:
             elif self.hass.states.get(entity_id) is None:
                 missing.append(entity_id)
         self._set_issue(ISSUE_ENTITIES_MISSING, bool(disabled or missing), {"disabled": _lines(disabled), "missing": _lines(missing)})
+
+    async def _check_unavailable(self) -> None:
+        """sensors_unavailable (a push notification, no repair): the house consumption or the battery power sensor has been unavailable
+        for UNAVAILABLE_AFTER. Only those two: the plan can not be made without them (the hindsight score treats them as essential
+        too). The prices have their own checks, a solar sensor is unavailable every night for many inverters, and the battery level
+        has battery_level_lost. A sensor that is not there at all is entities_missing, not this."""
+        if self._notifier is None:
+            return
+        now = dt_util.utcnow()
+        waiting: list[str] = []
+        unsure = False
+        for entity_id in self._essential:
+            state = self.hass.states.get(entity_id)
+            if state is None:
+                continue  # (not there at all: entities_missing)
+            if state.state == "unavailable" and now - state.last_changed >= UNAVAILABLE_AFTER:
+                waiting.append(entity_id)
+            elif state.state in ("unavailable", "unknown"):
+                # unavailable for less than that (also after a restart: last_changed starts again then), or unknown: nothing can be
+                # said, so a push that was sent is not called over
+                unsure = True
+        if waiting:
+            self._notifier.report("sensors_unavailable", True, entities=_lines(waiting))
+        else:
+            self._notifier.report("sensors_unavailable", None if unsure else False)
 
     async def _check_units(self) -> None:
         """entity_units: a power sensor with a unit the power conversion does not read, or a battery level in another unit
@@ -903,7 +943,32 @@ class HealthWatcher:
     def _issue_id(self, issue: str) -> str:
         return f"{self.entry.entry_id}_{issue}"
 
+    def _push(self, issue: str, found: bool, placeholders: dict[str, str]) -> None:
+        """The push notification of a repair: sent when it is raised and when it is over (each only once, whatever the number of
+        checks that raise it again: management/notifier.py keeps what was sent)."""
+        kind = PUSH_KINDS.get(issue)
+        if kind is None or self._notifier is None:
+            return
+        if not found:
+            self._notifier.report(kind, False)
+        elif issue == ISSUE_ENTITIES_MISSING:
+            # (not the battery level sensor: battery_level_lost says it, when its lost level starts to matter - one push per problem)
+            lines = [
+                line
+                for value in (placeholders.get("missing"), placeholders.get("disabled"))
+                if value and value != NOTHING
+                for line in value.split("\n")
+                if line.removeprefix("- ") != self._battery_level
+            ]
+            if lines:
+                self._notifier.report(kind, True, entities="\n".join(lines))
+            else:
+                self._notifier.report(kind, False)
+        else:
+            self._notifier.report(kind, True, **placeholders)
+
     def _create(self, issue: str, placeholders: dict[str, str]) -> None:
+        self._push(issue, True, placeholders)
         ir.async_create_issue(
             self.hass,
             DOMAIN,
@@ -915,6 +980,7 @@ class HealthWatcher:
         )
 
     def _delete(self, issue: str) -> None:
+        self._push(issue, False, {})
         ir.async_delete_issue(self.hass, DOMAIN, self._issue_id(issue))
 
 

@@ -455,6 +455,26 @@
           "storm_min_level": "2 = żółty, 3 = pomarańczowy, 4 = czerwony."
         }
       },
+      "notifications": {
+        "title": "Powiadomienia push",
+        "description": "Wysyłaj powiadomienia push przez wybrane usługi lub encje notify (na przykład aplikację mobilną). Pozostaw listę pustą, aby nic nie wysyłać. Wiadomość idzie, gdy coś się zmienia: zaczyna się problem (i wiadomość, gdy się skończy), ostrzeżenie o burzy, coś, czego BattMind się nauczył, albo raz dziennie podsumowanie planu na jutro. Brakujące lub niejasne dane nigdy nie oznaczają, że problem minął. Wiadomości są w języku wybranym dla BattMind.",
+        "data": {
+          "notify_list": "Wyślij przez",
+          "notify_problems": "Problemy",
+          "notify_storm": "Ostrzeżenie o burzy",
+          "notify_learning": "Nauka zakończona",
+          "notify_summary": "Podsumowanie dzienne",
+          "notify_summary_hour": "Wysyłaj podsumowanie od (godzina)"
+        },
+        "data_description": {
+          "notify_list": "Usługi notify (notify.mobile_app_...) i encje notify. Puste = brak powiadomień push.",
+          "notify_problems": "Utracono poziom baterii, plan nie jest wykonywany, brakuje czujników, są zamrożone lub niedostępne, bateria jest zatrzymana przez temperaturę albo BattMind nie może wystartować, liczyć ani zapisać historii ładowania. Wiadomość przychodzi też, gdy problem minie.",
+          "notify_storm": "Ostrzeżenie o burzy nadchodzi lub trwa, oraz gdy minie.",
+          "notify_learning": "Po jednym razie: prognoza zużycia, krzywe sprawności i zmierzona pojemność są gotowe.",
+          "notify_summary": "Raz dziennie: co zaplanowano na jutro (ładowanie z sieci i sprzedaż). Wysyłane, gdy znane są jutrzejsze ceny.",
+          "notify_summary_hour": "Podsumowanie idzie na końcu pierwszej godziny od tej godziny, w której znane są jutrzejsze ceny (0-23)."
+        }
+      },
       "advanced": {
         "data_description": {
           "cron_interval": "Interwał między sprawdzaniem statusu a wykonywaniem funkcji",
@@ -491,6 +511,7 @@
         "menu_options": {
           "backup": "Kopia zapasowa (eksport / import)",
           "menu_advanced": "Planowanie i przechowywanie danych",
+          "menu_notifications": "Powiadomienia push",
           "menu_battery": "Bateria domowa",
           "menu_consumption": "Zużycie domu",
           "menu_general": "Ogólne",

@@ -1529,8 +1529,12 @@ views:
               | @@day@@ | Score | @@saved@@ @@valuta@@ | @@possible@@ @@valuta@@ |
               |:---|---:|---:|---:|
               {% for d in a.scores | reverse -%}
-              | {{ d.date[8:10] }}/{{ d.date[5:7] }} | {{ (d.score * 100) | round(0) | int ~ ' %' if d.score is number else '–' }} | {{ n(d.saved) }} | {{ n(d.possible) }} |
+              | {{ d.date[8:10] }}/{{ d.date[5:7] }} | {{ '🔄 ' if d.old is defined and d.old }}{{ (d.score * 100) | round(0) | int ~ ' %' if d.score is number else '–' }} | {{ n(d.saved) }} | {{ n(d.possible) }} |
               {% endfor %}
+              {% if a.scores | selectattr('old', 'defined') | list %}
+
+              @@score_old_note@@
+              {% endif %}
               {% endif %}
               {% if a.score_missing %}
 

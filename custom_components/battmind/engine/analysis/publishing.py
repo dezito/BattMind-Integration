@@ -8,7 +8,7 @@ from ...const import CHARGING_TYPES
 from ...utils.capacity import capacity_summary
 from ...utils.efficiency import learned_efficiency_curve, measured_efficiency_steps, parse_efficiency_curve
 from ...utils.taper import band_powers, taper_caps
-from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_AUTO_MIN_DAYS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_MIN_POSSIBLE, SCORE_VERSION, _is_num, _num, forecast_errors, loss_days, measured_loss, score_figures
+from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_AUTO_MIN_DAYS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_MIN_POSSIBLE, SCORE_VERSION, _is_num, _num, forecast_errors, loss_days, measured_loss, old_score_figures, score_figures
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -304,20 +304,26 @@ class AnalysisPublishing:
         recent_first = (today - datetime.timedelta(days=30)).isoformat()
         for date, day in sorted(closed.items()):
             score = day.get("score")
-            # a score of an older hindsight model is not comparable
-            if not isinstance(score, dict) or score.get("v") != SCORE_VERSION or not _is_num(score.get("optimal_neutral")):
+            current = isinstance(score, dict) and score.get("v") == SCORE_VERSION and _is_num(score.get("optimal_neutral"))
+            # a score of an older hindsight model is shown by its own formula, marked "old": it is not comparable, so it is
+            # left out of the 30 day figure (version 1-2: saved = without battery - actual, possible = without battery - optimal)
+            figures = score_figures(score) if current else old_score_figures(score)
+            if figures is None:
                 if date >= recent_first:
                     reason = "version" if isinstance(score, dict) else day.get("no_score") or "history"
                     score_missing[reason] = score_missing.get(reason, 0) + 1
                 continue
-            saved, possible = score_figures(score)
-            scores.append({
+            saved, possible = figures
+            row = {
                 "date": date,
                 "saved": round(saved, 2),
                 "possible": round(possible, 2),
                 "score": round(min(max(saved / possible, -1.0), 1.0), 3) if possible > max(_num(score.get("noise")), SCORE_MIN_POSSIBLE) else None,
-            })
-        recent_scores = [row for row in scores if row["date"] >= recent_first]
+            }
+            if not current:
+                row["old"] = True
+            scores.append(row)
+        recent_scores = [row for row in scores if row["date"] >= recent_first and not row.get("old")]
         possible_30 = sum(row["possible"] for row in recent_scores)
 
         # expensive hours with an empty battery ----------------------------------

@@ -86,6 +86,74 @@
     }
   },
   "ui": {
+    "push": {
+      "battery_level_lost": {
+        "title": "BattMind: batteriniveauet er mistet",
+        "problem": "Batteriniveauet ({entity}) har ikke givet et tal i 2 timer. Planen regner med et fuldt batteri, til det er tilbage.",
+        "resolved": "Batteriniveauet er tilbage."
+      },
+      "plan_not_followed": {
+        "title": "BattMind: planen følges ikke",
+        "problem": "Batteriet gjorde ikke, hvad planen bad om, i {mismatches} af de sidste {checked} kontrollerede timer ({percent} % passede). Tjek automationen, der udfører handlingerne.",
+        "resolved": "Batteriet følger planen igen."
+      },
+      "entities_missing": {
+        "title": "BattMind: sensorer mangler",
+        "problem": "En sensor, BattMind skal bruge, mangler eller er slået fra:\n{entities}",
+        "resolved": "Alle sensorer, BattMind skal bruge, er der igen."
+      },
+      "consumption_frozen": {
+        "title": "BattMind: husets forbrug er frosset",
+        "problem": "Sensoren for husets forbrug {entity} har vist {value} siden {since}. En frossen værdi giver en forkert plan.",
+        "resolved": "Sensoren for husets forbrug bevæger sig igen."
+      },
+      "sensors_unavailable": {
+        "title": "BattMind: sensorer er utilgængelige",
+        "problem": "Disse sensorer har været utilgængelige i mere end 30 minutter:\n{entities}",
+        "resolved": "Sensorerne er tilgængelige igen."
+      },
+      "temperature_stop": {
+        "title": "BattMind: batteriet er stoppet",
+        "problem": "{detail}",
+        "resolved": "Batteriets temperatur er tilbage i området, batteriet kører igen."
+      },
+      "startup_failed": {
+        "title": "BattMind: kunne ikke starte",
+        "problem": "BattMind stoppede under starten: {error}",
+        "resolved": "BattMind er startet."
+      },
+      "job_failing": {
+        "title": "BattMind: planen kan ikke beregnes",
+        "problem": "Planen kunne ikke beregnes tre gange i træk ({error}). BattMind genindlæser sig selv.",
+        "resolved": "Planen beregnes igen."
+      },
+      "history_failing": {
+        "title": "BattMind: ladehistorikken fejler",
+        "problem": "Ladehistorikken for den sidste time kunne ikke gemmes efter tre forsøg: {error}",
+        "resolved": "Ladehistorikken gemmes igen."
+      },
+      "storm": {
+        "title": "BattMind: stormadvarsel",
+        "problem": "Stormadvarsel (niveau {level}) fra {start} til {end}. Batteriet holdes på {keep} % eller mere til den.",
+        "resolved": "Stormadvarslen er forbi."
+      },
+      "learning_consumption": {
+        "title": "BattMind har lært dit forbrug",
+        "once": "Der er historik nok til forbrugsprognosen. Reglerne, der sælger fra batteriet og blokerer solopladning, kører nu."
+      },
+      "learning_efficiency": {
+        "title": "BattMind har målt virkningsgraden",
+        "once": "BattMind har målt dit batteris virkningsgrad ved forskellige effekter (se analysen)."
+      },
+      "learning_capacity": {
+        "title": "BattMind har målt kapaciteten",
+        "once": "BattMind har målt dit batteris brugbare kapacitet (se analysen). Planen regner kun med den, hvis *Brug målt batterikapacitet* er slået til."
+      },
+      "daily_summary": {
+        "title": "BattMind: plan for {day}",
+        "summary": "Opladning fra nettet {grid} kWh ({hours}), salg {sale} kWh. Batteriet står på {level} % nu. Planen ændrer sig med priserne og prognosen."
+      }
+    },
     "common": {
       "valuta": "kr",
       "valuta_kwh": "kr/kWh",
@@ -791,7 +859,7 @@
     "day": "Dag",
     "saved": "Sparet",
     "possible": "Muligt",
-    "score_explain": "Viser, hvor stor en del af den mulige besparelse der blev nået. **Muligt** er, hvad batteriet kunne have sparet den dag, beregnet bagefter: udgiften uden batteri minus den laveste mulige udgift med dagens faktiske forbrug, sol og priser, tab, slid og kravene til fortjeneste, og med batteriet, der slutter dagen, hvor det startede. **Sparet** er det mulige minus det, planen tabte i forhold til den bedste plan, der giver batteriet samme nettoenergi som dagen. Energi, der blev gemt i batteriet til i morgen, eller brugt fra i går, er derfor hverken en gevinst eller et tab. Energi, som ignorerede forbrugere og Cable Juice Planner-opladere tog fra solen eller batteriet, og batteriets eget standby-forbrug indgår ikke i scoren. En dag får kun en score, når hver time er målt med rigtige priser og et målt batteriniveau; dagene uden score og hvorfor står under tabellen. En dag med meget lidt mulig besparelse viser – i stedet for en score. Fejl i prognoserne tæller med.",
+    "score_explain": "Viser, hvor stor en del af den mulige besparelse der blev nået. **Muligt** er, hvad batteriet kunne have sparet den dag, beregnet bagefter: udgiften uden batteri minus den laveste mulige udgift med dagens faktiske forbrug, sol og priser, tab, slid og kravene til fortjeneste, og med batteriet, der slutter dagen, hvor det startede. **Sparet** er det mulige minus det, planen tabte i forhold til den bedste plan, der giver batteriet samme nettoenergi som dagen. Energi, der blev gemt i batteriet til i morgen, eller brugt fra i går, er derfor hverken en gevinst eller et tab. Energi, som ignorerede forbrugere og Cable Juice Planner-opladere tog fra solen eller batteriet, og batteriets eget standby-forbrug indgår ikke i scoren. En dag får kun en score, når hver time er målt med rigtige priser og et målt batteriniveau; dagene uden score og hvorfor står under tabellen. En dag med meget lidt mulig besparelse viser – i stedet for en score. Fejl i prognoserne tæller med. En dag, der blev beregnet med en ældre udgave af beregningen, vises med 🔄 efter den formel, der gjaldt dengang, og tæller ikke med i de 30 dage.",
     "score_missing_intro": "Dage uden score de sidste 30 dage:",
     "score_no_hours": "en time blev ikke registreret",
     "score_no_gap": "en sensor var væk",
@@ -801,6 +869,7 @@
     "score_no_battery": "batteriet kunne ikke modelleres",
     "score_no_history": "en ældre dag uden timedata",
     "score_no_version": "en dag med en ældre beregning",
+    "score_old_note": "🔄 = beregnet med en ældre udgave af scoren. Den kan ikke sammenlignes med de nyere dage og tæller ikke med i de 30 dage.",
     "section_planned": "Planlagt mod faktisk",
     "planned_summary_1": "Planlagt netladning",
     "planned_summary_2": "ladet",

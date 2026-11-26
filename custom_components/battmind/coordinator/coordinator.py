@@ -35,6 +35,7 @@ from ..utils.cjp import cjp_charger_power_entities
 from ..utils.formatting import translate
 from ..utils.power import unique_entity_ids
 from ..management.debug_export import DebugRecorder
+from ..management.notifier import PushNotifier
 from ..management.storage import BattMindStorage
 from ..prices import CombinedPriceProvider
 from .data import CoordinatorData
@@ -69,6 +70,8 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self.restore_settings: dict[str, str] = {}
         self.solar_kwh_total: float | None = None
         self.started = False
+        # the push notifications (management/notifier.py), made in async_setup when the texts are loaded
+        self.notifier: PushNotifier | None = None
 
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"battmind_{self.prefix}_worker")
         # the what-if simulation (minutes to hours) runs on a thread of its own, on an engine of its own, so the worker
@@ -218,6 +221,8 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         for message, title, notification_id in result.notifications:
             persistent_notification.async_create(self.hass, message, title=title, notification_id=notification_id)
 
+        self._push_notices(result)
+
         for name, encoded in result.db_saves.items():
             try:
                 await self.storage.async_save(name, encoded)
@@ -227,6 +232,24 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
 
         if result.request_reload:
             self.hass.config_entries.async_schedule_reload(self.entry.entry_id)
+
+    def _push_notices(self, result: JobResult) -> None:
+        """What the job found for the push notifications (conditions, something learned, the daily summary), and what is pending."""
+        notifier = self.notifier
+        if notifier is None:
+            return
+        for kind, (active, params) in result.conditions.items():
+            notifier.report(kind, active, **params)
+        for kind, ready in result.ready.items():
+            notifier.report_ready(kind, ready)
+        if result.summary:
+            notifier.report_summary(result.summary["date"], **{key: value for key, value in result.summary.items() if key != "date"})
+        notifier.tick()
+
+    def notice(self, kind: str, active: bool | None, **params) -> None:
+        """A push notification condition found outside the engine (the start, the hour end)."""
+        if self.notifier is not None:
+            self.notifier.report(kind, active, **params)
 
     # ------------------------------------------------------------------ #
     # Worker jobs
@@ -258,7 +281,10 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
             if publish:
                 await self._async_publish(result, job_name)
                 self.debug.record(job_name, args, snapshot, result, self.data.get("current_charging_rule"))
-            elif result.db_saves or result.states or result.attributes or result.notifications or result.request_reload:
+            elif (
+                result.db_saves or result.states or result.attributes or result.notifications or result.request_reload
+                or result.conditions or result.ready or result.summary
+            ):
                 # a job that only reads must not have anything to publish: it would be lost without a trace
                 _LOGGER.error("Job %s was run without publishing but returned output that is discarded", job_name)
             _LOGGER.debug("Job %s ran in %s for %.3fs", job_name, result.worker_thread, result.duration)

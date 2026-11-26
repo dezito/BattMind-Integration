@@ -46,11 +46,13 @@ class CoordinatorEvents:
         for attempt in range(1, 4):
             result = await self.async_run_job("hour_end", timestamp, include_forecast=True)
             if result.error is None:
+                self.notice("history_failing", False)
                 return
             if attempt < 3:
                 _LOGGER.warning("Hour end job failed (%s/3): %s. Retrying in %ss", attempt, result.error, delay)
                 await asyncio.sleep(delay)
                 delay *= 2
+        self.notice("history_failing", True, error=str(result.error)[:300])
         persistent_notification.async_create(
             self.hass,
             f"Charging history failed with\nerror: {result.error}",

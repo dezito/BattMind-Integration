@@ -455,6 +455,26 @@
           "storm_min_level": "2 = gelb, 3 = orange, 4 = rot."
         }
       },
+      "notifications": {
+        "title": "Push-Benachrichtigungen",
+        "description": "Senden Sie Push-Benachrichtigungen über die Notify-Dienste oder -Entitäten, die Sie wählen (zum Beispiel die Mobile App). Lassen Sie die Liste leer, um keine zu senden. Eine Nachricht geht, wenn sich etwas ändert: ein Problem beginnt (und eine Nachricht, wenn es vorbei ist), eine Sturmwarnung, etwas, das BattMind gelernt hat, oder einmal am Tag eine Zusammenfassung des Plans für morgen. Fehlende oder unklare Daten melden nie, dass ein Problem vorbei ist. Die Nachrichten sind in der Sprache, die Sie für BattMind gewählt haben.",
+        "data": {
+          "notify_list": "Senden über",
+          "notify_problems": "Probleme",
+          "notify_storm": "Sturmwarnung",
+          "notify_learning": "Lernen abgeschlossen",
+          "notify_summary": "Tägliche Zusammenfassung",
+          "notify_summary_hour": "Zusammenfassung ab (Uhrzeit)"
+        },
+        "data_description": {
+          "notify_list": "Notify-Dienste (notify.mobile_app_...) und Notify-Entitäten. Leer = keine Push-Benachrichtigungen.",
+          "notify_problems": "Der Batteriestand ist verloren, der Plan wird nicht befolgt, Sensoren fehlen, sind eingefroren oder nicht verfügbar, die Batterie wird durch ihre Temperatur gestoppt oder BattMind kann nicht starten, rechnen oder den Ladeverlauf speichern. Auch wenn es vorbei ist, kommt eine Nachricht.",
+          "notify_storm": "Eine Sturmwarnung kommt oder läuft, und wenn sie vorbei ist.",
+          "notify_learning": "Je einmal: die Verbrauchsprognose, die Wirkungsgradkurven und die gemessene Kapazität sind bereit.",
+          "notify_summary": "Einmal am Tag: was für morgen geplant ist (Netzladung und Verkauf). Wird gesendet, wenn die Preise für morgen bekannt sind.",
+          "notify_summary_hour": "Die Zusammenfassung geht am Ende der ersten Stunde ab dieser Uhrzeit, in der die Preise für morgen bekannt sind (0-23)."
+        }
+      },
       "advanced": {
         "data_description": {
           "cron_interval": "Intervall zwischen Statusprüfungen und Funktionsausführungen",
@@ -491,6 +511,7 @@
         "menu_options": {
           "backup": "Backup (Export / Import)",
           "menu_advanced": "Planung und Datenspeicherung",
+          "menu_notifications": "Push-Benachrichtigungen",
           "menu_battery": "Hausakku",
           "menu_consumption": "Hausverbrauch",
           "menu_general": "Allgemein",

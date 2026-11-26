@@ -38,6 +38,7 @@ from .management.dashboard_build import async_remove_dashboard_file, async_setup
 from .management.dashboard_cards import async_dismiss_card_notification
 from .management.dependency_checks import remove_issues
 from .management.health_checks import async_remove_health_store
+from .management.notifier import async_remove_notices_store
 from .management.what_if_request import (
     WHAT_IF_SCHEMA,
     what_if_module_options as _what_if_module_options,
@@ -618,6 +619,10 @@ async def async_remove_entry(hass: HomeAssistant, entry: BattMindConfigEntry) ->
         await async_remove_health_store(hass, entry.entry_id)
     except (OSError, HomeAssistantError) as err:  # the removal goes on: the backup and the databases matter more
         _LOGGER.warning("Could not delete the health check state of BattMind %s: %s", entry.title, err)
+    try:
+        await async_remove_notices_store(hass, entry.entry_id)
+    except (OSError, HomeAssistantError) as err:
+        _LOGGER.warning("Could not delete the push notification state of BattMind %s: %s", entry.title, err)
     # the data can be imported again (config flow of a new entry, or import_data)
     try:
         await async_export(hass, entry, "deleted")

@@ -19,7 +19,14 @@ from .storm import (
     STORM_DEFAULT_HOURS,
     STORM_DEFAULT_LEVEL,
     STORM_RULE,
+    STATUS_ACTIVE,
+    STATUS_COMING,
+    STATUS_EXPIRED,
     STATUS_LATER,
+    STATUS_NONE,
+    STATUS_OFF,
+    STATUS_OTHER,
+    STATUS_WEAK,
     StormPlan,
     StormWindow,
     forecast_buffer,
@@ -100,6 +107,24 @@ class StormWarning:
         state["outcome"] = {"plan": plan_name, "short_percent": round(max(short, 0.0), 1)}
         self.storm_publish()
 
+    def _storm_notice(self, status: str, window, floors: dict) -> None:
+        """The push notification of a storm: coming and going on are one problem (pushed once), over only on an explicit answer
+        (the warning ended, is gone, or is no longer one that counts). A warning that can't be read or an entity that is unavailable
+        says nothing, and a warning far ahead (later) is not a storm yet. Only the final status of the plan counts (storm_finish):
+        a plan without prices never finishes, and says nothing."""
+        if status in (STATUS_ACTIVE, STATUS_COMING):
+            def shown(value):
+                return value.strftime("%d/%m %H:%M") if isinstance(value, datetime.datetime) else "–"
+
+            self.notice(
+                "storm", True, level=window.level if window.level is not None else "–", start=shown(window.start), end=shown(window.end),
+                keep=f"{max(floors.values()):.0f}" if floors else "–",
+            )
+        elif status in (STATUS_EXPIRED, STATUS_NONE, STATUS_OFF, STATUS_WEAK, STATUS_OTHER):
+            self.notice("storm", False)
+        else:
+            self.notice("storm", None)  # later, unreadable, no start, invalid, entity unavailable: not judged (also not an earlier True)
+
     def storm_publish(self) -> None:
         """The state and attributes of sensor.<prefix>_storm_warning."""
         state = getattr(self, "storm_state", None)
@@ -111,6 +136,8 @@ class StormWarning:
         first = min(floors) if floors else None
         status = state.get("status") or window.status
         self.set_state("storm_warning", status)
+        if state.get("status"):  # (the final status of the plan: storm_setup and storm_outcome publish the window's own, not final)
+            self._storm_notice(status, window, floors)
         outcome = state.get("outcome") or {}
 
         tz = self._snap.tz if self._snap is not None else None

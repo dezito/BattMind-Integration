@@ -277,6 +277,7 @@
           "menu_prices": "Electricity prices",
           "menu_solar": "Solar panels, weather and storm warning",
           "menu_advanced": "Planning and data storage",
+          "menu_notifications": "Push notifications",
           "backup": "Backup (export / import)"
         }
       },
@@ -484,6 +485,26 @@
         "data_description": {
           "storm_warning_entity_id": "MeteoAlarm's binary sensor for your region. Empty = off: the function, its sensor and its number are not made.",
           "storm_min_level": "2 = yellow, 3 = orange, 4 = red."
+        }
+      },
+      "notifications": {
+        "title": "Push notifications",
+        "description": "Send push notifications through the notify services or entities you choose (for example the mobile app). Leave the list empty to send none. A message goes when something changes: a problem starts (and another when it is over), a storm warning, something BattMind has learned, or once a day a summary of tomorrow's plan. Missing or unclear data never says that a problem is over. The messages are in the language you chose for BattMind.",
+        "data": {
+          "notify_list": "Send through",
+          "notify_problems": "Problems",
+          "notify_storm": "Storm warning",
+          "notify_learning": "Learning finished",
+          "notify_summary": "Daily summary",
+          "notify_summary_hour": "Send the summary from (hour)"
+        },
+        "data_description": {
+          "notify_list": "Notify services (notify.mobile_app_...) and notify entities. Empty = no push notifications.",
+          "notify_problems": "The battery level is lost, the plan is not followed, sensors are missing, frozen or unavailable, the battery is stopped by its temperature, or BattMind fails to start, to calculate or to save the charging history. A message when it is over as well.",
+          "notify_storm": "A storm warning is coming or going on, and when it is over.",
+          "notify_learning": "Once each: the consumption forecast, the efficiency curves and the measured capacity are ready.",
+          "notify_summary": "Once a day: what is planned for tomorrow (grid charging and sale). Sent when tomorrow's prices are known.",
+          "notify_summary_hour": "The summary goes at the end of the first hour from this one on in which tomorrow's prices are known (0-23)."
         }
       },
       "advanced": {

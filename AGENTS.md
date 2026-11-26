@@ -270,6 +270,20 @@ private agent memory). Update or remove a note when it stops being true.
   taper, capacity) and the capacity summary's reference stay on the configured size, so the measuring never feeds on
   itself; the what-if has no measurements and uses the configured or scenario size. The size is in `plan_inputs_hash`.
   Do not add another reader of `analysis_db["capacity"]`; new code uses `battery_size_used()` or `percentage_to_kwh()`.
+- Push notifications (`management/notifier.py`, option `notify_list` and the `notify_*` categories) only inform. A source reports a
+  condition as True (holds), False (explicitly over) or None (not evaluated this time: nothing changes); unknown or missing data
+  is never False, and None never sends "resolved" (`notice_ready` too: None is "not clear", e.g. an inconsistent capacity, neither
+  ready nor reset). The engine reports with `notice()` / `notice_ready()` in its job result (`JobResult.conditions`, `ready`,
+  `summary`), the health checks through `HealthWatcher._push()` (a repair raised or deleted), the coordinator for the start and the
+  hour end. A push counts as sent only after a notify service took it; what was sent is kept in the store
+  `battmind.<entry_id>.notices` (not in the backup or the debug export). A timer (`PushNotifier.start()`) tries what is pending
+  again every minute, so a failed start or a notify service that registers late is retried without a job. Debounce is by duration
+  per kind (`DEBOUNCE`), never by a pause between sends, so a "resolved" is never swallowed. What is already ready when the notifier
+  first sees it is only noted, never announced. Every problem has one source: the battery level is `battery_level_lost` (also left
+  out of the `entities_missing` push), `sensors_unavailable` is only the house consumption and the battery power sensor (not the
+  prices, not the solar sensors). The daily summary shows the plan as it is now, never a savings figure. The what-if and replay
+  engines never feed the notifier. The PyScript import never turns the push notifications on (`NOT_IMPORTED_OPTIONS`). Keep
+  `notify_list` at the top level of the config: the debug export redacts it by that key.
 
 ### HACS default-catalog review
 

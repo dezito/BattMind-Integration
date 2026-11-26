@@ -102,6 +102,10 @@ class Planning:
         current_rules: dict = {}
         try:
             self.full_charge_check()  # before the plan: a full battery ends a due full charge
+            level_entity = self.config["home"]["entity_ids"]["powerwall_battery_level_entity_id"]
+            if level_entity:
+                # push notification: no level for BATTERY_LEVEL_MAX_AGE, so the plan runs on the fail-safe 100 % (get_battery_level)
+                self.notice("battery_level_lost", self.get_battery_level_or_none() is None, entity=level_entity)
             self.cheap_grid_charge_hours(force_recalculate=force_recalculate)
 
             temperature_entity = self.config["home"]["entity_ids"].get("battery_temperature_entity_id", "")
@@ -115,6 +119,8 @@ class Planning:
             temperature_min = self.config["solar"]["battery_temperature_min"]
             temperature_max = self.config["solar"]["battery_temperature_max"]
 
+            # push notification: the battery is stopped because of its temperature (unavailable is a stop too: nothing is known)
+            stopped_by_temperature = bool(temperature_entity) and (temperature is None or not temperature_min <= temperature <= temperature_max)
             if temperature_entity and temperature is None:
                 action = "battery_stopped"
                 rule = t("ui.charge_if_needed.temperature_unavailable")
@@ -157,6 +163,9 @@ class Planning:
                 action = "force_solar_only_charging"
                 rule = t("ui.charge_if_needed.not_charging")
 
+            if temperature_entity:
+                self.notice("temperature_stop", stopped_by_temperature, detail=rule.split("\n")[0] if stopped_by_temperature else "")
+
             if (supported := self.supported_action(action)) != action:
                 # the rules don't plan an action the inverter can't run, this only catches leftovers
                 _LOGGER.debug("Battery action %s is not supported by the inverter, running %s", action, supported)
@@ -195,6 +204,7 @@ class Planning:
                 _LOGGER.info("Battery action: %s (%s)", action, rule.split("\n")[0])
             self.last_powerwall_action = action
             self.error_count = 0
+            self.notice("job_failing", False)
         except Exception as err:  # noqa: BLE001
             _LOGGER.exception("Error running charge_if_needed()")
             self.notify(
@@ -205,6 +215,7 @@ class Planning:
             self.error_count += 1
             if self.error_count >= 3 and self._out is not None:
                 self._out.request_reload = True
+                self.notice("job_failing", True, error=f"{err}"[:300])  # (pushed once: a reload loop that keeps failing is one problem)
             error_rule = f"{emoji_parse({'error': True})}{t('ui.charge_if_needed.calculation_error', error=err)}"
             self.set_charging_rule(error_rule)
             try:

@@ -790,8 +790,11 @@ def test_published_loss_leaves_out_outliers_and_old_scores() -> None:
     assert analysis["loss"]["last_30"] == pytest.approx(0.25)
     month = next(row for row in analysis["months"] if row["month"] == jumped[:7])
     assert month["loss_outliers"] == 1
-    # only the score of the current hindsight model
-    assert [row["date"] for row in analysis["scores"]] == [(DAY - datetime.timedelta(days=1)).isoformat()]
+    # the score of an older hindsight model is shown marked, only the current one counts in the 30 days
+    old, current = analysis["scores"]
+    assert (old["date"], old.get("old"), current["date"], current.get("old")) == (
+        (DAY - datetime.timedelta(days=2)).isoformat(), True, (DAY - datetime.timedelta(days=1)).isoformat(), None,
+    )
     assert analysis["score_30"] == pytest.approx(2 / 3, abs=0.001)
 
 
