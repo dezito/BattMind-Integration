@@ -55,6 +55,33 @@ def test_every_language_renders_without_placeholders(language: str) -> None:
     assert [view["path"] for view in views] == ["overview", "settings", "analysis", "what-if"]
 
 
+@pytest.mark.parametrize("language", list(LANGUAGES))
+def test_the_analysis_sections_are_grouped_under_full_width_headings(language: str) -> None:
+    """One analysis view: results, the plan, forecasts, the battery, then the history. A group heading is a span 4 title."""
+    texts = load_texts(language)
+    analysis = next(view for view in yaml.safe_load(rendered(language))["views"] if view["path"] == "analysis")
+    assert "dense_section_placement" not in analysis  # dense placement could pull a section above its group heading
+    groups: list[tuple[str, list[str]]] = []
+    for section in analysis["sections"]:
+        cards = section["cards"]
+        if len(cards) == 1 and cards[0]["type"] == "heading" and cards[0].get("heading_style") == "title":
+            assert section["column_span"] == 4
+            groups.append((cards[0]["heading"], []))
+            continue
+        heading = next(card["heading"] for card in cards if card["type"] == "heading")
+        if heading == texts["dashboard.section_history"]:
+            groups.append(("history", []))  # the History has its own heading and ends the last group
+        else:
+            groups[-1][1].append(heading)
+    expected = [
+        ("group_results", ["section_economy", "section_rules", "section_score", "section_cycles", "section_sufficiency"]),
+        ("group_plan", ["section_planned", "section_expensive"]),
+        ("group_forecasts", ["section_forecast", "consumption_forecast", "section_solar_forecast", "section_price_forecast"]),
+        ("group_battery", ["section_loss", "section_efficiency_curve"]),
+    ]
+    assert groups == [(texts[f"dashboard.{group}"], [texts[f"dashboard.{key}"] for key in keys]) for group, keys in expected] + [("history", [])]
+
+
 @pytest.mark.parametrize(
     ("platform", "forecast"),
     [("forecast_solar", "sensor.energy_production_today"), ("helios_forecast", "sensor.helios_forecast_power_now")],
@@ -861,3 +888,26 @@ async def test_sidebar_icon_follows_the_dashboard_icon_option(hass: HomeAssistan
     await hass.async_block_till_done(wait_background_tasks=True)
     assert hass.data["frontend_panels"][f"{PREFIX}-dashboard"].sidebar_icon == "mdi:home-battery"
     await async_unload_and_join(hass, entry)
+
+
+def _group(title: str) -> dict:
+    return {"type": "grid", "column_span": 4, "cards": [{"type": "heading", "heading": title, "heading_style": "title"}]}
+
+
+def _section(title: str, icon: str = "mdi:x") -> dict:
+    return {"type": "grid", "column_span": 2, "cards": [{"type": "heading", "heading": title, "icon": icon}, {"type": "markdown", "content": "x"}]}
+
+
+def test_a_group_heading_never_stands_alone() -> None:
+    """Without a section below it (before the next group or the History) the group heading goes; other views are left alone."""
+    from custom_components.battmind.management.dashboard_build import _drop_empty_groups
+
+    history = _section("History", "mdi:chart-line")
+    graphs = {"type": "grid", "cards": [{"type": "history-graph"}]}  # (a History whose heading was dropped as empty)
+    sections = [_group("A"), _section("a1"), _group("B"), _group("C"), _section("c1"), _group("D"), history, _group("E")]
+    kept = _drop_empty_groups({"views": [{"path": "analysis", "sections": sections}]})["views"][0]["sections"]
+    assert [s["cards"][0]["heading"] for s in kept] == ["A", "a1", "C", "c1", "History"]
+    kept = _drop_empty_groups({"path": "analysis", "sections": [_group("A"), _section("a1"), _group("B"), graphs]})["sections"]
+    assert [s["cards"][0].get("heading") for s in kept] == ["A", "a1", None]
+    other = {"path": "what-if", "sections": [_group("A"), _group("B")]}
+    assert _drop_empty_groups(other) == other

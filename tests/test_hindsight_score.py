@@ -397,13 +397,17 @@ def test_a_score_of_an_older_model_is_shown_marked_by_its_own_formula_outside_th
     days[day(3)] = {"final": True, "score": {"actual": 7.0, "no_battery": 9.0, "optimal": 5.0}}  # version 1 had no "v"
     days[day(4)] = {"final": True, "score": {"actual": 7.0, "no_battery": None, "optimal": 5.0, "v": 2}}  # not its numbers
     days[day(5)] = {"final": True, "no_score": "version"}  # hours of an older version: no score at all
-    result = engine.run_job(snapshot(datetime.datetime.combine(DAY, datetime.time(0, 5)), 50.0), engine.publish_analysis)
+    # a model with optimal_neutral that is no longer the current one: its own formula (8 possible, 2 lost: 6 saved)
+    days[day(6)] = {"final": True, "score": {"actual": 10.0, "no_battery": 18.0, "optimal": 8.0, "optimal_neutral": 10.0, "noise": 0.1, "v": SCORE_VERSION - 1}}
+    days[day(7)] = {"final": True, "score": {"actual": 10.0, "no_battery": 18.0, "optimal": 8.0, "v": SCORE_VERSION}}  # current without its numbers
+    result =engine.run_job(snapshot(datetime.datetime.combine(DAY, datetime.time(0, 5)), 50.0), engine.publish_analysis)
     analysis = result.attributes["analysis"]
     rows = {row["date"]: row for row in analysis["scores"]}
     assert rows[day(2)] == {"date": day(2), "saved": 8.0, "possible": 10.0, "score": 0.8, "old": True}
     assert rows[day(3)] == {"date": day(3), "saved": 2.0, "possible": 4.0, "score": 0.5, "old": True}
-    assert day(4) not in rows and day(5) not in rows
-    assert analysis["score_missing"] == {"version": 2}
+    assert rows[day(6)] == {"date": day(6), "saved": 6.0, "possible": 8.0, "score": 0.75, "old": True}
+    assert day(4) not in rows and day(5) not in rows and day(7) not in rows
+    assert analysis["score_missing"] == {"version": 3}
     # only the current model counts: 6 saved of 8 possible
     assert analysis["score_30"] == pytest.approx(0.75)
     assert analysis["score_days"] == 1

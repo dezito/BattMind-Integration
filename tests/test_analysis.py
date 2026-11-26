@@ -813,3 +813,24 @@ def test_a_score_of_an_older_model_is_calculated_again_while_the_hours_are_kept(
     score = engine.analysis_db["days"][DAY.isoformat()]["score"]
     assert score["v"] == SCORE_VERSION
     assert score["optimal"] <= score["actual"] != 9.0
+
+
+def test_a_score_of_an_older_model_is_kept_when_its_hours_are_of_an_older_version() -> None:
+    engine = started_engine(datetime.datetime.combine(DAY, datetime.time(0, 5)), 20.0)
+    _run_day(engine)
+    old = {"actual": 7.0, "no_battery": 9.0, "optimal": 5.0, "v": 2}
+    engine.analysis_db["days"][DAY.isoformat()]["score"] = dict(old)
+    for key, row in engine.analysis_db["hours"].items():
+        if key.startswith(DAY.isoformat()):
+            row["sv"] = 2  # recorded by the older version: the day can not be scored again
+
+    now = datetime.datetime.combine(DAY + datetime.timedelta(days=1), datetime.time(0, 59))
+    snap = snapshot(now, _level(23))
+    snap.buffers = _buffers()
+    result = engine.run_job(snap, engine.hour_end, now.replace(minute=0))
+    assert result.error is None
+
+    day = engine.analysis_db["days"][DAY.isoformat()]
+    assert day["score"] == old and "no_score" not in day
+    row = next(row for row in result.attributes["analysis"]["scores"] if row["date"] == DAY.isoformat())
+    assert row == {"date": DAY.isoformat(), "saved": 2.0, "possible": 4.0, "score": 0.5, "old": True}
