@@ -294,6 +294,17 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         if self._out is not None:
             self._out.notifications.append((message, title, notification_id or f"{self.name}_notification"))
 
+    def notice(self, kind: str, active: bool | None, **params: Any) -> None:
+        """A push notification condition (management/notifier.py): True it holds, False it is over (an explicit answer), None it was
+        not evaluated. Only the live engine's jobs are read: the what-if and replay engines are never published."""
+        if self._out is not None:
+            self._out.conditions[kind] = (active, params)
+
+    def notice_ready(self, kind: str, ready: bool | None) -> None:
+        """Something learned (a push notification once, when it becomes ready). None: not clear this time, nothing changes."""
+        if self._out is not None:
+            self._out.ready[kind] = None if ready is None else bool(ready)
+
     def set_charging_rule(self, text: str = "") -> None:
         self.set_state("current_charging_rule", format_charging_rule(text))
 

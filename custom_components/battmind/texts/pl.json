@@ -86,6 +86,74 @@
     }
   },
   "ui": {
+    "push": {
+      "battery_level_lost": {
+        "title": "BattMind: utracono poziom baterii",
+        "problem": "Poziom baterii ({entity}) nie podał liczby od 2 godzin. Plan zakłada pełną baterię, dopóki nie wróci.",
+        "resolved": "Poziom baterii wrócił."
+      },
+      "plan_not_followed": {
+        "title": "BattMind: plan nie jest wykonywany",
+        "problem": "Bateria nie zrobiła tego, o co prosił plan, w {mismatches} z ostatnich {checked} sprawdzonych godzin (zgodnych: {percent} %). Sprawdź automatyzację wykonującą akcje.",
+        "resolved": "Bateria znów wykonuje plan."
+      },
+      "entities_missing": {
+        "title": "BattMind: brakuje czujników",
+        "problem": "Czujnika potrzebnego BattMind brakuje lub jest wyłączony:\n{entities}",
+        "resolved": "Wszystkie czujniki potrzebne BattMind są znów dostępne."
+      },
+      "consumption_frozen": {
+        "title": "BattMind: zużycie domu zamrożone",
+        "problem": "Czujnik zużycia domu {entity} pokazuje {value} od {since}. Zamrożona wartość daje błędny plan.",
+        "resolved": "Czujnik zużycia domu znów się zmienia."
+      },
+      "sensors_unavailable": {
+        "title": "BattMind: czujniki niedostępne",
+        "problem": "Te czujniki są niedostępne od ponad 30 minut:\n{entities}",
+        "resolved": "Czujniki są znów dostępne."
+      },
+      "temperature_stop": {
+        "title": "BattMind: bateria zatrzymana",
+        "problem": "{detail}",
+        "resolved": "Temperatura baterii wróciła do zakresu, bateria znów pracuje."
+      },
+      "startup_failed": {
+        "title": "BattMind: nie udało się wystartować",
+        "problem": "BattMind zatrzymał się podczas startu: {error}",
+        "resolved": "BattMind wystartował."
+      },
+      "job_failing": {
+        "title": "BattMind: nie można obliczyć planu",
+        "problem": "Nie udało się obliczyć planu trzy razy z rzędu ({error}). BattMind przeładowuje się.",
+        "resolved": "Plan jest znów obliczany."
+      },
+      "history_failing": {
+        "title": "BattMind: historia ładowania zawodzi",
+        "problem": "Historii ładowania z ostatniej godziny nie udało się zapisać po trzech próbach: {error}",
+        "resolved": "Historia ładowania jest znów zapisywana."
+      },
+      "storm": {
+        "title": "BattMind: ostrzeżenie o burzy",
+        "problem": "Ostrzeżenie o burzy (poziom {level}) od {start} do {end}. Bateria jest na to utrzymywana na poziomie {keep} % lub wyższym.",
+        "resolved": "Ostrzeżenie o burzy minęło."
+      },
+      "learning_consumption": {
+        "title": "BattMind nauczył się Twojego zużycia",
+        "once": "Jest dość historii do prognozy zużycia. Reguły sprzedające z baterii i blokujące ładowanie solarne działają teraz."
+      },
+      "learning_efficiency": {
+        "title": "BattMind zmierzył sprawność",
+        "once": "BattMind zmierzył sprawność Twojej baterii przy różnych mocach (zobacz analizę)."
+      },
+      "learning_capacity": {
+        "title": "BattMind zmierzył pojemność",
+        "once": "BattMind zmierzył użyteczną pojemność Twojej baterii (zobacz analizę). Plan liczy z nią tylko przy włączonym *Używaj zmierzonej pojemności baterii*."
+      },
+      "daily_summary": {
+        "title": "BattMind: plan na {day}",
+        "summary": "Ładowanie z sieci {grid} kWh ({hours}), sprzedaż {sale} kWh. Bateria ma teraz {level} %. Plan zmienia się wraz z cenami i prognozą."
+      }
+    },
     "common": {
       "valuta": "zł",
       "valuta_kwh": "zł/kWh",
@@ -791,7 +859,7 @@
     "day": "Dzień",
     "saved": "Zaoszczędzono",
     "possible": "Możliwe",
-    "score_explain": "Pokazuje, jaka część możliwej oszczędności została osiągnięta. **Możliwe** to to, co bateria mogła zaoszczędzić tego dnia, obliczone po fakcie: koszt bez baterii minus najniższy możliwy koszt przy rzeczywistym zużyciu, produkcji słonecznej i cenach z tego dnia, stratach, zużyciu i wymaganiach dotyczących zysku, przy czym bateria kończy dzień tam, gdzie go zaczęła. **Zaoszczędzono** to wartość możliwa minus to, co plan stracił w porównaniu z najlepszym planem, który daje baterii netto tyle samo energii co ten dzień. Energia zostawiona w baterii na jutro albo wzięta z wczoraj nie jest więc ani zyskiem, ani stratą. Energia, którą ignorowani odbiorcy i ładowarki Cable Juice Planner pobrali ze słońca lub z baterii, oraz własny pobór baterii w trybie czuwania nie wchodzą do wyniku. Dzień dostaje wynik tylko wtedy, gdy każda godzina jest zmierzona z rzeczywistymi cenami i zmierzonym poziomem baterii; dni bez wyniku i powód podano pod tabelą. Dzień z bardzo małą możliwą oszczędnością pokazuje – zamiast wyniku. Błędy prognoz są wliczone.",
+    "score_explain": "Pokazuje, jaka część możliwej oszczędności została osiągnięta. **Możliwe** to to, co bateria mogła zaoszczędzić tego dnia, obliczone po fakcie: koszt bez baterii minus najniższy możliwy koszt przy rzeczywistym zużyciu, produkcji słonecznej i cenach z tego dnia, stratach, zużyciu i wymaganiach dotyczących zysku, przy czym bateria kończy dzień tam, gdzie go zaczęła. **Zaoszczędzono** to wartość możliwa minus to, co plan stracił w porównaniu z najlepszym planem, który daje baterii netto tyle samo energii co ten dzień. Energia zostawiona w baterii na jutro albo wzięta z wczoraj nie jest więc ani zyskiem, ani stratą. Energia, którą ignorowani odbiorcy i ładowarki Cable Juice Planner pobrali ze słońca lub z baterii, oraz własny pobór baterii w trybie czuwania nie wchodzą do wyniku. Dzień dostaje wynik tylko wtedy, gdy każda godzina jest zmierzona z rzeczywistymi cenami i zmierzonym poziomem baterii; dni bez wyniku i powód podano pod tabelą. Dzień z bardzo małą możliwą oszczędnością pokazuje – zamiast wyniku. Błędy prognoz są wliczone. Dzień oceniony starszą wersją obliczeń jest pokazany z 🔄 według ówczesnego wzoru i nie jest wliczany do 30 dni.",
     "score_missing_intro": "Dni bez wyniku w ostatnich 30 dniach:",
     "score_no_hours": "godzina nie została zapisana",
     "score_no_gap": "czujnik przestał działać",
@@ -801,6 +869,7 @@
     "score_no_battery": "nie można było zamodelować baterii",
     "score_no_history": "starszy dzień bez danych godzinowych",
     "score_no_version": "dzień oceniony starszym modelem",
+    "score_old_note": "🔄 = obliczono starszą wersją wyniku. Nie można go porównać z nowszymi dniami i nie jest wliczany do 30 dni.",
     "section_planned": "Plan a rzeczywistość",
     "planned_summary_1": "Planowane ładowanie z sieci",
     "planned_summary_2": "naładowano",

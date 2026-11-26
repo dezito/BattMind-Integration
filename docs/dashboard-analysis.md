@@ -379,6 +379,12 @@ sensor itself, never held over from before it was lost. Days from the long-term 
 hourly prices and are not scored. Below the table the dashboard lists the days of the last 30 without a score and
 why.
 
+When the calculation of the score changes, a day scored by an older version keeps its stored figures: it is shown
+in the table with 🔄, by the formula of that version (version 1–2: saved is the cost without the battery minus the
+actual cost, possible is the cost without the battery minus the best possible cost). Those days cannot be compared
+with the newer ones, so they are not part of the 30 day figure, and they are not listed as days without a score. A
+day whose hours were recorded by an older version has no stored score and is still listed as one.
+
 A day that starts with a full battery and has no cheap hour left to charge in has little possible saving of its
 own: its use of yesterday's energy is not counted as a saving that day. The score of a single day can therefore
 jump; the 30 day figure adds saved and possible over all days.

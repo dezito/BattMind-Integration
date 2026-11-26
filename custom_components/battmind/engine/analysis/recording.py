@@ -5,8 +5,8 @@ import datetime
 import logging
 
 from ...const import HISTORY_BUFFER_HOURS
-from ...utils.capacity import add_capacity_measurements, clean_capacity
-from ...utils.efficiency import EFFICIENCY_BACKFILL_VERSION, add_efficiency_measurement, measure_efficiency
+from ...utils.capacity import add_capacity_measurements, capacity_summary, clean_capacity
+from ...utils.efficiency import EFFICIENCY_BACKFILL_VERSION, add_efficiency_measurement, measure_efficiency, measured_efficiency_steps
 from ...utils.taper import add_taper_measurement
 from .plan_check import hour_key
 from ...utils.helpers import days_between, reset_time_to_hour
@@ -33,6 +33,7 @@ class AnalysisRecording:
             self._analysis_record_efficiency()
             self._analysis_record_taper(timestamp.replace(minute=0, second=0, microsecond=0))
             self._analysis_record_capacity(timestamp.replace(minute=0, second=0, microsecond=0))
+            self._notice_hour_end(timestamp)
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Analysis of the hour %s failed", timestamp)
         self.publish_analysis()
@@ -365,18 +366,24 @@ class AnalysisRecording:
             del hours[key]
         self.mark_dirty("analysis")
 
-    def _analysis_record_plan(self, date: datetime.date) -> None:
-        """The evening before: grid charging, sale and solar surplus planned for date."""
+    def _plan_figures(self, date: datetime.date) -> tuple[dict, float, float, list[datetime.datetime]]:
+        """The plan of a date: its plan day ({} when the plan has none), the grid charging (kWh), the sale (kWh) and the times of the
+        charges. One calculation for the analysis (plans) and the daily push notification, so the two always show the same figures."""
         plan_day = next(
             (day for day in self.plan.values()
              if isinstance(day, dict) and isinstance(day.get("start_of_day"), datetime.datetime) and day["start_of_day"].date() == date),
             {},
         )
-        grid = sum(
-            _num(value.get("kWh")) for timestamp, value in self.charge_hours.items()
+        charges = [
+            (timestamp, _num(value.get("kWh"))) for timestamp, value in self.charge_hours.items()
             if isinstance(timestamp, datetime.datetime) and timestamp.date() == date and isinstance(value, dict)
-        )
+        ]
         sale = sum(_num(value.get("kwh")) for value in plan_day.get("force_discharge_timestamps", {}).values() if isinstance(value, dict))
+        return plan_day, sum(kwh for _, kwh in charges), sale, sorted(timestamp for timestamp, kwh in charges if kwh > 0.0)
+
+    def _analysis_record_plan(self, date: datetime.date) -> None:
+        """The evening before: grid charging, sale and solar surplus planned for date."""
+        _, grid, sale, _ = self._plan_figures(date)
         entry = {"grid": round(grid, 2), "sale": round(sale, 2)}
         prediction = self.solar_prediction_db.get(1) or {}
         if self.is_solar_configured() and prediction.get("total"):
@@ -385,6 +392,63 @@ class AnalysisRecording:
             entry["solar_forecast"] = round(sum(prediction["total_forecast"]), 2) if prediction.get("total_forecast") else None
         self.analysis_db["plans"][date.isoformat()] = entry
         self.mark_dirty("analysis")
+
+    def _notice_hour_end(self, timestamp: datetime.datetime) -> None:
+        """What the push notifications read at the hour end: what was learned, and the daily summary. Never fails the hour."""
+        try:
+            self.notice_ready("learning_consumption", not self.is_learning())
+            database = self.analysis_db.get("efficiency") or {}
+            self.notice_ready(
+                "learning_efficiency",
+                all(any(row["used"] for row in measured_efficiency_steps(database.get(direction), direction == "charging")) for direction in ("charging", "discharging")),
+            )
+            summary = capacity_summary(self.analysis_db.get("capacity"), self.config["solar"]["powerwall_battery_size"])
+            # (inconsistent is under suspicion, not gone: neither ready nor reset)
+            self.notice_ready(
+                "learning_capacity",
+                None if summary["status"] == "inconsistent" else summary["charging"]["kwh"] is not None and summary["discharging"]["kwh"] is not None,
+            )
+            self._notice_summary(timestamp)
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Could not prepare the push notifications of the hour %s", timestamp)
+
+    def _notice_summary(self, timestamp: datetime.datetime) -> None:
+        """The daily summary: from the configured hour, once tomorrow's prices are all real (the plan is not a guess at the prices),
+        the plan of tomorrow as it is now (what is planned, no savings: a plan changes with the prices and the forecast). The
+        notifier sends it once per date."""
+        if not (self.config.get("notify_summary") and self.config.get("notify_list")):
+            return
+        if timestamp.hour < int(self.config.get("notify_summary_hour", 20)) or self._out is None:
+            return
+        provider = self.price_provider
+        tomorrow = timestamp.date() + datetime.timedelta(days=1)
+        tz = self._snap.tz if self._snap is not None else None
+        # every hour of tomorrow has a real price: the prices are per naive local hour, so the repeated hour of the day the clocks go
+        # back is one of them (24 on that day, 23 on the day they go forward)
+        if provider is None or tz is None:
+            return
+        known = {hour for hour in hourly_prices(provider.get_buy_real_prices()) if hour.date() == tomorrow}
+        if len(known) < len(self._hour_keys(tomorrow.isoformat(), tz)):
+            return
+        plan_day, grid, sale, times = self._plan_figures(tomorrow)
+        if not plan_day:
+            return
+        ranges: list[str] = []
+        hours = sorted({time.replace(minute=0, second=0, microsecond=0) for time in times})
+        for hour in hours:
+            if ranges and hour == ranges[-1][1] + datetime.timedelta(hours=1):
+                ranges[-1][1] = hour
+            else:
+                ranges.append([hour, hour])
+        level = self.get_battery_level_or_none(stale_ok=False)
+        self._out.summary = {
+            "date": tomorrow.isoformat(),
+            "day": tomorrow.strftime("%d/%m"),
+            "grid": f"{grid:.1f}",
+            "hours": ", ".join(f"{start:%H:%M}–{(end + datetime.timedelta(hours=1)):%H:%M}" for start, end in ranges) or "–",
+            "sale": f"{sale:.1f}",
+            "level": "–" if level is None else f"{level:.0f}",
+        }
 
     def _analysis_rule_days(self) -> None:
         """Charged/discharged per rule and day from the hourly charging history entries.

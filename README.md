@@ -209,7 +209,8 @@ See [FAQ and troubleshooting](docs/faq-troubleshooting.md). In short:
 
 1. **Settings → Devices & services → BattMind**: delete each entry with **⋮ → Delete**. BattMind first saves the
    entry's data to `battmind_backups/<prefix>_<time>_deleted.json`, so it can be imported again in a new entry, and then
-   removes its databases, its health-check data (`.storage/battmind.<entry id>.health`), its repairs and its dashboard.
+   removes its databases, its health-check data (`.storage/battmind.<entry id>.health`), its push notification state
+   (`.storage/battmind.<entry id>.notices`), its repairs and its dashboard.
 2. Delete the automations that control the home battery, or switch them to other entities: they stop working without
    BattMind's entities.
 3. **HACS** → BattMind → ⋮ → **Remove**, then restart Home Assistant.

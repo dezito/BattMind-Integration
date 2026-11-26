@@ -380,6 +380,30 @@ def test_the_published_score_uses_possible_at_the_start_level_and_counts_the_day
     rows = {row["date"]: row for row in analysis["scores"]}
     assert (rows[day(1)]["saved"], rows[day(1)]["possible"], rows[day(1)]["score"]) == (6.0, 8.0, 0.75)
     assert rows[day(2)]["score"] is None
-    assert day(3) not in rows
-    assert analysis["score_missing"] == {"version": 1, "gap": 2, "history": 1}
+    # an older model: shown by its own formula and marked, not a day without a score, not in the 30 days
+    assert rows[day(3)] == {"date": day(3), "saved": 0.0, "possible": 0.0, "score": None, "old": True}
+    assert "old" not in rows[day(1)]
+    assert analysis["score_missing"] == {"gap": 2, "history": 1}
     assert analysis["score_30"] == pytest.approx((6.0 + (0.3 - 0.1)) / (8.0 + 0.3), abs=0.01)
+    assert analysis["score_days"] == 2
+
+
+def test_a_score_of_an_older_model_is_shown_marked_by_its_own_formula_outside_the_30_days() -> None:
+    engine = _engine()
+    days = engine.analysis_db["days"]
+    day = lambda back: (DAY - datetime.timedelta(days=back)).isoformat()  # noqa: E731
+    days[day(1)] = {"final": True, "score": {"actual": 10.0, "no_battery": 18.0, "optimal": 8.0, "optimal_neutral": 10.0, "v": SCORE_VERSION}}
+    days[day(2)] = {"final": True, "score": {"actual": 12.0, "no_battery": 20.0, "optimal": 10.0, "v": 2}}  # (20-12)/(20-10)
+    days[day(3)] = {"final": True, "score": {"actual": 7.0, "no_battery": 9.0, "optimal": 5.0}}  # version 1 had no "v"
+    days[day(4)] = {"final": True, "score": {"actual": 7.0, "no_battery": None, "optimal": 5.0, "v": 2}}  # not its numbers
+    days[day(5)] = {"final": True, "no_score": "version"}  # hours of an older version: no score at all
+    result = engine.run_job(snapshot(datetime.datetime.combine(DAY, datetime.time(0, 5)), 50.0), engine.publish_analysis)
+    analysis = result.attributes["analysis"]
+    rows = {row["date"]: row for row in analysis["scores"]}
+    assert rows[day(2)] == {"date": day(2), "saved": 8.0, "possible": 10.0, "score": 0.8, "old": True}
+    assert rows[day(3)] == {"date": day(3), "saved": 2.0, "possible": 4.0, "score": 0.5, "old": True}
+    assert day(4) not in rows and day(5) not in rows
+    assert analysis["score_missing"] == {"version": 2}
+    # only the current model counts: 6 saved of 8 possible
+    assert analysis["score_30"] == pytest.approx(0.75)
+    assert analysis["score_days"] == 1

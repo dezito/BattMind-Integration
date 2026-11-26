@@ -86,6 +86,74 @@
     }
   },
   "ui": {
+    "push": {
+      "battery_level_lost": {
+        "title": "BattMind: Batteriestand verloren",
+        "problem": "Der Batteriestand ({entity}) hat seit 2 Stunden keine Zahl geliefert. Der Plan geht von einer vollen Batterie aus, bis er zurück ist.",
+        "resolved": "Der Batteriestand ist wieder da."
+      },
+      "plan_not_followed": {
+        "title": "BattMind: der Plan wird nicht befolgt",
+        "problem": "Die Batterie tat in {mismatches} der letzten {checked} geprüften Stunden nicht, was der Plan verlangte ({percent} % passten). Prüfen Sie die Automation, die die Aktionen ausführt.",
+        "resolved": "Die Batterie folgt dem Plan wieder."
+      },
+      "entities_missing": {
+        "title": "BattMind: Sensoren fehlen",
+        "problem": "Ein Sensor, den BattMind braucht, fehlt oder ist deaktiviert:\n{entities}",
+        "resolved": "Alle Sensoren, die BattMind braucht, sind wieder da."
+      },
+      "consumption_frozen": {
+        "title": "BattMind: Hausverbrauch eingefroren",
+        "problem": "Der Hausverbrauchssensor {entity} zeigt seit {since} {value}. Ein eingefrorener Wert ergibt einen falschen Plan.",
+        "resolved": "Der Hausverbrauchssensor bewegt sich wieder."
+      },
+      "sensors_unavailable": {
+        "title": "BattMind: Sensoren nicht verfügbar",
+        "problem": "Diese Sensoren sind seit mehr als 30 Minuten nicht verfügbar:\n{entities}",
+        "resolved": "Die Sensoren sind wieder verfügbar."
+      },
+      "temperature_stop": {
+        "title": "BattMind: die Batterie ist gestoppt",
+        "problem": "{detail}",
+        "resolved": "Die Batterietemperatur ist wieder im Bereich, die Batterie läuft wieder."
+      },
+      "startup_failed": {
+        "title": "BattMind: Start fehlgeschlagen",
+        "problem": "BattMind ist beim Start gestoppt: {error}",
+        "resolved": "BattMind ist gestartet."
+      },
+      "job_failing": {
+        "title": "BattMind: der Plan kann nicht berechnet werden",
+        "problem": "Der Plan konnte dreimal hintereinander nicht berechnet werden ({error}). BattMind lädt sich neu.",
+        "resolved": "Der Plan wird wieder berechnet."
+      },
+      "history_failing": {
+        "title": "BattMind: der Ladeverlauf schlägt fehl",
+        "problem": "Der Ladeverlauf der letzten Stunde konnte nach drei Versuchen nicht gespeichert werden: {error}",
+        "resolved": "Der Ladeverlauf wird wieder gespeichert."
+      },
+      "storm": {
+        "title": "BattMind: Sturmwarnung",
+        "problem": "Sturmwarnung (Stufe {level}) von {start} bis {end}. Die Batterie wird dafür auf {keep} % oder mehr gehalten.",
+        "resolved": "Die Sturmwarnung ist vorbei."
+      },
+      "learning_consumption": {
+        "title": "BattMind hat Ihren Verbrauch gelernt",
+        "once": "Es gibt genug Verlauf für die Verbrauchsprognose. Die Regeln, die aus der Batterie verkaufen und Solarladen blockieren, laufen jetzt."
+      },
+      "learning_efficiency": {
+        "title": "BattMind hat den Wirkungsgrad gemessen",
+        "once": "BattMind hat den Wirkungsgrad Ihrer Batterie bei verschiedenen Leistungen gemessen (siehe die Analyse)."
+      },
+      "learning_capacity": {
+        "title": "BattMind hat die Kapazität gemessen",
+        "once": "BattMind hat die nutzbare Kapazität Ihrer Batterie gemessen (siehe die Analyse). Der Plan rechnet nur damit, wenn *Gemessene Batteriekapazität verwenden* an ist."
+      },
+      "daily_summary": {
+        "title": "BattMind: Plan für {day}",
+        "summary": "Netzladung {grid} kWh ({hours}), Verkauf {sale} kWh. Die Batterie steht jetzt bei {level} %. Der Plan ändert sich mit den Preisen und der Prognose."
+      }
+    },
     "common": {
       "valuta": "€",
       "valuta_kwh": "€/kWh",
@@ -791,7 +859,7 @@
     "day": "Tag",
     "saved": "Gespart",
     "possible": "Möglich",
-    "score_explain": "Zeigt, welcher Anteil der möglichen Ersparnis erreicht wurde. **Möglich** ist, was die Batterie an dem Tag hätte sparen können, nachträglich berechnet: die Kosten ohne Batterie minus die niedrigsten möglichen Kosten mit dem tatsächlichen Verbrauch, der Solarproduktion und den Preisen des Tages, Verlusten, Verschleiß und den Anforderungen an den Gewinn, wobei die Batterie den Tag dort beendet, wo sie ihn begonnen hat. **Gespart** ist das Mögliche minus das, was der Plan gegenüber dem besten Plan verloren hat, der der Batterie netto dieselbe Energie bringt wie der Tag. Energie, die für morgen in der Batterie blieb oder von gestern stammt, ist deshalb weder Gewinn noch Verlust. Energie, die ignorierte Verbraucher und Cable-Juice-Planner-Ladegeräte aus der Sonne oder der Batterie genommen haben, und der Standby-Verbrauch der Batterie selbst zählen nicht zum Score. Ein Tag bekommt nur dann einen Score, wenn jede Stunde mit echten Preisen und einem gemessenen Batteriestand gemessen wurde; die Tage ohne Score und der Grund stehen unter der Tabelle. Ein Tag mit sehr wenig möglicher Ersparnis zeigt – statt eines Scores. Prognosefehler zählen mit.",
+    "score_explain": "Zeigt, welcher Anteil der möglichen Ersparnis erreicht wurde. **Möglich** ist, was die Batterie an dem Tag hätte sparen können, nachträglich berechnet: die Kosten ohne Batterie minus die niedrigsten möglichen Kosten mit dem tatsächlichen Verbrauch, der Solarproduktion und den Preisen des Tages, Verlusten, Verschleiß und den Anforderungen an den Gewinn, wobei die Batterie den Tag dort beendet, wo sie ihn begonnen hat. **Gespart** ist das Mögliche minus das, was der Plan gegenüber dem besten Plan verloren hat, der der Batterie netto dieselbe Energie bringt wie der Tag. Energie, die für morgen in der Batterie blieb oder von gestern stammt, ist deshalb weder Gewinn noch Verlust. Energie, die ignorierte Verbraucher und Cable-Juice-Planner-Ladegeräte aus der Sonne oder der Batterie genommen haben, und der Standby-Verbrauch der Batterie selbst zählen nicht zum Score. Ein Tag bekommt nur dann einen Score, wenn jede Stunde mit echten Preisen und einem gemessenen Batteriestand gemessen wurde; die Tage ohne Score und der Grund stehen unter der Tabelle. Ein Tag mit sehr wenig möglicher Ersparnis zeigt – statt eines Scores. Prognosefehler zählen mit. Ein Tag, der mit einer älteren Version der Berechnung bewertet wurde, wird mit 🔄 nach der damaligen Formel gezeigt und zählt nicht zu den 30 Tagen.",
     "score_missing_intro": "Tage ohne Score in den letzten 30 Tagen:",
     "score_no_hours": "eine Stunde wurde nicht aufgezeichnet",
     "score_no_gap": "ein Sensor war ausgefallen",
@@ -801,6 +869,7 @@
     "score_no_battery": "die Batterie ließ sich nicht modellieren",
     "score_no_history": "ein älterer Tag ohne Stundendaten",
     "score_no_version": "ein Tag mit einer älteren Berechnung",
+    "score_old_note": "🔄 = mit einer älteren Version des Scores berechnet. Er ist nicht mit den neueren Tagen vergleichbar und zählt nicht zu den 30 Tagen.",
     "section_planned": "Geplant gegen tatsächlich",
     "planned_summary_1": "Geplantes Netzladen",
     "planned_summary_2": "geladen",

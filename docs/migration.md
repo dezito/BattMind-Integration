@@ -12,6 +12,8 @@ files but never changes them, and stores its own data in `.storage`.
      first start
    - if the old `input_boolean` / `input_number` / … `battmind_*` still exist, their values are copied to the
      new entities
+   - the `notify_list` of the PyScript version is not imported: the [push notifications](getting-started.md#push-notifications-optional)
+     are off until you choose a notify service on **Configure → Push notifications**
 2. **Run both side by side** (optional): choose a different prefix, e.g. `battmind_ha`. The setup rejects a
    prefix if the PyScript version already has entities with that name. Keep the new automation off while
    the PyScript version controls the battery, and compare the plans for a few days.
@@ -41,6 +43,7 @@ files but never changes them, and stores its own data in `.storage`.
 - Solar surplus always charges first, and the loss is split evenly between charging and discharging.
 - An [analysis](dashboard-analysis.md#analysis) of the economy and the planning.
 - Backup and restore of data and settings.
+- [Push notifications](getting-started.md#push-notifications-optional) of problems, a storm, what was learned and a daily summary.
 - The calculations run in their own thread, so Home Assistant isn't blocked.
 
 ## Fixes compared to the PyScript version

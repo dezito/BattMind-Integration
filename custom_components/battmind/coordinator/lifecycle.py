@@ -19,6 +19,7 @@ from ..const import DOMAIN, ENTITY_UNAVAILABLE_STATES
 from ..engine import BattMindEngine
 from ..management.dependency_checks import DependencyWatcher
 from ..management.health_checks import HealthWatcher
+from ..management.notifier import PushNotifier
 from ..prices import stromligning_entities_to_watch
 from ..utils.cjp import CJP_DOMAIN, cjp_charger_power_entities
 from ..utils.solcast import solcast_endings_for_days
@@ -58,6 +59,10 @@ class CoordinatorLifecycle:
         if self.config["home"]["ignore_cjp_chargers"]:
             self.entry.async_on_unload(async_dispatcher_connect(self.hass, SIGNAL_CONFIG_ENTRY_CHANGED, self._on_config_entry_changed))
 
+        # before the health checks and the first job: what was sent is known, so a restart does not send it again
+        self.notifier = PushNotifier(self.hass, self.entry.entry_id, self.prefix, self.config, self.t)
+        await self.notifier.async_load()
+        self.entry.async_on_unload(self.notifier.start())
         await self._async_start_health_checks(self._start_dependency_checks())
 
         ent_reg = er.async_get(self.hass)
@@ -96,6 +101,7 @@ class CoordinatorLifecycle:
             dependency.covered_entities,
             self.t,
             price_units=self._price_unit_problems,
+            notifier=self.notifier,
         )
         await watcher.async_load()
         watcher.start()
@@ -193,6 +199,8 @@ class CoordinatorLifecycle:
         self._what_if_executor.shutdown(wait=False, cancel_futures=True)
         self._executor.shutdown(wait=False, cancel_futures=True)
         await self._async_disable_file_log()
+        if self.notifier is not None:
+            await self.notifier.async_shutdown()
 
     async def _async_enable_file_log(self) -> None:
         log_path = self.hass.config.path(f"battmind_{self.prefix}.log")
@@ -294,21 +302,23 @@ class CoordinatorLifecycle:
             _LOGGER.exception("Error during BattMind startup")
             log_lines.append(f"⛔Error during startup: {err}")
             self.set_charging_rule(f"⛔{t('ui.init.script_stopped')}.\n{t('ui.init.check_log')}:\n{err}")
-            self._startup_failed_notification(log_lines)
+            self._startup_failed_notification(log_lines, str(err))
         else:
             if job_error:
                 self.set_charging_rule(f"⛔{t('ui.init.script_stopped')}.\n{t('ui.init.check_log')}:\n{job_error}")
-                self._startup_failed_notification(log_lines)
+                self._startup_failed_notification(log_lines, str(job_error))
             else:
                 # a successful start only goes to the log
                 persistent_notification.async_dismiss(self.hass, f"{self.prefix}_startup_notification")
+                self.notice("startup_failed", False)
         finally:
             for line in log_lines:
                 if line.strip("-# "):
                     _LOGGER.info(line.lstrip("#* ").replace("**", ""))
 
-    def _startup_failed_notification(self, log_lines: list[str]) -> None:
-        """A failed start stays visible until the next start (a successful one only goes to the log)."""
+    def _startup_failed_notification(self, log_lines: list[str], error: str = "") -> None:
+        """A failed start stays visible until the next start (a successful one only goes to the log), and is pushed."""
+        self.notice("startup_failed", True, error=error[:300])
         persistent_notification.async_create(
             self.hass,
             "\n".join(log_lines),

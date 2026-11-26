@@ -237,6 +237,40 @@ Under **Configure → Solar panels, weather and storm warning**. Choose MeteoAla
 battery charged for a storm warning, or leave it empty (default) and the function, its sensor and its number are not
 made. See [Storm warning](rules/storm.md).
 
+### Push notifications (optional)
+
+Under **Configure → Push notifications**. Choose the notify services or notify entities that should get the messages (for
+example the mobile app: `notify.mobile_app_<phone>`). With none chosen (default) nothing is sent. All four categories below are on by default, so choosing a service is enough; switch off
+what you do not want. The messages are in the
+language you chose for BattMind. BattMind only informs; it controls nothing, and the messages go only to the services you chose.
+
+A message is sent when something **changes**, never on a timer:
+
+| Category | Message | Sent when |
+|---|---|---|
+| Problems | Battery level lost | the battery level sensor has given no number for 2 hours (the plan then assumes a full battery) |
+| | The plan is not followed | the repair *plan not followed* is raised (see [Troubleshooting](faq-troubleshooting.md)) |
+| | Sensors missing | the repair *entities missing* is raised (the battery level sensor is left out: *battery level lost* says it) |
+| | House consumption frozen | the repair *consumption frozen* is raised |
+| | Sensors unavailable | the house consumption or the battery power sensor has been unavailable for more than 30 minutes (checked hourly; the prices, the solar sensors and the battery level, which has its own message, are not part of it) |
+| | The battery is stopped | the battery temperature is out of range, or unavailable, for 15 minutes |
+| | Could not start / the plan cannot be calculated / the charging history fails | BattMind stops while starting, the plan fails three times in a row, or the history of an hour cannot be saved after three tries |
+| Storm warning | Storm warning | a storm warning is coming or going on (once) |
+| Learning finished | Consumption, efficiency, capacity | once each: the consumption forecast has enough history, the efficiency curves are measured, the usable capacity is measured |
+| Daily summary | Plan for tomorrow | once a day, at the end of the first hour from the one you choose in which tomorrow's prices are all known: grid charging (kWh and hours), sale, the battery level now |
+
+- **When it is over.** A problem is followed by a message when it is over, with the same tag, so it replaces the problem on the
+  phone. "Over" is only said when BattMind positively knows; missing or unclear data says nothing.
+- **Not flapping.** Some conditions have to hold for a while before the message goes (15 minutes for the temperature), and have to be
+  over for a while before "over" goes (5 minutes for the battery level, 10 for unavailable sensors and a failing plan, 15 for the
+  temperature, 30 for the storm), so a value that flaps around a limit sends one message, not ten.
+- **Once.** What BattMind sent is remembered (in `.storage/battmind.<entry id>.notices`), also after a restart, so a problem that
+  goes on is not sent again. A message that could not be delivered (the mobile app registers its service a little after Home
+  Assistant has started) is tried again every 5 minutes until a service takes it.
+- **Learning.** What is already learned when you turn the messages on, or after an update, is not announced; a message comes when it
+  becomes ready later. A measurement that starts again (a new sensor or battery size) can send it again.
+- **The summary** shows the plan as it is now: it changes with the prices and the forecast. It is not a promise and shows no savings.
+
 ### Planning (advanced)
 
 | Field | Default | Meaning |

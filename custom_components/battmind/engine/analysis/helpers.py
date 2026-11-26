@@ -53,7 +53,7 @@ SCORE_STEPS_MIN = 60  # battery levels in the hindsight optimisation at least (a
 SCORE_STEPS_MAX = 200  # and at most (a big battery): the run time grows with the square of it
 
 
-SCORE_VERSION = 3  # raised when the hindsight model changes: older scores are not published (2: efficiency per power, profit requirements; 3: level neutral baseline, exact small moves, ignored consumers left out, standby, real hourly mean prices)
+SCORE_VERSION = 3  # raised when the hindsight model changes: older scores are published marked "old", outside the 30 day figure (2: efficiency per power, profit requirements; 3: level neutral baseline, exact small moves, ignored consumers left out, standby, real hourly mean prices)
 
 
 SCORE_MIN_POSSIBLE = 0.05  # currency: a day with less possible saving than this (or than its stored "noise") has no score of its own
@@ -405,6 +405,14 @@ def score_figures(score: dict) -> tuple[float, float]:
     best plan with the day's own end level (actual minus optimal). The score is saved / possible."""
     possible = _num(score.get("no_battery")) - _num(score.get("optimal_neutral"))
     return possible - (_num(score.get("actual")) - _num(score.get("optimal"))), possible
+
+
+def old_score_figures(score) -> tuple[float, float] | None:
+    """(saved, possible) of a score stored by an older hindsight model (SCORE_VERSION 1-2), by the formula it was shown with
+    then: saved = without battery - actual, possible = without battery - optimal. None without its numbers."""
+    if not isinstance(score, dict) or not all(_is_num(score.get(key)) for key in ("actual", "no_battery", "optimal")):
+        return None
+    return score["no_battery"] - score["actual"], score["no_battery"] - score["optimal"]
 
 
 def measured_loss(charged: float, discharged: float, stored: float, charge_efficiency: float) -> float | None:
