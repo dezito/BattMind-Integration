@@ -694,11 +694,14 @@ electricity supplier charges for selling. Formula:
   `_unrecorded_attributes`), so the buy history cannot be turned into a sell price and the what-if keeps reporting that the sell
   price history is not available.
 - The country of the prices (`price_country`, stored as `prices.country`, default `"DK"`: an entry, backup or import from before it
-  is Danish, no migration) is chosen on the price provider page, which the options menu also shows. Home Assistant's country is
-  only a suggestion, once, for a new entry (an import or a backup keeps its own), and a new entry outside DK starts with Energy
-  Price Forecast. `provider_errors()` (`prices/availability.py`) refuses a provider with no prices in the country and a choice
-  with no forecast; it runs only on that page, never on an unrelated page of a running setup. Every provider class has
-  `countries` (None = any; Energi Data Service: the regions of its own integration; Strømligning: DK) and `has_forecast` (a
+  is Danish, no migration) is chosen next to the language on the General page of the options and, in the config flow, on its
+  own `country` page right before the price provider page (the country first, then the providers), not on the price provider
+  page. Home Assistant's country is only a suggestion there for a new entry (a restored backup or an import shows its own as the
+  default), and a new entry outside DK starts with Energy Price Forecast. The price provider page lists only the providers that have prices in the country (`providers_for_country()`) and
+  names the others in its description (`unavailable`). Changing the country on the General page leads on to the price pages when a
+  chosen provider has no prices in the new country. `provider_errors()` (`prices/availability.py`) refuses a choice with no forecast, and a
+  provider with no prices in the country as a second guard (the selector rejects it first); it runs only on the price provider
+  page, never on an unrelated page of a running setup. Every provider class has `countries` (None = any; Energi Data Service: the regions of its own integration; Strømligning: DK) and `has_forecast` (a
   property of the provider, not of what its sensor shows now).
 - `sell_fee` is stored positive (`abs()`) and is always subtracted.
 - Every price chart (`dashboard/prices/<provider>.yaml`, one per provider) is the Energy Price Forecast chart with its data source replaced by

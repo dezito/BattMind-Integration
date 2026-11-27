@@ -48,7 +48,7 @@ async def _configure(hass: HomeAssistant, result, step_id: str, user_input: dict
     return await hass.config_entries.flow.async_configure(result["flow_id"], user_input)
 
 
-async def _to_price_provider(hass: HomeAssistant, **extra):
+async def _to_country(hass: HomeAssistant, **extra):
     result = await _start(hass, **extra)
     result = await _configure(
         hass, result, "battery_entities",
@@ -59,6 +59,12 @@ async def _to_price_provider(hass: HomeAssistant, **extra):
     result = await _configure(hass, result, "consumption", {"power_consumption_entity_id": CONSUMPTION})
     # no recorder in the tests: nothing is suggested, the user decides
     return await _configure(hass, result, "detection_review", {"invert_powerwall_watt_flow_entity_id": True})
+
+
+async def _to_price_provider(hass: HomeAssistant, price_country: str | None = None, **extra):
+    """Through the country page (the country of Home Assistant when none is given) to the price provider page."""
+    result = await _to_country(hass, **extra)
+    return await _configure(hass, result, "country", {"price_country": price_country} if price_country else {})
 
 
 async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
@@ -424,6 +430,7 @@ async def _to_solar(hass: HomeAssistant, result: dict, battery: str = ENERGY_BAT
     result = await _configure(hass, result, "battery_actions", {"unsupported_actions": []})
     result = await _configure(hass, result, "consumption", {"power_consumption_entity_id": CONSUMPTION})
     result = await _configure(hass, result, "detection_review", {"invert_powerwall_watt_flow_entity_id": True})
+    result = await _configure(hass, result, "country", {})
     result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     return await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.03})
