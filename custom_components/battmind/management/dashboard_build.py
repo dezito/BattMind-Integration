@@ -9,6 +9,7 @@ At setup it is rewritten for this config entry:
 * external entities (Energi Data Service, Strømligning, Solcast) -> the configured ones
 * cards bound to an external entity that is not configured are removed
 * the switches and settings of rules that need an unsupported battery action are removed
+* a group heading of the analysis left without sections below it is removed (``_drop_empty_groups``)
 * ``@@key@@`` placeholders -> ``dashboard.key`` of texts/<language>.json (BattMind's language),
   ``@@forecast_span@@`` -> days_to_predict - 0.5 days,
   ``@@valuta@@`` / ``@@valuta_kwh@@`` -> the currency of Home Assistant
@@ -33,11 +34,13 @@ from homeassistant.components.lovelace import dashboard as lovelace_dashboard
 from homeassistant.components.lovelace.const import LOVELACE_DATA, MODE_STORAGE
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.json import cached_json_fragment, json_fragment
 from homeassistant.helpers.storage import Store
 
 from ..const import DOMAIN, dashboard_icon, normalize_language, unsupported_actions, unsupported_switches
 from ..utils.formatting import load_texts
+from ..utils.solar_forecast import KEY_SEMANTICS
 from ..prices import price_dashboard_entities
 from .dashboard_cards import async_update_card_notification, async_watch_card_resources
 
@@ -155,11 +158,15 @@ def _has_legacy_what_if_card(node: Any) -> bool:
     return False
 
 
-def external_entities(config: dict[str, Any]) -> dict[str, str]:
-    """Template entity id -> configured entity id ("" = not configured)."""
+def external_entities(config: dict[str, Any], forecast_platform: str | None = None) -> dict[str, str]:
+    """Template entity id -> configured entity id ("" = not configured).
+
+    forecast_platform: the integration of the solar forecast sensor (entity registry), None when unknown.
+    """
     prices = config["prices"]["entity_ids"]
     home = config["home"]["entity_ids"]
     production = config["solar"]["entity_ids"]["production_entity_id"]
+    storm_warning = home.get("storm_warning_entity_id")
     mapping = {
         # status section on the overview
         "sensor.powerwall_charge": home["powerwall_battery_level_entity_id"],
@@ -168,10 +175,15 @@ def external_entities(config: dict[str, Any]) -> dict[str, str]:
         "sensor.solar_power_production": production,
         # only created with solar production (sensor.py); the prefix is replaced afterwards
         "sensor.battmind_kwh_charged_by_solar": "sensor.battmind_kwh_charged_by_solar" if production else "",
+        # only created with a storm warning entity (sensor.py, number.py): without it the storm section is left out
+        "sensor.battmind_storm_warning": "sensor.battmind_storm_warning" if storm_warning else "",
+        "number.battmind_storm_cover_hours": "number.battmind_storm_cover_hours" if storm_warning else "",
         **price_dashboard_entities(prices),
     }
-    # Solcast: forecast_today plus the per-day sensors next to it
-    forecast = config["solar"]["entity_ids"]["forecast_entity_id"]
+    # Solcast: forecast_today plus the per-day sensors next to it. The charts read their detailedHourly, which
+    # Forecast.Solar and Helios Forecast don't have (and Forecast.Solar's energy_production_today would match the
+    # _today rule): with those the Solcast entities stay unmapped, so the charts show no solar forecast
+    forecast = config["solar"]["entity_ids"]["forecast_entity_id"] if forecast_platform not in KEY_SEMANTICS else ""
     base = forecast[: -len("today")] if forecast.endswith("_today") else ""
     mapping["sensor.solcast_pv_forecast_forecast_today"] = forecast
     for day in _SOLCAST_DAYS:
@@ -188,6 +200,9 @@ _ACTION_SETTINGS = {
         "number.battmind_cheap_price_periods",
         "number.battmind_cheap_price_period_rise_threshold",
         "number.battmind_cheapest_price_rise_threshold",
+        # the full charge is a grid charge: its number and sensor mean nothing without grid charging
+        "number.battmind_full_charge_recommended",
+        "sensor.battmind_last_full_charge",
     ),
 }
 
@@ -261,6 +276,44 @@ def _prune(node: Any, missing: set[str]) -> Any:
     return node
 
 
+def _is_group_heading(item: Any) -> bool:
+    """A full-width section with only a title heading: the heading of a group of analysis sections."""
+    cards = item.get("cards") if isinstance(item, dict) else None
+    return (
+        isinstance(item, dict) and item.get("type") == "grid" and item.get("column_span") == 4
+        and isinstance(cards, list) and len(cards) == 1 and isinstance(cards[0], dict)
+        and cards[0].get("type") == "heading" and cards[0].get("heading_style") == "title"
+    )
+
+
+def _starts_history(item: Any) -> bool:
+    """The History ends the last group: its section has the heading icon mdi:chart-line, or (when that heading was dropped as
+    empty) its graphs are sections without any heading."""
+    if not isinstance(item, dict) or item.get("type") != "grid":
+        return False
+    cards = [card for card in item.get("cards") or () if isinstance(card, dict)]
+    headings = [card for card in cards if card.get("type") == "heading"]
+    return not headings or any(card.get("icon") == "mdi:chart-line" for card in headings)
+
+
+def _drop_empty_groups(node: Any) -> Any:
+    """In the analysis view: a group heading with no section below it (before the next group or the History) is removed."""
+    if isinstance(node, list):
+        return [_drop_empty_groups(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+    node = {key: _drop_empty_groups(value) for key, value in node.items()}
+    sections = node.get("sections")
+    if node.get("path") == "analysis" and isinstance(sections, list):
+        node["sections"] = [
+            item for index, item in enumerate(sections)
+            if not (_is_group_heading(item) and (
+                index + 1 >= len(sections) or _is_group_heading(sections[index + 1]) or _starts_history(sections[index + 1])
+            ))
+        ]
+    return node
+
+
 def _translate(node: Any, texts: dict[str, str]) -> Any:
     """Replace @@key@@ in every string with the dashboard text of the language (the key if missing)."""
     if isinstance(node, list):
@@ -287,13 +340,15 @@ _Dumper.add_representer(str, _represent_str)
 def render_dashboard(
     config: dict[str, Any], prefix: str, existing: set[str] | None = None, currency: str | None = None,
     entry_id: str = "",
+    forecast_platform: str | None = None,
 ) -> str:
     """Build the dashboard YAML for one instance (blocking file I/O).
 
     existing: entity ids that exist in Home Assistant; the debug button is removed when its switch is not among them
     currency: hass.config.currency (None = the currency of the language's texts)
+    forecast_platform: the integration of the solar forecast sensor (see external_entities)
     """
-    mapping = external_entities(config)
+    mapping = external_entities(config, forecast_platform)
     template = yaml.safe_load(template_text())
     texts = load_texts(normalize_language(config.get("language")), currency)
     # the charts show the forecast period: days_to_predict minus the half day already passed
@@ -304,7 +359,7 @@ def render_dashboard(
         missing.add(DEBUG_BUTTON_SWITCH)
     # the rules the battery can't run (unsupported_actions) are off, so their switches and settings are hidden
     missing |= unsupported_entities(config)
-    content = yaml.dump(_prune(template, missing), Dumper=_Dumper, allow_unicode=True, sort_keys=False, width=1000)
+    content = yaml.dump(_drop_empty_groups(_prune(template, missing)), Dumper=_Dumper, allow_unicode=True, sort_keys=False, width=1000)
 
     replace = {source: target for source, target in mapping.items() if target and source != target}
     if replace:
@@ -344,9 +399,12 @@ async def async_setup_dashboard(
     path = dashboard_file(hass, entry.entry_id)
 
     existing_ids = set(hass.states.async_entity_ids())
+    forecast_entity = config["solar"]["entity_ids"]["forecast_entity_id"]
+    forecast_entry = er.async_get(hass).async_get(forecast_entity) if forecast_entity else None
+    forecast_platform = forecast_entry.platform if forecast_entry else None
 
     def _render() -> bool:
-        content = render_dashboard(config, prefix, existing_ids, hass.config.currency, entry.entry_id)
+        content = render_dashboard(config, prefix, existing_ids, hass.config.currency, entry.entry_id, forecast_platform)
         return _write_if_changed(path, content)
 
     try:

@@ -18,9 +18,15 @@ charging history:
   (without BattMind's daily adder), and the real price once it is known; kept a week.
 - price_days: when all real prices of a day are known, the forecast error per days ahead and
   how well the forecast found the day's cheapest and most expensive hours.
+- plan_check: per hour whether the battery did what the published action asked (engine/analysis/plan_check.py);
+  only observed, kept 14 days, published as the attribute plan_check of sensor.<prefix>_powerwall_action.
 - efficiency: AC and battery kWh per AC power step for charging and discharging, measured between
   changes of the battery level (utils/efficiency); the measured efficiency curves. The first time
   the recorder history of the battery power and level is measured too (coordinator).
+- capacity: episodes of at least 40 points of battery level per direction with the AC kWh the battery power sensor saw (utils/capacity),
+  shown as the bounds of the usable capacity; always measured hourly from the buffers. The plan counts on it only through
+  battery_size_used() (engine/battery.py) with the switch learn_battery_capacity.
+- full_charge: {"last": aware datetime} when the battery last reached its max. level (engine/full_charge.py).
 
 The first time the energy per hour of the last year is read from the recorder's long-term
 statistics (coordinator); forecasts, plans and scores only exist from now on. Everything is
@@ -33,7 +39,9 @@ import logging
 
 from ...const import price_decimals, scaled
 from ..energy.energy import derive_power_values
+from ...utils.capacity import clean_capacity
 from ...utils.power import unique_entity_ids, unit_factor_to_w
+from .plan_check import PlanCheck
 from .publishing import AnalysisPublishing
 from .recording import AnalysisRecording
 from .helpers import ANALYSIS_DAYS, ANALYSIS_BACKFILL_VERSION, DAY_SUMS, FLOWS_SCORE_TOLERANCE_KWH, FLOWS_VERSION, FORECAST_AUTO_DAYS, FORECAST_AUTO_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_CORRECTION_MAX, _num, _is_num, _r, auto_forecast_choice, forecast_errors, summarize_day
@@ -41,15 +49,25 @@ from .helpers import ANALYSIS_DAYS, ANALYSIS_BACKFILL_VERSION, DAY_SUMS, FLOWS_S
 _LOGGER = logging.getLogger(__name__)
 
 
-class Analysis(AnalysisRecording, AnalysisPublishing):
+class Analysis(AnalysisRecording, AnalysisPublishing, PlanCheck):
     """The analysis database and sensor.<prefix>_analysis."""
 
     def load_analysis_db(self, database) -> None:
         db = database if isinstance(database, dict) else {}
-        for key in ("hours", "days", "plans", "rule_days", "price_hours", "price_days"):
+        for key in ("hours", "days", "plans", "rule_days", "price_hours", "price_days", "plan_check"):
             if not isinstance(db.get(key), dict):
                 db[key] = {}
+        # the last full charge (engine/full_charge.py): {"last": aware datetime}; an old backup has none, a malformed one
+        # is dropped (unknown, never "just charged")
+        full_charge = db.get("full_charge")
+        if full_charge is not None:
+            last = full_charge.get("last") if isinstance(full_charge, dict) else None
+            if not isinstance(last, datetime.datetime) or last.tzinfo is None:
+                db.pop("full_charge")
+        # the measured battery capacity bounds (utils/capacity.py); a malformed entry is dropped
+        db["capacity"] = clean_capacity(db.get("capacity"))
         self.analysis_db = db
+        self._job_cache.pop("battery_size", None)
 
     def price_forecast_corrections(self) -> dict[int, float]:
         """Currency/kWh added to the price forecast per days ahead: minus its bias the last 30 days.
@@ -88,12 +106,13 @@ class Analysis(AnalysisRecording, AnalysisPublishing):
             self.mark_dirty("analysis")
         return choice
 
-    def forecast_state(self) -> tuple[bool, str]:
-        """The switch auto_forecast_type and the consumption forecast type in use."""
-        return bool(self.enabled("auto_forecast_type")), self.forecast_type
+    def forecast_state(self) -> tuple[bool, str, tuple[float, str]]:
+        """The switch auto_forecast_type, the consumption forecast type in use and the battery size the plan counts on."""
+        return bool(self.enabled("auto_forecast_type")), self.forecast_type, self.battery_size_used()
 
     def republish_forecast_if_changed(self) -> None:
-        """The analysis shows the type in use: published again when the switch or the automatic choice changed."""
+        """The analysis shows the type in use and the battery size in use: published again when the switch, the automatic choice
+        or the size changed."""
         if self.published_forecast_state is not None and self.published_forecast_state != self.forecast_state():
             self.publish_analysis()
 
@@ -223,6 +242,14 @@ class Analysis(AnalysisRecording, AnalysisPublishing):
             start += 3600
         return keys
 
+    @staticmethod
+    def _local_day_hours(date: str, tz) -> int:
+        """The hours the local day has: 24, 23 on the day summer time starts, 25 on the day it ends."""
+        day = datetime.date.fromisoformat(date)
+        start = datetime.datetime.combine(day, datetime.time(0)).replace(tzinfo=tz).timestamp()
+        end = datetime.datetime.combine(day + datetime.timedelta(days=1), datetime.time(0)).replace(tzinfo=tz).timestamp()
+        return round((end - start) / 3600)
+
     def _analysis_correct_flows(self, date: str, day: dict, rows: dict[str, dict], complete_hours: set[str], previous_soc: float | None, minimum: float, tz) -> bool:
         """A day recorded before FLOWS_VERSION, checked against the hourly mean statistics (the mean of the hour is the time
         weighted mean, whatever the states did in it). When charged or discharged differ by more than
@@ -241,7 +268,8 @@ class Analysis(AnalysisRecording, AnalysisPublishing):
         if any(abs(_num(fresh[key]) - _num(day.get(key))) > FLOWS_SCORE_TOLERANCE_KWH for key in ("charged", "discharged")):
             for key in DAY_SUMS:
                 day[key] = fresh[key]
-            day.pop("score", None)
+            if day.pop("score", None) is not None:
+                day["no_score"] = "history"
         day["flows"] = FLOWS_VERSION
         return True
 

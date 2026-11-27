@@ -281,7 +281,7 @@
       },
       "solar": {
         "title": "Solar panels",
-        "description": "Optional. With solar, BattMind predicts the surplus that charges the battery for free, can move solar charging to cheaper hours and accumulates `sensor.{prefix}_kwh_charged_by_solar`. Leave empty without solar.\n\nSolcast switches the forecast sensors of day 3 and on off by default: enable them under **Settings → Devices & services → Entities** (*Show disabled entities*) and turn on *Hourly detail* under *Forecast attributes breakdown* in the Solcast options, or those days are planned without Solcast.\nDisabled Solcast sensors now: {solcast_disabled}",
+        "description": "Optional. With solar, BattMind predicts the surplus that charges the battery for free, can move solar charging to cheaper hours and accumulates `sensor.{prefix}_kwh_charged_by_solar`. Leave empty without solar.\n\nForecast.Solar and Helios Forecast are read from their solar forecast for the Energy dashboard; the hours they don't cover are planned from the weather forecast and the stored solar history; an hour with neither counts as no sun.\n\nSolcast switches the forecast sensors of day 3 and on off by default: enable them under **Settings → Devices & services → Entities** (*Show disabled entities*) and turn on *Hourly detail* under *Forecast attributes breakdown* in the Solcast options, or those days are planned without Solcast.\nDisabled Solcast sensors now: {solcast_disabled}",
         "data": {
           "production_entity_id": "Solar production",
           "inverter_discharging_power_limit": "Inverter power limit",
@@ -292,7 +292,7 @@
           "production_entity_id": "Sensor with the current solar production (W/kW). Leave empty if you have no solar panels.",
           "inverter_discharging_power_limit": "Max AC power of the inverter. Limits how much solar + battery power is available at the same time.",
           "production_price": "Price per kWh (in the currency of Home Assistant) used to value solar surplus that is sold, e.g. a fixed price from your electricity company. Set to -1 to use the hourly sell price.",
-          "forecast_entity_id": "Solcast PV Forecast sensor, e.g. sensor.solcast_pv_forecast_forecast_today. The days ahead are found automatically."
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar or Helios Forecast. Solcast: e.g. sensor.solcast_pv_forecast_forecast_today, the days ahead are found automatically. Forecast.Solar: any of its sensors; the roof planes of the same solar source in the Energy dashboard are added up. Helios Forecast: e.g. sensor.helios_forecast_power_now."
         }
       },
       "weather": {
@@ -360,7 +360,7 @@
       "min_above_max": "The minimum level must be lower than the maximum level.",
       "invalid_icon": "Use an icon name like mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
-      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot and Nord Pool, per MWh or Wh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh). Wattcast’s price sensor must give ct/kWh; any other unit is wrong for it.",
+      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot and Nord Pool, per MWh or Wh, and for Energy Price Forecast per Wh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh). Wattcast’s price sensor must give ct/kWh; any other unit is wrong for it.",
       "price_sensor_not_retail": "This is not the retail price sensor. Choose the retail price sensor of Energy Price Forecast as the buy price (the wholesale price is the sell price).",
       "price_sensor_not_wholesale": "This is the retail price sensor. Choose the wholesale price sensor of Energy Price Forecast as the sell price (the retail price is higher than what a sale pays).",
       "price_sensor_forecast_only": "This sensor has no published prices for today right now, only a forecast. If Energy Price Forecast publishes no prices for your market (for example Finland or Great Britain), set a Nord Pool or ENTSO-e sensor as “Own price source” in Energy Price Forecast (for the buy price, also choose “Own formula” under “Retail price” there: the estimate does not use the own price source) and choose the sensor again. Otherwise try again once the prices are published.",
@@ -389,8 +389,9 @@
           "menu_battery": "Home battery",
           "menu_consumption": "House consumption",
           "menu_prices": "Electricity prices",
-          "menu_solar": "Solar panels and weather",
+          "menu_solar": "Solar panels, weather and storm warning",
           "menu_advanced": "Planning and data storage",
+          "menu_notifications": "Push notifications",
           "backup": "Backup (export / import)"
         }
       },
@@ -664,7 +665,7 @@
       },
       "solar": {
         "title": "Solar panels",
-        "description": "Optional. With solar, BattMind predicts the surplus that charges the battery for free, can move solar charging to cheaper hours and accumulates `sensor.{prefix}_kwh_charged_by_solar`. Leave empty without solar.\n\nSolcast switches the forecast sensors of day 3 and on off by default: enable them under **Settings → Devices & services → Entities** (*Show disabled entities*) and turn on *Hourly detail* under *Forecast attributes breakdown* in the Solcast options, or those days are planned without Solcast.\nDisabled Solcast sensors now: {solcast_disabled}",
+        "description": "Optional. With solar, BattMind predicts the surplus that charges the battery for free, can move solar charging to cheaper hours and accumulates `sensor.{prefix}_kwh_charged_by_solar`. Leave empty without solar.\n\nForecast.Solar and Helios Forecast are read from their solar forecast for the Energy dashboard; the hours they don't cover are planned from the weather forecast and the stored solar history; an hour with neither counts as no sun.\n\nSolcast switches the forecast sensors of day 3 and on off by default: enable them under **Settings → Devices & services → Entities** (*Show disabled entities*) and turn on *Hourly detail* under *Forecast attributes breakdown* in the Solcast options, or those days are planned without Solcast.\nDisabled Solcast sensors now: {solcast_disabled}",
         "data": {
           "production_entity_id": "Solar production",
           "inverter_discharging_power_limit": "Inverter power limit",
@@ -675,7 +676,7 @@
           "production_entity_id": "Sensor with the current solar production (W/kW). Leave empty if you have no solar panels.",
           "inverter_discharging_power_limit": "Max AC power of the inverter. Limits how much solar + battery power is available at the same time.",
           "production_price": "Price per kWh (in the currency of Home Assistant) used to value solar surplus that is sold, e.g. a fixed price from your electricity company. Set to -1 to use the hourly sell price.",
-          "forecast_entity_id": "Solcast PV Forecast sensor, e.g. sensor.solcast_pv_forecast_forecast_today. The days ahead are found automatically."
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar or Helios Forecast. Solcast: e.g. sensor.solcast_pv_forecast_forecast_today, the days ahead are found automatically. Forecast.Solar: any of its sensors; the roof planes of the same solar source in the Energy dashboard are added up. Helios Forecast: e.g. sensor.helios_forecast_power_now."
         }
       },
       "weather": {
@@ -688,6 +689,38 @@
         "data_description": {
           "hourly_service_entity_id": "Weather entity supporting hourly forecasts. Cloud cover, UV and temperature are used to estimate the solar surplus.",
           "daily_service_entity_id": "Weather entity supporting daily forecasts. Used for the hours the hourly forecast does not cover."
+        }
+      },
+      "storm": {
+        "title": "Storm warning",
+        "description": "Keep the battery charged for a storm warning. Choose MeteoAlarm's binary sensor; leave it empty to turn the function off. Only warnings of wind, snow/ice or thunderstorms at or above the chosen level count, and only warnings with a start time. The need is the expected house use during the warning with no solar, plus a buffer for a forecast that is off (at least 20 %). Without a backup power supply a full battery does not run the house in a power cut.",
+        "data": {
+          "storm_warning_entity_id": "Storm warning (MeteoAlarm)",
+          "storm_min_level": "Lowest level that counts"
+        },
+        "data_description": {
+          "storm_warning_entity_id": "MeteoAlarm's binary sensor for your region. Empty = off: the function, its sensor and its number are not made.",
+          "storm_min_level": "2 = yellow, 3 = orange, 4 = red."
+        }
+      },
+      "notifications": {
+        "title": "Push notifications",
+        "description": "Send push notifications through the notify services or entities you choose (for example the mobile app). Leave the list empty to send none. A message goes when something changes: a problem starts (and another when it is over), a storm warning, something BattMind has learned, or once a day a summary of tomorrow's plan. Missing or unclear data never says that a problem is over. The messages are in the language you chose for BattMind.",
+        "data": {
+          "notify_list": "Send through",
+          "notify_problems": "Problems",
+          "notify_storm": "Storm warning",
+          "notify_learning": "Learning finished",
+          "notify_summary": "Daily summary",
+          "notify_summary_hour": "Send the summary from (hour)"
+        },
+        "data_description": {
+          "notify_list": "Notify services (notify.mobile_app_...) and notify entities. Empty = no push notifications.",
+          "notify_problems": "The battery level is lost, the plan is not followed, sensors are missing, frozen or unavailable, the battery is stopped by its temperature, or BattMind fails to start, to calculate or to save the charging history. A message when it is over as well.",
+          "notify_storm": "A storm warning is coming or going on, and when it is over.",
+          "notify_learning": "Once each: the consumption forecast, the efficiency curves and the measured capacity are ready.",
+          "notify_summary": "Once a day: what is planned for tomorrow (grid charging and sale). Sent when tomorrow's prices are known.",
+          "notify_summary_hour": "The summary goes at the end of the first hour from this one on in which tomorrow's prices are known (0-23)."
         }
       },
       "advanced": {
@@ -747,7 +780,7 @@
       "min_above_max": "The minimum level must be lower than the maximum level.",
       "invalid_icon": "Use an icon name like mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
-      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot and Nord Pool, per MWh or Wh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh). Wattcast’s price sensor must give ct/kWh; any other unit is wrong for it.",
+      "price_unit_subunit": "This sensor gives the price in cents or pence (or, for Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot and Nord Pool, per MWh or Wh, and for Energy Price Forecast per Wh). Choose a sensor with the price per kWh in the currency (for example EUR/kWh). Wattcast’s price sensor must give ct/kWh; any other unit is wrong for it.",
       "price_sensor_not_retail": "This is not the retail price sensor. Choose the retail price sensor of Energy Price Forecast as the buy price (the wholesale price is the sell price).",
       "price_sensor_not_wholesale": "This is the retail price sensor. Choose the wholesale price sensor of Energy Price Forecast as the sell price (the retail price is higher than what a sale pays).",
       "price_sensor_forecast_only": "This sensor has no published prices for today right now, only a forecast. If Energy Price Forecast publishes no prices for your market (for example Finland or Great Britain), set a Nord Pool or ENTSO-e sensor as “Own price source” in Energy Price Forecast (for the buy price, also choose “Own formula” under “Retail price” there: the estimate does not use the own price source) and choose the sensor again. Otherwise try again once the prices are published.",
@@ -927,6 +960,9 @@
   },
   "entity": {
     "switch": {
+      "automation_test_run": {
+        "name": "Test my automation"
+      },
       "what_if_run": {
         "name": "Run simulation"
       },
@@ -981,6 +1017,12 @@
       "enhance_battery_efficiency": {
         "name": "Enhance battery efficiency"
       },
+      "learn_charge_taper": {
+        "name": "Learn charging power by battery level"
+      },
+      "learn_battery_capacity": {
+        "name": "Use measured battery capacity"
+      },
       "price_forecast_correction": {
         "name": "Correct the price forecast"
       },
@@ -1018,6 +1060,12 @@
       },
       "powerwall_max_hours_old": {
         "name": "Max. age of kWh in home battery"
+      },
+      "full_charge_recommended": {
+        "name": "Recommended full charge every"
+      },
+      "storm_cover_hours": {
+        "name": "Hours a storm warning without an end time covers"
       },
       "what_if_history_days": {
         "name": "What-if – History (days)"
@@ -1256,11 +1304,40 @@
       "kwh_charged_by_solar": {
         "name": "kWh charged by solar"
       },
+      "storm_warning": {
+        "name": "Storm warning",
+        "state": {
+          "no_warning": "No warning",
+          "entity_unavailable": "Warning entity unavailable",
+          "below_level": "Below the chosen level",
+          "other_type": "Not a storm warning",
+          "no_start": "No start time (ignored)",
+          "unreadable": "Level or type unreadable (ignored)",
+          "expired": "Ended",
+          "invalid": "End before start (ignored)",
+          "later": "Starts after the plan",
+          "coming": "Coming",
+          "active": "Active"
+        }
+      },
+      "last_full_charge": {
+        "name": "Last full charge"
+      },
       "analysis": {
         "name": "Analysis"
       },
       "what_if": {
         "name": "What-if result"
+      },
+      "automation_test": {
+        "name": "Automation test",
+        "state": {
+          "idle": "Idle",
+          "running": "Running",
+          "done": "Done",
+          "stopped": "Stopped",
+          "failed": "Failed"
+        }
       },
       "what_if_status": {
         "name": "What-if status",
@@ -1348,10 +1425,6 @@
       "title": "Energy Price Forecast sensors that BattMind uses have no published prices ({prefix})",
       "description": "BattMind ({prefix}) uses Energy Price Forecast sensors that have had no published prices for today or tomorrow for at least an hour, only a forecast:\n{entities}\n\nWithout a price for today the hours that have passed have no price, so they are missing from the charging history, the price of the energy in the battery and the price history.\n\nIf Energy Price Forecast publishes no prices for your market (for example Finland or Great Britain), set a Nord Pool or ENTSO-e sensor as “Own price source” in Energy Price Forecast (for the buy price, also choose “Own formula” under “Retail price” there: the estimate does not use the own price source). Otherwise the prices are only late.\n\nThis repair disappears by itself when the sensors have published prices again."
     },
-    "price_sensor_unit": {
-      "title": "Price sensors that BattMind uses give the price in the wrong unit ({prefix})",
-      "description": "BattMind ({prefix}) uses price sensors that give the price in a subunit of the currency (for example ct/kWh or p/kWh) or, for Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot and Nord Pool, per MWh or Wh:\n{entities}\n\nTheir prices are 100 or 1000 times off, so BattMind does not use them: it plans on the stored prices instead. Choose a sensor with the price per kWh in the currency (for example EUR/kWh) in the price settings, or set the unit of the sensor back.\n\nThis repair disappears by itself when the sensors give the price per kWh again.\n\nWattcast’s price sensor must give ct/kWh; any other unit is wrong for it."
-    },
     "stromligning_entities": {
       "title": "Strømligning sensors that BattMind needs are not available ({prefix})",
       "description": "BattMind ({prefix}) uses Strømligning sensors that are disabled or that Strømligning does not provide. A missing sell tariff counts as 0, which makes the calculated sell price too high, and without the price sensors the stored prices are used.\n\nDisabled in Home Assistant (Strømligning disables its excl. VAT sensors by default – enable them under **Settings → Devices & services → Entities**, with *Show disabled entities*):\n{disabled}\n\nNot provided by Strømligning (e.g. the price forecasts are off in its options):\n{not_provided}\n\nThis repair disappears by itself when the sensors work again."
@@ -1359,6 +1432,38 @@
     "solcast_entities": {
       "title": "Solcast forecast sensors that BattMind needs are not available ({prefix})",
       "description": "BattMind ({prefix}) can't use all the Solcast forecast sensors it needs, so the days without one are planned from the weather forecast and the stored solar history instead. Solcast disables the forecast sensors of day 3 and on by default.\n\nDisabled in Home Assistant (enable them under **Settings → Devices & services → Entities**, with *Show disabled entities*):\n{disabled}\n\nNot named the way BattMind expects (the entity id must end in _today, _tomorrow or _day_3 …):\n{renamed}\n\nWithout hourly detail (turn on *Hourly detail* under *Forecast attributes breakdown* in the Solcast options):\n{no_detail}\n\nThis repair disappears by itself when the sensors are fixed."
+    },
+    "entities_missing": {
+      "title": "Sensors BattMind uses are disabled or missing ({prefix})",
+      "description": "BattMind ({prefix}) uses sensors that are disabled in Home Assistant, or that no longer exist because they were deleted or renamed. The plan then works with missing values, and the battery may not follow it.\n\nDisabled (enable them under **Settings → Devices & services → Entities**, with *Show disabled entities*):\n{disabled}\n\nMissing (select the sensor again under **Configure** in the BattMind integration, or give it its old name back):\n{missing}\n\nTo check that the battery still follows the plan, run *Test my automation* on the BattMind dashboard.\n\nThis repair disappears by itself when all the sensors are enabled and found again."
+    },
+    "entity_units": {
+      "title": "Sensor units BattMind can't read ({prefix})",
+      "description": "BattMind ({prefix}) reads power sensors in mW, W, kW, MW or GW (a unit with an h, such as Wh or kWh, is read as the unit without it), and the battery level in %. These sensors report another unit, so their values are read at the wrong size and the plan is wrong:\n{entities}\n\nChange the unit in the integration that creates the sensor, or select a sensor that reports power or the battery level in these units under **Configure** in the BattMind integration. Then run *Test my automation* on the BattMind dashboard to check that the battery still follows the plan.\n\nThis repair disappears by itself when every sensor reports a unit BattMind can read."
+    },
+    "blueprint_automation_lost": {
+      "title": "The automation made from the BattMind blueprint is off ({prefix})",
+      "description": "BattMind ({prefix}) has seen an automation made from its battery blueprint switched on. It is now turned off or deleted, so the battery no longer gets the actions of the plan.\n\nTurned off (a dash means the automation was deleted from automations.yaml):\n{automations}\n\nTurn the automation on again under **Settings → Automations & scenes**, or make a new one from the BattMind blueprint and run *Test my automation* on the BattMind dashboard.\n\nThis repair disappears by itself when the automation is on again. If you stopped using the blueprint on purpose, ignore this repair."
+    },
+    "power_without_unit": {
+      "title": "Power sensors without a unit ({prefix})",
+      "description": "BattMind ({prefix}) reads these power sensors in watts (W), since they have no unit. The number after ≤ is the highest value seen (without sign):\n{entities}\n\nOver the last {days} days their values never went above {max}, and some of them are decimal numbers. That looks like kilowatts (kW): read as W, the values are 1000 times too small, and the plan uses far too little power.\n\nFix it at the source: give the sensor its unit, for example `unit_of_measurement: kW` on a template sensor, or the unit that the integration creating the sensor gives. Then run *Test my automation* on the BattMind dashboard to check that the battery still follows the plan.\n\nIf the values really are in W, ignore this repair. It disappears by itself when the sensors have a unit, or when their values show that they are in W."
+    },
+    "battery_level_fraction": {
+      "title": "The battery level looks like a share, not a percentage ({prefix})",
+      "description": "BattMind ({prefix}) reads the battery level sensor as a percentage (%). The number after ≤ is the highest value seen (without sign):\n{entities}\n\nOver the last {days} days every value lay between 0 and 1, so it looks like a share (0.85 = 85 %). Read as a percentage, 0.85 is 0.85 % instead of 85 %.\n\nFix it at the source: make the sensor report 0 to 100, for example by multiplying by 100 in a template sensor, and select that sensor under **Configure** in the BattMind integration. Then run *Test my automation* on the BattMind dashboard to check that the battery still follows the plan.\n\nIf the battery level really stays below 1 %, ignore this repair. It disappears by itself when the sensor reports values above 1."
+    },
+    "price_unit_scale": {
+      "title": "Price sensors in a subunit, per MWh or per Wh ({prefix})",
+      "description": "BattMind ({prefix}) reads prices from these sensors, but they are in a unit BattMind does not convert:\n{entities}\n\nThe prices are in a subunit of the currency (øre or cent), per MWh or per Wh (Energy Price Forecast converts a price per MWh itself), so they are 100 times too large (subunit), 1000 times too large (per MWh) or 1000 times too small (per Wh). BattMind does not use the prices of such a sensor from Energi Data Service, Energy Price Forecast, Spot Forecast, Elprisprognos, Wattcast, EPEX Spot, GE-Spot or Nord Pool: the next provider’s prices or the stored prices are used instead. A Strømligning sensor, an Octopus Energy sensor or a tariff sensor is read as it is, so for those the plan and the savings calculation are wrong.\n\nFix it at the source: in Energi Data Service turn off **Show prices in cent** and set **Price calculated in** to kWh in the integration's options. Or select a sensor with the currency per kWh (e.g. kr/kWh) under **Configure** in the BattMind integration. Then run *Test my automation* on the BattMind dashboard to check that the battery still follows the plan.\n\nIf the prices really are in the currency per kWh, ignore this repair. It disappears by itself when no price sensor is in a subunit, per MWh or per Wh.\n\nWattcast’s price sensor must give ct/kWh; any other unit is wrong for it."
+    },
+    "consumption_frozen": {
+      "title": "House consumption sensor shows the same value ({prefix})",
+      "description": "BattMind ({prefix}) uses the house consumption sensor {entity} for the plan. It has shown the same value, {value}, since {since}. When a consumption sensor stops changing, the integration or device that delivers it is usually stuck, so the plan uses an old value for the house consumption.\n\nCheck the integration or device that delivers this sensor, and restart it if needed. Then run *Test my automation* on the BattMind dashboard to check that the battery still follows the plan.\n\nThis repair disappears by itself when the sensor shows another value. It changes nothing in BattMind or your automations: ignore it if the value really is steady."
+    },
+    "plan_not_followed": {
+      "title": "The battery does not follow the plan ({prefix})",
+      "description": "In the last {days} days BattMind judged {checked} hours in which the battery should do what the action of `sensor.{prefix}_powerwall_action` says. In {mismatches} of them the battery did not do it, and {percent} % matched. This repair is raised at {min_checked} or more judged hours with at least {min_mismatches} mismatches and a match below {max_percent} %.\n\nLatest mismatches (hour, action, charged / discharged kWh):\n{latest}\n\nCommon causes:\n- the automation does not run the step for that action: run *Test my automation* on the BattMind dashboard and read the result for each action\n- another app, another automation or the inverter's own schedule also controls the battery\n- a wrong sign: charging is measured as discharging, or the other way round (check the battery power sensor)\n- an inverter setting, such as its minimum state of charge or maximum power, stops the battery\n\nHours in which the battery could not follow are not counted: the battery was at a limit, the test ran, data was missing, or the action changed during the hour.\n\nThis repair disappears by itself when the battery follows the plan again: fewer than {min_mismatches} hours mismatch, or at least {max_percent} % match. The hours are counted over the last {days} days, so this can take several days."
     }
   }
 }

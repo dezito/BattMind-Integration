@@ -60,6 +60,22 @@ def _day_strip(data: dict, now: datetime.datetime) -> str:
     return "<br>".join(f"**{first:02d}:00-{first + 11:02d}:59** {''.join(cells[first:first + 12])}" for first in (0, 12))
 
 
+SOLAR_DAY_MIN_KWH = 0.1  # an hour with less surplus than this is no sun hour in the day text
+SOLAR_DAY_TO_GRID_MIN_KWH = 0.5  # the surplus after the battery is full is only mentioned from this much
+SOLAR_DAY_FULL_MARGIN = 0.5  # % under the maximum level that still counts as full
+
+
+def _hour_ranges(hours: list[int]) -> str:
+    """Hours of the day as ranges: [10, 11, 12, 15] -> '10:00-13:00, 15:00-16:00'."""
+    ranges: list[list[int]] = []
+    for hour in sorted(hours):
+        if ranges and ranges[-1][1] == hour:
+            ranges[-1][1] = hour + 1
+        else:
+            ranges.append([hour, hour + 1])
+    return ", ".join(f"{first:02d}:00-{end:02d}:00" for first, end in ranges)
+
+
 def _day_kwh(data: dict, key: str, field: str) -> float:
     """The kWh of a plan part of a day (missing or broken values count as 0)."""
     return sum(_finite(value.get(field)) or 0.0 for value in data[key].values() if isinstance(value, dict))
@@ -102,6 +118,12 @@ class Overview:
                 _LOGGER.exception("Failed to create the key figures of the plan: %s", err)
             now = self.now().replace(tzinfo=None)
             shadow = self.optimizer_shadow or {}
+            # 💯 a due full charge the plan that controls the battery can't reach before its deadline (dropped)
+            full_charge = getattr(self, "full_charge_plan", None)
+            if full_charge and (full_charge.get("optimal_dropped") if shadow.get("controls") else not full_charge.get("rules_reached")):
+                # the level the plan aims at (max - FULL_CHARGE_MARGIN): 99, or 94.5 for a max. level of 95.5 (not rounded away)
+                level_text = f"{round(full_charge['full_level'], 1):g}"
+                overview.append(f"\n💯 {t(f'{prefix}.full_charge_dropped', level=level_text)}\n")
             level_key = "battery_level" if shadow.get("controls") else "rules_battery_level"  # the plan that controls the battery
             levels = {_naive(hour["hour"]): hour.get(level_key) for hour in shadow.get("hours", []) if isinstance(hour, dict) and hour.get("hour")}
             body: list[str] = []
@@ -136,9 +158,16 @@ class Overview:
                     (timestamp, value["reason"] if isinstance(value, dict) and "reason" in value else value)
                     for timestamp, value in sorted(joined.items(), key=lambda kv: kv[0])
                 ]
-                for group in _group_hour_rules(rows):
+                # with the rules in control a charge period is shown to end where its price period does (15 minutes with 15
+                # minute prices, the hour without); the optimiser plans whole hours (a session at :00 may charge all of it)
+                period_ends = {} if shadow.get("controls") or not self.price_provider else {
+                    timestamp: self.price_provider.buy_period_end(timestamp) for timestamp in data["charging_sessions"]
+                }
+                for group in _group_hour_rules(rows, period_ends):
                     first, last = group[0][0], group[-1][0]
-                    end = joined.get(last, {}).get("period_end") if isinstance(joined.get(last), dict) else None
+                    end = period_ends.get(last)
+                    if end is None:
+                        end = joined.get(last, {}).get("period_end") if isinstance(joined.get(last), dict) else None
                     if end is None:
                         end = reset_time_to_hour(last) + datetime.timedelta(hours=1)  # every range ends when the next begins
                     reason = group[0][1] if len(group) == 1 else _joined_reason(group)
@@ -184,6 +213,83 @@ class Overview:
             overview.append("***")
         except Exception as err:  # noqa: BLE001
             _LOGGER.exception("Failed to create the charge/discharge plan overview: %s", err)
+
+    def _solar_day_start_level(self, charging_plan: dict, day: int, hour: int) -> float | None:
+        """The battery level in the plan at the start of an hour: the level at the end of the hour before (the first part of an
+        hour's list is not the start level when the hour hits the maximum or minimum: the planner then writes [max, 0.0]).
+        None when the plan has no level for it."""
+        if hour > 0:
+            previous = (charging_plan.get(day) or {}).get("battery_level_flow", {}).get(hour - 1)
+        else:
+            previous = (charging_plan.get(day - 1) or {}).get("battery_level_flow", {}).get(23) if day > 0 else None
+        if previous:
+            return sum(previous)
+        if day == 0 and hour == self.now().hour:
+            return _finite(self.get_battery_level())  # the hour that is going on: the level now
+        return None
+
+    def _solar_day_lines(self, charging_plan: dict, days: list[int]) -> list[str]:
+        """☀️ One sentence per day (today and tomorrow) about the sun, from the same figures as the plan: the surplus per hour
+        the plan counts on, when the battery is full, how much surplus there is no room for in it, and the hours solar charging
+        is held back. What happens to that surplus is not said (it may go to the grid or to a car).
+
+        Text only, never a decision. Without solar charging in the plan, or when the forecast does not cover all 24 hours of the day
+        (the hour of a value would be a guess), a day has no text."""
+        if not self.enabled("solar_charging"):
+            return []
+        t = self.t
+        prefix = "ui.cheap_grid_charge_hours"
+        maximum = self.config["solar"]["powerwall_battery_level_max"]
+        now = self.now().replace(tzinfo=None)
+        lines = []
+        for day in days:
+            data = charging_plan.get(day)
+            if day > 1 or not data:
+                continue
+            solar = data.get("solar_kwh_prediction") or []
+            # an hour without a value is 0.0 in the list: the day is complete only when all 24 hours had one
+            if len(solar) != 24 or data.get("solar_known_hours", len(solar)) != 24:
+                continue
+            surplus = [_finite(value) or 0.0 for value in solar]
+            hours = [hour for hour in range(24) if (day > 0 or hour >= now.hour) and surplus[hour] >= SOLAR_DAY_MIN_KWH]
+            if not hours:
+                continue
+            day_name = t(f"{prefix}.today" if day == 0 else f"{prefix}.tomorrow")
+            parts = [
+                t(
+                    f"{prefix}.solar_day_surplus", day=day_name, kwh=f"{sum(surplus[hour] for hour in hours):.1f}",
+                    start=f"{hours[0]:02d}:00", end=f"{hours[-1] + 1:02d}:00",
+                )
+            ]
+            flow = data.get("battery_level_flow") or {}
+            levels = {hour: sum(flow[hour]) for hour in hours if flow.get(hour)}  # the level at the end of the hour
+            first_level = self._solar_day_start_level(charging_plan, day, hours[0])
+            if first_level is not None and first_level >= maximum - SOLAR_DAY_FULL_MARGIN:
+                # the battery is full before the sun (the plan charged it from the grid, or it stayed full): no room for the surplus
+                parts.append(t(f"{prefix}.solar_day_already_full", kwh=f"{sum(surplus[hour] for hour in hours):.1f}"))
+            elif levels:
+                full = next((hour for hour in hours if hour in levels and levels[hour] >= maximum - SOLAR_DAY_FULL_MARGIN), None)
+                if full is not None:
+                    parts.append(t(f"{prefix}.solar_day_full", level=f"{levels[full]:.0f}", at=f"{full + 1:02d}:00"))
+                    after = sum(surplus[hour] for hour in hours if hour > full)
+                    if after >= SOLAR_DAY_TO_GRID_MIN_KWH:
+                        parts.append(t(f"{prefix}.solar_day_to_grid", kwh=f"{after:.1f}"))
+                else:
+                    last = max(levels)
+                    parts.append(t(f"{prefix}.solar_day_rises", level=f"{levels[last]:.0f}", at=f"{last + 1:02d}:00"))
+            start = data["start_of_day"]
+            held = set()
+            for timestamp in data.get("blocked_solar_charge_timestamps") or {}:
+                try:
+                    moment = _naive(timestamp)
+                except (AttributeError, TypeError, ValueError):
+                    continue  # a stamp that is no time says nothing about an hour
+                if moment.date() == start.date():
+                    held.add(moment.hour)
+            if held:
+                parts.append(t(f"{prefix}.solar_day_blocked", hours=_hour_ranges(held)))
+            lines.append(" ".join(parts))
+        return lines
 
     def _plan_summary_lines(self, valuta: str, valuta_kwh: str) -> list[str]:
         """The bill of the period without and with the battery (the plan that controls it), item by item."""
@@ -403,6 +509,11 @@ class Overview:
                         pct = f"**{round(d['percentage'], 1)}**" if d["percentage"] else "**0**"
                         kwh_text = f"**{round(d['kWh'], 1)}**" if d["kWh"] else "**0.0**"
                         overview.append(f"| {day_text} | {date_text} | {when_text} | {emoji} | {pct} |  | {kwh_text} |")
+                    try:  # text only: a failure never takes the table away
+                        for line in self._solar_day_lines(charging_plan, days):
+                            overview.append(f"\n☀️ {line}\n")
+                    except Exception as err:  # noqa: BLE001
+                        _LOGGER.exception("Failed to create the solar day text: %s", err)
                 else:
                     overview.append(f"### 🌞 {t('ui.cheap_grid_charge_hours.no_solar_production')} ##")
                 overview.append("</center>\n")

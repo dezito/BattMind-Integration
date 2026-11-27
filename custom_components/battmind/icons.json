@@ -22,6 +22,9 @@
       "kwh_charged_by_solar": {
         "default": "mdi:white-balance-sunny"
       },
+      "last_full_charge": {
+        "default": "mdi:battery-check"
+      },
       "analysis": {
         "default": "mdi:chart-box-outline"
       },
@@ -31,6 +34,15 @@
       "what_if_progress": {
         "default": "mdi:progress-clock"
       },
+      "automation_test": {
+        "default": "mdi:test-tube",
+        "state": {
+          "running": "mdi:test-tube",
+          "done": "mdi:clipboard-check-outline",
+          "stopped": "mdi:test-tube-off",
+          "failed": "mdi:test-tube-off"
+        }
+      },
       "what_if_status": {
         "default": "mdi:flask-empty-outline",
         "state": {
@@ -39,9 +51,18 @@
           "stopped": "mdi:flask-off-outline",
           "failed": "mdi:flask-empty-remove-outline"
         }
+      },
+      "storm_warning": {
+        "default": "mdi:weather-hurricane"
       }
     },
     "switch": {
+      "automation_test_run": {
+        "default": "mdi:test-tube",
+        "state": {
+          "on": "mdi:stop"
+        }
+      },
       "what_if_run": {
         "default": "mdi:play",
         "state": {
@@ -107,6 +128,12 @@
       },
       "what_if_modules": {
         "default": "mdi:battery-plus-variant"
+      },
+      "learn_charge_taper": {
+        "default": "mdi:battery-charging-high"
+      },
+      "learn_battery_capacity": {
+        "default": "mdi:battery-heart-variant"
       }
     },
     "number": {
@@ -133,6 +160,9 @@
       },
       "powerwall_max_hours_old": {
         "default": "mdi:clock-time-four-outline"
+      },
+      "full_charge_recommended": {
+        "default": "mdi:battery-heart-variant"
       },
       "what_if_history_days": {
         "default": "mdi:calendar-range"
@@ -181,6 +211,9 @@
       },
       "what_if_powerwall_max_hours_old": {
         "default": "mdi:clock-time-four-outline"
+      },
+      "storm_cover_hours": {
+        "default": "mdi:timer-outline"
       }
     },
     "select": {

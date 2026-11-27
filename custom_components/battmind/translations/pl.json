@@ -252,7 +252,7 @@
           "production_entity_id": "Produkcja energii słonecznej (W)",
           "inverter_discharging_power_limit": "Limit mocy rozładowania falownika (W)",
           "production_price": "Ustaw -1.0, aby używać ceny godzinowej sprzedaży",
-          "forecast_entity_id": "Prognoza produkcji (W) (Obsługiwana integracja: Solcast PV Forecast)"
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar lub Helios Forecast. Solcast: np. sensor.solcast_pv_forecast_forecast_today, kolejne dni są znajdowane automatycznie. Forecast.Solar: dowolny z jego czujników; połacie dachu z tego samego źródła słonecznego w panelu Energia są sumowane. Helios Forecast: np. sensor.helios_forecast_power_now."
         },
         "data": {
           "forecast_entity_id": "Prognoza słoneczna (opcjonalnie)",
@@ -260,7 +260,7 @@
           "production_entity_id": "Produkcja słoneczna",
           "production_price": "Stała cena sprzedaży nadwyżki słonecznej"
         },
-        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.\n\nSolcast domyślnie wyłącza czujniki prognozy od dnia 3: włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*) i włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast, w przeciwnym razie te dni są planowane bez Solcast.\nWyłączone teraz czujniki Solcast: {solcast_disabled}",
+        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.\n\nForecast.Solar i Helios Forecast są odczytywane z ich prognozy słonecznej dla panelu Energia; godziny, których nie obejmują, są planowane na podstawie prognozy pogody i zapisanej historii słonecznej; godzina bez żadnej z nich liczy się jako brak słońca.\n\nSolcast domyślnie wyłącza czujniki prognozy od dnia 3: włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*) i włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast, w przeciwnym razie te dni są planowane bez Solcast.\nWyłączone teraz czujniki Solcast: {solcast_disabled}",
         "title": "Panele słoneczne"
       },
       "weather": {
@@ -278,7 +278,7 @@
       "advanced": {
         "data_description": {
           "cron_interval": "Interwał między sprawdzaniem statusu a wykonywaniem funkcji",
-          "enable_diagnostic_file_log": "Włącza diagnostyczne logowanie do pliku w celu debugowania. Logi są zapisywane do osobnego pliku z automatyczną rotacją (2 MB na plik, 3 rotowane pliki).",
+          "enable_diagnostic_file_log": "Zapisuje szczegółowy log do pliku battmind_{prefix}.log w folderze konfiguracji (2 MB na plik, 3 rotowane pliki). Do diagnozowania problemów.",
           "dashboard": "Dodaje do paska bocznego gotowy dashboard BattMind z planem, cenami, historią i wszystkimi ustawieniami tej instancji. Wymaga kart HACS apexcharts-card, mushroom, config-template-card, timer-bar-card i card-mod (opcjonalnie). Powiadomienie wymienia brakujące karty.",
           "days_to_predict": "Liczba dni (łącznie z dzisiaj), które obejmuje plan ładowania, prognoza zużycia i prognoza słoneczna. Więcej dni daje lepsze decyzje o magazynowaniu energii, ale kosztuje więcej CPU i zależy od prognoz cen."
         },
@@ -361,7 +361,7 @@
       "min_above_max": "Poziom minimalny musi być niższy niż maksymalny.",
       "invalid_icon": "Użyj nazwy ikony, np. mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
-      "price_unit_subunit": "Ten czujnik podaje cenę w centach lub pensach (albo, w przypadku Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot i Nord Pool, za MWh lub Wh). Wybierz czujnik z ceną za kWh w walucie (np. EUR/kWh). Czujnik ceny Wattcast musi podawać ct/kWh; każda inna jednostka jest dla niego błędna.",
+      "price_unit_subunit": "Ten czujnik podaje cenę w centach lub pensach (albo, w przypadku Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot i Nord Pool, za MWh lub Wh, a dla Energy Price Forecast za Wh). Wybierz czujnik z ceną za kWh w walucie (np. EUR/kWh). Czujnik ceny Wattcast musi podawać ct/kWh; każda inna jednostka jest dla niego błędna.",
       "price_sensor_not_retail": "To nie jest czujnik z ceną detaliczną. Jako cenę zakupu wybierz czujnik Energy Price Forecast z ceną detaliczną (cena hurtowa jest ceną sprzedaży).",
       "price_sensor_not_wholesale": "To jest czujnik z ceną detaliczną. Jako cenę sprzedaży wybierz czujnik Energy Price Forecast z ceną hurtową (cena detaliczna jest wyższa niż to, co daje sprzedaż).",
       "price_sensor_forecast_only": "Ten czujnik nie ma teraz opublikowanych cen na dziś, tylko prognozę. Jeśli Energy Price Forecast nie publikuje cen dla Twojego rynku (np. Finlandia lub Wielka Brytania), ustaw w nim czujnik Nord Pool lub ENTSO-e jako „Own price source” (dla ceny zakupu wybierz tam też „Own formula” w „Retail price”: oszacowanie nie korzysta z tego źródła cen) i wybierz czujnik ponownie. W przeciwnym razie spróbuj ponownie, gdy ceny zostaną opublikowane.",
@@ -632,7 +632,7 @@
           "production_entity_id": "Produkcja energii słonecznej (W)",
           "inverter_discharging_power_limit": "Limit mocy rozładowania falownika (W)",
           "production_price": "Ustaw -1.0, aby używać ceny godzinowej sprzedaży",
-          "forecast_entity_id": "Prognoza produkcji (W) (Obsługiwana integracja: Solcast PV Forecast)"
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar lub Helios Forecast. Solcast: np. sensor.solcast_pv_forecast_forecast_today, kolejne dni są znajdowane automatycznie. Forecast.Solar: dowolny z jego czujników; połacie dachu z tego samego źródła słonecznego w panelu Energia są sumowane. Helios Forecast: np. sensor.helios_forecast_power_now."
         },
         "data": {
           "forecast_entity_id": "Prognoza słoneczna (opcjonalnie)",
@@ -640,7 +640,7 @@
           "production_entity_id": "Produkcja słoneczna",
           "production_price": "Stała cena sprzedaży nadwyżki słonecznej"
         },
-        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.\n\nSolcast domyślnie wyłącza czujniki prognozy od dnia 3: włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*) i włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast, w przeciwnym razie te dni są planowane bez Solcast.\nWyłączone teraz czujniki Solcast: {solcast_disabled}",
+        "description": "Opcjonalnie. Z panelami BattMind przewiduje nadwyżkę, która ładuje baterię za darmo, może przesunąć ładowanie słoneczne na tańsze godziny i sumuje `sensor.{prefix}_kwh_charged_by_solar`. Bez paneli zostaw puste.\n\nForecast.Solar i Helios Forecast są odczytywane z ich prognozy słonecznej dla panelu Energia; godziny, których nie obejmują, są planowane na podstawie prognozy pogody i zapisanej historii słonecznej; godzina bez żadnej z nich liczy się jako brak słońca.\n\nSolcast domyślnie wyłącza czujniki prognozy od dnia 3: włącz je w **Ustawienia → Urządzenia i usługi → Encje** (*Pokaż wyłączone encje*) i włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast, w przeciwnym razie te dni są planowane bez Solcast.\nWyłączone teraz czujniki Solcast: {solcast_disabled}",
         "title": "Panele słoneczne"
       },
       "weather": {
@@ -655,10 +655,42 @@
         "description": "Używane razem z zapisaną historią słoneczną do przewidywania nadwyżki słonecznej. Działa każda integracja pogody obsługująca `weather.get_forecasts` (Met.no, AccuWeather, OpenWeather, ...).",
         "title": "Prognoza pogody"
       },
+      "storm": {
+        "title": "Ostrzeżenie przed burzą",
+        "description": "Utrzymuje baterię naładowaną na czas ostrzeżenia przed burzą. Wybierz czujnik binarny MeteoAlarm; pozostaw puste, aby wyłączyć funkcję. Liczą się tylko ostrzeżenia o wietrze, śniegu/lodzie lub burzy z piorunami na wybranym poziomie lub wyższym oraz tylko ostrzeżenia z czasem rozpoczęcia. Zapotrzebowanie to oczekiwane zużycie domu w czasie ostrzeżenia bez energii słonecznej plus zapas na wypadek błędnej prognozy (co najmniej 20 %). Bez zasilania awaryjnego pełna bateria nie zasili domu podczas przerwy w dostawie prądu.",
+        "data": {
+          "storm_warning_entity_id": "Ostrzeżenie przed burzą (MeteoAlarm)",
+          "storm_min_level": "Najniższy poziom, który się liczy"
+        },
+        "data_description": {
+          "storm_warning_entity_id": "Czujnik binarny MeteoAlarm dla Twojego regionu. Puste = wyłączone: funkcja, jej czujnik i liczba nie są tworzone.",
+          "storm_min_level": "2 = żółty, 3 = pomarańczowy, 4 = czerwony."
+        }
+      },
+      "notifications": {
+        "title": "Powiadomienia push",
+        "description": "Wysyłaj powiadomienia push przez wybrane usługi lub encje notify (na przykład aplikację mobilną). Pozostaw listę pustą, aby nic nie wysyłać. Wiadomość idzie, gdy coś się zmienia: zaczyna się problem (i wiadomość, gdy się skończy), ostrzeżenie o burzy, coś, czego BattMind się nauczył, albo raz dziennie podsumowanie planu na jutro. Brakujące lub niejasne dane nigdy nie oznaczają, że problem minął. Wiadomości są w języku wybranym dla BattMind.",
+        "data": {
+          "notify_list": "Wyślij przez",
+          "notify_problems": "Problemy",
+          "notify_storm": "Ostrzeżenie o burzy",
+          "notify_learning": "Nauka zakończona",
+          "notify_summary": "Podsumowanie dzienne",
+          "notify_summary_hour": "Wysyłaj podsumowanie od (godzina)"
+        },
+        "data_description": {
+          "notify_list": "Usługi notify (notify.mobile_app_...) i encje notify. Puste = brak powiadomień push.",
+          "notify_problems": "Utracono poziom baterii, plan nie jest wykonywany, brakuje czujników, są zamrożone lub niedostępne, bateria jest zatrzymana przez temperaturę albo BattMind nie może wystartować, liczyć ani zapisać historii ładowania. Wiadomość przychodzi też, gdy problem minie.",
+          "notify_storm": "Ostrzeżenie o burzy nadchodzi lub trwa, oraz gdy minie.",
+          "notify_learning": "Po jednym razie: prognoza zużycia, krzywe sprawności i zmierzona pojemność są gotowe.",
+          "notify_summary": "Raz dziennie: co zaplanowano na jutro (ładowanie z sieci i sprzedaż). Wysyłane, gdy znane są jutrzejsze ceny.",
+          "notify_summary_hour": "Podsumowanie idzie na końcu pierwszej godziny od tej godziny, w której znane są jutrzejsze ceny (0-23)."
+        }
+      },
       "advanced": {
         "data_description": {
           "cron_interval": "Interwał między sprawdzaniem statusu a wykonywaniem funkcji",
-          "enable_diagnostic_file_log": "Włącza diagnostyczne logowanie do pliku w celu debugowania. Logi są zapisywane do osobnego pliku z automatyczną rotacją (2 MB na plik, 3 rotowane pliki).",
+          "enable_diagnostic_file_log": "Zapisuje szczegółowy log do pliku battmind_{prefix}.log w folderze konfiguracji (2 MB na plik, 3 rotowane pliki). Do diagnozowania problemów.",
           "dashboard": "Dodaje do paska bocznego gotowy dashboard BattMind z planem, cenami, historią i wszystkimi ustawieniami tej instancji. Wymaga kart HACS apexcharts-card, mushroom, config-template-card, timer-bar-card i card-mod (opcjonalnie). Powiadomienie wymienia brakujące karty.",
           "days_to_predict": "Liczba dni (łącznie z dzisiaj), które obejmuje plan ładowania, prognoza zużycia i prognoza słoneczna. Więcej dni daje lepsze decyzje o magazynowaniu energii, ale kosztuje więcej CPU i zależy od prognoz cen."
         },
@@ -691,11 +723,12 @@
         "menu_options": {
           "backup": "Kopia zapasowa (eksport / import)",
           "menu_advanced": "Planowanie i przechowywanie danych",
+          "menu_notifications": "Powiadomienia push",
           "menu_battery": "Bateria domowa",
           "menu_consumption": "Zużycie domu",
           "menu_general": "Ogólne",
           "menu_prices": "Ceny energii",
-          "menu_solar": "Panele słoneczne i pogoda"
+          "menu_solar": "Panele słoneczne, pogoda i ostrzeżenie przed burzą"
         },
         "description": "Wybierz, co zmienić. Integracja zostanie przeładowana po zapisaniu.",
         "title": "BattMind"
@@ -750,7 +783,7 @@
       "min_above_max": "Poziom minimalny musi być niższy niż maksymalny.",
       "invalid_icon": "Użyj nazwy ikony, np. mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
-      "price_unit_subunit": "Ten czujnik podaje cenę w centach lub pensach (albo, w przypadku Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot i Nord Pool, za MWh lub Wh). Wybierz czujnik z ceną za kWh w walucie (np. EUR/kWh). Czujnik ceny Wattcast musi podawać ct/kWh; każda inna jednostka jest dla niego błędna.",
+      "price_unit_subunit": "Ten czujnik podaje cenę w centach lub pensach (albo, w przypadku Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot i Nord Pool, za MWh lub Wh, a dla Energy Price Forecast za Wh). Wybierz czujnik z ceną za kWh w walucie (np. EUR/kWh). Czujnik ceny Wattcast musi podawać ct/kWh; każda inna jednostka jest dla niego błędna.",
       "price_sensor_not_retail": "To nie jest czujnik z ceną detaliczną. Jako cenę zakupu wybierz czujnik Energy Price Forecast z ceną detaliczną (cena hurtowa jest ceną sprzedaży).",
       "price_sensor_not_wholesale": "To jest czujnik z ceną detaliczną. Jako cenę sprzedaży wybierz czujnik Energy Price Forecast z ceną hurtową (cena detaliczna jest wyższa niż to, co daje sprzedaż).",
       "price_sensor_forecast_only": "Ten czujnik nie ma teraz opublikowanych cen na dziś, tylko prognozę. Jeśli Energy Price Forecast nie publikuje cen dla Twojego rynku (np. Finlandia lub Wielka Brytania), ustaw w nim czujnik Nord Pool lub ENTSO-e jako „Own price source” (dla ceny zakupu wybierz tam też „Own formula” w „Retail price”: oszacowanie nie korzysta z tego źródła cen) i wybierz czujnik ponownie. W przeciwnym razie spróbuj ponownie, gdy ceny zostaną opublikowane.",
@@ -770,6 +803,9 @@
   },
   "entity": {
     "switch": {
+      "automation_test_run": {
+        "name": "Przetestuj moją automatyzację"
+      },
       "what_if_run": {
         "name": "Uruchom symulację"
       },
@@ -824,6 +860,12 @@
       "enhance_battery_efficiency": {
         "name": "Zwiększ wydajność baterii"
       },
+      "learn_charge_taper": {
+        "name": "Ucz się mocy ładowania według poziomu baterii"
+      },
+      "learn_battery_capacity": {
+        "name": "Używaj zmierzonej pojemności baterii"
+      },
       "price_forecast_correction": {
         "name": "Koryguj prognozę cen"
       },
@@ -861,6 +903,12 @@
       },
       "powerwall_max_hours_old": {
         "name": "Maks. wiek kWh w magazynie energii"
+      },
+      "full_charge_recommended": {
+        "name": "Zalecane pełne ładowanie co"
+      },
+      "storm_cover_hours": {
+        "name": "Godziny objęte ostrzeżeniem bez czasu końca"
       },
       "what_if_history_days": {
         "name": "What-if – Historia (dni)"
@@ -1099,11 +1147,40 @@
       "kwh_charged_by_solar": {
         "name": "kWh naładowane z PV"
       },
+      "storm_warning": {
+        "name": "Ostrzeżenie przed burzą",
+        "state": {
+          "no_warning": "Brak ostrzeżenia",
+          "entity_unavailable": "Encja ostrzeżenia niedostępna",
+          "below_level": "Poniżej wybranego poziomu",
+          "other_type": "To nie jest ostrzeżenie przed burzą",
+          "no_start": "Brak czasu rozpoczęcia (zignorowano)",
+          "unreadable": "Nie można odczytać poziomu lub typu (zignorowano)",
+          "expired": "Zakończone",
+          "invalid": "Koniec przed początkiem (zignorowano)",
+          "later": "Zaczyna się po planie",
+          "coming": "Nadchodzące",
+          "active": "Aktywne"
+        }
+      },
+      "last_full_charge": {
+        "name": "Ostatnie pełne ładowanie"
+      },
       "analysis": {
         "name": "Oszczędności w tym miesiącu"
       },
       "what_if": {
         "name": "Wynik what-if"
+      },
+      "automation_test": {
+        "name": "Test automatyzacji",
+        "state": {
+          "idle": "Bezczynny",
+          "running": "Działa",
+          "done": "Zakończono",
+          "stopped": "Zatrzymano",
+          "failed": "Niepowodzenie"
+        }
       },
       "what_if_status": {
         "name": "Status what-if",
@@ -1191,10 +1268,6 @@
       "title": "Czujniki Energy Price Forecast używane przez BattMind nie mają opublikowanych cen ({prefix})",
       "description": "BattMind ({prefix}) używa czujników Energy Price Forecast, które od co najmniej godziny nie mają opublikowanych cen na dziś ani na jutro, tylko prognozę:\n{entities}\n\nBez ceny na dziś minione godziny nie mają ceny, więc brakuje ich w historii ładowania, w cenie energii w magazynie i w historii cen.\n\nJeśli Energy Price Forecast nie publikuje cen dla Twojego rynku (np. Finlandia lub Wielka Brytania), ustaw w nim czujnik Nord Pool lub ENTSO-e jako „Own price source” (dla ceny zakupu wybierz tam też „Own formula” w „Retail price”: oszacowanie nie korzysta z tego źródła cen). W przeciwnym razie ceny są tylko opóźnione.\n\nTa naprawa zniknie sama, gdy czujniki znów będą miały opublikowane ceny."
     },
-    "price_sensor_unit": {
-      "title": "Czujniki cen używane przez BattMind podają cenę w złej jednostce ({prefix})",
-      "description": "BattMind ({prefix}) używa czujników cen, które podają cenę w podjednostce waluty (np. ct/kWh lub p/kWh) lub, dla Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot i Nord Pool, za MWh lub Wh:\n{entities}\n\nIch ceny są błędne o czynnik 100 lub 1000, więc BattMind ich nie używa: planuje na podstawie zapisanych cen. Wybierz w ustawieniach cen czujnik z ceną za kWh w walucie (np. EUR/kWh) albo przywróć jednostkę czujnika.\n\nTa naprawa zniknie sama, gdy czujniki znów będą podawać cenę za kWh.\n\nCzujnik ceny Wattcast musi podawać ct/kWh; każda inna jednostka jest dla niego błędna."
-    },
     "stromligning_entities": {
       "title": "Czujniki Strømligning potrzebne dla BattMind są niedostępne ({prefix})",
       "description": "BattMind ({prefix}) używa czujników Strømligning, które są wyłączone lub których Strømligning nie udostępnia. Brakująca taryfa sprzedaży liczy się jako 0, przez co obliczona cena sprzedaży jest za wysoka, a bez czujników cen używane są zapisane ceny.\n\nWyłączone w Home Assistant (Strømligning domyślnie wyłącza czujniki bez VAT – włącz je w **Ustawienia → Urządzenia i usługi → Encje** z opcją *Pokaż wyłączone encje*):\n{disabled}\n\nNiedostarczane przez Strømligning (np. prognozy cen są wyłączone w jego opcjach):\n{not_provided}\n\nTa naprawa zniknie sama, gdy czujniki znów będą działać."
@@ -1202,6 +1275,38 @@
     "solcast_entities": {
       "title": "Czujniki prognozy Solcast potrzebne dla BattMind są niedostępne ({prefix})",
       "description": "BattMind ({prefix}) nie może użyć wszystkich potrzebnych czujników prognozy Solcast, więc dni bez nich są planowane na podstawie prognozy pogody i zapisanej historii produkcji słonecznej. Solcast domyślnie wyłącza czujniki prognozy od dnia 3.\n\nWyłączone w Home Assistant (włącz je w **Ustawienia → Urządzenia i usługi → Encje** z opcją *Pokaż wyłączone encje*):\n{disabled}\n\nNazwane inaczej, niż oczekuje BattMind (identyfikator encji musi kończyć się na _today, _tomorrow lub _day_3 …):\n{renamed}\n\nBez szczegółów godzinowych (włącz *Szczegóły godzinowe* w sekcji *Podział atrybutów prognozy* w opcjach Solcast):\n{no_detail}\n\nTa naprawa zniknie sama po poprawieniu czujników."
+    },
+    "entities_missing": {
+      "title": "Czujniki używane przez BattMind są wyłączone lub brakuje ich ({prefix})",
+      "description": "BattMind ({prefix}) używa czujników, które są wyłączone w Home Assistant albo już nie istnieją, bo zostały usunięte lub zmieniono ich nazwy. Plan liczy wtedy z brakującymi wartościami, a bateria może nie podążać za planem.\n\nWyłączone (włącz je w **Ustawienia → Urządzenia i usługi → Encje**, z opcją *Pokaż wyłączone encje*):\n{disabled}\n\nBrakujące (wybierz czujnik ponownie w **Konfiguruj** w integracji BattMind albo przywróć mu dawną nazwę):\n{missing}\n\nAby sprawdzić, czy bateria nadal podąża za planem, uruchom *Przetestuj moją automatyzację* na pulpicie BattMind.\n\nTa naprawa zniknie sama, gdy wszystkie czujniki są włączone i znowu znalezione."
+    },
+    "entity_units": {
+      "title": "Jednostki czujników, których BattMind nie może odczytać ({prefix})",
+      "description": "BattMind ({prefix}) odczytuje czujniki mocy w mW, W, kW, MW lub GW (jednostka z h, np. Wh lub kWh, jest odczytywana jak jednostka bez h) oraz poziom baterii w %. Te czujniki podają inną jednostkę, więc ich wartości są odczytywane w złej skali i plan jest błędny:\n{entities}\n\nZmień jednostkę w integracji, która tworzy czujnik, albo wybierz w **Konfiguruj** w integracji BattMind czujnik, który podaje moc lub poziom baterii w tych jednostkach. Następnie uruchom *Przetestuj moją automatyzację* na pulpicie BattMind, aby sprawdzić, czy bateria nadal podąża za planem.\n\nTa naprawa zniknie sama, gdy wszystkie czujniki podają jednostkę, którą BattMind potrafi odczytać."
+    },
+    "blueprint_automation_lost": {
+      "title": "Automatyzacja utworzona z blueprintu BattMind jest wyłączona ({prefix})",
+      "description": "BattMind ({prefix}) widział, że automatyzacja utworzona z jego blueprintu do sterowania baterią była włączona. Teraz jest wyłączona albo usunięta, więc bateria nie dostaje już działań z planu.\n\nWyłączone (myślnik oznacza, że automatyzacja została usunięta z automations.yaml):\n{automations}\n\nWłącz ponownie automatyzację w **Ustawienia → Automatyzacje i sceny** albo utwórz nową na podstawie blueprintu BattMind i uruchom *Przetestuj moją automatyzację* na pulpicie BattMind.\n\nTa naprawa zniknie sama, gdy automatyzacja jest znowu włączona. Jeśli celowo nie używasz już blueprintu, możesz zignorować tę naprawę."
+    },
+    "power_without_unit": {
+      "title": "Czujniki mocy bez jednostki ({prefix})",
+      "description": "BattMind ({prefix}) odczytuje te czujniki mocy w watach (W), bo nie mają jednostki. Liczba po ≤ to najwyższa zaobserwowana wartość (bez znaku):\n{entities}\n\nW ciągu ostatnich {days} dni ich wartości nigdy nie przekroczyły {max}, a niektóre są liczbami dziesiętnymi. Wygląda to na kilowaty (kW): odczytane jako W wartości są 1000 razy za małe, a plan używa zbyt małej mocy.\n\nNapraw to u źródła: nadaj czujnikowi jednostkę, np. `unit_of_measurement: kW` w czujniku template albo jednostkę, którą podaje integracja tworząca czujnik. Następnie uruchom *Przetestuj moją automatyzację* na pulpicie BattMind, aby sprawdzić, czy bateria nadal podąża za planem.\n\nJeśli wartości naprawdę są w W, możesz zignorować tę naprawę. Zniknie sama, gdy czujniki będą miały jednostkę albo ich wartości pokażą, że są w W."
+    },
+    "battery_level_fraction": {
+      "title": "Poziom baterii wygląda na udział, a nie na procent ({prefix})",
+      "description": "BattMind ({prefix}) odczytuje czujnik poziomu baterii jako procent (%). Liczba po ≤ to najwyższa zaobserwowana wartość (bez znaku):\n{entities}\n\nW ciągu ostatnich {days} dni wszystkie wartości mieściły się między 0 a 1, więc wyglądają jak udział (0,85 = 85 %). Odczytane jako procent, 0,85 to 0,85 % zamiast 85 %.\n\nNapraw to u źródła: spraw, aby czujnik podawał wartości od 0 do 100, np. mnożąc przez 100 w czujniku template, i wybierz ten czujnik w ustawieniach **Konfiguruj** integracji BattMind. Następnie uruchom *Przetestuj moją automatyzację* na pulpicie BattMind, aby sprawdzić, czy bateria nadal podąża za planem.\n\nJeśli poziom baterii naprawdę jest poniżej 1 % przez cały czas, możesz zignorować tę naprawę. Zniknie sama, gdy czujnik pokaże wartości powyżej 1."
+    },
+    "price_unit_scale": {
+      "title": "Czujniki cen w podjednostce, za MWh lub za Wh ({prefix})",
+      "description": "BattMind ({prefix}) odczytuje ceny z tych czujników, ale są one w jednostce, której BattMind nie przelicza:\n{entities}\n\nCeny są w podjednostce waluty (øre lub cent), za MWh albo za Wh (Energy Price Forecast sam przelicza cenę za MWh), więc są 100 razy za duże (podjednostka), 1000 razy za duże (za MWh) albo 1000 razy za małe (za Wh). BattMind nie używa cen z takiego czujnika Energi Data Service, Energy Price Forecast, Spot Forecast, Elprisprognos, Wattcast, EPEX Spot, GE-Spot i Nord Pool: zamiast nich używa cen następnego dostawcy lub zapisanych cen. Czujnik Strømligning, czujnik Octopus Energy lub czujnik taryfy jest czytany taki, jaki jest, więc dla nich plan i wyliczenie oszczędności są błędne.\n\nNapraw to u źródła: w Energi Data Service wyłącz „Show prices in cent” i ustaw „Price calculated in” na kWh w opcjach integracji (Energi Data Service nie ma polskiego tłumaczenia, opcje mają nazwy angielskie), albo wybierz w ustawieniach **Konfiguruj** integracji BattMind czujnik z ceną za kWh w walucie (np. kr/kWh). Następnie uruchom *Przetestuj moją automatyzację* na pulpicie BattMind, aby sprawdzić, czy bateria nadal podąża za planem.\n\nJeśli ceny naprawdę są w walucie za kWh, możesz zignorować tę naprawę. Zniknie sama, gdy żaden czujnik cen nie będzie w podjednostce, za MWh ani za Wh.\n\nCzujnik ceny Wattcast musi podawać ct/kWh; każda inna jednostka jest dla niego błędna."
+    },
+    "consumption_frozen": {
+      "title": "Czujnik zużycia domu pokazuje cały czas tę samą wartość ({prefix})",
+      "description": "BattMind ({prefix}) używa czujnika zużycia domu {entity} w planie. Od {since} pokazuje tę samą wartość, {value}. Gdy czujnik zużycia przestaje się zmieniać, zwykle zawiesiła się integracja albo urządzenie, które go dostarcza, a plan używa starej wartości zużycia domu.\n\nSprawdź integrację lub urządzenie dostarczające ten czujnik i w razie potrzeby je zrestartuj. Następnie uruchom *Przetestuj moją automatyzację* na pulpicie BattMind, aby sprawdzić, czy bateria nadal podąża za planem.\n\nTa naprawa znika sama, gdy czujnik pokaże inną wartość. Nie zmienia niczego w BattMind ani w twoich automatyzacjach: zignoruj ją, jeśli wartość naprawdę jest stała."
+    },
+    "plan_not_followed": {
+      "title": "Bateria nie podąża za planem ({prefix})",
+      "description": "W ciągu ostatnich {days} dni BattMind ocenił {checked} godzin, w których bateria powinna zrobić to, czego wymaga działanie z `sensor.{prefix}_powerwall_action`. W {mismatches} z nich bateria tego nie zrobiła, a zgodnych było {percent} %. Naprawa pojawia się przy {min_checked} lub więcej ocenionych godzinach, z co najmniej {min_mismatches} niezgodnościami i zgodnością poniżej {max_percent} %.\n\nOstatnie niezgodności (godzina, działanie, naładowane / rozładowane kWh):\n{latest}\n\nNajczęstsze przyczyny:\n- automatyzacja nie wykonuje kroku dla tego działania: uruchom *Przetestuj moją automatyzację* na pulpicie BattMind i przeczytaj wynik dla każdego działania\n- inna aplikacja, inna automatyzacja albo harmonogram samego falownika też steruje baterią\n- zły znak: ładowanie mierzone jako rozładowanie albo odwrotnie (sprawdź czujnik mocy baterii)\n- ustawienie falownika, np. minimalny poziom naładowania albo maksymalna moc, zatrzymuje baterię\n\nGodziny, w których bateria nie mogła podążyć za planem, nie są liczone: bateria była na granicy, trwał test, brakowało danych albo działanie zmieniło się w ciągu godziny.\n\nTa naprawa zniknie sama, gdy bateria znowu podąża za planem: mniej niż {min_mismatches} niezgodności albo zgodność co najmniej {max_percent} %. Godziny liczone są z ostatnich {days} dni, więc może to potrwać kilka dni."
     }
   },
   "selector": {

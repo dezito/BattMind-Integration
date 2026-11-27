@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import math
 from statistics import median
 from typing import Callable
 
@@ -43,10 +44,28 @@ EXPENSIVE_HOURS = 4  # the most expensive hours of a day that are checked for an
 EMPTY_MARGIN = 2.0  # % above the minimum battery level that counts as empty
 
 
-SCORE_STEPS = 60  # battery levels in the hindsight optimisation
+SCORE_STEP_KWH = 0.05  # the battery level step of the hindsight optimisation (kWh); big moves are whole steps, small ones are exact
 
 
-SCORE_VERSION = 2  # raised when the hindsight model changes: older scores are not published (2: efficiency per power, profit requirements)
+SCORE_STEPS_MIN = 60  # battery levels in the hindsight optimisation at least (a small battery)
+
+
+SCORE_STEPS_MAX = 200  # and at most (a big battery): the run time grows with the square of it
+
+
+SCORE_VERSION = 3  # raised when the hindsight model changes: older scores are published marked "old", outside the 30 day figure (2: efficiency per power, profit requirements; 3: level neutral baseline, exact small moves, ignored consumers left out, standby, real hourly mean prices)
+
+
+SCORE_MIN_POSSIBLE = 0.05  # currency: a day with less possible saving than this (or than its stored "noise") has no score of its own
+
+
+SCORE_TARGET_MARGIN = 0.05  # share of the usable battery the energy the day's plan nets may lie outside the battery's range before the day is not scored
+
+
+SCORE_MAX_DRIFT = 0.3  # share of the usable battery the day's energy balance may be off by (a level jump, a missed hour) before the day is not scored
+
+
+SCORE_GAP_MIN_POINTS = 80  # of the 100 points of an hour a battery power or consumption sensor needs numbers for (fewer: it was lost, the hour is not scored)
 
 
 LOSS_DAY_MIN_CHARGED = 0.2  # battery sizes a day has to charge for its measured loss
@@ -73,7 +92,7 @@ FORECAST_AUTO_MARGIN = 0.05  # how much smaller another type's error must be bef
 # rules that charge from the grid / that discharge (sell) the battery, see CHARGING_TYPES
 CHARGE_RULES = (
     "cheapest_hour_fill_planner", "most_expensive_planner", "needed_before_max_level_planner",
-    "negative_price_planner", "grid_charge_to_sell",
+    "negative_price_planner", "full_charge_planner", "grid_charge_to_sell",
 )
 
 
@@ -156,22 +175,34 @@ def grid_cost(kwh: float, buy: float, sell: float) -> float:
     return kwh * buy if kwh > 0 else kwh * sell
 
 
-def hindsight_cost(rows: list[dict], start: float, end: float, low: float, high: float,
-                   max_charge: float, max_discharge: float, charge_efficiency: Callable[[float], float],
-                   discharge_efficiency: Callable[[float], float], wear: float, min_profit_per_kwh: float = 0.0,
-                   min_total_profit: float = 0.0, min_sell_kwh: float = 0.0) -> float | None:
-    """Lowest grid cost of a day with perfect knowledge of consumption, solar and prices.
+def score_steps(usable: float) -> int:
+    """Battery levels of the hindsight optimisation for a battery with this usable capacity (kWh)."""
+    return min(max(math.ceil(usable / SCORE_STEP_KWH), SCORE_STEPS_MIN), SCORE_STEPS_MAX)
+
+
+def hindsight_costs(rows: list[dict], start: float, ends: list[float], low: float, high: float,
+                    max_charge: float, max_discharge: float, charge_efficiency: Callable[[float], float],
+                    discharge_efficiency: Callable[[float], float], wear: float, min_profit_per_kwh: float = 0.0,
+                    min_total_profit: float = 0.0, min_sell_kwh: float = 0.0) -> list[float | None]:
+    """Lowest grid cost of a day with perfect knowledge of consumption, solar and prices, per end level.
 
     rows: per hour {"load": kWh house - solar (negative = surplus), "buy", "sell"}. The battery
-    starts with start kWh, ends with at least end kWh and stays within low..high; charging and
+    starts with start kWh, ends with at least each of ends (kWh) and stays within low..high; charging and
     discharging are limited per hour (AC kWh) and lose the efficiency at that hour's AC kWh
     (charge_efficiency / discharge_efficiency(kWh) like the optimiser's curves), wear is paid per
     kWh charged. Like the optimiser, min_profit_per_kwh (per kWh out of the battery) and
     min_total_profit (per hour selling to the grid) only steer the choice, and a
     sale needs min_sell_kwh: the result is the real cost of the cheapest plan BattMind may make.
+
+    Big moves are whole level steps (SCORE_STEP_KWH). Two exact moves are added in every hour, so a load or
+    a surplus smaller than a step is neither lost nor invented: the battery covers the whole house load (a
+    load that is not sold, so min_sell_kwh doesn't apply), or stores the whole solar surplus. The part of
+    the battery level that is not a whole step is carried with the level.
     """
-    if high - low <= 0.01:
-        return None
+    nothing: list[float | None] = [None] * len(ends)
+    usable = high - low
+    if usable <= 0.01 or (max_charge <= 0.0 and max_discharge <= 0.0):
+        return nothing
 
     def ac_kwh(battery_kwh: float, efficiency: Callable[[float], float], charging: bool) -> float | None:
         """AC kWh of battery_kwh at the efficiency of the AC kWh itself (two fixed point passes)."""
@@ -183,48 +214,208 @@ def hindsight_cost(rows: list[dict], start: float, end: float, low: float, high:
             ac = battery_kwh / value if charging else battery_kwh * value
         return ac
 
-    step = (high - low) / SCORE_STEPS
+    steps = score_steps(usable)
+    step = usable / steps
     # AC kWh per number of battery level steps up (charged) and down (delivered) within an hour
     ups, downs = [0.0], [0.0]
     for moves, efficiency, charging, limit in ((ups, charge_efficiency, True, max_charge), (downs, discharge_efficiency, False, max_discharge)):
-        while len(moves) <= SCORE_STEPS:
+        while len(moves) <= steps:
             ac = ac_kwh(len(moves) * step, efficiency, charging)
             if ac is None or ac > limit + 1e-9:
                 break
             moves.append(ac)
-    if len(ups) == 1 and len(downs) == 1:
-        return None
-    inf = float("inf")
-    # per battery level (objective incl. the profit requirements, real cost)
-    costs = [(inf, inf)] * (SCORE_STEPS + 1)
-    costs[min(max(round((start - low) / step), 0), SCORE_STEPS)] = (0.0, 0.0)
+    # per battery level step: (objective incl. the profit requirements, real cost, kWh above the step) or None
+    states: list[tuple[float, float, float] | None] = [None] * (steps + 1)
+    start_rel = min(max(start - low, 0.0), usable)
+    level = min(int(start_rel / step + 1e-9), steps)
+    states[level] = (0.0, 0.0, max(start_rel - level * step, 0.0))
     for row in rows:
-        new = [(inf, inf)] * (SCORE_STEPS + 1)
-        load = row["load"]
-        for i, (objective, cost) in enumerate(costs):
-            if objective == inf:
+        new: list[tuple[float, float, float] | None] = [None] * (steps + 1)
+        load, buy, sell = row["load"], row["buy"], row["sell"]
+        idle = grid_cost(load, buy, sell)
+        # the exact moves: (battery kWh, objective, real cost)
+        cover = absorb = None
+        if 0.01 < load <= max_discharge + 1e-9:
+            efficiency = discharge_efficiency(load)
+            if efficiency > 0.0:
+                cover = (load / efficiency, load * min_profit_per_kwh)  # the house load is delivered, nothing is sold
+        elif load < -0.01 and max_charge > 0.0:
+            ac = min(-load, max_charge)
+            efficiency = charge_efficiency(ac)
+            if efficiency > 0.0:
+                absorb = (ac * efficiency, grid_cost(load + ac, buy, sell) + wear * ac)
+        for i, state in enumerate(states):
+            if state is None:
                 continue
-            for j in range(max(i - len(downs) + 1, 0), min(i + len(ups) - 1, SCORE_STEPS) + 1):
+            objective, cost, carry = state
+            for j in range(max(i - len(downs) + 1, 0), min(i + len(ups) - 1, steps) + 1):
+                if j == steps and carry > 1e-9:
+                    continue  # the level step above the top has no room for the part of a step
                 if j > i:
                     ac = ups[j - i]
-                    real = grid_cost(load + ac, row["buy"], row["sell"]) + wear * ac
+                    real = grid_cost(load + ac, buy, sell) + wear * ac
                     penalty = 0.0
                 elif j < i:
                     ac = downs[i - j]
                     sold = ac - max(load, 0.0)
                     if 0.01 < sold < min_sell_kwh:
                         continue
-                    real = grid_cost(load - ac, row["buy"], row["sell"])
+                    real = grid_cost(load - ac, buy, sell)
                     penalty = ac * min_profit_per_kwh + (min_total_profit if sold > 0.01 else 0.0)
                 else:
-                    real, penalty = grid_cost(load, row["buy"], row["sell"]), 0.0
+                    real, penalty = idle, 0.0
                 total = objective + real + penalty
-                if total < new[j][0]:
-                    new[j] = (total, cost + real)
-        costs = new
-    target = min(max(round((end - low) / step), 0), SCORE_STEPS)
-    best = min(costs[target:])
-    return None if best[0] == inf else best[1]
+                known = new[j]
+                # the cheaper plan to a level; of equal plans the one that kept more energy (a step that wastes a part of itself is not it)
+                if known is None or total < known[0] - 1e-9 or (total < known[0] + 1e-9 and carry > known[2]):
+                    new[j] = (total, cost + real, carry)
+            energy = i * step + carry
+            if carry > 1e-9 and max_charge > 0.0:
+                # the top of the range is not on the grid of whole steps: fill the battery exactly
+                room = usable - energy
+                ac = ac_kwh(room, charge_efficiency, True) if room > 1e-9 else None
+                if ac is not None and ac <= max_charge + 1e-9:
+                    real = grid_cost(load + ac, buy, sell) + wear * ac
+                    total = objective + real
+                    known = new[steps]
+                    if known is None or total < known[0] - 1e-9:
+                        new[steps] = (total, cost + real, 0.0)
+            if cover is not None:
+                left = energy - cover[0]
+                if left >= -1e-9:
+                    left = max(left, 0.0)
+                    j = min(int(left / step + 1e-9), steps)
+                    total = objective + cover[1]
+                    known, kept = new[j], max(left - j * step, 0.0)
+                    if known is None or total < known[0] - 1e-9 or (total < known[0] + 1e-9 and kept > known[2]):
+                        new[j] = (total, cost, kept)
+            if absorb is not None:
+                grown = energy + absorb[0]
+                if grown <= usable + 1e-9:
+                    grown = min(grown, usable)
+                    j = min(int(grown / step + 1e-9), steps)
+                    total = objective + absorb[1]
+                    known, kept = new[j], max(grown - j * step, 0.0)
+                    if known is None or total < known[0] - 1e-9 or (total < known[0] + 1e-9 and kept > known[2]):
+                        new[j] = (total, cost + absorb[1], kept)
+        states = new
+    results: list[float | None] = []
+    for end in ends:
+        required = min(max(end - low, 0.0), usable) - 1e-9
+        best = None
+        for level, state in enumerate(states):
+            if state is not None and level * step + state[2] >= required and (best is None or state[:2] < best):
+                best = state[:2]
+        results.append(None if best is None else best[1])
+    return results
+
+
+def hindsight_cost(rows: list[dict], start: float, end: float, low: float, high: float,
+                   max_charge: float, max_discharge: float, charge_efficiency: Callable[[float], float],
+                   discharge_efficiency: Callable[[float], float], wear: float, min_profit_per_kwh: float = 0.0,
+                   min_total_profit: float = 0.0, min_sell_kwh: float = 0.0) -> float | None:
+    """hindsight_costs() for one end level."""
+    return hindsight_costs(
+        rows, start, [end], low, high, max_charge, max_discharge, charge_efficiency, discharge_efficiency, wear,
+        min_profit_per_kwh=min_profit_per_kwh, min_total_profit=min_total_profit, min_sell_kwh=min_sell_kwh,
+    )[0]
+
+
+def day_score(hours: list[dict], start: float, end: float, low: float, high: float, levels: list[float],
+              max_charge: float, max_discharge: float, charge_efficiency: Callable[[float], float],
+              discharge_efficiency: Callable[[float], float], wear: float, min_profit_per_kwh: float = 0.0,
+              min_total_profit: float = 0.0, min_sell_kwh: float = 0.0) -> tuple[dict | None, str | None]:
+    """The grid cost of a closed day as it was, without the battery and with the best possible battery use: (score, None),
+    or (None, why the day can not be scored).
+
+    hours: per hour, all kWh: {"use": the house (without the ignored consumers), "solar", "ignored": what the ignored
+    consumers and the chargers on their own meters took, "charge", "discharge": the battery's AC energy, "buy": the
+    price, "sell": what a sold kWh is worth (sell_value())}. start/end/low/high/levels are battery levels in kWh (levels:
+    every level measured in the day, which widens low..high where the battery went outside the configured limits).
+
+    The ignored consumers (and the CJP chargers) are not part of the score. What they took from the solar surplus, then from
+    the battery, is taken out of the day's solar and discharge, and the battery energy it was is not asked of the best
+    possible plan either.
+
+    The best possible plan has to net the same battery energy as the day did, by the efficiencies of the model: the
+    battery's standby consumption and the model's own error are the day's loss, which both plans have. That makes the
+    baseline "without battery" comparable: optimal_neutral is the best possible cost when the battery ends where it
+    started (the saving the battery can make in a day), and actual - optimal (the price of the plan's mistakes) is
+    what the published score subtracts from it.
+    """
+    low, high = min([low, *levels]), max([high, *levels])
+    usable = high - low
+    if usable <= 0.01:
+        return None, "battery"
+    loads: list[dict] = []
+    stored = taken = given = no_battery = actual = 0.0
+    for hour in hours:
+        use, solar = hour["use"], hour["solar"]
+        charge, discharge = hour["charge"], hour["discharge"]
+        # the ignored consumers take the solar surplus first, then the battery, then the grid
+        from_solar = min(hour["ignored"], max(solar - use, 0.0))
+        from_battery = min(max(discharge - max(use - solar, 0.0), 0.0), hour["ignored"] - from_solar)
+        load = use - solar + from_solar
+        buy, sell = hour["buy"], hour["sell"]
+        if charge > 0.0:
+            efficiency = charge_efficiency(charge)
+            if efficiency <= 0.0:
+                return None, "battery"
+            stored += charge * efficiency
+        if discharge > 0.0:
+            efficiency = discharge_efficiency(discharge)
+            if efficiency <= 0.0:
+                return None, "battery"
+            taken += discharge / efficiency
+            given += from_battery / efficiency
+        loads.append({"load": load, "buy": buy, "sell": sell})
+        no_battery += grid_cost(load, buy, sell)
+        actual += grid_cost(load + charge - (discharge - from_battery), buy, sell) + wear * charge
+    # what the flows say the battery gained against what it did: a jump of the level or a missed hour is not a loss
+    if abs(start + stored - taken - end) > SCORE_MAX_DRIFT * usable:
+        return None, "drift"
+    target = start + stored - (taken - given)
+    # the plan nets more energy than the battery has room for (an ignored consumer took the energy it refilled), or less than it can
+    # hold: the best plan can not be asked for it, and clamping it would bill the day's plan for what it can not do
+    margin = SCORE_TARGET_MARGIN * usable
+    if target > high + margin or target < low - margin:
+        return None, "drift"
+    target = min(max(target, low), high)
+    optimal, neutral = hindsight_costs(
+        loads, start, [target, start], low, high, max_charge, max_discharge, charge_efficiency, discharge_efficiency, wear,
+        min_profit_per_kwh=min_profit_per_kwh, min_total_profit=min_total_profit, min_sell_kwh=min_sell_kwh,
+    )
+    if optimal is None or neutral is None:
+        return None, "battery"
+    return {
+        "actual": round(actual, 3),
+        "no_battery": round(no_battery, 3),
+        "optimal": round(min(optimal, actual), 3),
+        "optimal_raw": round(optimal, 3),
+        "optimal_neutral": round(min(neutral, no_battery), 3),
+        # what the rounding of the model can be worth in a day (a few level steps at the dearest price): less possible than this is no score
+        "noise": round(2.0 * (usable / score_steps(usable)) * max((abs(hour["buy"]) for hour in hours), default=0.0), 3),
+        "v": SCORE_VERSION,
+    }, None
+
+
+def score_figures(score: dict) -> tuple[float, float]:
+    """(saved, possible) of a day's stored score (day_score): possible is what the battery could have saved with the level at its
+    start (without battery minus the best plan that ends where it started), saved is that minus what the day's plan lost against the
+    best plan with the day's own end level (actual minus optimal). The score is saved / possible."""
+    possible = _num(score.get("no_battery")) - _num(score.get("optimal_neutral"))
+    return possible - (_num(score.get("actual")) - _num(score.get("optimal"))), possible
+
+
+def old_score_figures(score) -> tuple[float, float] | None:
+    """(saved, possible) of a score stored by an older hindsight model, by the formula it was shown with then: from version 3
+    (it stores optimal_neutral) score_figures(), version 1-2 saved = without battery - actual, possible = without battery -
+    optimal. None without its numbers. Raising SCORE_VERSION to a model with another formula adds the outgoing one here."""
+    if not isinstance(score, dict) or not all(_is_num(score.get(key)) for key in ("actual", "no_battery", "optimal")):
+        return None
+    if "optimal_neutral" in score:
+        return score_figures(score) if _is_num(score["optimal_neutral"]) else None
+    return score["no_battery"] - score["actual"], score["no_battery"] - score["optimal"]
 
 
 def measured_loss(charged: float, discharged: float, stored: float, charge_efficiency: float) -> float | None:
@@ -311,6 +502,8 @@ def summarize_day(rows: list[dict], soc_start: float | None, minimum: float) -> 
     result["price_hours"] = int(price_hours)
     result["soc_start"] = _r(soc_start, 1)
     result["soc_end"] = _r(level, 1)
+    # the level at the end of the day is the one of its last hour: after a lost sensor in that hour the next day does not start from it
+    result["soc_exact"] = bool(rows) and _is_num(rows[-1].get("soc"))
     if predicted_hours:
         result["forecast"] = {
             "hours": predicted_hours,

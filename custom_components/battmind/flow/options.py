@@ -89,6 +89,9 @@ class BattMindOptionsFlow(BattMindFlowPages, OptionsFlow):
     async def async_step_menu_solar(self, user_input=None) -> ConfigFlowResult:
         return await self._async_menu("solar")
 
+    async def async_step_menu_notifications(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_menu("notifications")
+
     async def async_step_menu_advanced(self, user_input=None) -> ConfigFlowResult:
         return await self._async_menu("advanced")
 

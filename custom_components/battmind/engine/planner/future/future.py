@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from functools import partial
 
+from ....utils.helpers import days_between
 from .charge_rules import FutureChargeRules
 from .context import FutureContext
 from .discharge_rules import FutureDischargeRules
@@ -49,6 +50,11 @@ class FutureCharging(FutureSupport, FutureChargeRules, FutureDischargeRules, Fut
             valuta_kwh=valuta_kwh,
         )
 
+        # 💯 full charge (engine/full_charge.py): due and its deadline priced, else None (also in the what-if replay)
+        requirement = self.full_charge_requirement()
+        self.full_charge_plan = (
+            {**requirement, "rules_reached": None, "optimal_reached": None, "optimal_dropped": None} if requirement else None
+        )
         charging_rules = [
             ("only_discharge_on_profit", self.enabled("only_discharge_on_profit"), partial(self.only_discharge_on_profit, ctx)),
             ("negative_price_planner", self.enabled("negative_price_planner"), partial(self.negative_price_planner, ctx)),
@@ -56,6 +62,8 @@ class FutureCharging(FutureSupport, FutureChargeRules, FutureDischargeRules, Fut
             ("most_expensive_planner", self.enabled("most_expensive_planner"), partial(self.most_expensive_planner, ctx)),
             ("needed_before_max_level_planner", self.enabled("needed_before_max_level_planner"), partial(self.needed_before_max_level_planner, ctx)),
             ("prioritize_discharge_hours_by_energy_cost", self.enabled("prioritize_discharge_hours_by_energy_cost"), partial(self.prioritize_discharge_hours_by_energy_cost, ctx)),
+            # no switch: only the number full_charge_recommended (it acts on the day of the deadline)
+            ("full_charge_planner", self.full_charge_plan is not None, partial(self.full_charge_planner, ctx)),
         ]
         sell_rules = [
             ("discharge_before_solar", self.enabled("discharge_before_solar"), partial(self.discharge_before_solar, ctx)),
@@ -93,6 +101,19 @@ class FutureCharging(FutureSupport, FutureChargeRules, FutureDischargeRules, Fut
             for day in days:
                 self.optimize_solar_charging(ctx, day)
 
+        if self.full_charge_plan is not None:
+            # the sell rules can have lowered the levels: the full charge adds what the plan still lacks
+            try:
+                self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now)
+                self.full_charge_planner(ctx, days_between(current_hour, self.full_charge_plan["deadline"]))
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.exception("Error in full_charge_planner")
+                self.notify(
+                    f"Error in full_charge_planner: {err} {type(err)}",
+                    title=f"{self.title} error",
+                    notification_id=f"{name}_full_charge_planner_error",
+                )
+
         self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now, final_recalc=True)
         for day in days:
             self.discharge_amount(ctx, day)
@@ -101,6 +122,9 @@ class FutureCharging(FutureSupport, FutureChargeRules, FutureDischargeRules, Fut
         self.optimizer_shadow = None
         self.shadow_plan_actions = None
         self.rule_old_energy = {}
+        self.rule_storm = {}
+        self.rule_taper = {}
+        self.storm_state = None
         try:
             result = self.shadow_plan(ctx, days)
             if self.enabled("optimizer_control") and result is not None:
@@ -110,11 +134,20 @@ class FutureCharging(FutureSupport, FutureChargeRules, FutureDischargeRules, Fut
                 self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now, final_recalc=True)
                 for day in days:
                     self.discharge_amount(ctx, day)
-            elif self.apply_max_age_to_rules(ctx):
-                # the rules control the battery: they may not hold back energy older than the max. age either
+            elif self.apply_max_age_to_rules(ctx) | self.apply_storm_to_rules(ctx) | self.apply_taper_to_rules(ctx):
+                # the rules control the battery: they may not hold back energy older than the max. age either, they keep the
+                # level of a storm warning and they plan no more charge than the battery takes (all looked for with the
+                # optimiser's plan next to them)
                 self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now, final_recalc=True)
                 for day in days:
                     self.discharge_amount(ctx, day)
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Whole period optimisation failed, the rules control the battery")
+            try:
+                if self.apply_storm_to_rules(ctx) | self.apply_taper_to_rules(ctx):  # the rules keep the storm level and the pace of the battery
+                    self.battery_level_flow_prediction_recalc(amount_of_days, charging_plan, config, current_hour, efficiency, forecast_type, get_battery_level, kwh_to_percentage, max_kwh_charging, max_kwh_discharging, now, final_recalc=True)
+                    for day in days:
+                        self.discharge_amount(ctx, day)
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("The storm level of the rules could not be planned")
         return list(totals)

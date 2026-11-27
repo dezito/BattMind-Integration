@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime
 import math
 import zoneinfo
+from types import SimpleNamespace
 
 import pytest
 
@@ -217,7 +218,7 @@ def test_stromligning_tariff_that_is_not_a_finite_number_drops_the_sell_prices(b
 
 def test_a_forecast_day_with_quarter_sell_prices_has_four_sell_periods_per_hour() -> None:
     """Strømligning's sell forecast in 15-minute rows: every quarter sells a quarter of the hour, not a whole hour's energy.
-    Today's real hourly sell prices keep one period per hour."""
+    Today's real hourly sell prices are repeated over the four quarters of the hour (one common interval for the whole plan)."""
     _config, data = _stromligning()
     config = build_config({
         **default_options(),
@@ -242,7 +243,8 @@ def test_a_forecast_day_with_quarter_sell_prices_has_four_sell_periods_per_hour(
     noon = datetime.datetime.combine(day_3, datetime.time(12))
     assert provider.is_forecast(noon, sell_prices=True)
     assert provider.sell_periods_in_hour(noon) == 4
-    assert provider.sell_periods_in_hour(datetime.datetime.combine(TODAY, datetime.time(12))) == 1
+    # one common interval: today's hourly sell price is repeated over the four quarters, each selling a quarter of the hour's energy
+    assert provider.sell_periods_in_hour(datetime.datetime.combine(TODAY, datetime.time(12))) == 4
 
 
 def test_is_number_accepts_only_finite_numbers() -> None:
@@ -422,3 +424,79 @@ def test_the_what_if_has_no_sell_history_for_energi_data_service_without_a_sell_
     assert source["buy_entity_id"] == "sensor.eds" and source["sell_entity_id"] is None
     chosen = create_price_provider(build_config({**default_options(), "energidataservice_buy_entity_id": "sensor.eds", "energidataservice_sell_entity_id": "sensor.eds_sell"}))
     assert chosen.history_sources(states.get)[0]["sell_entity_id"] == "sensor.eds_sell"
+def _price_state(value):
+    """A price entity for price_unit_problems: (state, unit or None), or None when the entity has no state."""
+    if value is None:
+        return None
+    state, unit = value
+    return SimpleNamespace(state=state, attributes={} if unit is None else {"unit_of_measurement": unit})
+
+
+@pytest.mark.parametrize(
+    ("buy", "sell", "problems", "judged"),
+    [
+        (("1.2", "øre/kWh"), ("0.5", "kr/kWh"), [("sensor.eds_buy", "øre/kWh")], True),
+        (("1.2", "kr/kWh"), ("0.5", "kr/MWh"), [("sensor.eds_sell", "kr/MWh")], True),
+        (("1.2", "kr/kWh"), ("0.5", "kr/kWh"), [], True),
+        (("1.2", None), ("0.5", "kr/kWh"), [], True),
+        (None, ("0.5", "kr/kWh"), [], False),
+        (("unavailable", None), ("0.5", "kr/kWh"), [], False),
+        (("unavailable", "ct/kWh"), ("0.5", "kr/kWh"), [("sensor.eds_buy", "ct/kWh")], True),
+        (("1.2", "kr/kWh"), None, [], False),
+    ],
+    ids=[
+        "subunit-buy",
+        "per-mwh-sell",
+        "kr-kwh",
+        "no-unit",
+        "no-state",
+        "unavailable-without-unit",
+        "unavailable-with-unit",
+        "missing-sell-state",
+    ],
+)
+def test_the_price_units_that_are_wrong_are_reported_and_missing_ones_are_not_judged(buy, sell, problems, judged) -> None:
+    states = {"sensor.eds_buy": _price_state(buy), "sensor.eds_sell": _price_state(sell)}
+    provider = create_price_provider(build_config({
+        **default_options(),
+        "energidataservice_buy_entity_id": "sensor.eds_buy",
+        "energidataservice_sell_entity_id": "sensor.eds_sell",
+    }))
+    assert provider.price_unit_problems(states.get) == (problems, judged)
+
+
+def test_energy_price_forecast_converts_a_price_per_mwh_but_a_price_per_wh_is_wrong_on_it() -> None:
+    from custom_components.battmind.prices.base import price_unit_error
+
+    key = "energypriceforecast_buy_entity_id"
+    assert price_unit_error(key, "EUR/MWh") is False and price_unit_error(key, "EUR/kWh") is False
+    assert price_unit_error(key, "EUR/Wh") is True and price_unit_error(key, "ct/kWh") is True
+
+
+def test_the_price_unit_repair_judges_each_sensor_by_the_unit_rules_of_its_key() -> None:
+    """A price per MWh is wrong on a sensor that is read per kWh, but Energy Price Forecast converts its own and Wattcast gives ct/kWh
+    (euro cents): neither is named, whatever the unit rules of the others. A subunit is wrong everywhere else."""
+    provider = create_price_provider(build_config({**default_options(), "energidataservice_buy_entity_id": "sensor.eds_buy", "energidataservice_sell_entity_id": "sensor.eds_sell"}))
+    provider.entity_ids = {
+        "energypriceforecast_buy_entity_id": "sensor.epf",
+        "energidataservice_buy_entity_id": "sensor.eds",
+        "nordpool_buy_entity_id": "sensor.nordpool",
+        "wattcast_buy_entity_id": "sensor.wattcast",
+        "epexspot_buy_entity_id": "sensor.epex",
+        "stromligning_buy_current_price": "sensor.sl",  # not a sensor of PRICE_SENSOR_KEYS: judged by its unit alone
+        "wattcast_forecast_entity_id": "sensor.wattcast_forecast",  # its provider checks its unit
+        "energidataservice_sell_entity_id": "sensor.eds",  # one sensor under two keys: named once
+    }
+    states = {
+        "sensor.epf": _price_state(("25", "EUR/MWh")),  # converted by its provider
+        "sensor.eds": _price_state(("2.0", "DKK/MWh")),
+        "sensor.nordpool": _price_state(("unavailable", "EUR/MWh")),  # the unit stays while a sensor is down
+        "sensor.wattcast": _price_state(("9.0", "ct/kWh")),  # its own unit
+        "sensor.epex": _price_state(("9.0", "ct/kWh")),
+        "sensor.sl": _price_state(("1.0", "øre/kWh")),
+        "sensor.wattcast_forecast": _price_state(("9.0", "ct/kWh")),
+    }
+    problems, judged = provider.price_unit_problems(states.get)
+    assert sorted(problems) == [("sensor.eds", "DKK/MWh"), ("sensor.epex", "ct/kWh"), ("sensor.nordpool", "EUR/MWh"), ("sensor.sl", "øre/kWh")] and judged
+    states["sensor.wattcast"] = _price_state(("9.0", "EUR/kWh"))  # anything else is wrong for Wattcast
+    assert ("sensor.wattcast", "EUR/kWh") in provider.price_unit_problems(states.get)[0]

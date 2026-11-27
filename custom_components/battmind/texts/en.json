@@ -51,6 +51,9 @@
     "negative_price_planner": {
       "description": "Charging at negative prices"
     },
+    "full_charge_planner": {
+      "description": "Full charge to the maximum level (battery health)"
+    },
     "grid_charge_to_sell": {
       "description": "Bought to sell later"
     },
@@ -77,9 +80,80 @@
     },
     "blocked_solar_charge": {
       "description": "Blocked solar charging"
+    },
+    "storm_warning": {
+      "description": "Charged or held for a storm warning"
     }
   },
   "ui": {
+    "push": {
+      "battery_level_lost": {
+        "title": "BattMind: battery level lost",
+        "problem": "The battery level ({entity}) has not given a number for 2 hours. The plan assumes a full battery until it is back.",
+        "resolved": "The battery level is back."
+      },
+      "plan_not_followed": {
+        "title": "BattMind: the plan is not followed",
+        "problem": "The battery did not do what the plan asked in {mismatches} of the last {checked} hours checked ({percent} % matched). Check the automation that carries out the actions.",
+        "resolved": "The battery follows the plan again."
+      },
+      "entities_missing": {
+        "title": "BattMind: sensors missing",
+        "problem": "A sensor BattMind needs is missing or disabled:\n{entities}",
+        "resolved": "Every sensor BattMind needs is there again."
+      },
+      "consumption_frozen": {
+        "title": "BattMind: house consumption frozen",
+        "problem": "The house consumption sensor {entity} has shown {value} since {since}. A frozen value gives a wrong plan.",
+        "resolved": "The house consumption sensor moves again."
+      },
+      "sensors_unavailable": {
+        "title": "BattMind: sensors unavailable",
+        "problem": "These sensors have been unavailable for more than 30 minutes:\n{entities}",
+        "resolved": "The sensors are available again."
+      },
+      "temperature_stop": {
+        "title": "BattMind: the battery is stopped",
+        "problem": "{detail}",
+        "resolved": "The battery temperature is back in range, the battery runs again."
+      },
+      "startup_failed": {
+        "title": "BattMind: could not start",
+        "problem": "BattMind stopped while starting: {error}",
+        "resolved": "BattMind has started."
+      },
+      "job_failing": {
+        "title": "BattMind: the plan cannot be calculated",
+        "problem": "The plan could not be calculated three times in a row ({error}). BattMind reloads itself.",
+        "resolved": "The plan is calculated again."
+      },
+      "history_failing": {
+        "title": "BattMind: the charging history fails",
+        "problem": "The charging history of the last hour could not be saved after three tries: {error}",
+        "resolved": "The charging history is saved again."
+      },
+      "storm": {
+        "title": "BattMind: storm warning",
+        "problem": "Storm warning (level {level}) from {start} to {end}. The battery is kept at {keep} % or more for it.",
+        "resolved": "The storm warning is over."
+      },
+      "learning_consumption": {
+        "title": "BattMind has learned your consumption",
+        "once": "There is enough history for the consumption forecast. The rules that sell from the battery and block solar charging now run."
+      },
+      "learning_efficiency": {
+        "title": "BattMind has measured the efficiency",
+        "once": "BattMind has measured the efficiency of your battery at different powers (see the analysis)."
+      },
+      "learning_capacity": {
+        "title": "BattMind has measured the capacity",
+        "once": "BattMind has measured the usable capacity of your battery (see the analysis). The plan counts on it only if *Use measured battery capacity* is on."
+      },
+      "daily_summary": {
+        "title": "BattMind: plan for {day}",
+        "summary": "Grid charging {grid} kWh ({hours}), sale {sale} kWh. The battery is at {level} % now. The plan changes with the prices and the forecast."
+      }
+    },
     "common": {
       "valuta": "£",
       "valuta_kwh": "£/kWh",
@@ -186,6 +260,13 @@
       "no_upcoming_charging_planned": "No upcoming charging planned",
       "solar_production_title": "Excess solar production available",
       "no_solar_production": "No excess solar production available",
+      "solar_day_surplus": "{day}: the sun gives about {kwh} kWh of surplus between {start} and {end}.",
+      "solar_day_full": "The battery is full ({level} %) by {at}.",
+      "solar_day_rises": "The battery reaches about {level} % by {at}.",
+      "solar_day_to_grid": "About {kwh} kWh of surplus after that does not fit in the battery.",
+      "solar_day_already_full": "The battery is already full when the sun comes: there is no room for about {kwh} kWh of surplus.",
+      "solar_day_blocked": "Solar charging is held back {hours}, so the surplus is sold when the price is higher.",
+      "full_charge_dropped": "Full charge dropped: the battery cannot reach {level} % before the deadline.",
       "last_scheduled": "Last scheduled",
       "plan_title": "Charge/discharge plan",
       "show_all_days": "Show all days",
@@ -242,6 +323,7 @@
       "temperature_safety_stop": "Battery stopped: {temperature} °C outside {minimum}-{maximum} °C",
       "planned_charging": "Charging up to {emoji}",
       "not_charging": "Not charging",
+      "calculation_error": "Error: {error}",
       "force_solar_only_charging": "Solar-only charging allowed",
       "grid_charging": "Charging from grid",
       "discharge_allowed": "Discharging allowed",
@@ -341,6 +423,85 @@
       "enhance_battery_efficiency": "Enhance battery efficiency",
       "cheapest_hour_fill_up": "Charging: Fill up during cheapest period"
     },
+    "automation_test": {
+      "rule": "Testing your automation: {action}",
+      "not_run": "The test has not been run yet. Turn on **Test my automation** to start it.",
+      "status": {
+        "idle": "Test not running",
+        "running": "Running the test…",
+        "done": "Test finished",
+        "stopped": "Test stopped",
+        "failed": "Test could not run"
+      },
+      "column_action": "Action",
+      "column_result": "Result",
+      "action": {
+        "grid_charging": "Charge from grid",
+        "force_discharge": "Forced discharge",
+        "battery_stopped": "Stop battery",
+        "discharge_allowed": "Discharge allowed",
+        "force_solar_only_charging": "Solar charging only",
+        "blocked_solar_charge": "Solar charging blocked"
+      },
+      "running_note": "Each action is published for up to 5 minutes and passes as soon as the battery has shown what it should do. Turn the switch off to stop; BattMind's own action is then published again.",
+      "waiting": "Waiting to be tested",
+      "testing": "Testing now…",
+      "progress": "Progress: {done} of {total} actions done.",
+      "legend_running": "✅ worked · ❌ the battery did not react · 🔧 not tested · ⏳ waiting · ▶️ testing now",
+      "summary": "{ok} of {total} actions worked, {fail} did not work, {skip} could not be tested.",
+      "stop_reason": {
+        "battery_stopped": "The test ended because the battery is stopped for temperature. That is a safety the test never overrides.",
+        "expired": "The test ended because the published action ran out before the step was done.",
+        "stopped": "The test was stopped.",
+        "internal_error": "The test failed with an error. See the Home Assistant log.",
+        "not_configured": "The test needs sensors for the battery power, the battery level and the house consumption.",
+        "not_ready": "BattMind has not published an action yet. Try again after the first calculation.",
+        "no_level": "The battery level sensor has no number right now."
+      },
+      "fail_hint": "For an action that did not work: open the automation's trace and check that it ran the steps for that action, and that the inverter took the commands.",
+      "put_back": "BattMind's own action is published again, and nothing else was changed.",
+      "legend": "✅ worked · ❌ the battery did not react · 🔧 not tested",
+      "ev_hint": "If the car was charging, the blueprint runs its EV action instead of this one.",
+      "ok": {
+        "grid_charging": "The battery charged from the grid at {charge} W.",
+        "force_discharge": "The battery discharged at {discharge} W, more than the house used.",
+        "battery_stopped": "The battery stood still ({charge} W charging, {discharge} W discharging).",
+        "discharge_allowed": "The battery discharged {discharge} W into the house.",
+        "force_solar_only_charging": "The battery did not discharge ({discharge} W) while the house used {deficit} W more than the sun gave.",
+        "blocked_solar_charge": "The battery did not charge ({charge} W) while the sun gave {surplus} W more than the house used."
+      },
+      "fail": {
+        "grid_charging": "The battery did not charge from the grid (it showed {charge} W).",
+        "force_discharge": "The battery did not discharge more than the house used (it showed {discharge} W).",
+        "battery_stopped": "The battery kept moving ({charge} W charging, {discharge} W discharging).",
+        "discharge_allowed": "The battery did not discharge into the house (it showed {discharge} W).",
+        "discharge_allowed_export": "The battery kept selling: it discharged {discharge} W while the house lacked {deficit} W, so the forced discharge was not ended.",
+        "force_solar_only_charging": "The battery discharged {discharge} W.",
+        "blocked_solar_charge": "The battery charged {charge} W."
+      },
+      "skip": {
+        "no_flow": "Not tested: this needs the house to use 300 W more than the sun gives, or the sun to give 300 W more than the house uses, so that the battery would move without the stop, and that is not the case right now.",
+        "quiet": "Not tested: the battery power sensor has shown the same 0 W without reporting for 5 minutes, so a stop can't be told from a sensor that stopped updating.",
+        "unsupported": "Not tested: your inverter setup says it can't run this action.",
+        "limit": "Not tested: the battery is too full or too empty right now to show it.",
+        "limit_full": "Not tested: the battery is too full right now to show it (close to its highest level).",
+        "limit_empty": "Not tested: the battery is too empty right now to show it (close to its lowest level or the reserve for the house).",
+        "no_load": "Not tested: this needs the house to use more than the sun gives, and it does not right now.",
+        "no_surplus": "Not tested: this needs a solar surplus, and there is none right now.",
+        "unproven": "Not proven: the sun or the house load could explain what was seen.",
+        "ev": "Not tested: a car is charging, and the blueprint's EV action may run instead.",
+        "no_data": "Not tested: a sensor had no number or has not reported for 5 minutes.",
+        "not_reached": "Not reached: the test ended before this step.",
+        "battery_stopped": "Not tested: the battery was stopped for temperature.",
+        "expired": "Not finished: the published action ran out.",
+        "no_baseline": "Not proven: the battery was already doing what this action asks, so a change can't be seen.",
+        "not_published": "Not tested: BattMind could not publish the action (see the log).",
+        "no_steps": "Not tested: your automation has no steps for this action.",
+        "no_steps_temperature": "Not tested: your automation has no steps for this action. BattMind sends it as a safety stop when the battery temperature is too high, too low or unknown; without steps your automation does not stop the battery.",
+        "no_steps_no_temperature": "Not tested: your automation has no steps for this action, and that is fine. BattMind only sends it as a safety stop when the battery temperature is too high, too low or unknown, and no temperature sensor is chosen, so it is never sent."
+      },
+      "automation_unknown": "BattMind could not find your automation in automations.yaml, so it can't see which actions have steps (an automation kept in a package or in YAML mode is not found)."
+    },
     "backup": {
       "exported": "Backup saved as {file}",
       "imported": "Backup {file} restored (databases: {databases})."
@@ -364,10 +525,13 @@
         "old_energy_sold": "Selling old energy",
         "blocked_solar": "Blocked solar charging",
         "negative_price": "Negative price",
+        "full_charge": "Full charge",
         "sell_bought_cheap": "Selling energy bought cheaply",
         "buy_to_sell": "Buy to sell",
         "sell_before_solar": "Selling before the sun fills the battery",
-        "sell_before_cheap_charge": "Selling before cheap charging"
+        "sell_before_cheap_charge": "Selling before cheap charging",
+        "storm": "Storm warning",
+        "storm_hold": "Kept for the storm warning"
       },
       "highest_level_time": "Highest battery level time",
       "highest_level": "Highest battery level",
@@ -437,7 +601,10 @@
       "level_after_hour": "Battery level after the hour",
       "solar_sold_for": "Solar surplus sold for",
       "no_data": "No data",
-      "no_charging_history": "**No charging history**"
+      "no_charging_history": "**No charging history**",
+      "full_charge_due": "Days since the last full charge",
+      "storm_keep": "Keeps at least **{level}%** for the storm from {time}: expected use {kwh} kWh plus a {buffer}% buffer",
+      "taper_limited": "Limited to {kwh} kWh: the battery charges more slowly when it is nearly full"
     },
     "dashboard_cards": {
       "title": "Dashboard cards missing",
@@ -451,6 +618,10 @@
     "view_overview": "Overview",
     "view_settings": "Settings",
     "view_analysis": "Analysis",
+    "group_results": "Results",
+    "group_plan": "The plan",
+    "group_forecasts": "Forecasts",
+    "group_battery": "Battery",
     "soc_chart_title": "Home battery level forecast",
     "battery_forecast": "Battery forecast",
     "charge": "Charge",
@@ -575,12 +746,14 @@
     "section_discharging": "Discharging",
     "section_selling": "Selling",
     "section_solar": "Solar",
-    "help_control": "* **Control the battery with the whole period optimisation**: calculates the cheapest action for every hour of the whole forecast period at once (charging loss, wear, solar, buy and sell prices and the profit requirements) and controls the battery with it. Every action is shown as the rule it corresponds to, and the rule switches decide which actions it may use. Off: the rules control the battery.\n* **Enhance battery efficiency**: the plan uses the battery's efficiency curves instead of one fixed charging loss. See *Battery efficiency* in the analysis.\n* **Forecast type**: how the consumption per hour is predicted from the history. EMA weights the most recent days highest, trend follows the development, and average weights all days equally.\n* **Choose the forecast type automatically**: the plan uses the forecast type that has predicted the consumption best recently and only switches when another is clearly better. See *Forecast accuracy* in the analysis.\n* **Correct the price forecast**: the plan corrects the forecast prices (e.g. Carnot) by how far off they usually are. See *Price forecast* in the analysis.",
+    "help_control": "* **Control the battery with the whole period optimisation**: calculates the cheapest action for every hour of the whole forecast period at once (charging loss, wear, solar, buy and sell prices and the profit requirements) and controls the battery with it. Every action is shown as the rule it corresponds to, and the rule switches decide which actions it may use. Off: the rules control the battery.\n* **Enhance battery efficiency**: the plan uses the battery's efficiency curves instead of one fixed charging loss. See *Battery efficiency* in the analysis.\n* **Learn charging power by battery level**: a battery charges more slowly when it is nearly full. BattMind measures this itself from the battery's power and level (the same measurements as the efficiency) and the plan only counts on the energy the battery takes in each hour; without enough measurements, or off, the charge rate you set is used. The simulator does not use it.\n* **Use measured battery capacity**: BattMind always measures how much energy the battery takes and gives per 100 % of level (see *Measured capacity* in the analysis). On: when the charging figure is clearly below the configured capacity, the plan counts on the measured capacity instead, never on more than the configured one; it is not used where a measured efficiency curve is in use (that curve was measured with the configured capacity). Off: the plan uses the configured capacity. The simulator does not use it.\n* **Forecast type**: how the consumption per hour is predicted from the history. EMA weights the most recent days highest, trend follows the development, and average weights all days equally.\n* **Choose the forecast type automatically**: the plan uses the forecast type that has predicted the consumption best recently and only switches when another is clearly better. See *Forecast accuracy* in the analysis.\n* **Correct the price forecast**: the plan corrects the forecast prices (e.g. Carnot) by how far off they usually are. See *Price forecast* in the analysis.",
     "help_profit": "Profit thresholds decide when the battery is discharged and when it sells.\n\n* **Min. profit per kWh**: every kWh out of the battery (used in the house or sold) has to earn at least this per kWh after charging loss and wear. Grid charging is only planned when that discharge pays.\n* **Min. total profit**: a sale to the grid has to earn at least this in total (per hour; not used for charging or the home's own consumption).\n* **Min. excess kWh for export**: smallest amount sold at a time.\n* **Reserve for the house**: the battery percentage kept for the home's own consumption and not sold.\n* **Exclude sell hours**: hours (e.g. 17,18,19) where nothing is sold.",
-    "help_charging": "Solar surplus always charges first; grid charging never pushes out solar that would be sold for less than the grid kWh cost.\n\n* **Cheapest hours**: fill the battery in the cheapest hours for the day's consumption (*fill up*: to max).\n  * **Cheap price periods**: number of local low-price periods identified per day.\n  * **Cheap-period price increase**: how much the price can rise above a period's lowest price before the period ends.\n  * **Cheapest-price increase**: how much an hour can be above the day's lowest price and still qualify for this rule.\n* **Most expensive hours**: charge for the most expensive hours the battery doesn't cover.\n* **Needed before max level**: charge the little that is missing before the sun fills the battery.\n* **Negative prices**: fill the battery when charging pays even if the energy is never used.",
+    "help_charging": "Solar surplus always charges first; grid charging never pushes out solar that would be sold for less than the grid kWh cost.\n\n* **Cheapest hours**: fill the battery in the cheapest hours for the day's consumption (*fill up*: to max).\n  * **Cheap price periods**: number of local low-price periods identified per day.\n  * **Cheap-period price increase**: how much the price can rise above a period's lowest price before the period ends.\n  * **Cheapest-price increase**: how much an hour can be above the day's lowest price and still qualify for this rule.\n* **Most expensive hours**: charge for the most expensive hours the battery doesn't cover.\n* **Needed before max level**: charge the little that is missing before the sun fills the battery.\n* **Negative prices**: fill the battery when charging pays even if the energy is never used.\n* **Recommended full charge every**: some LFP batteries need a full charge now and then so the battery management system can calibrate. When more days than this have passed since the battery last reached its maximum level (minus 1 %), BattMind charges it from the grid up towards that level in the cheapest hours before the end of tomorrow (before the end of today once it is a day overdue, also when no full charge is recorded and none is found in the history). It waits until the prices up to that deadline are known, ignores *Min. profit per kWh* and lets the sun charge first. If the battery cannot get there in time, the plan says so and drops the charge. With *Days to plan* of 1 only an overdue full charge is planned. 0 = off.\n* **Last full charge**: when the battery last reached its maximum level (minus 1 %); recorded also while the number is 0.",
     "help_discharging": "* **Profit only**: block discharging in hours where the battery's kWh cost (incl. loss and wear) is higher than the price.\n* **Prioritise expensive hours**: save the battery for the most expensive hours until it is charged again.\n* **Before the sun**: use/sell the battery before the sun when it gets full of solar anyway and the surplus is sold cheaply.\n* **Max. hours old kWh**: energy older than this is used even without profit, and sold when that pays more.",
     "help_selling": "* **Maximise profit**: sell in the most expensive periods when that pays more than using the energy yourself.\n* **Sell excess kWh**: sell the energy that isn't used before the battery is empty or full again.\n* **Use midnight battery level**: only look until midnight instead of the whole forecast period.\n* **Buy to sell**: charge cheaply from the grid only to sell the kWh again when it pays after loss and wear.",
     "help_solar": "* **Solar charging**: include the solar surplus in the plan.\n* **Optimise solar charging**: sell the solar surplus in the expensive hours and fill the battery in the cheap solar hours instead. Only when the sun will still fill the battery later.",
+    "section_automation_test": "Test my automation",
+    "help_automation_test": "BattMind never controls your battery: your own automation does, when BattMind's action changes. This test checks that the automation really does what each action should.\n\n* **Test my automation**: turn it on to start. BattMind publishes the actions one after the other (Charge from grid, Forced discharge, Discharge allowed, Solar charging only, Solar charging blocked, Stop battery) and measures the battery. A step passes as soon as the battery has shown what it should do, and waits at most 5 minutes. Turn the switch off to stop; BattMind's own action is then published again.\n* **Automation test**: the status of the test: idle, running, done, stopped or failed.\n* The table below lists every action from the start and shows how far the test is (⏳ waiting, ▶️ testing now); each action gets its result when it is done: ✅ worked, ❌ the battery did not react, 🔧 not tested. Actions that depend on the sun or the house load can only be proven when the conditions are right (e.g. the action that blocks solar charging needs a solar surplus), so they are shown as not tested, with the reason, instead of passing. *Stop battery* is the safety stop for a battery temperature that is too high, too low or unknown: without a temperature sensor BattMind never sends it, so it needs no steps. It is tested last: a stop can only be proven by a change, so when the battery stands still the test first makes it move (it publishes *Forced discharge*, or *Charge from grid*, for a short time).\n\n**Be aware:** the test charges the battery from the grid and discharges it to the grid for a few minutes, and it changes what the inverter does. Nothing is tested while the battery is stopped for temperature, and the plan and the settings are not changed. Energy the test moves is counted like any other energy in the history of the hour.",
     "consumption_forecast": "Consumption forecast",
     "history_title": "History",
     "section_economy": "Economy per month",
@@ -634,7 +807,7 @@
     "efficiency_curve_title": "Efficiency by power",
     "efficiency_charging": "Charging",
     "efficiency_discharging": "Discharging",
-    "efficiency_curve_explain": "The efficiency of charging and discharging at different power levels (how much of the energy ends up in the battery or in the house). BattMind measures it itself from the battery's power and level, and reads the first measurements from Home Assistant's history so the curve does not have to wait for new data. The dashed lines are the measured values; the solid lines are the curve BattMind plans with. A curve you set yourself takes precedence over the measured one. If *Enhance battery efficiency* is off, or there is no curve yet, BattMind uses the round-trip loss. A wrong battery size shifts charging and discharging in opposite directions, but the total loss stays correct.",
+    "efficiency_curve_explain": "The efficiency of charging and discharging at different power levels (how much of the energy ends up in the battery or in the house). BattMind measures it itself from the battery's power and level, and reads the first measurements from Home Assistant's history so the curve does not have to wait for new data. The dashed lines are the measured values; the solid lines are the curve BattMind plans with. A curve you set yourself takes precedence over the measured one. If *Enhance battery efficiency* is off, or there is no curve yet, BattMind uses the round-trip loss. A wrong battery size shifts charging and discharging in opposite directions, but the total loss stays correct. Below the efficiency table, *Measured capacity* shows what the battery's power sensor saw per 100 % of battery level over runs of at least 40 % of level: charging gives an upper bound of the usable capacity and discharging a lower bound, because the efficiency is not known. The two are kept apart, and the round trip is their ratio. If the battery level follows the energy evenly, a charging figure clearly below the configured capacity suggests that the usable capacity is smaller, and a discharging figure clearly above it that it is larger. If more energy comes out than goes in per point, that points to a measurement problem (the sensor measures the two directions differently, or the level does not follow the energy evenly). It is always measured. With the switch *Use measured battery capacity* (*Settings → Control*) on, the plan counts on the measured capacity when the charging figure is clearly below the configured capacity, never on more than the configured one, and not where a measured efficiency curve is in use (it was measured with the configured capacity and already follows the battery, so changing the capacity as well would correct twice). *Used now* shows what the plan counts on.",
     "efficiency_curve_off": "The efficiency curves are turned off. BattMind currently uses the round-trip loss; the configured curves are still saved, and the measurements continue and remain visible.",
     "efficiency_measured_charging": "Charging, measured",
     "efficiency_measured_discharging": "Discharging, measured",
@@ -644,6 +817,24 @@
     "efficiency_source_none": "none yet: round-trip loss",
     "efficiency_steps_used": "power steps in use",
     "efficiency_measured_kwh": "kWh measured",
+    "capacity_title": "Measured capacity",
+    "capacity_kwh_per_full": "kWh per 100 %",
+    "capacity_episodes": "runs",
+    "capacity_configured": "Configured capacity",
+    "capacity_charging_bound": "Charging: at most",
+    "capacity_discharging_bound": "Discharging: at least",
+    "capacity_round_trip": "Round trip",
+    "capacity_note": "Always measured. The plan only counts on it with the switch *Use measured battery capacity*, and only when the measurement is clearly below the configured capacity.",
+    "capacity_status_too_few": "Not enough runs of at least 40 % of battery level yet (3 of each direction are needed).",
+    "capacity_status_within": "The measurements do not contradict the configured capacity.",
+    "capacity_status_below": "Charging took less than the configured capacity per 100 % of level: the usable capacity looks smaller than configured.",
+    "capacity_status_above": "Discharging gave more than the configured capacity per 100 % of level: the usable capacity looks larger than configured.",
+    "capacity_status_inconsistent": "More energy came out than went in per percentage point. The battery power sensor may measure the two directions differently, or the battery level may not follow the energy evenly.",
+    "capacity_off": "The plan uses the configured capacity: *Use measured battery capacity* is off. The measuring goes on.",
+    "capacity_used": "Used now",
+    "capacity_source_configured": "configured",
+    "capacity_source_measured": "measured, from the charging figure",
+    "capacity_source_efficiency": "configured: a measured efficiency curve is in use (measured with the configured capacity)",
     "section_sufficiency": "Self-sufficiency",
     "sufficiency_intro": "Self-sufficiency (solar + battery) the last 30 days:",
     "sufficiency_title": "The house's energy per month",
@@ -672,7 +863,17 @@
     "day": "Day",
     "saved": "Saved",
     "possible": "Possible",
-    "score_explain": "Shows how much of the possible saving was reached. **Saved** is what the battery saved compared with no battery at all. **Possible** is what the best plan in hindsight could have saved. The lowest possible cost is calculated afterwards with the day's actual consumption, solar and prices, the same start and end level, losses, wear and the profit requirements. An action that would not meet the requirements does not count as a possible saving. Forecast errors are included.",
+    "score_explain": "Shows how much of the possible saving was reached. **Possible** is what the battery could have saved that day, calculated afterwards: the cost without the battery minus the lowest possible cost with the day's actual consumption, solar and prices, losses, wear and the profit requirements, and the battery ending the day where it started. **Saved** is possible minus what the plan lost against the best plan that nets the same battery energy as the day did, so energy kept in the battery for tomorrow, or used from yesterday, is neither a gain nor a loss. Energy that ignored consumers and Cable Juice Planner chargers took from the sun or the battery, and the battery's own standby use, are not part of the score. A day only gets a score when every hour is measured, with real prices and a measured battery level; the days without a score, and why, are listed below the table. A day with very little possible saving shows – instead of a score. Forecast errors are included. A day scored with an older version of the calculation is shown with 🔄 by the formula of then, and is not included in the 30 day figure.",
+    "score_missing_intro": "Days without a score in the last 30 days:",
+    "score_no_hours": "an hour was not recorded",
+    "score_no_gap": "a sensor was lost",
+    "score_no_prices": "no real price",
+    "score_no_soc": "no measured battery level",
+    "score_no_drift": "the energy did not add up",
+    "score_no_battery": "the battery could not be modelled",
+    "score_no_history": "an older day without hourly data",
+    "score_no_version": "a day recorded by an older version",
+    "score_old_note": "🔄 = calculated with an older version of the score. It cannot be compared with the newer days and is not included in the 30 day figure.",
     "section_planned": "Planned against actual",
     "planned_summary_1": "Planned grid charging",
     "planned_summary_2": "charged",
@@ -692,6 +893,7 @@
     "source": "Source",
     "solar_plan": "Plan",
     "solar_database": "History (weather)",
+    "solar_integration": "Forecast integration",
     "solar_actual": "Measured surplus",
     "solar_forecast_title": "Solar surplus per day",
     "section_price_forecast": "Price forecast",
@@ -719,7 +921,7 @@
     "section_history": "History",
     "sufficiency_explain": "Where the house's consumption came from per hour: first solar, then the battery, the rest from the grid. **Self-sufficiency** = (solar + battery) / consumption. **Export** is solar and battery energy sold to the grid. The first time a year is read from Home Assistant's long-term statistics.",
     "planned_explain": "Every evening at 23 BattMind saves what the plan wants to charge from the grid and sell the next day. Here it is compared with what was actually charged from the grid and sold. Big differences come from forecast errors (consumption, solar) and from plans that change during the day when the prices or the battery level change.",
-    "solar_forecast_explain": "The solar surplus (solar production minus the house's consumption) the plan expected for the next day, saved the evening before, against the measured surplus. **Plan** is the combined forecast BattMind uses, **History (weather)** is the part from the stored solar history per weather type, **Solcast** the forecast integration. **Bias** > 0: too much solar was expected.",
+    "solar_forecast_explain": "The solar surplus (solar production minus the house's consumption) the plan expected for the next day, saved the evening before, against the measured surplus. **Plan** is the combined forecast BattMind uses, **History (weather)** is the part from the stored solar history per weather type, **Forecast integration** the solar forecast integration you selected (Solcast, Forecast.Solar or Helios Forecast). **Bias** > 0: too much solar was expected.",
     "history_explain": "* **Required battery level until the next charge**: the last 48 hours.\n* **kWh charged by solar**: solar energy into the battery, the last 7 days.",
     "consumption_forecast_explain": "The predicted consumption per hour for the forecast period with the three forecast types (left axis), and the accumulated consumption (right axis, the thick lines). The selected forecast type is used in the plan; **Forecast accuracy** shows which one is most accurate.",
     "what_if_duration_years": "{n} yr",
@@ -777,6 +979,13 @@
     "what_if_reason_module_invalid": "The module capacity must be above 0 and at most 1000 kWh, the price must not be negative and the number of modules must be from 1 to 12.",
     "what_if_reason_invalid_inputs": "One of the what-if inputs is not valid or has no value.",
     "what_if_reason_save_failed": "The result could not be saved.",
-    "what_if_reason_internal_error": "The simulation failed; see the Home Assistant log."
+    "what_if_reason_internal_error": "The simulation failed; see the Home Assistant log.",
+    "section_storm": "Storm warning",
+    "help_storm": "BattMind keeps the battery charged for a storm warning from the entity chosen in the settings (MeteoAlarm). Only warnings of wind, snow/ice or thunderstorms at or above the chosen level count, and only warnings that have a start time: without one nothing is planned and the status says so.\n\n* **Storm warning**: the status of the warning. *Coming* or *Active* means the plan keeps a battery level for it. Below it: when the warning starts and ends, the level the battery is kept at, the expected house use with no solar and the buffer added for a forecast that is off (what the forecast missed by over the last 30 days, at least 20 %).\n* **Hours a storm warning without an end time covers**: how long a warning is counted when it has a start time but no end time.\n\nThe level to keep falls hour by hour as the storm goes on, and nothing is sold under it. Charging is placed in the cheapest hours before the level is needed; if the battery cannot get there in time it is charged as high as it can. Without a backup power supply a full battery does not run the house in a power cut.",
+    "storm_start": "Starts",
+    "storm_end": "Ends",
+    "storm_keep_percent": "Level kept",
+    "storm_expected_use": "Expected use",
+    "storm_buffer": "Buffer"
   }
 }

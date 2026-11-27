@@ -30,6 +30,10 @@ class Planning:
             tuple(self.battery_expenses.items()),
             tuple(sorted(settings.items())),
             ev_charging,  # only shown in the overview (🚗 cars), but it has to follow the cars' plans
+            self._snap.storm_alert if self._snap else None,  # a warning that starts, ends or changes level changes the plan
+            self.charge_taper(),  # a new measurement can change what the battery takes
+            self.battery_size_used(),  # the measured capacity the plan counts on (switch learn_battery_capacity)
+            self.full_charge_hash(),  # a full charge that becomes due or is done
         )
         return hashlib.blake2b(repr(data).encode(), digest_size=16).hexdigest()
 
@@ -97,6 +101,11 @@ class Planning:
         t = self.t
         current_rules: dict = {}
         try:
+            self.full_charge_check()  # before the plan: a full battery ends a due full charge
+            level_entity = self.config["home"]["entity_ids"]["powerwall_battery_level_entity_id"]
+            if level_entity:
+                # push notification: no level for BATTERY_LEVEL_MAX_AGE, so the plan runs on the fail-safe 100 % (get_battery_level)
+                self.notice("battery_level_lost", self.get_battery_level_or_none() is None, entity=level_entity)
             self.cheap_grid_charge_hours(force_recalculate=force_recalculate)
 
             temperature_entity = self.config["home"]["entity_ids"].get("battery_temperature_entity_id", "")
@@ -110,6 +119,8 @@ class Planning:
             temperature_min = self.config["solar"]["battery_temperature_min"]
             temperature_max = self.config["solar"]["battery_temperature_max"]
 
+            # push notification: the battery is stopped because of its temperature (unavailable is a stop too: nothing is known)
+            stopped_by_temperature = bool(temperature_entity) and (temperature is None or not temperature_min <= temperature <= temperature_max)
             if temperature_entity and temperature is None:
                 action = "battery_stopped"
                 rule = t("ui.charge_if_needed.temperature_unavailable")
@@ -126,7 +137,8 @@ class Planning:
                 current_rules.update(active_charging_rules(self.charge_hours[charge_hour]))
                 rule = t("ui.charge_if_needed.planned_charging", emoji=emoji_parse(self.charge_hours[charge_hour]))
             elif (sale_period := self.current_period_in_force_discharge()) is not None:
-                usage_floor = max(self.config["solar"]["powerwall_battery_level_min"], self.number("usage_reserve"))
+                # a storm warning keeps its level: nothing is exported under it, whatever the plan lists for the hour
+                usage_floor = max(self.config["solar"]["powerwall_battery_level_min"], self.number("usage_reserve"), self.storm_floor_now())
                 if self.get_battery_level() > usage_floor:
                     action = "force_discharge"
                     current_rules["force_discharge"] = True
@@ -151,6 +163,9 @@ class Planning:
                 action = "force_solar_only_charging"
                 rule = t("ui.charge_if_needed.not_charging")
 
+            if temperature_entity:
+                self.notice("temperature_stop", stopped_by_temperature, detail=rule.split("\n")[0] if stopped_by_temperature else "")
+
             if (supported := self.supported_action(action)) != action:
                 # the rules don't plan an action the inverter can't run, this only catches leftovers
                 _LOGGER.debug("Battery action %s is not supported by the inverter, running %s", action, supported)
@@ -172,15 +187,24 @@ class Planning:
                 charging = (watt_flow if self.config["home"]["invert_powerwall_watt_flow_entity_id"] else -watt_flow) > 0
                 key = "charging_watt" if charging else "discharging_watt"
                 rule += f"\n{emoji_parse(current_rules)}{t(f'ui.charge_if_needed.{key}', watt=watt_flow)}{emoji_parse({'average': True})}"
-            self.session_rules.update(current_rules)
-            self.set_charging_rule(rule)
-            self.set_state("powerwall_action", action)
+            # the test of the user's automation (engine/automation_test.py) publishes another action for a while: the plan, the
+            # rules of the planner and the unblocked hour stay what the plan decided, only the published action is held
+            held = self.automation_hold_action(action)
+            if held is None:
+                self.session_rules.update(current_rules)
+                self.set_charging_rule(rule)
+            else:
+                self.set_charging_rule(f"🧪{t('ui.automation_test.rule', action=t(f'ui.automation_test.action.{held}'))}")
+            self.set_state("powerwall_action", held or action)
+            self._published_action = held or action
+            self.plan_check_note("test" if held else action)
             if action != "blocked_solar_charge":
                 self.unblocked_hour = reset_time_to_hour(self.now())
             if action != self.last_powerwall_action:
                 _LOGGER.info("Battery action: %s (%s)", action, rule.split("\n")[0])
             self.last_powerwall_action = action
             self.error_count = 0
+            self.notice("job_failing", False)
         except Exception as err:  # noqa: BLE001
             _LOGGER.exception("Error running charge_if_needed()")
             self.notify(
@@ -191,5 +215,19 @@ class Planning:
             self.error_count += 1
             if self.error_count >= 3 and self._out is not None:
                 self._out.request_reload = True
-            self.set_charging_rule(f"{emoji_parse({'error': True})}Fejl: {err}")
+                self.notice("job_failing", True, error=f"{err}"[:300])  # (pushed once: a reload loop that keeps failing is one problem)
+            error_rule = f"{emoji_parse({'error': True})}{t('ui.charge_if_needed.calculation_error', error=err)}"
+            self.set_charging_rule(error_rule)
+            try:
+                # an expired or dropped test action must not stay on the sensor because this calculation failed
+                if self._automation_hold is not None and self.now() >= self._automation_hold["until"]:
+                    self._automation_hold, self._automation_abort = None, "expired"
+                self.automation_test_settle()
+                hold = self._automation_hold
+                if hold is not None and self._published_action == hold["action"]:
+                    # the held action is still on the sensor: the rule still says that the test runs, with the error under it
+                    test_rule = t("ui.automation_test.rule", action=t(f"ui.automation_test.action.{hold['action']}"))
+                    self.set_charging_rule(f"🧪{test_rule}\n{error_rule}")
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Could not put the real action back after a failed calculation")
         return self.last_powerwall_action

@@ -22,6 +22,8 @@ from ..const import (
 )
 from ..utils.helpers import get_dict_value_with_path
 from ..utils.efficiency import parse_efficiency_curve
+from ..utils.solar_forecast import KEY_SEMANTICS
+from ..utils.solcast import SOLCAST_PLATFORM
 
 
 PREFIX_RE = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
@@ -67,16 +69,19 @@ def _entity(
     domain: str | list[str],
     *,
     device_class: str | None = None,
-    integration: str | None = None,
+    integration: str | tuple[str, ...] | None = None,
     multiple: bool = False,
 ) -> selector.EntitySelector:
-    """Entity picker limited to the relevant entities (domain + device class or integration)."""
+    """Entity picker limited to the relevant entities (domain + device class or integration).
+
+    Several integrations give one filter each: the picker offers an entity that matches any of them.
+    """
     entity_filter: dict[str, Any] = {"domain": domain}
     if device_class:
         entity_filter["device_class"] = device_class
-    if integration:
-        entity_filter["integration"] = integration
-    return selector.EntitySelector(selector.EntitySelectorConfig(filter=[entity_filter], multiple=multiple))
+    integrations = (integration,) if isinstance(integration, str) else integration or ()
+    filters = [{**entity_filter, "integration": name} for name in integrations] or [entity_filter]
+    return selector.EntitySelector(selector.EntitySelectorConfig(filter=filters, multiple=multiple))
 
 
 def _number(minimum: float, maximum: float, step: float, unit: str | None = None) -> selector.NumberSelector:
@@ -163,9 +168,20 @@ SELECTORS: dict[str, Any] = {
     "production_entity_id": _entity("sensor", device_class="power"),
     "inverter_discharging_power_limit": _number(100, 100000, 100, "W"),
     "production_price": _number(-1, 10, 0.01, "{valuta_kwh}"),
-    "forecast_entity_id": _entity("sensor", integration="solcast_solar"),
+    # Solcast (its detailedHourly), or Forecast.Solar / Helios Forecast (their solar forecast for the Energy dashboard)
+    "forecast_entity_id": _entity("sensor", integration=(SOLCAST_PLATFORM, *KEY_SEMANTICS)),
     "hourly_service_entity_id": _entity("weather"),
     "daily_service_entity_id": _entity("weather"),
+    # storm warning: MeteoAlarm's binary sensor (device class safety), and the lowest level that counts
+    "storm_warning_entity_id": _entity("binary_sensor", device_class="safety"),
+    "storm_min_level": _number(2, 4, 1),
+    # push notifications: the notify services and entities (the options are made at the page, build_schema), what to send, the hour
+    "notify_list": selector.SelectSelector(selector.SelectSelectorConfig(options=[], multiple=True, mode=selector.SelectSelectorMode.DROPDOWN)),
+    "notify_problems": BOOLEAN,
+    "notify_storm": BOOLEAN,
+    "notify_learning": BOOLEAN,
+    "notify_summary": BOOLEAN,
+    "notify_summary_hour": _number(0, 23, 1, "h"),
     # advanced / database
     "cron_interval": selector.SelectSelector(
         selector.SelectSelectorConfig(options=CRON_INTERVALS, mode=selector.SelectSelectorMode.DROPDOWN)
@@ -220,9 +236,15 @@ REQUIRED_KEYS = {
     "solar_available_db_data_to_save",
     "kwh_avg_prices_db_data_to_save",
     "charging_history_db_data_to_save",
+    "notify_summary_hour",
 }
-LIST_KEYS = {"ignore_consumption_from_entity_ids", "unsupported_actions"}
+# the PyScript version had a notify_list of its own: the push notifications of this one are not turned on by an import (they are
+# chosen on the page Push notifications)
+NOT_IMPORTED_OPTIONS = {"notify_list", "notify_problems", "notify_storm", "notify_learning", "notify_summary", "notify_summary_hour"}
+LIST_KEYS = {"ignore_consumption_from_entity_ids", "unsupported_actions", "notify_list"}
 INT_KEYS = {
+    "storm_min_level",
+    "notify_summary_hour",
     "days_to_predict",
     "cron_interval",
     "power_values_db_data_to_save",
@@ -236,7 +258,7 @@ def _form_value(key: str, value: Any) -> Any:
     if key == "cron_interval":
         return str(int(value)) if value not in (None, "") else "5"
     if key in LIST_KEYS:
-        return list(value or [])
+        return [value] if isinstance(value, str) and value else list(value or [])
     return value
 
 
@@ -249,7 +271,9 @@ def _selector(key: str, currency: str | None) -> Any:
     return field
 
 
-def build_schema(keys: list[str], values: dict[str, Any], currency: str | None = None) -> vol.Schema:
+def build_schema(keys: list[str], values: dict[str, Any], currency: str | None = None, notify_services: list[str] | None = None) -> vol.Schema:
+    """notify_services: the notify services and entities to offer on the notifications page ("notify.<name>"); what is chosen
+    already stays in the list, also when its service is not registered at the moment (the mobile app registers it late)."""
     schema: dict[Any, Any] = {}
     for key in keys:
         value = _form_value(key, values.get(key))
@@ -261,6 +285,11 @@ def build_schema(keys: list[str], values: dict[str, Any], currency: str | None =
             schema[vol.Optional(key, description={"suggested_value": value})] = field
         elif key == "unsupported_actions":
             schema[vol.Optional(key, default=value)] = field
+        elif key == "notify_list":
+            options = sorted({*(notify_services or []), *(str(item) for item in value)})
+            schema[vol.Optional(key, description={"suggested_value": list(value)})] = selector.SelectSelector(
+                selector.SelectSelectorConfig(options=options, multiple=True, mode=selector.SelectSelectorMode.DROPDOWN)
+            )
         elif key in REQUIRED_KEYS:
             # no value yet (the VAT and the surcharge of the wholesale prices have none to suggest): a required field without a default
             schema[vol.Required(key) if value is None else vol.Required(key, default=value)] = field
@@ -285,6 +314,8 @@ def normalize_input(keys: list[str], user_input: dict[str, Any]) -> dict[str, An
             result[key] = list(value or [])
         elif key == "unsupported_actions":
             result[key] = [action for action in CONTROLLABLE_ACTIONS if action in (value or [])]
+        elif key == "notify_list":
+            result[key] = [str(item) for item in (value or []) if str(item).strip()]
         elif key in INT_KEYS:
             result[key] = int(float(value))
         elif key == "dashboard_icon":
@@ -323,7 +354,7 @@ def options_from_legacy(legacy: dict[str, Any]) -> tuple[dict[str, Any], dict[st
     options = default_options()
     for key, path in OPTION_PATHS.items():
         value = get_dict_value_with_path(legacy, path)
-        if value is None:
+        if value is None or key in NOT_IMPORTED_OPTIONS:
             continue
         if key in ENTITY_OPTION_KEYS:
             options[key] = value or ""

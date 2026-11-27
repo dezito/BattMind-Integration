@@ -501,7 +501,8 @@ async def _async_words(hass: HomeAssistant, coordinator: BattMindCoordinator) ->
     for user in await hass.auth.async_get_users():
         if not user.system_generated and user.name:
             words += [user.name, *(part for part in user.name.split() if len(part) >= 4)]
-    words += [str(name) for name in coordinator.config.get("notify_list") or []]
+    notify = coordinator.config.get("notify_list") or []
+    words += [str(name) for name in ([notify] if isinstance(notify, str) else notify)]
     return words
 
 

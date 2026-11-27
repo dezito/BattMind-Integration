@@ -35,17 +35,19 @@ from ..utils.cjp import cjp_charger_power_entities
 from ..utils.formatting import translate
 from ..utils.power import unique_entity_ids
 from ..management.debug_export import DebugRecorder
+from ..management.notifier import PushNotifier
 from ..management.storage import BattMindStorage
 from ..prices import CombinedPriceProvider
 from .data import CoordinatorData
 from .events import CoordinatorEvents
 from .lifecycle import CoordinatorLifecycle
+from .automation_test import CoordinatorAutomationTest
 from .what_if import CoordinatorWhatIf
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorData, CoordinatorWhatIf):
+class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorData, CoordinatorWhatIf, CoordinatorAutomationTest):
     """Owns the engine, the worker thread (and the what-if thread) and all scheduling for one config entry."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -59,6 +61,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self.storage = BattMindStorage(hass, entry.entry_id)
         self.language = normalize_language(self.config.get("language"), normalize_language(hass.config.language))
         self._init_what_if()
+        self._init_automation_test()
 
         self.data: dict[str, Any] = {}
         self.attributes: dict[str, dict[str, Any]] = {}
@@ -67,6 +70,8 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self.restore_settings: dict[str, str] = {}
         self.solar_kwh_total: float | None = None
         self.started = False
+        # the push notifications (management/notifier.py), made in async_setup when the texts are loaded
+        self.notifier: PushNotifier | None = None
 
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"battmind_{self.prefix}_worker")
         # the what-if simulation (minutes to hours) runs on a thread of its own, on an engine of its own, so the worker
@@ -86,6 +91,8 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self._statistics: dict[str, list[tuple[float, float]]] = {}
         self._statistics_refreshed = 0.0
         self._entity_platforms: dict[str, str | None] = {}
+        # why the last read of a Forecast.Solar / Helios Forecast forecast gave no rows (None: it gave rows), logged once
+        self._solar_forecast_problem: str | None = None
         self._sun_cache: dict[datetime.date, dict] = {}
 
         # The ignored consumption: the sensors the user listed plus (unless switched off) the chargers of the CJP cars, once
@@ -96,7 +103,14 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         self.auto_ignored_entities = [entity_id for entity_id in self.cjp_chargers if entity_id not in listed]
         self.config["home"]["entity_ids"]["ignore_consumption_from_entity_ids"] = [*listed, *self.auto_ignored_entities]
         self.config["home"]["auto_ignored_entity_ids"] = list(self.auto_ignored_entities)
-        self.config["home"]["charger_entity_ids"] = cjp_charger_power_entities(hass)
+        # every charger, also one on its own meter: still checked for a hung reading
+        every_charger = cjp_charger_power_entities(hass, include_own_meter=True)
+        self.config["home"]["charger_entity_ids"] = every_charger
+        # the ones on their own meter, whatever ignore_cjp_chargers says: the house consumption does not include them, but the battery or
+        # the sun may feed them, which the hindsight score leaves out; their history is kept, they are not required at start
+        in_house = cjp_charger_power_entities(hass)
+        self.config["home"]["own_meter_charger_entity_ids"] = [entity_id for entity_id in every_charger if entity_id not in in_house]
+        own_meter = self.config["home"]["own_meter_charger_entity_ids"]
         self._cjp_reload_scheduled = False
 
         home = self.config["home"]["entity_ids"]
@@ -110,6 +124,7 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
                 battery_level,
                 solar["production_entity_id"],
                 *(home["ignore_consumption_from_entity_ids"] or []),
+                *own_meter,
             ) if e
         })
         # hourly mean statistics are used for the power averages, not for the battery level
@@ -120,9 +135,9 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
             *self.config["prices"]["entity_ids"].values(),
             *self.config["forecast"]["entity_ids"].values(),
             solar["forecast_entity_id"],
-        } - {""} - set(self.auto_ignored_entities))
+        } - {""} - set(self.auto_ignored_entities) - set(own_meter))
         # the states and units of the snapshot also cover the chargers found by BattMind (they are read in the right unit)
-        self.snapshot_entities = sorted({*self.configured_entities, *self.auto_ignored_entities})
+        self.snapshot_entities = sorted({*self.configured_entities, *self.auto_ignored_entities, *own_meter})
 
         self._log_listener: QueueListener | None = None
         self._log_handler: QueueHandler | None = None
@@ -206,6 +221,8 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         for message, title, notification_id in result.notifications:
             persistent_notification.async_create(self.hass, message, title=title, notification_id=notification_id)
 
+        self._push_notices(result)
+
         for name, encoded in result.db_saves.items():
             try:
                 await self.storage.async_save(name, encoded)
@@ -215,6 +232,24 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
 
         if result.request_reload:
             self.hass.config_entries.async_schedule_reload(self.entry.entry_id)
+
+    def _push_notices(self, result: JobResult) -> None:
+        """What the job found for the push notifications (conditions, something learned, the daily summary), and what is pending."""
+        notifier = self.notifier
+        if notifier is None:
+            return
+        for kind, (active, params) in result.conditions.items():
+            notifier.report(kind, active, **params)
+        for kind, ready in result.ready.items():
+            notifier.report_ready(kind, ready)
+        if result.summary:
+            notifier.report_summary(result.summary["date"], **{key: value for key, value in result.summary.items() if key != "date"})
+        notifier.tick()
+
+    def notice(self, kind: str, active: bool | None, **params) -> None:
+        """A push notification condition found outside the engine (the start, the hour end)."""
+        if self.notifier is not None:
+            self.notifier.report(kind, active, **params)
 
     # ------------------------------------------------------------------ #
     # Worker jobs
@@ -246,7 +281,10 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
             if publish:
                 await self._async_publish(result, job_name)
                 self.debug.record(job_name, args, snapshot, result, self.data.get("current_charging_rule"))
-            elif result.db_saves or result.states or result.attributes or result.notifications or result.request_reload:
+            elif (
+                result.db_saves or result.states or result.attributes or result.notifications or result.request_reload
+                or result.conditions or result.ready or result.summary
+            ):
                 # a job that only reads must not have anything to publish: it would be lost without a trace
                 _LOGGER.error("Job %s was run without publishing but returned output that is discarded", job_name)
             _LOGGER.debug("Job %s ran in %s for %.3fs", job_name, result.worker_thread, result.duration)

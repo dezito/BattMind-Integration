@@ -28,6 +28,13 @@ SWITCH_SETTINGS: dict[str, dict[str, Any]] = {
     "enhance_battery_efficiency": {"default": True},
     # correct the price forecast with its measured bias (engine/analysis)
     "price_forecast_correction": {"default": True},
+    # use the measured charging power per battery level (utils/taper.py): the learning always runs, this decides if the plan counts on it.
+    # Not a what-if setting: the simulator has no measurements of its own and does not simulate the taper
+    "learn_charge_taper": {"default": True},
+    # count on the measured usable battery capacity (utils/capacity.py, engine/battery.py battery_size_used()) when it is clearly below
+    # the configured one: the measuring always runs, this decides if the plan counts on it. Off by default: it changes what the plan
+    # thinks the battery holds. Not a what-if setting: the simulator has no measurements of its own
+    "learn_battery_capacity": {"default": False},
     # use the consumption forecast type that hit best the last 30 days (engine/analysis)
     "auto_forecast_type": {"default": False},
 }
@@ -97,6 +104,16 @@ NUMBER_SETTINGS: dict[str, dict[str, Any]] = {
         "mode": "box",
         "unit": "h",
         "default": 48,
+    },
+    # a full charge every this many days (battery management system calibration of some LFP batteries), 0 = off. No
+    # switch: the number turns it on. Not a what-if setting: the replay has the full charge off (engine/full_charge.py)
+    "full_charge_recommended": {
+        "min": 0,
+        "max": 60,
+        "step": 1,
+        "mode": "box",
+        "unit": "d",
+        "default": 0,
     },
 }
 
@@ -188,6 +205,9 @@ WHAT_IF_OVERRIDE_TEXTS: dict[str, str] = {f"what_if_{key}": key for key in WHAT_
 WHAT_IF_INPUT_KEYS = (*WHAT_IF_INPUT_NUMBERS, *WHAT_IF_INPUT_SWITCHES)
 # the switch that runs (on) and stops (off) a simulation, and the button that clears the scenario
 WHAT_IF_RUN_SWITCH = "what_if_run"
+# the test of the user's automation: the switch that runs it and the status of the last run
+AUTOMATION_TEST_RUN_SWITCH = "automation_test_run"
+AUTOMATION_TEST_STATUSES = ("idle", "running", "done", "stopped", "failed")
 WHAT_IF_BUTTON_KEYS = ("reset_what_if_settings",)
 # binary sensors: which parts the last what-if result has (the dashboard shows only the parts that exist)
 WHAT_IF_FLAGS = {
@@ -197,6 +217,17 @@ WHAT_IF_FLAGS = {
 }
 # the state of the what_if_status sensor
 WHAT_IF_STATUSES = ("idle", "running", "stopping", "stopped", "failed")
+
+# Storm warning (option storm_warning_entity_id): the status sensor and the number only exist while the option is set, so they
+# are not in SENSOR_KEYS and NUMBER_SETTINGS (every entity of those is always made)
+STORM_SENSOR_KEY = "storm_warning"
+STORM_NUMBER_KEY = "storm_cover_hours"
+# hours a warning without an end time covers, counted from its start (engine/storm.py STORM_DEFAULT_HOURS)
+STORM_NUMBER: dict[str, Any] = {"min": 1, "max": 72, "step": 1, "mode": "box", "unit": "h", "default": 12}
+# the state of the status sensor (engine/storm.py STATUS_*)
+STORM_STATUSES = (
+    "no_warning", "entity_unavailable", "below_level", "other_type", "no_start", "unreadable", "expired", "invalid", "later", "coming", "active",
+)
 
 # Output sensors (icons in icons.json)
 SENSOR_KEYS = (
@@ -208,4 +239,6 @@ SENSOR_KEYS = (
     "battery_level_needed",
     "kwh_charged_by_solar",
     "analysis",
+    # when the battery last reached its max. level (full charge), stored in the analysis database
+    "last_full_charge",
 )

@@ -51,6 +51,9 @@
     "negative_price_planner": {
       "description": "Ladning ved negative priser"
     },
+    "full_charge_planner": {
+      "description": "Fuld ladning til maksimum niveau (batteriets sundhed)"
+    },
     "grid_charge_to_sell": {
       "description": "Købt for at sælge senere"
     },
@@ -77,9 +80,80 @@
     },
     "blocked_solar_charge": {
       "description": "Blokeret solcelle opladning"
+    },
+    "storm_warning": {
+      "description": "Opladet eller holdt tilbage til et stormvarsel"
     }
   },
   "ui": {
+    "push": {
+      "battery_level_lost": {
+        "title": "BattMind: batteriniveauet er mistet",
+        "problem": "Batteriniveauet ({entity}) har ikke givet et tal i 2 timer. Planen regner med et fuldt batteri, til det er tilbage.",
+        "resolved": "Batteriniveauet er tilbage."
+      },
+      "plan_not_followed": {
+        "title": "BattMind: planen følges ikke",
+        "problem": "Batteriet gjorde ikke, hvad planen bad om, i {mismatches} af de sidste {checked} kontrollerede timer ({percent} % passede). Tjek automationen, der udfører handlingerne.",
+        "resolved": "Batteriet følger planen igen."
+      },
+      "entities_missing": {
+        "title": "BattMind: sensorer mangler",
+        "problem": "En sensor, BattMind skal bruge, mangler eller er slået fra:\n{entities}",
+        "resolved": "Alle sensorer, BattMind skal bruge, er der igen."
+      },
+      "consumption_frozen": {
+        "title": "BattMind: husets forbrug er frosset",
+        "problem": "Sensoren for husets forbrug {entity} har vist {value} siden {since}. En frossen værdi giver en forkert plan.",
+        "resolved": "Sensoren for husets forbrug bevæger sig igen."
+      },
+      "sensors_unavailable": {
+        "title": "BattMind: sensorer er utilgængelige",
+        "problem": "Disse sensorer har været utilgængelige i mere end 30 minutter:\n{entities}",
+        "resolved": "Sensorerne er tilgængelige igen."
+      },
+      "temperature_stop": {
+        "title": "BattMind: batteriet er stoppet",
+        "problem": "{detail}",
+        "resolved": "Batteriets temperatur er tilbage i området, batteriet kører igen."
+      },
+      "startup_failed": {
+        "title": "BattMind: kunne ikke starte",
+        "problem": "BattMind stoppede under starten: {error}",
+        "resolved": "BattMind er startet."
+      },
+      "job_failing": {
+        "title": "BattMind: planen kan ikke beregnes",
+        "problem": "Planen kunne ikke beregnes tre gange i træk ({error}). BattMind genindlæser sig selv.",
+        "resolved": "Planen beregnes igen."
+      },
+      "history_failing": {
+        "title": "BattMind: ladehistorikken fejler",
+        "problem": "Ladehistorikken for den sidste time kunne ikke gemmes efter tre forsøg: {error}",
+        "resolved": "Ladehistorikken gemmes igen."
+      },
+      "storm": {
+        "title": "BattMind: stormadvarsel",
+        "problem": "Stormadvarsel (niveau {level}) fra {start} til {end}. Batteriet holdes på {keep} % eller mere til den.",
+        "resolved": "Stormadvarslen er forbi."
+      },
+      "learning_consumption": {
+        "title": "BattMind har lært dit forbrug",
+        "once": "Der er historik nok til forbrugsprognosen. Reglerne, der sælger fra batteriet og blokerer solopladning, kører nu."
+      },
+      "learning_efficiency": {
+        "title": "BattMind har målt virkningsgraden",
+        "once": "BattMind har målt dit batteris virkningsgrad ved forskellige effekter (se analysen)."
+      },
+      "learning_capacity": {
+        "title": "BattMind har målt kapaciteten",
+        "once": "BattMind har målt dit batteris brugbare kapacitet (se analysen). Planen regner kun med den, hvis *Brug målt batterikapacitet* er slået til."
+      },
+      "daily_summary": {
+        "title": "BattMind: plan for {day}",
+        "summary": "Opladning fra nettet {grid} kWh ({hours}), salg {sale} kWh. Batteriet står på {level} % nu. Planen ændrer sig med priserne og prognosen."
+      }
+    },
     "common": {
       "valuta": "kr",
       "valuta_kwh": "kr/kWh",
@@ -186,6 +260,13 @@
       "no_upcoming_charging_planned": "Ingen kommende ladning planlagt",
       "solar_production_title": "Overskydende solproduktion tilgængelig",
       "no_solar_production": "Ingen overskydende solproduktion tilgængelig",
+      "solar_day_surplus": "{day}: solen giver cirka {kwh} kWh overskud mellem {start} og {end}.",
+      "solar_day_full": "Batteriet er fuldt ({level} %) kl. {at}.",
+      "solar_day_rises": "Batteriet når cirka {level} % kl. {at}.",
+      "solar_day_to_grid": "Derefter er der ikke plads til cirka {kwh} kWh overskud i batteriet.",
+      "solar_day_already_full": "Batteriet er allerede fuldt, når solen kommer: der er ikke plads til cirka {kwh} kWh overskud.",
+      "solar_day_blocked": "Solopladningen holdes tilbage kl. {hours}, så overskuddet sælges, når prisen er højere.",
+      "full_charge_dropped": "Fuld ladning droppet: batteriet kan ikke nå {level} % inden fristen.",
       "last_scheduled": "Sidst planlagt",
       "plan_title": "Ladnings- og afladningsplan",
       "show_all_days": "Se alle dage",
@@ -242,6 +323,7 @@
       "temperature_safety_stop": "Batteri stoppet: {temperature} °C er uden for {minimum}-{maximum} °C",
       "planned_charging": "Lader op til {emoji}",
       "not_charging": "Lader ikke",
+      "calculation_error": "Fejl: {error}",
       "force_solar_only_charging": "Kun solcelle ladning tilladt",
       "grid_charging": "Oplader fra nettet",
       "discharge_allowed": "Afladning tilladt",
@@ -341,6 +423,85 @@
       "enhance_battery_efficiency": "Forbedr batteriets virkningsgrad",
       "cheapest_hour_fill_up": "Ladning: Fyld op i billigste periode"
     },
+    "automation_test": {
+      "rule": "Tester din automation: {action}",
+      "not_run": "Testen er ikke kørt endnu. Slå **Test min automation** til for at starte den.",
+      "status": {
+        "idle": "Testen kører ikke",
+        "running": "Testen kører…",
+        "done": "Testen er færdig",
+        "stopped": "Testen blev stoppet",
+        "failed": "Testen kunne ikke køre"
+      },
+      "column_action": "Handling",
+      "column_result": "Resultat",
+      "action": {
+        "grid_charging": "Lad fra nettet",
+        "force_discharge": "Tvungen afladning",
+        "battery_stopped": "Stop batteri",
+        "discharge_allowed": "Afladning tilladt",
+        "force_solar_only_charging": "Kun solopladning",
+        "blocked_solar_charge": "Solopladning blokeret"
+      },
+      "running_note": "Hver handling udsendes i op til 5 minutter og består, så snart batteriet har vist, hvad den skal. Slå kontakten fra for at stoppe; BattMinds egen handling udsendes så igen.",
+      "waiting": "Venter på test",
+      "testing": "Testes nu …",
+      "progress": "Fremdrift: {done} af {total} handlinger er færdige.",
+      "legend_running": "✅ virkede · ❌ batteriet reagerede ikke · 🔧 ikke testet · ⏳ venter · ▶️ testes nu",
+      "summary": "{ok} af {total} handlinger virkede, {fail} virkede ikke, {skip} kunne ikke testes.",
+      "stop_reason": {
+        "battery_stopped": "Testen sluttede, fordi batteriet er stoppet på grund af temperaturen. Det er en sikkerhed, som testen aldrig tilsidesætter.",
+        "expired": "Testen sluttede, fordi den udsendte handling løb ud, før trinnet var færdigt.",
+        "stopped": "Testen blev stoppet.",
+        "internal_error": "Testen fejlede. Se Home Assistant-loggen.",
+        "not_configured": "Testen kræver sensorer for batteriets effekt, batteriniveau og husets forbrug.",
+        "not_ready": "BattMind har ikke udsendt en handling endnu. Prøv igen efter den første beregning.",
+        "no_level": "Batteriniveau-sensoren har ikke et tal lige nu."
+      },
+      "fail_hint": "For en handling, der ikke virkede: åbn automationens trace og tjek, at den kørte trinnene for handlingen, og at inverteren tog imod kommandoerne.",
+      "put_back": "BattMinds egen handling udsendes igen, og intet andet er ændret.",
+      "legend": "✅ virkede · ❌ batteriet reagerede ikke · 🔧 ikke testet",
+      "ev_hint": "Hvis bilen lader, kører blueprintens EV-handling i stedet for denne.",
+      "ok": {
+        "grid_charging": "Batteriet ladede fra nettet med {charge} W.",
+        "force_discharge": "Batteriet afladede med {discharge} W, mere end huset brugte.",
+        "battery_stopped": "Batteriet stod stille ({charge} W opladning, {discharge} W afladning).",
+        "discharge_allowed": "Batteriet afladede {discharge} W til huset.",
+        "force_solar_only_charging": "Batteriet afladede ikke ({discharge} W), mens huset brugte {deficit} W mere, end solen gav.",
+        "blocked_solar_charge": "Batteriet ladede ikke ({charge} W), mens solen gav {surplus} W mere, end huset brugte."
+      },
+      "fail": {
+        "grid_charging": "Batteriet ladede ikke fra nettet (det viste {charge} W).",
+        "force_discharge": "Batteriet afladede ikke mere, end huset brugte (det viste {discharge} W).",
+        "battery_stopped": "Batteriet blev ved med at bevæge sig ({charge} W opladning, {discharge} W afladning).",
+        "discharge_allowed": "Batteriet afladede ikke til huset (det viste {discharge} W).",
+        "discharge_allowed_export": "Batteriet blev ved med at sælge: det afladede {discharge} W, mens huset manglede {deficit} W, så den tvungne afladning blev ikke stoppet.",
+        "force_solar_only_charging": "Batteriet afladede {discharge} W.",
+        "blocked_solar_charge": "Batteriet ladede {charge} W."
+      },
+      "skip": {
+        "no_flow": "Ikke testet: det kræver, at huset bruger 300 W mere, end solen giver, eller at solen giver 300 W mere, end huset bruger, så batteriet ville bevæge sig uden stoppet, og det er ikke tilfældet lige nu.",
+        "quiet": "Ikke testet: batteriets effektsensor har vist de samme 0 W uden at rapportere i 5 minutter, så et stop kan ikke skelnes fra en sensor, der er holdt op med at opdatere.",
+        "unsupported": "Ikke testet: din inverteropsætning siger, at den ikke kan køre denne handling.",
+        "limit": "Ikke testet: batteriet er for fuldt eller for tomt lige nu til at vise det.",
+        "limit_full": "Ikke testet: batteriet er for fuldt lige nu til at vise det (tæt på det højeste niveau).",
+        "limit_empty": "Ikke testet: batteriet er for tomt lige nu til at vise det (tæt på det laveste niveau eller reserven til huset).",
+        "no_load": "Ikke testet: det kræver, at huset bruger mere, end solen giver, og det gør det ikke lige nu.",
+        "no_surplus": "Ikke testet: det kræver solcelleoverskud, og der er intet lige nu.",
+        "unproven": "Ikke bevist: solen eller husets forbrug kan forklare det, der blev set.",
+        "ev": "Ikke testet: en bil lader, og blueprintens EV-handling kan køre i stedet.",
+        "no_data": "Ikke testet: en sensor havde ikke et tal eller har ikke rapporteret i 5 minutter.",
+        "not_reached": "Ikke nået: testen sluttede før dette trin.",
+        "battery_stopped": "Ikke testet: batteriet var stoppet på grund af temperaturen.",
+        "expired": "Ikke færdigt: den udsendte handling løb ud.",
+        "no_baseline": "Ikke bevist: batteriet gjorde allerede det, handlingen beder om, så en ændring kan ikke ses.",
+        "not_published": "Ikke testet: BattMind kunne ikke udsende handlingen (se loggen).",
+        "no_steps": "Ikke testet: din automation har ingen trin til denne handling.",
+        "no_steps_temperature": "Ikke testet: din automation har ingen trin til denne handling. BattMind sender den som sikkerhedsstop, når batteriets temperatur er for høj, for lav eller ukendt; uden trin stopper din automation ikke batteriet.",
+        "no_steps_no_temperature": "Ikke testet: din automation har ingen trin til denne handling, og det er i orden. BattMind sender den kun som sikkerhedsstop, når batteriets temperatur er for høj, for lav eller ukendt, og der er ikke valgt nogen temperatursensor, så den sendes aldrig."
+      },
+      "automation_unknown": "BattMind kunne ikke finde din automation i automations.yaml og kan derfor ikke se, hvilke handlinger der har trin (en automation i en package eller i YAML-tilstand findes ikke)."
+    },
     "backup": {
       "exported": "Backup gemt som {file}",
       "imported": "Backup {file} gendannet (databaser: {databases})."
@@ -364,10 +525,13 @@
         "old_energy_sold": "Sælger gammel strøm",
         "blocked_solar": "Blokeret solcelle ladning",
         "negative_price": "Negativ pris",
+        "full_charge": "Fuld ladning",
         "sell_bought_cheap": "Sælger strøm købt billigt",
         "buy_to_sell": "Køb for at sælge",
         "sell_before_solar": "Sælger før solen fylder batteriet",
-        "sell_before_cheap_charge": "Sælger før billig opladning"
+        "sell_before_cheap_charge": "Sælger før billig opladning",
+        "storm": "Stormvarsel",
+        "storm_hold": "Holdes til stormvarslet"
       },
       "highest_level_time": "Højeste batteriniveau tidspunkt",
       "highest_level": "Højeste batteriniveau",
@@ -437,7 +601,10 @@
       "level_after_hour": "Batteriniveau efter timen",
       "solar_sold_for": "Solcelleoverskud sælges til",
       "no_data": "Ingen data",
-      "no_charging_history": "**Ingen lade historik**"
+      "no_charging_history": "**Ingen lade historik**",
+      "full_charge_due": "Dage siden sidste fulde ladning",
+      "storm_keep": "Holder mindst **{level}%** til stormen fra {time}: forventet forbrug {kwh} kWh plus {buffer}% buffer",
+      "taper_limited": "Begrænset til {kwh} kWh: batteriet lader langsommere, når det er næsten fuldt"
     },
     "dashboard_cards": {
       "title": "Dashboard-kort mangler",
@@ -451,6 +618,10 @@
     "view_overview": "Oversigt",
     "view_settings": "Indstillinger",
     "view_analysis": "Analyse",
+    "group_results": "Resultater",
+    "group_plan": "Planen",
+    "group_forecasts": "Prognoser",
+    "group_battery": "Batteriet",
     "soc_chart_title": "Prognose for husbatteriets niveau",
     "battery_forecast": "Batteri prognose",
     "charge": "Lade",
@@ -575,12 +746,14 @@
     "section_discharging": "Afladning",
     "section_selling": "Salg",
     "section_solar": "Solceller",
-    "help_control": "* **Styr batteriet med optimering af hele perioden**: beregner den billigste handling for hver time i hele prognoseperioden på én gang (ladetab, slid, sol, købs- og salgspriser og kravene til fortjeneste) og styrer batteriet efter den. Hver handling vises som den regel, den svarer til, og regel-kontakterne bestemmer, hvilke handlinger den må bruge. Slået fra: reglerne styrer batteriet.\n* **Forbedr batteriets virkningsgrad**: planen bruger batteriets virkningsgradskurver i stedet for ét fast ladetab. Se *Batteriets virkningsgrad* i analysen.\n* **Prognosetype**: hvordan forbruget pr. time forudsiges ud fra historikken. EMA vægter de nyeste dage højest, trend følger udviklingen, og gennemsnit vægter alle dage ens.\n* **Vælg prognosetype automatisk**: planen bruger den prognosetype, der har ramt forbruget bedst på det seneste, og skifter kun, når en anden er klart bedre. Se *Prognosens træfsikkerhed* i analysen.\n* **Ret prisprognosen**: planen retter prognosepriserne (f.eks. Carnot) med, hvor meget de plejer at ramme ved siden af. Se *Prisprognose* i analysen.",
+    "help_control": "* **Styr batteriet med optimering af hele perioden**: beregner den billigste handling for hver time i hele prognoseperioden på én gang (ladetab, slid, sol, købs- og salgspriser og kravene til fortjeneste) og styrer batteriet efter den. Hver handling vises som den regel, den svarer til, og regel-kontakterne bestemmer, hvilke handlinger den må bruge. Slået fra: reglerne styrer batteriet.\n* **Forbedr batteriets virkningsgrad**: planen bruger batteriets virkningsgradskurver i stedet for ét fast ladetab. Se *Batteriets virkningsgrad* i analysen.\n* **Lær ladeeffekt efter batteriniveau**: et batteri lader langsommere, når det er næsten fuldt. BattMind måler det selv ud fra batteriets effekt og niveau (de samme målinger som virkningsgraden), og planen regner kun med den energi, batteriet tager i hver time; uden nok målinger, eller slået fra, bruges den ladeeffekt, du har indstillet. Simulatoren bruger det ikke.\n* **Brug målt batterikapacitet**: BattMind måler altid, hvor meget energi batteriet tager og afgiver pr. 100 % niveau (se *Målt kapacitet* i analysen). Slået til: når ladetallet tydeligt ligger under den indstillede kapacitet, regner planen med den målte kapacitet i stedet, aldrig med mere end den indstillede; den bruges ikke, hvor en målt virkningsgradskurve er i brug (den er målt med den indstillede kapacitet). Slået fra: planen bruger den indstillede kapacitet. Simulatoren bruger den ikke.\n* **Prognosetype**: hvordan forbruget pr. time forudsiges ud fra historikken. EMA vægter de nyeste dage højest, trend følger udviklingen, og gennemsnit vægter alle dage ens.\n* **Vælg prognosetype automatisk**: planen bruger den prognosetype, der har ramt forbruget bedst på det seneste, og skifter kun, når en anden er klart bedre. Se *Prognosens træfsikkerhed* i analysen.\n* **Ret prisprognosen**: planen retter prognosepriserne (f.eks. Carnot) med, hvor meget de plejer at ramme ved siden af. Se *Prisprognose* i analysen.",
     "help_profit": "Fortjenestegrænserne bestemmer, hvornår batteriet aflades, og hvornår der sælges.\n\n* **Min. profit per kWh**: hver kWh ud af batteriet (brugt i huset eller solgt) skal nå denne fortjeneste pr. kWh efter ladetab og slid. Ladning fra nettet planlægges kun, når den afladning betaler sig.\n* **Min. total profit**: et salg til nettet skal nå denne fortjeneste i alt pr. time (gælder ikke ladning eller husets eget forbrug).\n* **Min. overskydende kWh til salg**: mindste mængde der sælges ad gangen.\n* **Reserve til huset**: batteriprocenten, der holdes tilbage til husets eget forbrug og ikke sælges.\n* **Ekskluder salgstimer**: timer (fx 17,18,19) hvor der ikke sælges.",
-    "help_charging": "Soloverskud lader altid først; nettet fortrænger aldrig sol, der ellers sælges billigere end net-strømmen koster.\n\n* **Billigste timer**: fyld batteriet i de billigste timer til dagens forbrug (*fyld op*: til max).\n  * **Billige prisperioder**: antal lokale lavprisperioder, der findes pr. dag.\n  * **Stigning for billige prisperioder**: hvor meget prisen må stige over periodens laveste pris, før perioden slutter.\n  * **Stigning for billigste pris**: hvor meget en time må ligge over dagens laveste pris for stadig at kunne bruges af denne regel.\n* **Dyreste timer**: lad til de dyreste timer, batteriet ikke dækker.\n* **Brug for inden max niveau**: lad det lidt der mangler, før solen fylder batteriet.\n* **Negative priser**: fyld batteriet, når ladningen betaler sig, selv hvis strømmen aldrig bruges.",
+    "help_charging": "Soloverskud lader altid først; nettet fortrænger aldrig sol, der ellers sælges billigere end net-strømmen koster.\n\n* **Billigste timer**: fyld batteriet i de billigste timer til dagens forbrug (*fyld op*: til max).\n  * **Billige prisperioder**: antal lokale lavprisperioder, der findes pr. dag.\n  * **Stigning for billige prisperioder**: hvor meget prisen må stige over periodens laveste pris, før perioden slutter.\n  * **Stigning for billigste pris**: hvor meget en time må ligge over dagens laveste pris for stadig at kunne bruges af denne regel.\n* **Dyreste timer**: lad til de dyreste timer, batteriet ikke dækker.\n* **Brug for inden max niveau**: lad det lidt der mangler, før solen fylder batteriet.\n* **Negative priser**: fyld batteriet, når ladningen betaler sig, selv hvis strømmen aldrig bruges.\n* **Anbefalet fuld ladning hver**: nogle LFP-batterier skal have en fuld ladning med jævne mellemrum, så batteristyringen (BMS) kan kalibrere. Når der er gået flere dage end her, siden batteriet sidst nåede sit maksimum niveau (minus 1 %), lader BattMind det fra nettet op mod det niveau i de billigste timer inden udgangen af i morgen (inden udgangen af i dag, når den er en dag forsinket, også når ingen fuld ladning er registreret og ingen findes i historikken). Det venter, til priserne frem til fristen er kendt, ser bort fra *Min. profit per kWh*, og solen lader først. Kan batteriet ikke nå derop i tide, siger planen det og dropper ladningen. Med *Dage der planlægges* på 1 planlægges kun en forsinket fuld ladning. 0 = fra.\n* **Sidste fulde opladning**: hvornår batteriet sidst nåede sit maksimum niveau (minus 1 %); registreres også, mens tallet er 0.",
     "help_discharging": "* **Kun ved profit**: bloker afladning i timer, hvor batteriets kWh-pris (inkl. tab og slid) er højere end elprisen.\n* **Prioriter dyreste timer**: gem batteriet til de dyreste timer, indtil det lades igen.\n* **Før solen**: brug/sælg batteriet før solen, når det alligevel bliver fuldt af sol, og overskuddet sælges billigt.\n* **Maks. timer gamle kWh**: strøm ældre end dette bruges selv uden fortjeneste og sælges, når det giver mere.",
     "help_selling": "* **Maksimer profit**: sælg i de dyreste perioder, når det giver mere end selv at bruge strømmen.\n* **Sælg overskydende kWh**: sælg den strøm, der ikke bruges, før batteriet er tomt eller fuldt igen.\n* **Brug batteriniveau ved midnat**: kig kun til midnat i stedet for hele prognoseperioden.\n* **Køb for at sælge**: lad billigt fra nettet kun for at sælge strømmen igen, når det betaler sig efter tab og slid.",
     "help_solar": "* **Solcelleopladning**: medtag soloverskuddet i planen.\n* **Optimer solcelleopladning**: sælg soloverskuddet i de dyre timer og fyld batteriet i de billige soltimer i stedet. Kun når solen alligevel fylder batteriet senere.",
+    "section_automation_test": "Test min automation",
+    "help_automation_test": "BattMind styrer aldrig dit batteri: det gør din egen automation, når BattMinds handling skifter. Testen tjekker, at din automation virkelig gør det, hver handling skal.\n\n* **Test min automation**: slå den til for at starte. BattMind udsender handlingerne én ad gangen (Lad fra nettet, Tvungen afladning, Afladning tilladt, Kun solopladning, Solopladning blokeret, Stop batteri) og måler batteriet. Et trin består, så snart batteriet har vist, hvad det skal, og venter højst 5 minutter. Slå kontakten fra for at stoppe; BattMinds egen handling udsendes så igen.\n* **Automationstest**: testens status: inaktiv, kører, færdig, stoppet eller mislykket.\n* Tabellen under viser alle handlinger fra start og hvor langt testen er nået (⏳ venter, ▶️ testes nu); hver handling får sit resultat, når den er færdig: ✅ virkede, ❌ batteriet reagerede ikke, 🔧 ikke testet. Handlinger, der afhænger af solen eller husets forbrug, kan kun bevises, når forholdene passer (fx kræver handlingen, der blokerer solopladning, solcelleoverskud), så de vises som ikke testet med årsagen i stedet for at bestå. *Stop batteri* er sikkerhedsstoppet ved en batteritemperatur, der er for høj, for lav eller ukendt: uden en temperatursensor sender BattMind den aldrig, så den behøver ingen trin. Den testes sidst: et stop kan kun bevises ved en ændring, så når batteriet står stille, får testen det først til at bevæge sig (den udsender kort *Tvungen afladning* eller *Lad fra nettet*).\n\n**Vær opmærksom:** testen lader batteriet fra nettet og aflader det til nettet i nogle minutter, og den ændrer, hvad inverteren gør. Intet testes, mens batteriet er stoppet på grund af temperaturen, og planen og indstillingerne ændres ikke. Energi, som testen flytter, tælles som al anden energi i timens historik.",
     "consumption_forecast": "Forbrugsprognose",
     "history_title": "Historik",
     "section_economy": "Økonomi pr. måned",
@@ -634,7 +807,7 @@
     "efficiency_curve_title": "Virkningsgrad efter effekt",
     "efficiency_charging": "Ladning",
     "efficiency_discharging": "Afladning",
-    "efficiency_curve_explain": "Virkningsgraden for ladning og afladning ved forskellige effekter (hvor stor en del af strømmen der ender i batteriet eller huset). BattMind måler den selv ud fra batteriets effekt og niveau og henter de første målinger fra Home Assistants historik, så kurven ikke skal vente på nye data. De stiplede linjer er de målte værdier; de fuldt optrukne er den kurve, BattMind planlægger med. En kurve, du selv indstiller, går forud for den målte. Er *Forbedr batteriets virkningsgrad* slået fra, eller findes der ingen kurve endnu, bruger BattMind det samlede ladetab. En forkert batteristørrelse flytter ladning og afladning i hver sin retning, men det samlede tab forbliver rigtigt.",
+    "efficiency_curve_explain": "Virkningsgraden for ladning og afladning ved forskellige effekter (hvor stor en del af strømmen der ender i batteriet eller huset). BattMind måler den selv ud fra batteriets effekt og niveau og henter de første målinger fra Home Assistants historik, så kurven ikke skal vente på nye data. De stiplede linjer er de målte værdier; de fuldt optrukne er den kurve, BattMind planlægger med. En kurve, du selv indstiller, går forud for den målte. Er *Forbedr batteriets virkningsgrad* slået fra, eller findes der ingen kurve endnu, bruger BattMind det samlede ladetab. En forkert batteristørrelse flytter ladning og afladning i hver sin retning, men det samlede tab forbliver rigtigt. Under tabellen over virkningsgrad viser *Målt kapacitet*, hvad batteriets effektsensor så pr. 100 % batteriniveau over forløb på mindst 40 % niveau: ladning giver en øvre grænse for den brugbare kapacitet og afladning en nedre grænse, fordi virkningsgraden ikke er kendt. De holdes adskilt, og round trip er forholdet mellem dem. Hvis batteriniveauet følger energien jævnt, tyder et ladetal tydeligt under den indstillede kapacitet på, at den brugbare kapacitet er mindre, og et afladetal tydeligt over den, at den er større. Mere energi ud end ind pr. procentpoint peger på et målingsproblem (sensoren måler de to retninger forskelligt, eller niveauet følger ikke energien jævnt). Det måles altid. Når kontakten *Brug målt batterikapacitet* (*Indstillinger → Styring*) er slået til, regner planen med den målte kapacitet, hvis ladetallet tydeligt ligger under den indstillede kapacitet, aldrig med mere end den indstillede og ikke, hvor en målt virkningsgradskurve er i brug (den er målt med den indstillede kapacitet og følger allerede batteriet, så en ændring af kapaciteten ville rette to gange). *Bruges nu* viser, hvad planen regner med.",
     "efficiency_curve_off": "Virkningsgradskurverne er slået fra. BattMind bruger lige nu round-trip-tabet; de indstillede kurver er stadig gemt, og målingerne fortsætter og er stadig synlige.",
     "efficiency_measured_charging": "Ladning, målt",
     "efficiency_measured_discharging": "Afladning, målt",
@@ -644,6 +817,24 @@
     "efficiency_source_none": "ingen endnu: round-trip-tab",
     "efficiency_steps_used": "effekttrin i brug",
     "efficiency_measured_kwh": "kWh målt",
+    "capacity_title": "Målt kapacitet",
+    "capacity_kwh_per_full": "kWh pr. 100 %",
+    "capacity_episodes": "forløb",
+    "capacity_configured": "Indstillet kapacitet",
+    "capacity_charging_bound": "Ladning: højst",
+    "capacity_discharging_bound": "Afladning: mindst",
+    "capacity_round_trip": "Round trip",
+    "capacity_note": "Måles altid. Planen regner kun med den, hvis kontakten *Brug målt batterikapacitet* er slået til, og kun når målingen ligger tydeligt under den indstillede kapacitet.",
+    "capacity_status_too_few": "Der er endnu ikke nok forløb på mindst 40 % batteriniveau (der skal bruges 3 i hver retning).",
+    "capacity_status_within": "Målingerne modsiger ikke den indstillede kapacitet.",
+    "capacity_status_below": "Ladningen brugte mindre end den indstillede kapacitet pr. 100 % niveau: den brugbare kapacitet ser ud til at være mindre end indstillet.",
+    "capacity_status_above": "Afladningen gav mere end den indstillede kapacitet pr. 100 % niveau: den brugbare kapacitet ser ud til at være større end indstillet.",
+    "capacity_status_inconsistent": "Der kom mere energi ud, end der gik ind, pr. procentpoint. Batteriets effektsensor måler måske de to retninger forskelligt, eller batteriniveauet følger ikke energien jævnt.",
+    "capacity_off": "Planen bruger den indstillede kapacitet: *Brug målt batterikapacitet* er slået fra. Målingen fortsætter.",
+    "capacity_used": "Bruges nu",
+    "capacity_source_configured": "indstillet",
+    "capacity_source_measured": "målt, ud fra ladetallet",
+    "capacity_source_efficiency": "indstillet: en målt virkningsgradskurve er i brug (målt med den indstillede kapacitet)",
     "section_sufficiency": "Selvforsyning",
     "sufficiency_intro": "Selvforsyning (sol + batteri) de sidste 30 dage:",
     "sufficiency_title": "Husets strøm pr. måned",
@@ -672,7 +863,17 @@
     "day": "Dag",
     "saved": "Sparet",
     "possible": "Muligt",
-    "score_explain": "Viser, hvor stor en del af den mulige besparelse der blev nået. **Sparet** er, hvad batteriet sparede i forhold til slet intet batteri. **Muligt** er, hvad den bedst mulige plan bagefter kunne have sparet. Den laveste mulige udgift beregnes bagefter med dagens faktiske forbrug, sol og priser, samme start- og slutniveau, tab, slid og kravene til fortjeneste. En handling, der ikke ville nå kravene, tæller ikke som mulig besparelse. Fejl i prognoserne tæller med.",
+    "score_explain": "Viser, hvor stor en del af den mulige besparelse der blev nået. **Muligt** er, hvad batteriet kunne have sparet den dag, beregnet bagefter: udgiften uden batteri minus den laveste mulige udgift med dagens faktiske forbrug, sol og priser, tab, slid og kravene til fortjeneste, og med batteriet, der slutter dagen, hvor det startede. **Sparet** er det mulige minus det, planen tabte i forhold til den bedste plan, der giver batteriet samme nettoenergi som dagen. Energi, der blev gemt i batteriet til i morgen, eller brugt fra i går, er derfor hverken en gevinst eller et tab. Energi, som ignorerede forbrugere og Cable Juice Planner-opladere tog fra solen eller batteriet, og batteriets eget standby-forbrug indgår ikke i scoren. En dag får kun en score, når hver time er målt med rigtige priser og et målt batteriniveau; dagene uden score og hvorfor står under tabellen. En dag med meget lidt mulig besparelse viser – i stedet for en score. Fejl i prognoserne tæller med. En dag, der blev beregnet med en ældre udgave af beregningen, vises med 🔄 efter den formel, der gjaldt dengang, og tæller ikke med i de 30 dage.",
+    "score_missing_intro": "Dage uden score de sidste 30 dage:",
+    "score_no_hours": "en time blev ikke registreret",
+    "score_no_gap": "en sensor var væk",
+    "score_no_prices": "ingen rigtig pris",
+    "score_no_soc": "intet målt batteriniveau",
+    "score_no_drift": "energien gik ikke op",
+    "score_no_battery": "batteriet kunne ikke modelleres",
+    "score_no_history": "en ældre dag uden timedata",
+    "score_no_version": "en dag registreret af en ældre version",
+    "score_old_note": "🔄 = beregnet med en ældre udgave af scoren. Den kan ikke sammenlignes med de nyere dage og tæller ikke med i de 30 dage.",
     "section_planned": "Planlagt mod faktisk",
     "planned_summary_1": "Planlagt netladning",
     "planned_summary_2": "ladet",
@@ -692,6 +893,7 @@
     "source": "Kilde",
     "solar_plan": "Plan",
     "solar_database": "Historik (vejr)",
+    "solar_integration": "Prognoseintegration",
     "solar_actual": "Målt overskud",
     "solar_forecast_title": "Soloverskud pr. dag",
     "section_price_forecast": "Prisprognose",
@@ -719,7 +921,7 @@
     "section_history": "Historik",
     "sufficiency_explain": "Hvor husets forbrug kom fra time for time: først solen, så batteriet, resten fra nettet. **Selvforsyning** = (sol + batteri) / forbrug. **Eksport** er sol- og batteristrøm solgt til nettet. Første gang hentes et år fra Home Assistants langtidsstatistik.",
     "planned_explain": "Hver aften kl. 23 gemmer BattMind, hvad planen vil lade fra nettet og sælge næste dag. Her sammenlignes det med, hvad der faktisk blev ladet fra nettet og solgt. Store forskelle skyldes fejl i prognoserne (forbrug, sol) og planer der ændres i løbet af dagen, når priser eller batteriniveau ændrer sig.",
-    "solar_forecast_explain": "Det soloverskud (solproduktion minus husets forbrug) planen forventede for næste dag, gemt aftenen før, mod det målte overskud. **Plan** er den samlede prognose BattMind bruger, **Historik (vejr)** er delen fra den gemte solhistorik pr. vejrtype, **Solcast** prognoseintegrationen. **Afvigelse** > 0: der var forventet for meget sol.",
+    "solar_forecast_explain": "Det soloverskud (solproduktion minus husets forbrug) planen forventede for næste dag, gemt aftenen før, mod det målte overskud. **Plan** er den samlede prognose BattMind bruger, **Historik (vejr)** er delen fra den gemte solhistorik pr. vejrtype, **Prognoseintegration** den solprognose-integration, du har valgt (Solcast, Forecast.Solar eller Helios Forecast). **Afvigelse** > 0: der var forventet for meget sol.",
     "history_explain": "* **Nødvendigt batteriniveau indtil næste ladning**: de sidste 48 timer.\n* **kWh ladet af solcellerne**: solstrøm ind i batteriet, de sidste 7 dage.",
     "consumption_forecast_explain": "Det forventede forbrug pr. time i prognoseperioden med de tre prognosetyper (venstre akse) og det samlede forbrug (højre akse, de tykke linjer). Den valgte prognosetype bruges i planen; **Prognosens træfsikkerhed** viser, hvilken der rammer bedst.",
     "what_if_duration_years": "{n} år",
@@ -777,6 +979,13 @@
     "what_if_reason_module_invalid": "Modulkapaciteten skal være over 0 og højst 1000 kWh, prisen må ikke være negativ, og antallet af moduler skal være fra 1 til 12.",
     "what_if_reason_invalid_inputs": "En af what-if-værdierne er ugyldig eller mangler en værdi.",
     "what_if_reason_save_failed": "Resultatet kunne ikke gemmes.",
-    "what_if_reason_internal_error": "Simuleringen mislykkedes; se Home Assistants log."
+    "what_if_reason_internal_error": "Simuleringen mislykkedes; se Home Assistants log.",
+    "section_storm": "Stormvarsel",
+    "help_storm": "BattMind holder batteriet opladet til et stormvarsel fra den entitet, der er valgt i indstillingerne (MeteoAlarm). Kun varsler om vind, sne/is eller torden på eller over det valgte niveau tæller, og kun varsler med et starttidspunkt: uden starttid planlægges der intet, og status viser det.\n\n* **Stormvarsel**: varslets status. *Kommer* eller *Aktivt* betyder, at planen holder et batteriniveau til det. Under den: hvornår varslet starter og slutter, det niveau batteriet holdes på, det forventede husforbrug uden sol og den buffer, der lægges på, fordi prognosen rammer ved siden af (hvor meget prognosen ramte forkert de seneste 30 dage, mindst 20 %).\n* **Timer et stormvarsel uden sluttid dækker**: hvor længe et varsel tælles, når det har et starttidspunkt men intet sluttidspunkt.\n\nNiveauet aftager time for time, mens stormen varer, og der sælges ikke under det. Opladningen lægges i de billigste timer, før niveauet skal bruges; når batteriet ikke kan nå det i tide, lades det så højt som muligt. Uden nødstrøm driver et fuldt batteri ikke huset ved strømsvigt.",
+    "storm_start": "Starter",
+    "storm_end": "Slutter",
+    "storm_keep_percent": "Niveau der holdes",
+    "storm_expected_use": "Forventet forbrug",
+    "storm_buffer": "Buffer"
   }
 }

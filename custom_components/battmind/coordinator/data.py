@@ -20,10 +20,12 @@ from homeassistant.util import dt as dt_util
 from ..const import HISTORY_BUFFER_HOURS
 from ..engine import Snapshot
 from ..engine.analysis.helpers import ANALYSIS_DAYS
+from ..engine.storm import STORM_ATTRIBUTES
 from ..utils.efficiency import EFFICIENCY_BACKFILL_DAYS
 from ..utils.cjp import CJP_DOMAIN
 from ..utils.helpers import float_or_none
 from ..utils.power import merge_rows
+from ..utils.solar_forecast import KEY_SEMANTICS, async_solar_forecast_rows
 from ..utils.solcast import SOLCAST_ENDINGS, strip_forecast_suffix
 from .constants import FORECAST_TIMEOUT, STATISTICS_REFRESH_SECONDS
 
@@ -170,17 +172,33 @@ class CoordinatorData:
             statistics={entity_id: list(rows) for entity_id, rows in self._statistics.items()},
             sun_events=self._sun_events(now),
             ev_charging=self._ev_charging_snapshot(),
+            storm_alert=self._storm_snapshot(),
         )
         if include_prices:
             snapshot.price_data = self._price_snapshot()
         if include_forecast:
             snapshot.forecast_dict = await self._async_weather_forecasts()
-            snapshot.solcast = self._solcast_snapshot()
+            # the hourly solar forecast rows: Solcast's own detailedHourly, else the energy platform of Forecast.Solar
+            # or Helios Forecast (utils/solar_forecast.py), normalised to the same rows
+            snapshot.solcast = self._solcast_snapshot() or await self._async_energy_forecast_snapshot()
         return snapshot
 
     def _price_snapshot(self) -> dict:
         provider = self.price_provider
         return provider.snapshot(self.hass.states.get) if provider else {"attributes": {}, "values": {}}
+
+    def _storm_snapshot(self) -> dict | None:
+        """The state of the storm warning entity with only the attributes the plan reads (the others name places)."""
+        entity_id = self.config["home"]["entity_ids"].get("storm_warning_entity_id")
+        if not entity_id:
+            return None
+        state = self.hass.states.get(entity_id)
+        attributes = state.attributes if state else {}
+        return {
+            "entity_id": entity_id,
+            "state": state.state if state else None,
+            "attributes": {key: attributes[key] for key in STORM_ATTRIBUTES if key in attributes},
+        }
 
     def _ev_charging_snapshot(self) -> list[dict]:
         """The planned charging of each Cable Juice Planner car (charge_plan of its current_charging_rule)."""
@@ -209,6 +227,23 @@ class CoordinatorData:
             if state is not None:
                 result[state.entity_id] = list(state.attributes.get("detailedHourly") or [])
         return result
+
+    async def _async_energy_forecast_snapshot(self) -> dict[str, list]:
+        """The rows of a Forecast.Solar or Helios Forecast sensor, under the configured sensor (the debug export and its
+        replay keep them there). No rows (the forecast is unavailable, see utils/solar_forecast.py) is the same as no
+        forecast: the stored solar history is used. A changed reason is logged once, not at every plan."""
+        forecast_entity = self.config["solar"]["entity_ids"]["forecast_entity_id"]
+        platform = self._entity_platforms.get(forecast_entity) if forecast_entity else None
+        if platform not in KEY_SEMANTICS:
+            return {}
+        rows, problem = await async_solar_forecast_rows(self.hass, forecast_entity, dt_util.get_default_time_zone())
+        if problem != self._solar_forecast_problem:
+            if problem:
+                _LOGGER.warning("No solar forecast from %s (%s): the stored solar history is used instead", platform, problem)
+            elif self._solar_forecast_problem:
+                _LOGGER.info("The solar forecast from %s is available again", platform)
+            self._solar_forecast_problem = problem
+        return {forecast_entity: rows} if rows else {}
 
     async def _async_weather_forecasts(self) -> dict:
         result: dict[str, list] = {"hourly": [], "daily": []}

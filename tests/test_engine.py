@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import math
 import zoneinfo
 from copy import deepcopy
 from pathlib import Path
@@ -835,6 +836,199 @@ def test_solcast_keeps_the_first_row_of_a_repeated_hour() -> None:
     result = engine.run_job(snap, engine.get_solar_kwh_forecast)
     assert result.error is None, result.error
     assert 0.0 < result.value[noon][0] < 1.0  # 1 kWh from the first row less the house use; the second row (3 kWh) would be above 2
+def _solar_kw(day: int, hour: int) -> float:
+    """A sunny day: 0 at night, up to 4.2 kW at noon, a little less every day."""
+    return round(max(0.0, 4.2 - abs(hour - 12) * 0.7) * (1 - 0.1 * day), 3) if 6 <= hour <= 18 else 0.0
+
+
+def _solcast_rows() -> dict[str, list]:
+    """The detailedHourly rows of Solcast's day sensors (period_start: a datetime with the local offset)."""
+    rows = {}
+    for day, ending in enumerate(("today", "tomorrow", "day_3")):
+        date = DAY + datetime.timedelta(days=day)
+        rows[f"sensor.solcast_{ending}"] = [
+            {
+                "period_start": datetime.datetime.combine(date, datetime.time(hour), tzinfo=TZ),
+                "pv_estimate": _solar_kw(day, hour),
+                "pv_estimate10": round(_solar_kw(day, hour) * 0.7, 3),
+                "pv_estimate90": round(_solar_kw(day, hour) * 1.2, 3),
+            }
+            for hour in range(24)
+        ]
+    return rows
+
+
+def _helios_wh_hours() -> dict[str, float]:
+    """The same forecast as Helios Forecast gives the Energy dashboard: Wh per UTC hour, keyed by its start."""
+    return {
+        datetime.datetime.combine(DAY + datetime.timedelta(days=day), datetime.time(hour), tzinfo=TZ).astimezone(datetime.UTC).isoformat(): _solar_kw(day, hour) * 1000
+        for day in range(3)
+        for hour in range(24)
+    }
+
+
+def _plan_with_solar_rows(rows: dict[str, list], forecast_entity: str):
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options={**SOLAR_OPTIONS, "forecast_entity_id": forecast_entity})
+    snap = snapshot(now, 50, {"optimizer_control": True})
+    snap.entity_states["sensor.solar"] = "0"
+    snap.forecast_dict = {
+        "hourly": [],
+        "daily": [{"datetime": datetime.datetime.combine(DAY + datetime.timedelta(days=day), datetime.time(0)).isoformat(), "condition": "sunny"} for day in range(8)],
+    }
+    snap.solcast = rows
+    forecast = engine.run_job(snap, engine.get_solar_kwh_forecast)
+    result = engine.run_job(snap, engine.charge_if_needed, True)
+    assert forecast.error is None and result.error is None, (forecast.error, result.error)
+    return forecast.value, deepcopy(engine.solar_prediction_db), result.states, deepcopy(engine.plan)
+
+
+def test_energy_platform_rows_plan_like_the_same_solcast_rows() -> None:
+    """Helios Forecast's wh_hours, normalised by utils/solar_forecast.py, give exactly the plan of the same numbers from
+    Solcast: the engine reads both the same way."""
+    from custom_components.battmind.utils.solar_forecast import rows_from_wh_hours
+
+    helios_rows = rows_from_wh_hours([_helios_wh_hours()], "start", TZ)
+    assert len(helios_rows) == 72
+    solcast = _plan_with_solar_rows(_solcast_rows(), "sensor.solcast_today")
+    helios = _plan_with_solar_rows({"sensor.helios_forecast_power_now": helios_rows}, "sensor.helios_forecast_power_now")
+    assert helios == solcast
+    # the forecast is really used: surplus = production - the consumption history (600 W by day)
+    noon = datetime.datetime.combine(DAY + datetime.timedelta(days=1), datetime.time(12))
+    assert solcast[0][noon][0] == round(_solar_kw(1, 12) - 0.6, 3)
+
+
+def test_solcast_rows_are_read_as_before() -> None:
+    """Regression: the Solcast surplus per hour from detailedHourly is the same calculation as before the other sources:
+    pv_estimate (kW over the hour) minus the consumption history, never below 0, every hour of every day sensor."""
+    forecast = _plan_with_solar_rows(_solcast_rows(), "sensor.solcast_today")[0]
+    expected = {
+        datetime.datetime.combine(DAY + datetime.timedelta(days=day), datetime.time(hour)): round(max(_solar_kw(day, hour) * 1000 - (1500 if 17 <= hour <= 21 else 600), 0) / 1000, 3)
+        for day in range(3)
+        for hour in range(24)
+    }
+    assert {key: value[0] for key, value in forecast.items()} == expected
+
+
+def _surplus(day: int, hour: int) -> float:
+    """The surplus the engine predicts from _solar_kw alone (no weather): minus the consumption history, rounded."""
+    return round(round(max(_solar_kw(day, hour) * 1000 - (1500 if 17 <= hour <= 21 else 600), 0) / 1000, 3), 1)
+
+
+def _prediction_without_weather(wh_hours: dict[str, float]) -> dict:
+    """solar_prediction_db from Forecast.Solar-shaped rows (end keys) with no weather forecast at all."""
+    from custom_components.battmind.utils.solar_forecast import rows_from_wh_hours
+
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options={**SOLAR_OPTIONS, "forecast_entity_id": "sensor.energy_production_today"})
+    snap = snapshot(now, 50)
+    snap.entity_states["sensor.solar"] = "0"
+    snap.forecast_dict = {}
+    snap.solcast = {"sensor.energy_production_today": rows_from_wh_hours([wh_hours], "end", TZ)}
+    assert engine.run_job(snap, engine.local_energy_prediction).error is None
+    return engine.solar_prediction_db
+
+
+def _forecast_solar_wh_hours(days: int = 2) -> dict[str, float]:
+    """Forecast.Solar's Energy dashboard forecast: the key is the end of the period, the first key (07:00) has no start."""
+    return {
+        datetime.datetime.combine(DAY + datetime.timedelta(days=day), datetime.time(hour), tzinfo=TZ).isoformat(): _solar_kw(day, hour - 1) * 1000
+        for day in range(days)
+        for hour in range(7, 20)
+    }
+
+
+def test_hours_without_any_value_keep_the_later_hours_in_their_place() -> None:
+    """Regression: no weather and a forecast that starts after sunrise. The list is read by hour (solar[hour]), so the
+    hours before the first row are 0.0 (no known sun) instead of moving the 08:00 sun to midnight."""
+    prediction = _prediction_without_weather(_forecast_solar_wh_hours())
+    # today: rows from 07:00 (the key at 07:00 has no start, so 00:00-07:00 has none) and the night after the sunset
+    today = prediction[0]
+    assert today["known_hours"] == 17 and len(today["total"]) == len(today["total_sell"]) == 24
+    assert today["total"] == [0.0] * 7 + [_surplus(0, hour) for hour in range(7, 24)]
+    assert today["total"][12] == _surplus(0, 12) > 3.0
+    # tomorrow: the night period covers 00:00-07:00, the forecast ends at 19:00, so the later hours stay absent
+    tomorrow = prediction[1]
+    assert tomorrow["known_hours"] == 19 and tomorrow["total"] == [_surplus(1, hour) for hour in range(19)]
+    # the days after the forecast's horizon (2 days) have no known hour: no list, as before
+    assert prediction[2]["total"] == [] and prediction[2]["known_hours"] == 0
+
+
+def test_a_missing_hour_mid_day_is_no_sun_and_the_later_hours_keep_their_place() -> None:
+    wh_hours = _forecast_solar_wh_hours()
+    wh_hours[datetime.datetime.combine(DAY + datetime.timedelta(days=1), datetime.time(13), tzinfo=TZ).isoformat()] = math.nan
+    tomorrow = _prediction_without_weather(wh_hours)[1]
+    total = tomorrow["total"]
+    assert _surplus(1, 12) > 3.0 and total[12] == 0.0  # the NaN at 13:00 is the energy of 12:00-13:00
+    assert total == [_surplus(1, hour) if hour != 12 else 0.0 for hour in range(19)]
+    assert tomorrow["known_hours"] == 18
+
+
+def test_hourly_weather_from_now_without_a_forecast_integration_keeps_the_hours_in_place() -> None:
+    """Regression (also before the other forecast sources): hourly weather starts at the current hour and there is no
+    daily weather or forecast integration. Today's list used to start at the current hour, so the noon sun from the
+    history was read 3 hours late; now the hours before now are 0.0."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options={**SOLAR_OPTIONS, "forecast_entity_id": ""})
+    score = engine.forecast_score({"condition": "sunny"})
+    engine.solar_available_db[12][score] = [[datetime.datetime.combine(DAY - datetime.timedelta(days=day + 1), datetime.time(12)), 2000.0] for day in range(10)]
+    snap = snapshot(now, 50)
+    snap.entity_states["sensor.solar"] = "0"
+    first = now.replace(minute=0)
+    snap.forecast_dict = {"hourly": [{"datetime": (first + datetime.timedelta(hours=offset)).isoformat(), "condition": "sunny"} for offset in range(45)]}
+    assert engine.run_job(snap, engine.local_energy_prediction).error is None
+    today, tomorrow = engine.solar_prediction_db[0], engine.solar_prediction_db[1]
+    assert today["known_hours"] == 21 and len(today["total"]) == 24
+    assert today["total"][:3] == [0.0] * 3
+    assert today["total"][12] == 2.0 and today["total"][15] == 0.0
+    assert tomorrow["known_hours"] == 24 and tomorrow["total"][12] == 2.0
+    assert engine.solar_prediction_db[2]["total"] == [] and engine.solar_prediction_db[2]["known_hours"] == 0
+
+
+def test_complete_days_have_a_value_for_every_hour() -> None:
+    """Regression: with Solcast's 24 rows a day and the daily weather every hour has a value, so nothing is padded.
+    Without solar history Solcast counts alone (surplus = production - 600 W by day, 1500 W 17:00-21:00)."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options=SOLAR_OPTIONS)
+    snap = snapshot(now, 50)
+    snap.entity_states["sensor.solar"] = "0"
+    snap.forecast_dict = {
+        "hourly": [],
+        "daily": [{"datetime": datetime.datetime.combine(DAY + datetime.timedelta(days=day), datetime.time(0)).isoformat(), "condition": "sunny"} for day in range(8)],
+    }
+    snap.solcast = _solcast_rows()
+    assert engine.run_job(snap, engine.local_energy_prediction).error is None
+    tomorrow = engine.solar_prediction_db[1]
+    assert tomorrow["total"] == [0.0] * 8 + [0.7, 1.3, 1.9, 2.5, 3.2, 2.5, 1.9, 1.3, 0.7] + [0.0] * 7
+    assert len(tomorrow["total_sell"]) == 24 and tomorrow["known_hours"] == 24
+    # a day after Solcast's 3 days: the weather alone (no solar history: 0 kWh), still a value for every hour
+    later = engine.solar_prediction_db[3]
+    assert later["total"] == [0.0] * 24 and later["known_hours"] == 24
+
+
+def test_a_plan_from_a_forecast_that_starts_after_sunrise_reads_each_hour_in_its_place() -> None:
+    """End to end, Forecast.Solar-shaped rows and no weather: the planner reads the noon surplus at noon (it used to be
+    read 7 hours early), counts only the known hours, and the overview has no sentence about the sun (incomplete day)."""
+    from custom_components.battmind.utils.solar_forecast import rows_from_wh_hours
+
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options={**SOLAR_OPTIONS, "forecast_entity_id": "sensor.energy_production_today"})
+    snap = snapshot(now, 50)
+    snap.entity_states["sensor.solar"] = "0"
+    snap.forecast_dict = {}
+    snap.solcast = {"sensor.energy_production_today": rows_from_wh_hours([_forecast_solar_wh_hours()], "end", TZ)}
+    result = engine.run_job(snap, engine.charge_if_needed, True)
+    assert result.error is None, result.error
+    assert engine.plan[0]["solar_known_hours"] == 17 and engine.plan[1]["solar_known_hours"] == 19
+    current_hour = now.replace(minute=0)
+    for day in (0, 1):
+        noon = datetime.datetime.combine(DAY + datetime.timedelta(days=day), datetime.time(12))
+        surplus = engine.run_job(snap, engine.solar_surplus_in_hour, engine.plan, current_hour, noon)
+        assert surplus.error is None and surplus.value == _surplus(day, 12) > 3.0
+        night = noon.replace(hour=2)
+        assert engine.run_job(snap, engine.solar_surplus_in_hour, engine.plan, current_hour, night).value == 0.0
+    lines = engine.run_job(snap, engine._solar_day_lines, engine.plan, [0, 1])  # noqa: SLF001
+    assert lines.error is None and lines.value == []
 
 
 # (time, battery level, solar blocking scenario: no selling and a high sell price at 10:00)

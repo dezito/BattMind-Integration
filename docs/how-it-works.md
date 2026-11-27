@@ -70,13 +70,36 @@ normal operation run as usual. `sensor.<prefix>_current_charging_rule` shows *Le
 
 The plan uses the **solar surplus**: solar production minus the house's consumption. Two sources are combined:
 
-- **Solcast:** the forecast production minus the forecast consumption
+- **The forecast integration** (Solcast, Forecast.Solar or Helios Forecast): the forecast production minus the
+  forecast consumption
 - **Own history:** BattMind stores the measured surplus per hour and per weather score (cloud cover, UV and
   temperature from the weather forecast). For a forecast hour it looks up the hours with the same weather score
 
-With both, Solcast counts 75 % and the history 25 %. When the history has no measurement for the hour and
-weather score (or the scores next to it), Solcast is used alone instead of being averaged with an unknown
-0. Without Solcast, the history alone is used, so the forecast also works without Solcast after a few weeks.
+With both, the forecast integration counts 75 % and the history 25 %. When the history has no measurement for the
+hour and weather score (or the scores next to it), the forecast integration is used alone instead of being averaged
+with an unknown 0. Without a forecast for the hour, the history alone is used, so the forecast also works without a
+forecast integration after a few weeks. An hour with neither a solar forecast nor a weather forecast (e.g. the hours
+before now when the weather only has an hourly forecast from now on) counts as no sun.
+
+Solcast gives the production per hour in the `detailedHourly` attribute of its day sensors. Forecast.Solar and Helios
+Forecast are read from the forecast they give the Energy dashboard (energy per period, keyed by time), turned into
+the same hourly rows:
+
+- Helios Forecast keys a value by the **start** of its hour, Forecast.Solar by the **end** of its period (the sunrise,
+  the whole hours and the sunset). A Forecast.Solar value therefore counts in the hour before its key; its first value
+  has no known start and is not used.
+- The energy of a period is spread over the time it covers and added up per hour of the Home Assistant time zone. On
+  the day the clocks go back, the hour that occurs twice gets the energy of both; the hour skipped in spring gets none.
+- Only hours the forecast covers completely are used. A missing hour, a value that is not a number or is negative,
+  and a partly covered hour at either end of the forecast are not counted as a forecast of 0: they are planned from
+  the weather forecast and the stored solar history. An hour with neither counts as no sun.
+  Values more than a day old or more than 16 days ahead are ignored.
+- Forecast.Solar has one entry per roof plane. The planes listed together with the selected one as the forecast of a
+  solar source in the Energy dashboard are added up, only for the hours every plane covers; a plane that is not
+  loaded means no forecast until it is.
+
+Helios Forecast learns from your own production and Forecast.Solar does not; both are blended with the history in
+the same way as Solcast.
 
 In an hour with solar surplus the sun covers the house, so the battery isn't planned to discharge in it.
 
@@ -94,20 +117,31 @@ from tomorrow on, and today's hours without a published price are not planned. T
 **Providers of your own published prices** (EPEX Spot, GE-Spot, Octopus Energy, Nord Pool) give the buy price of the sensor as it is (the
 VAT, surcharge and fees are the user's, set in the integration); the sell price is the wholesale price of a second sensor, a field of the
 same sensor (GE-Spot) or the export rates (Octopus Energy), less the sell fee, and 0 less the fee for Octopus without an export tariff.
-They give today and tomorrow, no forecast, and stand before the estimating providers: a provider with a forecast fills the days after. The real
-prices of a provider are the price of the whole hour: the rows of another period of a later provider (quarters next to an hourly price) are not
-mixed into it.
+They give today and tomorrow, no forecast, and stand before the estimating providers: a provider with a forecast fills the days after. An hourly
+price is repeated over the quarters of the hour when another provider has 15-minute prices (one common interval for the whole plan), so the
+quarters of a later provider never fill a slot of it.
 
 **A market without published prices** (Energy Price Forecast in Finland, Great Britain, SE1/SE2 and others) needs
 the own price source of Energy Price Forecast (a Nord Pool or ENTSO-e sensor), which gives it published prices from
 midnight: with only a forecast, today has no price before the present, so the price page refuses the sensor, and an existing setup gets a repair when a sensor has had only a forecast for at least an hour (it goes by itself when published prices are back). A
-forecast never enters an hour that has a real price, also not one of another provider with other periods, and only
+forecast never fills a slot that has a real price, also not one of another provider with other periods, and only
 real prices are stored in the price history. A forecast day with 15-minute sell prices (Strømligning) is planned per
 quarter: each quarter sells at most a quarter of the hour's energy.
 
+**Two price integrations with different intervals.** The providers can have different interval lengths
+(Strømligning's buy price is hourly, Energi Data Service's is every 15 minutes). BattMind puts all prices on one
+common interval: the finest one they all fit on (the greatest common divisor of the interval lengths, for example 15
+minutes for hourly plus 15 minute prices, 5 minutes for 10 plus 15 minute prices). A price that covers a longer
+interval is repeated over every slot of it, and each slot gets the price of the first provider that has one
+(Strømligning before Energi Data Service, real prices before forecasts). So an hourly price covers its whole hour:
+it is never mixed with the other provider's quarters inside that hour. Charging and selling are planned per slot, but
+the overview shows slots that follow each other as one window.
+
 A price that is not a usable number (text, NaN or infinity) is ignored, and so is a sell price whose tariffs are
-not usable numbers: the hour gets its price from the price history, or none, and is never planned with an
-invented price.
+not usable numbers: the missing slot gets the price of the next price integration, an hour with no price at all gets
+its price from the price history, and otherwise it has none. The plan is never made with an invented price: the
+price before a missing slot is not repeated over it. The current price (what is shown and used right now) is still
+the latest price before the moment.
 
 **Forecast prices** (e.g. Carnot) get a small adder of 0.033 kr per day ahead, so the plan prefers known
 prices: a forecast buy price is raised and a forecast sell price is lowered, so buying and selling look a
@@ -130,7 +164,7 @@ in the currency of the prices: 0.013 € wear with euro prices) and the starting
 thresholds follow the currency (an import or a restored backup keeps its own values), so after changing to prices
 in another currency, check the *Sell fee*, the *Wear cost* and the thresholds yourself. A sensor without a known unit leaves the scale as it is (kroner for a new
 installation), and Home Assistant's own currency setting is not used for this. The price pages of Energi Data
-Service, Energy Price Forecast and the spot forecast integrations refuse a sensor in cents or pence (and Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot and Nord Pool one per MWh or Wh; Energy Price Forecast converts a price per MWh to kWh; Wattcast gives ct/kWh and is read as euro). A sensor that gets such a unit after the setup gives no prices (the planner uses the stored prices instead, a repair names the sensor, and its recorded history is left out of the what-if). The forecast sensor of Wattcast says its unit too (`forecast_unit`): in another unit than ct/kWh it gives no prices, with a warning in the log and no repair. Every price sensor must be in the same
+Service, Energy Price Forecast and the spot forecast integrations refuse a sensor in cents or pence (and Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot and Nord Pool one per MWh or Wh, Energy Price Forecast one per Wh; Energy Price Forecast converts a price per MWh to kWh; Wattcast gives ct/kWh and is read as euro). A sensor that gets such a unit after the setup gives no prices (the planner uses the stored prices instead, a repair names the sensor, and its recorded history is left out of the what-if). The forecast sensor of Wattcast says its unit too (`forecast_unit`): in another unit than ct/kWh it gives no prices, with a warning in the log and no repair. Every price sensor must be in the same
 currency (a backup provider in another currency is refused). The rates are rough: they only
 set the size of the limits, no price is ever converted between currencies. Currencies worth much less than a krone (CZK, HUF, ISK)
 are not recognised yet.
@@ -195,6 +229,8 @@ The overview shows what the energy in the battery has cost right now, split into
   would be pushed out is sold for more than the grid kWh costs (e.g. at negative buy prices).
 - **One thing per hour.** The battery never charges and discharges in the same hour. If an hour has both
   a charge and a sale, the charge wins.
+- **No more charge than the battery takes.** Where the battery charges more slowly (nearly full), the plan counts on
+  what it has measured the battery takes: see [charging power by battery level](dashboard-analysis.md#charging-power-by-battery-level).
 - **The profit requirements follow the energy out of the battery.** **Min. profit per kWh** applies to
   every kWh discharged (used in the house or sold), so grid charging is only planned when that discharge
   pays. **Min. total profit** and **min. kWh for export** apply to every sale to the grid.
@@ -225,6 +261,8 @@ With *Control the battery with the whole period optimisation* off, the plan is b
    4. 🔥 [Most expensive periods](rules/charging.md#-most-expensive-periods)
    5. 🩹 [Required before max level](rules/charging.md#-required-before-max-level)
    6. ⏳ [Prioritise by energy cost](rules/discharging.md#-prioritise-by-energy-cost)
+   7. 💯 [Full charge](rules/charging.md#-full-charge), only when it is due (no switch). It runs once more
+      after the selling rules, because a sale can lower the levels it has to lift
 3. **Selling**, day by day, in this order:
    1. 🌄 [Before the sun](rules/discharging.md#-before-the-sun)
    2. 🤑 [Maximise profit](rules/selling.md#-maximise-profit)
@@ -248,6 +286,14 @@ ones planned. The order matters:
 
 The optimisation is still calculated, so the overview can compare the rule plan with it.
 
+### A full charge now and then
+
+Some LFP batteries need to reach their maximum level regularly. With *Recommended full charge every*
+above 0, and more days than that since the battery last reached its maximum level (minus 1 %), the plan
+charges it from the grid in the cheapest hours before the end of tomorrow (or today, when it is a day
+overdue). This is the one grid charge that is not planned for a profit: it needs the prices up to the
+deadline and ignores min. profit per kWh, but the sun still goes first. See [Full charge](rules/charging.md#-full-charge).
+
 ## From plan to action
 
 Every interval, the action for the current hour is chosen in this order:
@@ -267,5 +313,11 @@ What each action should make the inverter do is described under [Actions](action
 - **Prices missing:** single hours are filled from the [price database](#prices). If all prices are gone,
   BattMind keeps the last prices for 2 hours, then plans entirely with the database.
 - **A rule fails:** the other rules still run, and you get a notification with the error.
+- **A full charge can't be reached before the deadline** (for example too little charge power or too little
+  time): the overview says so and drops it. Without prices up to the deadline it waits instead. With grid
+  charging unsupported by the inverter the full charge is simply off. Solar charging is not blocked before
+  the plan has reached the full charge (after that, the plan may block it again), and a full charge the sun
+  reaches on its own counts. With
+  *Days to plan* of 1, only a full charge that is a day overdue is planned.
 - **The optimisation fails:** the rules control the battery.
 - **The whole calculation fails 3 times in a row:** the integration is reloaded. Until then, the last action is kept.

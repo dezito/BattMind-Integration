@@ -34,7 +34,10 @@ from ..const import (
     unsupported_switches,
 )
 from .analysis.analysis import Analysis
+from .automation_test import AutomationTest
 from .energy.energy import Energy
+from .full_charge import FullCharge
+from .storm_warning import StormWarning
 from .history.history import History
 from .planner.planner import Planner
 from ..utils.formatting import format_charging_rule, get_list_values, translate
@@ -62,7 +65,7 @@ POWER_CACHE_SETTLED = datetime.timedelta(hours=2)
 POWER_CACHE_MAX_AGE = datetime.timedelta(hours=52)
 
 
-class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Planning, Diagnostics):
+class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Planning, Diagnostics, AutomationTest, FullCharge, StormWarning):
     """Holds the BattMind state and implements the algorithm."""
 
     def __init__(self, config: dict, prefix: str, texts: dict[str, str]) -> None:
@@ -86,7 +89,7 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self.power_values_db: dict = {}
         self.kwh_avg_prices_db: dict = {}
         self.solar_available_db: dict = {}
-        self.analysis_db: dict = {"hours": {}, "days": {}, "plans": {}, "rule_days": {}, "price_hours": {}, "price_days": {}}
+        self.analysis_db: dict = {"hours": {}, "days": {}, "plans": {}, "rule_days": {}, "price_hours": {}, "price_days": {}, "plan_check": {}}
 
         # runtime state
         self.grid_price_cache: dict = {"using_offline_prices": False}
@@ -111,9 +114,21 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self.last_plan_hash: str | None = None
         self.last_overview = ""
         self.last_powerwall_action = ""
+        # the action the test of the user's automation holds on the action sensor for a while, and why one ended by itself
+        self._automation_hold: dict | None = None
+        self._automation_abort: str | None = None
+        # the action that last reached the action sensor (the held one during a test)
+        self._published_action: str | None = None
+        # the time each published action held per hour, until the hour is judged (engine/analysis/plan_check.py)
+        self._plan_tally: dict = {"last": None, "action": None, "hours": {}}
         # the hour in which the battery last ran something else than blocked_solar_charge
         self.unblocked_hour: datetime.datetime | None = None
         self.error_count = 0
+        # full charge (engine/full_charge.py): whether the battery was full at the last check (None: not checked yet), the
+        # epoch time up to which the battery level buffer was checked, and the full charge of the last plan
+        self._full_charge_full: bool | None = None
+        self._full_charge_scanned: float | None = None
+        self.full_charge_plan: dict | None = None
 
         # per job
         self._snap: Snapshot | None = None
@@ -177,6 +192,9 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self.load_charging_history(databases.get("charging_history"))
         self.load_analysis_db(databases.get("analysis"))
         self.publish_analysis()
+        # the last full charge: the stored time, or the first time the battery level history (sensor last_full_charge)
+        self.full_charge_check()
+        self.full_charge_publish()
         _LOGGER.info(
             "Loaded databases: charging history %s entries, power values %s hours, price history %s days, solar %s hours",
             len(self.charging_history_db), len(self.power_values_db), len(self.kwh_avg_prices_db.get("mean", [])),
@@ -193,6 +211,7 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
 
     def hour_end(self, timestamp: datetime.datetime):
         """Runs at minute 59: store the hour in the databases and the charging history."""
+        self.full_charge_check()  # a peak of the hour between two plans is in the battery level buffer
         self.current_battery_level_expenses()
         self.solar_available_append_to_db(
             self.local_energy_available(period=60, without_all_exclusion=True, solar_only=True)
@@ -274,6 +293,17 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
     def notify(self, message: str, title: str = "", notification_id: str | None = None) -> None:
         if self._out is not None:
             self._out.notifications.append((message, title, notification_id or f"{self.name}_notification"))
+
+    def notice(self, kind: str, active: bool | None, **params: Any) -> None:
+        """A push notification condition (management/notifier.py): True it holds, False it is over (an explicit answer), None it was
+        not evaluated. Only the live engine's jobs are read: the what-if and replay engines are never published."""
+        if self._out is not None:
+            self._out.conditions[kind] = (active, params)
+
+    def notice_ready(self, kind: str, ready: bool | None) -> None:
+        """Something learned (a push notification once, when it becomes ready). None: not clear this time, nothing changes."""
+        if self._out is not None:
+            self._out.ready[kind] = None if ready is None else bool(ready)
 
     def set_charging_rule(self, text: str = "") -> None:
         self.set_state("current_charging_rule", format_charging_rule(text))

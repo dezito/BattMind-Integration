@@ -16,6 +16,15 @@ One of these is usually the reason:
 - **It isn't one of the cheapest periods**, or it costs more than *increase for cheapest price* above the
   day's cheapest hour.
 
+## Why does it charge to the maximum level although it doesn't pay?
+
+If *Recommended full charge every* is above 0 and more days than that have passed since *Last full charge*
+(the battery last reached its maximum level minus 1 %), BattMind plans a 💯 [full charge](rules/charging.md#-full-charge)
+in the cheapest hours before the end of tomorrow (before the end of today when the full charge is already a
+day overdue), whatever *Min. profit per kWh* says. When BattMind has no *Last full charge* and finds none in the
+battery level history, the battery counts as a day overdue. It is meant for LFP batteries that need it. Set the
+number to 0 to switch it off.
+
 ## It planned to charge tonight, but the battery wasn't charged in the morning
 
 Usually the plan changed during the night. BattMind recalculates the plan every few minutes, and it moves
@@ -68,6 +77,25 @@ using it now wouldn't pay for what it cost. The reason is in the plan (⏳ or �
 It is measured with the battery power sensor. A wrong sign, a sensor in kW labelled W, or a sensor that
 also includes the inverter's own consumption gives a wrong loss. Check the sensor before you change the
 configured loss.
+
+## The solar forecast from Forecast.Solar or Helios Forecast is not used
+
+BattMind reads the forecast that the integration gives the Energy dashboard. When it gets none, the log has a warning
+*No solar forecast from forecast_solar (…)* (or `helios_forecast`) with the reason, once until the reason changes,
+and the solar surplus is planned from the weather forecast and the stored solar history only (an hour with neither
+counts as no sun). Usual reasons:
+
+- the integration's config entry is not loaded (still starting, or its setup failed): check it under
+  **Settings → Devices & services**
+- Forecast.Solar with several roof planes: one plane listed with the selected one in the Energy dashboard's solar
+  source is not loaded. BattMind never uses half a forecast, so it waits for every plane
+- the forecast covers no whole hour yet
+
+Hours after the end of the forecast (the free plan of Forecast.Solar covers today and tomorrow) are always planned
+from the weather forecast and the history. BattMind does not check how old the forecast is: if the integration stops
+updating but still answers, its last forecast is used for the hours ahead it covers (as with Solcast), and values more
+than a day old are ignored. Check the integration itself when the forecast looks stale. See
+[Forecast.Solar or Helios Forecast](getting-started.md#forecastsolar-or-helios-forecast).
 
 ## What happens when prices are missing?
 
@@ -134,6 +162,95 @@ If a database file is empty, isn't valid JSON or can't be read at startup (e.g. 
 moved aside as `….corrupt.<time>` and the newest good copy is restored. The log then has an error naming
 both files. Data saved after that copy was made is lost, at most about a day. Without a good copy the database is treated as missing, as on a new install. You can then import
 a full backup (see [Backup](../README.md#backup-export-and-import-of-data)).
+
+## Repairs
+
+BattMind raises a **repair** (*Settings → System → Repairs*) when something it was set up with has gone wrong. The
+repairs only read: they never change the battery, the plan or your automations. Each one says what was found and how
+to check it, and disappears by itself once the problem is gone. If you ignore a repair, it stays hidden, also after a
+restart, until the problem is gone.
+
+- **Sensors BattMind uses are disabled or missing:** a sensor is disabled in Home Assistant, or it no longer exists
+  (deleted or renamed). The plan then works with missing values. It disappears when all of them are enabled and found
+  again. A sensor that is enabled and has an entity registry entry is not missing, even when its state is unavailable or
+  unknown: an unavailable sensor is not this repair. For the house consumption sensor, BattMind posts a persistent
+  notification when it stays unavailable (see *The house consumption sensor shows the same value* below). Two minutes
+  after each start, BattMind also lists the configured sensors that are still unavailable in a persistent notification.
+- **Sensor units BattMind can't read:** a power sensor reports a unit other than mW, W, kW, MW or GW, or the battery
+  level sensor reports a unit other than %. A unit with an h at the end (Wh, kWh, MWh) is read as the unit without it,
+  so kWh is read as kW. A power sensor with no unit is read as W (the next repair checks that it fits). The repair
+  disappears when every such sensor reports a unit BattMind can read.
+- **Power sensors without a unit:** BattMind reads a power sensor without a unit in W. The repair is raised when the
+  sensor's current value is between -50 and 50 (its absolute value is 50 or less), when its values over the last 3 days (from
+  the recorder history) never went above 50 either way, some of them are decimal numbers, there are at least 10 values, and
+  at least two different values. Such values look like kilowatts (kW): read as
+  W, they are 1000 times too small, and the plan uses far too little power. Fix it at the source: give the sensor its
+  unit, for example `unit_of_measurement: kW` on a template sensor. Then run *Test my automation* on the BattMind
+  dashboard. The repair is checked every hour: a current value above 50 clears it at the next hourly check, and a value above 50 that is
+  only in the history can take about 6 to 7 hours, because the history is read at most every 6 hours and judged at the hourly check. It also disappears when
+  the sensor gets a unit. The 10 values are needed only to raise the repair; one value above 50 is enough to clear it.
+  Possible false positive: a sensor in W that stays at 50 or below with decimal values for 3 days. If the values really
+  are in W, ignore the repair.
+- **The battery level looks like a share:** BattMind reads the battery level in %. The repair is raised when the battery
+  level's current value is between 0 and 1, and over the last 3 days every value is between 0 and 1, some of them are
+  decimal numbers, there are at least 10 values, and at least two different values. Read as %, 0.85 is 0.85 % instead of 85 %. Fix it at the source:
+  make the sensor report 0 to 100, for example by multiplying by 100 in a template sensor, and select that sensor under
+  **Configure**. The repair is checked every hour: a current value above 1 clears it at the next hourly check, and a value above 1 that
+  is only in the history can take about 6 to 7 hours, because the history is read at most every 6 hours and judged at the hourly check. The 10 values are
+  needed only to raise the repair; one value above 1 is enough to clear it. Possible false positive: a battery that stays
+  between 0 and 1 % for 3 days. If so, ignore the repair.
+- **Prices in a subunit, per MWh or per Wh:** a price sensor's unit is a subunit of the currency (øre or cent), per MWh
+  or per Wh. BattMind does not convert prices, so the prices are in another scale: 100 times too large (subunit), 1000
+  times too large (per MWh) or 1000 times too small (per Wh). A price sensor of Energi Data Service, Energy Price Forecast, the spot forecast
+  integrations or the published-price integrations (EPEX Spot, GE-Spot, Nord Pool) in such a unit is not used: the next
+  provider or the stored prices fill in. A Strømligning, Octopus Energy or tariff sensor is read as it is, so for those the plan and the savings calculation
+  are wrong. Energy Price Forecast's own price per MWh is converted, and Wattcast's price sensor must give ct/kWh. Only the unit is checked. Fix it at the source: in Energi Data Service, turn off the option that shows prices in cent (English
+  *Show prices in cent*, Danish *Vis priser i øre*, German *Preise in Cent anzeigen*) and set *Price calculated in*
+  (Danish *Pris beregnes i*, German *Preis wird berechnet in*) to kWh in the integration's options. Or select a sensor
+  with the currency per kWh (e.g. kr/kWh) under **Configure**. The repair disappears when no price sensor is in a
+  subunit, per MWh or per Wh, checked every hour. If the prices really are in the currency per kWh, ignore the repair.
+  In the Polish and Ukrainian repair text, the Energi Data Service options are only in English.
+- **The automation made from the blueprint is off:** the automation that uses the BattMind blueprint for the battery
+  was switched on before, and is now turned off or deleted. A repair is only raised after BattMind has seen that
+  automation on, so one you never made from the blueprint, or one kept in another file than `automations.yaml`, never
+  gives a repair. It disappears when the automation is on again.
+- **The battery does not follow the plan:** BattMind's plan check (see [Does the battery follow the action?](actions.md#does-the-battery-follow-the-action))
+  judged at least 24 hours, at least 6 of them did not match the action, and fewer than 80 % matched. The repair lists
+  the latest mismatches with the kWh charged and discharged in that hour. Hours in which the battery could not follow
+  (at a limit, during the test, with missing data, or when the action changed in that hour) are not counted. Common
+  causes: the automation does not run the step for that action (run the test), another app or the inverter's own
+  schedule also controls the battery, a sign that is the wrong way round, or an inverter setting such as minimum state
+  of charge or maximum power. The hours are counted over the last 14 days, so after a fix the repair can stay for
+  several days. It disappears when at least 24 hours are judged and fewer than 6 of them mismatch, or at least 80 %
+  match.
+- **The house consumption sensor shows the same value:** the sensor that BattMind uses for the house consumption has
+  shown the same value for at least 6 hours. The plan then uses an old value for the house consumption. The repair names
+  the sensor, the value and since when (local time). The repair appears 6 to 7 hours after the last change, because the
+  check runs every hour. Check the integration or device that delivers the sensor, and restart it if needed. Only this
+  sensor is checked, because the plan uses it directly; the other sensors are not. A sensor that is unavailable or unknown
+  is not judged, and an open repair stays as it is. After a start or reload nothing is deleted or replaced until the first
+  check at least 30 minutes later (in practice up to about an hour), so a sensor that is still starting cannot clear the
+  repair. After that the repair is deleted when the sensor
+  shows another number: at once when the change happens while Home Assistant runs, otherwise at the next check. It is also
+  deleted when the sensor is no longer the house consumption sensor of BattMind. If the value really stays the same, ignore
+  the repair. A restart does not move the time the repair shows: the saved value keeps the earlier time. An unavailable
+  house consumption sensor gets a persistent notification as well. BattMind's `is_entity_available()` (engine/engine.py)
+  logs a warning at each call that finds the sensor unavailable. It posts the notification at the first call that comes
+  more than 30 minutes after the first call that found the sensor unavailable, and posts it again with the same
+  notification id at each later call while the sensor stays unavailable. The states that count as unavailable are None,
+  `unavailable` and `unknown`. It needs an entity registry entry of an integration; a YAML template sensor without a
+  unique ID gets none.
+
+For the power and battery level repairs, BattMind keeps the list of flagged sensors in its health store, separately for
+each repair. A repair goes away when none of its sensors is flagged any more and its list is complete: the list was read intact
+from the store, one check judged every sensor of that repair, or the repair had not been raised yet (a fresh start). A
+sensor that can't be judged (unavailable, no recorder, too few values) keeps its flag. If the store was lost while a
+repair was open, it stays until one check has judged every sensor of it. The
+price repair keeps no list: it goes only when every price entity has been judged.
+
+The Strømligning and Solcast sensors have their own repairs (see [Getting started](getting-started.md)). The check runs
+at startup, every hour, a minute after a sensor was enabled or disabled, when the blueprint automation changes, and when
+the plan check is published again.
 
 ## Report a problem
 

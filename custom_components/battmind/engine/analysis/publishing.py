@@ -5,12 +5,13 @@ import datetime
 import logging
 
 from ...const import CHARGING_TYPES, price_decimals, scaled
+from ...utils.capacity import capacity_summary
 from ...utils.efficiency import learned_efficiency_curve, measured_efficiency_steps, parse_efficiency_curve
-from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_AUTO_MIN_DAYS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_VERSION, _is_num, _num, forecast_errors, loss_days, measured_loss
+from ...utils.taper import band_powers, taper_caps
+from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_AUTO_MIN_DAYS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_MIN_POSSIBLE, SCORE_VERSION, _is_num, _num, forecast_errors, loss_days, measured_loss, old_score_figures, score_figures
 
 _LOGGER = logging.getLogger(__name__)
 
-SCORE_MIN_POSSIBLE = 0.05  # kroner (times price_scale): a day with less to save than this has no score
 
 
 class AnalysisPublishing:
@@ -35,6 +36,15 @@ class AnalysisPublishing:
                 {**row, "power": round(row["power"]), "efficiency": round(row["efficiency"] * 100, 2), "kwh": round(row["kwh"], 2)}
                 for row in measured
             ]
+        # the charging power per battery level band: what is measured, and the caps the plan counts on
+        result["taper"] = {
+            "enabled": self.enabled("learn_charge_taper"),
+            "bands": [
+                {"band": band, "power": round(row["power"]), "measurements": row["n"], "days": row["days"], "judged": row["judged"]}
+                for band, row in sorted(band_powers(self.analysis_db.get("taper")).items())
+            ],
+            "caps": [{"band": band, "power": round(cap * 1000)} for band, cap in self.charge_taper()],  # the caps the plan counts on
+        }
         return result
 
     def publish_analysis(self) -> None:
@@ -42,12 +52,13 @@ class AnalysisPublishing:
             self._analysis_rule_days()
             self._analysis_prune()
             self._publish_analysis()
+            self.set_attr("powerwall_action", "plan_check", self.plan_check_summary())
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Publishing the analysis failed")
 
     def _publish_analysis(self) -> None:
         solar_cfg = self.config["solar"]
-        size = float(solar_cfg["powerwall_battery_size"]) or 1.0
+        size = self.battery_size_used()[0] or 1.0  # (the size the plan counts on)
         wear = abs(solar_cfg["powerwall_wear_cost_per_kwh"])
         today = self.now().date()
         days = self.analysis_db["days"]
@@ -291,20 +302,33 @@ class AnalysisPublishing:
         # hindsight score --------------------------------------------------------
         scores = []
         min_possible = scaled(self.config, SCORE_MIN_POSSIBLE)
+        score_missing: dict[str, int] = {}  # the closed days of the last 30 without a score, per reason
+        recent_first = (today - datetime.timedelta(days=30)).isoformat()
         for date, day in sorted(closed.items()):
             score = day.get("score")
-            # a score of an older hindsight model is not comparable
-            if not isinstance(score, dict) or score.get("v") != SCORE_VERSION:
+            current = isinstance(score, dict) and score.get("v") == SCORE_VERSION
+            # a score of an older hindsight model is shown by the formula of its version (old_score_figures), marked "old": it
+            # is not comparable, so it is left out of the 30 day figure
+            if current:
+                figures = score_figures(score) if _is_num(score.get("optimal_neutral")) else None
+            else:
+                figures = old_score_figures(score)
+            if figures is None:
+                if date >= recent_first:
+                    reason = "version" if isinstance(score, dict) else day.get("no_score") or "history"
+                    score_missing[reason] = score_missing.get(reason, 0) + 1
                 continue
-            saved = score["no_battery"] - score["actual"]
-            possible = score["no_battery"] - score["optimal"]
-            scores.append({
+            saved, possible = figures
+            row = {
                 "date": date,
                 "saved": round(saved, price_decimals(self.config)),
                 "possible": round(possible, price_decimals(self.config)),
-                "score": round(min(max(saved / possible, -1.0), 1.0), 3) if possible > min_possible else None,
-            })
-        recent_scores = [row for row in scores if row["date"] >= (today - datetime.timedelta(days=30)).isoformat()]
+                "score": round(min(max(saved / possible, -1.0), 1.0), 3) if possible > max(_num(score.get("noise")), min_possible) else None,
+            }
+            if not current:
+                row["old"] = True
+            scores.append(row)
+        recent_scores = [row for row in scores if row["date"] >= recent_first and not row.get("old")]
         possible_30 = sum(row["possible"] for row in recent_scores)
 
         # expensive hours with an empty battery ----------------------------------
@@ -335,12 +359,20 @@ class AnalysisPublishing:
             "self_sufficiency": {"last_7": sufficiency(last_7), "last_30": sufficiency(last_30), "all": sufficiency(all_days)},
             "forecast": forecast,
             "efficiency_curves": self._efficiency_curves(),
+            "battery_capacity": {
+                **capacity_summary(self.analysis_db.get("capacity"), solar_cfg["powerwall_battery_size"]),
+                # what the plan counts on: the switch, the kWh per 100 % and where it comes from (configured, measured, or
+                # efficiency: configured because a measured efficiency curve already takes the difference into account)
+                "enabled": bool(self.enabled("learn_battery_capacity")),
+                "used": {"kwh": round(self.battery_size_used()[0], 2), "source": self.battery_size_used()[1]},
+            },
             "plans": plans,
             "price_forecast": price_forecast,
             "solar_forecast": {key: solar_errors(source) for key, source in (("plan", "plan_solar"), ("database", "solar_database"), ("forecast", "solar_forecast"))},
             "scores": scores[-ANALYSIS_TABLE_DAYS:],
             "score_30": round(sum(row["saved"] for row in recent_scores) / possible_30, 3) if possible_30 > min_possible else None,
             "score_days": len(recent_scores),
+            "score_missing": score_missing,
             "expensive": expensive[-ANALYSIS_TABLE_DAYS:],
             "expensive_30": {
                 "days": len(expensive_30),

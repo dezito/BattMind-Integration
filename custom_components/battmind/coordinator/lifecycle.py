@@ -18,8 +18,10 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from ..const import DOMAIN, ENTITY_UNAVAILABLE_STATES
 from ..engine import BattMindEngine
 from ..management.dependency_checks import DependencyWatcher
+from ..management.health_checks import HealthWatcher
+from ..management.notifier import PushNotifier
 from ..prices import stromligning_entities_to_watch
-from ..prices.currency import energypriceforecast_entities, price_unit_sensors
+from ..prices.currency import energypriceforecast_entities
 from ..utils.cjp import CJP_DOMAIN, cjp_charger_power_entities
 from ..utils.solcast import solcast_endings_for_days
 from ..utils.formatting import load_texts
@@ -58,7 +60,11 @@ class CoordinatorLifecycle:
         if self.config["home"]["ignore_cjp_chargers"]:
             self.entry.async_on_unload(async_dispatcher_connect(self.hass, SIGNAL_CONFIG_ENTRY_CHANGED, self._on_config_entry_changed))
 
-        self._start_dependency_checks()
+        # before the health checks and the first job: what was sent is known, so a restart does not send it again
+        self.notifier = PushNotifier(self.hass, self.entry.entry_id, self.prefix, self.config, self.t)
+        await self.notifier.async_load()
+        self.entry.async_on_unload(self.notifier.start())
+        await self._async_start_health_checks(self._start_dependency_checks())
 
         ent_reg = er.async_get(self.hass)
         for entity_id in self.configured_entities:
@@ -68,7 +74,7 @@ class CoordinatorLifecycle:
         await self._async_apply_restore()
         self.set_charging_rule(f"📟{self.t('ui.init.script_starting')}")
 
-    def _start_dependency_checks(self) -> None:
+    def _start_dependency_checks(self) -> DependencyWatcher:
         """Repairs for Strømligning, Solcast and Energy Price Forecast sensors BattMind needs but that are disabled or not provided."""
         stromligning = stromligning_entities_to_watch(self.config["prices"]["entity_ids"])
         forecast_entity = self.config["solar"]["entity_ids"]["forecast_entity_id"]
@@ -80,24 +86,53 @@ class CoordinatorLifecycle:
             forecast_entity,
             solcast_endings_for_days(int(self.config["days_to_predict"])),
             price_forecast_entities=energypriceforecast_entities(self.config["prices"]["entity_ids"]),
-            price_unit_sensors=price_unit_sensors(self.config["prices"]["entity_ids"]),
         )
         watcher.start()
         self.entry.async_on_unload(watcher.stop)
+        return watcher
+
+    async def _async_start_health_checks(self, dependency: DependencyWatcher) -> None:
+        """Health checks of the battery setup (management/health_checks.py). The sensors that the Strømligning and Solcast
+        repairs judge are left out of the missing-sensor check."""
+        watcher = HealthWatcher(
+            self.hass,
+            self.entry,
+            self.prefix,
+            self.config,
+            self.configured_entities,
+            dependency.covered_entities,
+            self.t,
+            price_units=self._price_unit_problems,
+            notifier=self.notifier,
+        )
+        await watcher.async_load()
+        watcher.start()
+        self.entry.async_on_unload(watcher.stop)
+
+    def _price_unit_problems(self) -> tuple[list[tuple[str, str]], bool] | None:
+        """The price entities in a unit the prices are not read in (CombinedPriceProvider.price_unit_problems). None before
+        the engine has a price provider: nothing is judged then, so a repair stays as it is."""
+        provider = self.price_provider
+        return None if provider is None else provider.price_unit_problems(self.hass.states.get)
 
     @callback
     def _on_config_entry_changed(self, change: ConfigEntryChange, entry: ConfigEntry) -> None:
-        """A CJP car was added, removed, enabled, disabled or got another charger: start again with the new list.
+        """A CJP car was added, removed, enabled, disabled, got another charger or had its charger moved into or out of the
+        house meter (CJP option charger_in_house_meter): start again with the new lists.
 
         The signal also comes for every state change of a CJP entry (loading, reloading), so the chargers are
-        compared with the ones this start used; only a real difference reloads, and only once.
+        compared with the ones this start used (the subtracted ones and every charger, which is checked for a hung
+        reading); only a real difference reloads, and only once. Only listened to while ignore_cjp_chargers is on: with it
+        off nothing is subtracted, and the list of every charger is read again at the next start.
         """
         if entry.domain != CJP_DOMAIN or self._cjp_reload_scheduled:
             return
-        if cjp_charger_power_entities(self.hass) == self.cjp_chargers:
+        subtracted = cjp_charger_power_entities(self.hass)
+        every_charger = cjp_charger_power_entities(self.hass, include_own_meter=True)
+        if subtracted == self.cjp_chargers and every_charger == self.config["home"]["charger_entity_ids"]:
             return
         self._cjp_reload_scheduled = True
-        _LOGGER.info("The chargers of Cable Juice Planner changed, reloading BattMind to leave out their consumption")
+        _LOGGER.info("The chargers of Cable Juice Planner changed, reloading BattMind to count their consumption right")
         self.hass.config_entries.async_schedule_reload(self.entry.entry_id)
 
     async def _async_apply_restore(self) -> None:
@@ -142,8 +177,9 @@ class CoordinatorLifecycle:
 
     @callback
     def _on_ha_stop(self, _event: Event) -> None:
-        """Home Assistant is stopping (the entries are not unloaded): stop the what-ifs."""
+        """Home Assistant is stopping (the entries are not unloaded): stop the what-ifs and a test of the automation."""
         self.stop_what_ifs()
+        self.async_stop_automation_test()
 
     @callback
     def _start_background(self, _event: Event | None = None) -> None:
@@ -158,11 +194,15 @@ class CoordinatorLifecycle:
         self._unsubs.clear()
         if self._settings_debounce:
             self._settings_debounce()
+        # a running test of the automation puts BattMind's own action back while the worker still runs
+        await self.async_unload_automation_test()
         if self._charge_task and not self._charge_task.done():
             self._charge_task.cancel()
         self._what_if_executor.shutdown(wait=False, cancel_futures=True)
         self._executor.shutdown(wait=False, cancel_futures=True)
         await self._async_disable_file_log()
+        if self.notifier is not None:
+            await self.notifier.async_shutdown()
 
     async def _async_enable_file_log(self) -> None:
         log_path = self.hass.config.path(f"battmind_{self.prefix}.log")
@@ -264,21 +304,23 @@ class CoordinatorLifecycle:
             _LOGGER.exception("Error during BattMind startup")
             log_lines.append(f"⛔Error during startup: {err}")
             self.set_charging_rule(f"⛔{t('ui.init.script_stopped')}.\n{t('ui.init.check_log')}:\n{err}")
-            self._startup_failed_notification(log_lines)
+            self._startup_failed_notification(log_lines, str(err))
         else:
             if job_error:
                 self.set_charging_rule(f"⛔{t('ui.init.script_stopped')}.\n{t('ui.init.check_log')}:\n{job_error}")
-                self._startup_failed_notification(log_lines)
+                self._startup_failed_notification(log_lines, str(job_error))
             else:
                 # a successful start only goes to the log
                 persistent_notification.async_dismiss(self.hass, f"{self.prefix}_startup_notification")
+                self.notice("startup_failed", False)
         finally:
             for line in log_lines:
                 if line.strip("-# "):
                     _LOGGER.info(line.lstrip("#* ").replace("**", ""))
 
-    def _startup_failed_notification(self, log_lines: list[str]) -> None:
-        """A failed start stays visible until the next start (a successful one only goes to the log)."""
+    def _startup_failed_notification(self, log_lines: list[str], error: str = "") -> None:
+        """A failed start stays visible until the next start (a successful one only goes to the log), and is pushed."""
+        self.notice("startup_failed", True, error=error[:300])
         persistent_notification.async_create(
             self.hass,
             "\n".join(log_lines),

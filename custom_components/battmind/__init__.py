@@ -37,6 +37,8 @@ from .management.debug_export import DEBUG_DIR, DebugDownloadView, async_export_
 from .management.dashboard_build import async_remove_dashboard_file, async_setup_dashboard
 from .management.dashboard_cards import async_dismiss_card_notification
 from .management.dependency_checks import remove_issues
+from .management.health_checks import async_remove_health_store
+from .management.notifier import async_remove_notices_store
 from .management.what_if_request import (
     WHAT_IF_SCHEMA,
     what_if_module_options as _what_if_module_options,
@@ -594,6 +596,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: BattMindConfigEntry) -> 
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: BattMindConfigEntry) -> bool:
+    # a running test of the automation puts BattMind's own action back first: with the entities gone nothing can publish it
+    if (coordinator := getattr(entry, "runtime_data", None)) is not None:
+        await coordinator.async_unload_automation_test()
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         # a what-if started by the action has no dashboard job for close() to cancel: stop it, or the unload waits for it
@@ -610,6 +615,14 @@ async def async_remove_entry(hass: HomeAssistant, entry: BattMindConfigEntry) ->
 
     async_dismiss_card_notification(hass, entry)
     remove_issues(hass, entry.entry_id)
+    try:
+        await async_remove_health_store(hass, entry.entry_id)
+    except (OSError, HomeAssistantError) as err:  # the removal goes on: the backup and the databases matter more
+        _LOGGER.warning("Could not delete the health check state of BattMind %s: %s", entry.title, err)
+    try:
+        await async_remove_notices_store(hass, entry.entry_id)
+    except (OSError, HomeAssistantError) as err:
+        _LOGGER.warning("Could not delete the push notification state of BattMind %s: %s", entry.title, err)
     # the data can be imported again (config flow of a new entry, or import_data)
     try:
         await async_export(hass, entry, "deleted")

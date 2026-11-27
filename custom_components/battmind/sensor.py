@@ -7,10 +7,11 @@ from homeassistant.components.sensor import RestoreSensor, SensorDeviceClass, Se
 from homeassistant.const import MATCH_ALL, PERCENTAGE, UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import POWERWALL_ACTION_STATES, SENSOR_KEYS, WHAT_IF_STATUSES
+from .const import AUTOMATION_TEST_STATUSES, POWERWALL_ACTION_STATES, SENSOR_KEYS, STORM_SENSOR_KEY, STORM_STATUSES, WHAT_IF_STATUSES
 from .coordinator import BattMindCoordinator
-from .entity import BattMindUpdatingEntity
+from .entity import BattMindUpdatingEntity, remove_entity
 
 # the entities read the coordinator's data and change only the integration's own settings
 PARALLEL_UPDATES = 0
@@ -25,7 +26,13 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
     ]
     if coordinator.config["solar"]["entity_ids"]["production_entity_id"]:
         entities.append(BattMindSolarKwhSensor(coordinator))
+    # the storm warning status: only with a storm warning entity (option storm_warning_entity_id)
+    if coordinator.config["home"]["entity_ids"].get("storm_warning_entity_id"):
+        entities.append(BattMindSensor(coordinator, STORM_SENSOR_KEY))
+    else:
+        remove_entity(hass, "sensor", coordinator, STORM_SENSOR_KEY)
     entities.extend((BattMindWhatIfSensor(coordinator), BattMindWhatIfStatusSensor(coordinator), BattMindWhatIfProgressSensor(coordinator)))
+    entities.append(BattMindAutomationTestSensor(coordinator))
     async_add_entities(entities)
 
 
@@ -43,10 +50,16 @@ class BattMindSensor(BattMindUpdatingEntity, SensorEntity):
         elif key == "powerwall_action":
             self._attr_device_class = SensorDeviceClass.ENUM
             self._attr_options = list(POWERWALL_ACTION_STATES)
+        elif key == STORM_SENSOR_KEY:
+            self._attr_device_class = SensorDeviceClass.ENUM
+            self._attr_options = list(STORM_STATUSES)
         elif key == "analysis":
             # state: savings this month
             self._attr_device_class = SensorDeviceClass.MONETARY
             self._attr_suggested_display_precision = 2
+        elif key == "last_full_charge":
+            # a timezone-aware datetime, None while the battery has not been seen full
+            self._attr_device_class = SensorDeviceClass.TIMESTAMP
 
     @property
     def native_unit_of_measurement(self):
@@ -58,6 +71,8 @@ class BattMindSensor(BattMindUpdatingEntity, SensorEntity):
     def native_value(self):
         value = self.coordinator.data.get(self._key)
         if self._key == "powerwall_action" and value not in POWERWALL_ACTION_STATES:
+            return None
+        if self._key == STORM_SENSOR_KEY and value not in STORM_STATUSES:
             return None
         if isinstance(value, str) and len(value) > MAX_STATE_LENGTH:
             return value[: MAX_STATE_LENGTH - 1] + "…"
@@ -94,6 +109,36 @@ class BattMindSolarKwhSensor(BattMindUpdatingEntity, RestoreSensor):
     @property
     def native_value(self):
         return self.coordinator.solar_kwh_total
+
+
+class BattMindAutomationTestSensor(BattMindUpdatingEntity, SensorEntity, RestoreEntity):
+    """The test of the user's automation: its status, and the result of every step as markdown in the attributes.
+
+    The result of the last finished test is kept over a restart. A test that was running is not: it did not finish."""
+
+    _unrecorded_attributes = frozenset({MATCH_ALL})
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = list(AUTOMATION_TEST_STATUSES)
+
+    def __init__(self, coordinator: BattMindCoordinator) -> None:
+        super().__init__(coordinator, "sensor", "automation_test")
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if (last := await self.async_get_last_state()) is not None and last.state in ("done", "stopped", "failed"):
+            self.coordinator.async_restore_automation_test({**last.attributes, "status": last.state})
+
+    @property
+    def native_value(self):
+        return self.coordinator.automation_test_state["status"]
+
+    @property
+    def extra_state_attributes(self):
+        state = self.coordinator.automation_test_state
+        return {
+            "markdown": state["markdown"], "steps": state["steps"], "reason": state["reason"], "finished": state["finished"],
+            "automation": state.get("automation"), "plan": state.get("plan", []), "current": state.get("current"),
+        }
 
 
 class BattMindWhatIfSensor(BattMindUpdatingEntity, SensorEntity):

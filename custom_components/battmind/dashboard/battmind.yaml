@@ -429,6 +429,12 @@ views:
               - entity: switch.battmind_enhance_battery_efficiency
                 name:
                   type: entity
+              - entity: switch.battmind_learn_charge_taper
+                name:
+                  type: entity
+              - entity: switch.battmind_learn_battery_capacity
+                name:
+                  type: entity
               - entity: switch.battmind_price_forecast_correction
                 name:
                   type: entity
@@ -504,6 +510,60 @@ views:
                 name:
                   type: entity
               - entity: switch.battmind_negative_price_planner
+                name:
+                  type: entity
+              - type: divider
+              - entity: number.battmind_full_charge_recommended
+                name:
+                  type: entity
+              - entity: sensor.battmind_last_full_charge
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+      - type: grid
+        cards:
+          - type: heading
+            heading: '@@section_storm@@'
+            icon: mdi:weather-hurricane
+          - type: markdown
+            content: "<details><summary>@@read_more@@</summary>\n\n@@help_storm@@\n\n</details>"
+            grid_options:
+              columns: full
+          - type: entities
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: sensor.battmind_storm_warning
+                name:
+                  type: entity
+              - type: attribute
+                entity: sensor.battmind_storm_warning
+                attribute: start
+                name: '@@storm_start@@'
+                format: datetime
+              - type: attribute
+                entity: sensor.battmind_storm_warning
+                attribute: end
+                name: '@@storm_end@@'
+                format: datetime
+              - type: attribute
+                entity: sensor.battmind_storm_warning
+                attribute: keep_percent
+                name: '@@storm_keep_percent@@'
+                suffix: '%'
+              - type: attribute
+                entity: sensor.battmind_storm_warning
+                attribute: expected_use_kwh
+                name: '@@storm_expected_use@@'
+                suffix: kWh
+              - type: attribute
+                entity: sensor.battmind_storm_warning
+                attribute: buffer_percent
+                name: '@@storm_buffer@@'
+                suffix: '%'
+              - type: divider
+              - entity: number.battmind_storm_cover_hours
                 name:
                   type: entity
             grid_options:
@@ -586,6 +646,28 @@ views:
             grid_options:
               columns: full
           - type: heading
+            heading: '@@section_automation_test@@'
+            icon: mdi:test-tube
+          - type: markdown
+            content: "<details><summary>@@read_more@@</summary>\n\n@@help_automation_test@@\n\n</details>"
+            grid_options:
+              columns: full
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: switch.battmind_automation_test_run
+                name:
+                  type: entity
+              - entity: sensor.battmind_automation_test
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+          - type: markdown
+            content: '{{ state_attr(''sensor.battmind_automation_test'', ''markdown'') or '''' }}'
+            grid_options:
+              columns: full
+          - type: heading
             heading: '@@section_problem@@'
             heading_style: subtitle
             icon: mdi:bug-outline
@@ -605,7 +687,6 @@ views:
     path: analysis
     title: '@@view_analysis@@'
     max_columns: 4
-    dense_section_placement: true
     badges:
       - type: custom:mushroom-template-badge
         content: '@@recalc_history@@'
@@ -617,6 +698,20 @@ views:
           target: {}
         label: ''
     sections:
+      # group: group_results (a full-width heading; removed with the group when no section of it is left)
+      - type: grid
+        column_span: 4
+        cards:
+          - type: heading
+            heading: '@@group_results@@'
+            heading_style: title
+            card_mod:
+              style: |
+                ha-card {
+                  --ha-heading-card-title-font-size: 22px;
+                  border-bottom: 1px solid var(--divider-color);
+                }
+            icon: mdi:chart-box-outline
       # economy per month (engine/analysis: the charging history per month)
       - type: grid
         column_span: 2
@@ -818,6 +913,64 @@ views:
               {%- endif %}
             grid_options:
               columns: full
+      # hindsight score
+      - type: grid
+        column_span: 1
+        cards:
+          - type: heading
+            heading: '@@section_score@@'
+            icon: mdi:target
+          - type: markdown
+            content: "<details><summary>@@read_more@@</summary>\n\n@@score_explain@@\n\n</details>"
+            grid_options:
+              columns: full
+          - type: markdown
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
+            content: |-
+              {% macro n(v, d=2) %}{{ v | round(d) if v is number else '–' }}{% endmacro %}
+              {% set a = states.sensor.battmind_analysis.attributes %}
+              {% set reasons = {'hours': '@@score_no_hours@@', 'gap': '@@score_no_gap@@', 'prices': '@@score_no_prices@@', 'soc': '@@score_no_soc@@', 'drift': '@@score_no_drift@@', 'battery': '@@score_no_battery@@', 'history': '@@score_no_history@@', 'version': '@@score_no_version@@'} %}
+              {% if a.scores -%}
+              @@score_intro_1@@ **{{ (a.score_30 * 100) | round(0) | int ~ ' %' if a.score_30 is number else '–' }}** @@score_intro_2@@ ({{ a.score_days }} @@days@@)
+
+              | @@day@@ | Score | @@saved@@ @@valuta@@ | @@possible@@ @@valuta@@ |
+              |:---|---:|---:|---:|
+              {% for d in a.scores | reverse -%}
+              | {{ d.date[8:10] }}/{{ d.date[5:7] }} | {{ '🔄 ' if d.old is defined and d.old }}{{ (d.score * 100) | round(0) | int ~ ' %' if d.score is number else '–' }} | {{ n(d.saved) }} | {{ n(d.possible) }} |
+              {% endfor %}
+              {% if a.scores | selectattr('old', 'defined') | list %}
+
+              @@score_old_note@@
+              {% endif %}
+              {% endif %}
+              {% if a.score_missing %}
+
+              @@score_missing_intro@@ {% for reason, count in a.score_missing.items() %}{{ count }} × {{ reasons.get(reason, reason) }}{{ '; ' if not loop.last else '.' }}{% endfor %}
+              {% endif %}
+              {% if not a.scores and not a.score_missing %}
+              <ha-alert alert-type="info">@@no_data_yet@@</ha-alert>
+              {% endif %}
+            grid_options:
+              columns: full
       # cycles, wear and the savings per month
       - type: grid
         column_span: 2
@@ -913,242 +1066,6 @@ views:
                 color: '#e34948'
                 data_generator: |
                   return (entity.attributes.months || []).map(m => [new Date(m.month + '-15T12:00:00').getTime(), -m.wear]);
-            grid_options:
-              columns: full
-      # measured round trip loss
-      - type: grid
-        column_span: 2
-        cards:
-          - type: heading
-            heading: '@@section_loss@@'
-            icon: mdi:battery-arrow-down-outline
-          - type: markdown
-            content: "<details><summary>@@read_more@@</summary>\n\n@@loss_explain@@\n\n</details>"
-            grid_options:
-              columns: full
-          - type: markdown
-            card_mod:
-              style:
-                .: |
-                  ha-card {
-                    --markdown-table-border-color: transparent
-                  }
-                ha-markdown$: |
-                  table, th, td {
-                    border: none !important;
-                  }
-                  table {
-                    border-collapse: collapse;
-                  }
-                  table tbody tr:not(:only-child):nth-child(odd) td {
-                    background: rgba(127, 127, 127, 0.08);
-                  }
-                  td details details:not(:only-of-type):nth-of-type(odd) {
-                    background: rgba(127, 127, 127, 0.1);
-                    border-radius: 4px;
-                  }
-            content: |-
-              {% macro p(v) %}{{ (v * 100) | round(1) ~ ' %' if v is number else '–' }}{% endmacro %}
-              {% set a = states.sensor.battmind_analysis.attributes %}
-              {% set l = a.loss or {} %}
-              | @@loss_configured@@ | @@loss_used@@ | @@loss_30@@ | @@loss_all@@ |
-              |---:|---:|---:|---:|
-              | {{ p(l.configured) }} | {{ p(l.used) }} | **{{ p(l.last_30) }}** | {{ p(l.all) }} |
-
-              {% set months = (a.months or []) | selectattr('measured_charged', 'defined') | list -%}
-              {% if months -%}
-              | @@month@@ | @@charged@@ kWh | @@discharged@@ kWh | @@loss@@ | @@loss_outliers@@ |
-              |:---|---:|---:|---:|---:|
-              {% for m in months | reverse -%}
-              | **{{ m.label }}** | {{ m.measured_charged }} | {{ m.measured_discharged }} | {{ p(m.loss) }} | {{ m.loss_outliers or '–' }} |
-              {% endfor %}
-              {%- endif %}
-            grid_options:
-              columns: full
-          - type: custom:apexcharts-card
-            header:
-              show: true
-              title: '@@loss_title@@'
-              show_states: false
-            graph_span: 400d
-            span:
-              end: month
-            now:
-              show: false
-            yaxis:
-              - min: 0
-                decimals: 0
-            all_series_config:
-              type: line
-              unit: ' %'
-              float_precision: 1
-              stroke_width: 2
-              show:
-                legend_value: false
-                in_header: false
-            apex_config:
-              tooltip:
-                shared: true
-                intersect: false
-              chart:
-                height: 240px
-              markers:
-                size: 4
-              xaxis:
-                labels:
-                  format: MMM yy
-            series:
-              - entity: sensor.battmind_analysis
-                name: '@@loss_measured@@'
-                color: '#eb6834'
-                data_generator: |
-                  return (entity.attributes.months || []).filter(m => m.loss !== undefined && m.loss !== null).map(m => [new Date(m.month + '-15T12:00:00').getTime(), m.loss * 100]);
-              - entity: sensor.battmind_analysis
-                name: '@@loss_configured@@'
-                color: '#8a8a8a'
-                data_generator: |
-                  const c = (entity.attributes.loss || {}).configured;
-                  return (entity.attributes.months || []).map(m => [new Date(m.month + '-15T12:00:00').getTime(), c * 100]);
-            grid_options:
-              columns: full
-      # configured charging and discharging efficiency by AC power
-      - type: grid
-        column_span: 2
-        cards:
-          - type: heading
-            heading: '@@section_efficiency_curve@@'
-            icon: mdi:chart-bell-curve
-          - type: markdown
-            content: "<details><summary>@@read_more@@</summary>\n\n@@efficiency_curve_explain@@\n\n</details>"
-            grid_options:
-              columns: full
-          - type: entities
-            state_color: true
-            show_header_toggle: false
-            entities:
-              - entity: switch.battmind_enhance_battery_efficiency
-                name:
-                  type: entity
-            grid_options:
-              columns: full
-          - type: markdown
-            visibility:
-              - condition: state
-                entity: switch.battmind_enhance_battery_efficiency
-                state: 'off'
-            content: '<ha-alert alert-type="warning">@@efficiency_curve_off@@</ha-alert>'
-            grid_options:
-              columns: full
-          - type: custom:apexcharts-card
-            header:
-              show: true
-              title: '@@efficiency_curve_title@@'
-              show_states: false
-            graph_span: 24h
-            span:
-              end: minute
-            now:
-              show: false
-            yaxis:
-              - min: 0
-                max: 100
-                decimals: 0
-            all_series_config:
-              type: line
-              curve: straight
-              unit: ' %'
-              float_precision: 1
-              stroke_width: 3
-              show:
-                legend_value: false
-                in_header: false
-            apex_config:
-              chart:
-                height: 240px
-              markers:
-                size: 5
-              tooltip:
-                shared: true
-                intersect: false
-                x:
-                  formatter: |
-                    EVAL:function(value) {
-                      const timestamp = typeof value === 'number' ? value : new Date(value).getTime();
-                      return `${(10 + (timestamp - Date.now()) / 8640000).toFixed(1)} kW`;
-                    }
-              xaxis:
-                labels:
-                  formatter: |
-                    EVAL:function(value, timestamp) {
-                      return `${(10 + (timestamp - Date.now()) / 8640000).toFixed(1)} kW`;
-                    }
-            series:
-              - entity: sensor.battmind_analysis
-                name: '@@efficiency_charging@@'
-                color: '#2a78d6'
-                data_generator: |
-                  const range = end.getTime() - start.getTime();
-                  return ((entity.attributes.efficiency_curves || {}).charging || [])
-                    .map(p => [start.getTime() + (p.power / 10000) * range, p.efficiency]);
-              - entity: sensor.battmind_analysis
-                name: '@@efficiency_discharging@@'
-                color: '#eb6834'
-                data_generator: |
-                  const range = end.getTime() - start.getTime();
-                  return ((entity.attributes.efficiency_curves || {}).discharging || [])
-                    .map(p => [start.getTime() + (p.power / 10000) * range, p.efficiency]);
-              - entity: sensor.battmind_analysis
-                name: '@@efficiency_measured_charging@@'
-                color: '#2a78d6'
-                stroke_width: 2
-                stroke_dash: 5
-                data_generator: |
-                  const range = end.getTime() - start.getTime();
-                  return (((entity.attributes.efficiency_curves || {}).measured || {}).charging || [])
-                    .map(p => [start.getTime() + (p.power / 10000) * range, p.efficiency]);
-              - entity: sensor.battmind_analysis
-                name: '@@efficiency_measured_discharging@@'
-                color: '#eb6834'
-                stroke_width: 2
-                stroke_dash: 5
-                data_generator: |
-                  const range = end.getTime() - start.getTime();
-                  return (((entity.attributes.efficiency_curves || {}).measured || {}).discharging || [])
-                    .map(p => [start.getTime() + (p.power / 10000) * range, p.efficiency]);
-            grid_options:
-              columns: full
-          - type: markdown
-            card_mod:
-              style:
-                .: |
-                  ha-card {
-                    --markdown-table-border-color: transparent
-                  }
-                ha-markdown$: |
-                  table, th, td {
-                    border: none !important;
-                  }
-                  table {
-                    border-collapse: collapse;
-                  }
-                  table tbody tr:not(:only-child):nth-child(odd) td {
-                    background: rgba(127, 127, 127, 0.08);
-                  }
-                  td details details:not(:only-of-type):nth-of-type(odd) {
-                    background: rgba(127, 127, 127, 0.1);
-                    border-radius: 4px;
-                  }
-            content: |-
-              {% set e = states.sensor.battmind_analysis.attributes.efficiency_curves or {} %}
-              {% macro status(e, direction) -%}
-              {%- set source = (e.source or {}).get(direction, 'none') -%}
-              {%- set steps = (e.measured or {}).get(direction, []) -%}
-              {%- if source == 'configured' %}@@efficiency_source_configured@@{% elif source == 'measured' %}@@efficiency_source_measured@@{% else %}@@efficiency_source_none@@{% endif %} | {{ steps | selectattr('used') | list | count }}/{{ steps | count }} @@efficiency_steps_used@@ | {{ steps | sum(attribute='kwh') | round(1) }} @@efficiency_measured_kwh@@
-              {%- endmacro %}
-              | | @@efficiency_source@@ | | |
-              |:---|:---|---:|---:|
-              | **@@efficiency_charging@@** | {{ status(e, 'charging') }} |
-              | **@@efficiency_discharging@@** | {{ status(e, 'discharging') }} |
             grid_options:
               columns: full
       # where the house got its energy from
@@ -1251,6 +1168,154 @@ views:
                   return (entity.attributes.months || []).filter(m => m.home !== undefined).map(m => [new Date(m.month + '-15T12:00:00').getTime(), m.grid_home]);
             grid_options:
               columns: full
+      # group: group_plan (a full-width heading; removed with the group when no section of it is left)
+      - type: grid
+        column_span: 4
+        cards:
+          - type: heading
+            heading: '@@group_plan@@'
+            heading_style: title
+            card_mod:
+              style: |
+                ha-card {
+                  --ha-heading-card-title-font-size: 22px;
+                  border-bottom: 1px solid var(--divider-color);
+                }
+            icon: mdi:clipboard-check-outline
+      # planned against actual
+      - type: grid
+        column_span: 2
+        cards:
+          - type: heading
+            heading: '@@section_planned@@'
+            icon: mdi:calendar-check
+          - type: markdown
+            content: "<details><summary>@@read_more@@</summary>\n\n@@planned_explain@@\n\n</details>"
+            grid_options:
+              columns: full
+          - type: markdown
+            content: |-
+              {% set plans = states.sensor.battmind_analysis.attributes.plans or [] %}
+              {% if plans -%}
+              @@planned_summary_1@@ **{{ plans | sum(attribute='plan_grid') | round(1) }} kWh** @@planned_summary_2@@ **{{ plans | sum(attribute='grid') | round(1) }} kWh** · @@planned_summary_3@@ **{{ plans | sum(attribute='plan_sale') | round(1) }} kWh** @@planned_summary_4@@ **{{ plans | sum(attribute='sale') | round(1) }} kWh** ({{ plans | length }} @@days@@)
+              {%- else -%}
+              <ha-alert alert-type="info">@@no_data_yet@@</ha-alert>
+              {%- endif %}
+            grid_options:
+              columns: full
+          - type: custom:apexcharts-card
+            header:
+              show: true
+              title: '@@planned_title@@'
+              show_states: false
+            graph_span: 31d
+            span:
+              end: day
+            now:
+              show: false
+            yaxis:
+              - min: 0
+                decimals: 0
+            all_series_config:
+              type: column
+              unit: ' kWh'
+              float_precision: 1
+              show:
+                legend_value: false
+                in_header: false
+            apex_config:
+              tooltip:
+                shared: true
+                intersect: false
+              chart:
+                height: 260px
+              dataLabels:
+                enabled: false
+            series:
+              - entity: sensor.battmind_analysis
+                name: '@@planned_grid@@'
+                color: '#9ec2ef'
+                data_generator: |
+                  return (entity.attributes.plans || []).map(d => [new Date(d.date + 'T12:00:00').getTime(), d.plan_grid]);
+              - entity: sensor.battmind_analysis
+                name: '@@actual_grid@@'
+                color: '#2a78d6'
+                data_generator: |
+                  return (entity.attributes.plans || []).map(d => [new Date(d.date + 'T12:00:00').getTime(), d.grid]);
+              - entity: sensor.battmind_analysis
+                name: '@@planned_sale@@'
+                color: '#b8afef'
+                data_generator: |
+                  return (entity.attributes.plans || []).map(d => [new Date(d.date + 'T12:00:00').getTime(), d.plan_sale]);
+              - entity: sensor.battmind_analysis
+                name: '@@actual_sale@@'
+                color: '#6250d6'
+                data_generator: |
+                  return (entity.attributes.plans || []).map(d => [new Date(d.date + 'T12:00:00').getTime(), d.sale]);
+            grid_options:
+              columns: full
+      # expensive hours with an empty battery
+      - type: grid
+        column_span: 1
+        cards:
+          - type: heading
+            heading: '@@section_expensive@@'
+            icon: mdi:battery-alert-variant-outline
+          - type: markdown
+            content: "<details><summary>@@read_more@@</summary>\n\n@@expensive_explain@@\n\n</details>"
+            grid_options:
+              columns: full
+          - type: markdown
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
+            content: |-
+              {% set a = states.sensor.battmind_analysis.attributes %}
+              {% set e = a.expensive_30 or {} %}
+              {% if a.expensive -%}
+              @@expensive_intro_1@@ **{{ e.days_empty }}** @@expensive_intro_2@@ {{ e.days }} @@days@@ ({{ e.hours }} @@hours@@, {{ e.kwh }} kWh, {{ e.cost | round(2) }} @@valuta@@)
+
+              | @@day@@ | @@hours@@ | kWh | @@valuta@@ |
+              |:---|---:|---:|---:|
+              {% for d in a.expensive | reverse -%}
+              | {{ d.date[8:10] }}/{{ d.date[5:7] }} | {{ '✅' if d.hours == 0 else d.hours }} | {{ d.kwh | round(1) }} | {{ d.cost | round(2) }} |
+              {% endfor %}
+              {%- else -%}
+              <ha-alert alert-type="info">@@no_data_yet@@</ha-alert>
+              {%- endif %}
+            grid_options:
+              columns: full
+      # group: group_forecasts (a full-width heading; removed with the group when no section of it is left)
+      - type: grid
+        column_span: 4
+        cards:
+          - type: heading
+            heading: '@@group_forecasts@@'
+            heading_style: title
+            card_mod:
+              style: |
+                ha-card {
+                  --ha-heading-card-title-font-size: 22px;
+                  border-bottom: 1px solid var(--divider-color);
+                }
+            icon: mdi:chart-timeline-variant
       # the consumption forecast per forecast type
       - type: grid
         column_span: 2
@@ -1376,174 +1441,194 @@ views:
                   return ((entity.attributes.forecast || {}).days || []).map(d => [new Date(d.date + 'T12:00:00').getTime(), d.average]);
             grid_options:
               columns: full
-      # hindsight score
       - type: grid
-        column_span: 1
         cards:
           - type: heading
-            heading: '@@section_score@@'
-            icon: mdi:target
+            heading: '@@consumption_forecast@@'
+            icon: mdi:home-lightning-bolt
           - type: markdown
-            content: "<details><summary>@@read_more@@</summary>\n\n@@score_explain@@\n\n</details>"
-            grid_options:
-              columns: full
-          - type: markdown
-            card_mod:
-              style:
-                .: |
-                  ha-card {
-                    --markdown-table-border-color: transparent
-                  }
-                ha-markdown$: |
-                  table, th, td {
-                    border: none !important;
-                  }
-                  table {
-                    border-collapse: collapse;
-                  }
-                  table tbody tr:not(:only-child):nth-child(odd) td {
-                    background: rgba(127, 127, 127, 0.08);
-                  }
-                  td details details:not(:only-of-type):nth-of-type(odd) {
-                    background: rgba(127, 127, 127, 0.1);
-                    border-radius: 4px;
-                  }
-            content: |-
-              {% macro n(v, d=2) %}{{ v | round(d) if v is number else '–' }}{% endmacro %}
-              {% set a = states.sensor.battmind_analysis.attributes %}
-              {% if a.scores -%}
-              @@score_intro_1@@ **{{ (a.score_30 * 100) | round(0) | int ~ ' %' if a.score_30 is number else '–' }}** @@score_intro_2@@ ({{ a.score_days }} @@days@@)
-
-              | @@day@@ | Score | @@saved@@ @@valuta@@ | @@possible@@ @@valuta@@ |
-              |:---|---:|---:|---:|
-              {% for d in a.scores | reverse -%}
-              | {{ d.date[8:10] }}/{{ d.date[5:7] }} | {{ (d.score * 100) | round(0) | int ~ ' %' if d.score is number else '–' }} | {{ n(d.saved) }} | {{ n(d.possible) }} |
-              {% endfor %}
-              {%- else -%}
-              <ha-alert alert-type="info">@@no_data_yet@@</ha-alert>
-              {%- endif %}
-            grid_options:
-              columns: full
-      # planned against actual
-      - type: grid
-        column_span: 2
-        cards:
-          - type: heading
-            heading: '@@section_planned@@'
-            icon: mdi:calendar-check
-          - type: markdown
-            content: "<details><summary>@@read_more@@</summary>\n\n@@planned_explain@@\n\n</details>"
-            grid_options:
-              columns: full
-          - type: markdown
-            content: |-
-              {% set plans = states.sensor.battmind_analysis.attributes.plans or [] %}
-              {% if plans -%}
-              @@planned_summary_1@@ **{{ plans | sum(attribute='plan_grid') | round(1) }} kWh** @@planned_summary_2@@ **{{ plans | sum(attribute='grid') | round(1) }} kWh** · @@planned_summary_3@@ **{{ plans | sum(attribute='plan_sale') | round(1) }} kWh** @@planned_summary_4@@ **{{ plans | sum(attribute='sale') | round(1) }} kWh** ({{ plans | length }} @@days@@)
-              {%- else -%}
-              <ha-alert alert-type="info">@@no_data_yet@@</ha-alert>
-              {%- endif %}
+            content: "<details><summary>@@read_more@@</summary>\n\n@@consumption_forecast_explain@@\n\n</details>"
             grid_options:
               columns: full
           - type: custom:apexcharts-card
             header:
               show: true
-              title: '@@planned_title@@'
+              title: '@@consumption_forecast@@'
               show_states: false
-            graph_span: 31d
+            experimental:
+              brush: true
+            brush:
+              selection_span: '@@forecast_span@@'
+            graph_span: '@@forecast_span@@'
             span:
-              end: day
+              start: hour
             now:
-              show: false
-            yaxis:
-              - min: 0
-                decimals: 0
-            all_series_config:
-              type: column
-              unit: ' kWh'
-              float_precision: 1
-              show:
-                legend_value: false
-                in_header: false
+              show: true
+              label: '@@now@@'
             apex_config:
               tooltip:
                 shared: true
                 intersect: false
+                followCursor: true
+                fixed:
+                  enabled: false
+                x:
+                  show: true
+                  format: ddd dd/MM HH:mm
               chart:
-                height: 260px
+                height: 340px
               dataLabels:
                 enabled: false
+              markers:
+                size: 0
+                hover:
+                  size: 5
+              legend:
+                position: bottom
+                horizontalAlign: center
+              grid:
+                borderColor: 'rgba(127,127,127,0.2)'
+                strokeDashArray: 4
+              stroke:
+                curve: smooth
+                dashArray:
+                  - 0
+                  - 0
+                  - 0
+                  - 6
+                  - 6
+                  - 6
+            yaxis:
+              - id: type
+                decimals: 2
+                min: 0
+                apex_config:
+                  tickAmount: 10
+              - id: sum
+                opposite: true
+                decimals: 2
+                min: 0
+                apex_config:
+                  tickAmount: 10
+            all_series_config:
+              type: line
+              opacity: 0.75
+              stroke_width: 2
+              curve: smooth
+              yaxis_id: type
+              unit: kWh
+              show:
+                in_brush: true
             series:
-              - entity: sensor.battmind_analysis
-                name: '@@planned_grid@@'
-                color: '#9ec2ef'
+              - name: Avg
+                entity: sensor.battmind_powerwall_action
+                color: orange
                 data_generator: |
-                  return (entity.attributes.plans || []).map(d => [new Date(d.date + 'T12:00:00').getTime(), d.plan_grid]);
-              - entity: sensor.battmind_analysis
-                name: '@@actual_grid@@'
-                color: '#2a78d6'
+                  const attrs = entity.attributes;
+                  const source = attrs.hour_cost_prediction_avg || {};
+                  const keys = [...new Set([
+                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
+                  ])].sort((a, b) => new Date(a) - new Date(b));
+                  return keys.map(ts => {
+                    const point = new Date(ts); point.setMinutes(59, 0, 0);
+                    const value = Number(source[ts]);
+                    return [point.getTime(), Number.isFinite(value) ? value : null];
+                  }).filter(([time]) => Number.isFinite(time));
+              - name: EMA
+                entity: sensor.battmind_powerwall_action
+                color: blue
                 data_generator: |
-                  return (entity.attributes.plans || []).map(d => [new Date(d.date + 'T12:00:00').getTime(), d.grid]);
-              - entity: sensor.battmind_analysis
-                name: '@@planned_sale@@'
-                color: '#b8afef'
+                  const attrs = entity.attributes;
+                  const source = attrs.hour_cost_prediction_ema || {};
+                  const keys = [...new Set([
+                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
+                  ])].sort((a, b) => new Date(a) - new Date(b));
+                  return keys.map(ts => {
+                    const point = new Date(ts); point.setMinutes(59, 0, 0);
+                    const value = Number(source[ts]);
+                    return [point.getTime(), Number.isFinite(value) ? value : null];
+                  }).filter(([time]) => Number.isFinite(time));
+              - name: Trend
+                entity: sensor.battmind_powerwall_action
+                color: green
                 data_generator: |
-                  return (entity.attributes.plans || []).map(d => [new Date(d.date + 'T12:00:00').getTime(), d.plan_sale]);
-              - entity: sensor.battmind_analysis
-                name: '@@actual_sale@@'
-                color: '#6250d6'
+                  const attrs = entity.attributes;
+                  const source = attrs.hour_cost_prediction_trend || {};
+                  const keys = [...new Set([
+                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
+                  ])].sort((a, b) => new Date(a) - new Date(b));
+                  return keys.map(ts => {
+                    const point = new Date(ts); point.setMinutes(59, 0, 0);
+                    const value = Number(source[ts]);
+                    return [point.getTime(), Number.isFinite(value) ? value : null];
+                  }).filter(([time]) => Number.isFinite(time));
+              - name: '@@total@@ Avg'
+                entity: sensor.battmind_powerwall_action
+                color: darkorange
+                yaxis_id: sum
+                opacity: 0.8
+                stroke_width: 3
                 data_generator: |
-                  return (entity.attributes.plans || []).map(d => [new Date(d.date + 'T12:00:00').getTime(), d.sale]);
+                  const attrs = entity.attributes;
+                  const source = attrs.hour_cost_prediction_sum_avg || {};
+                  const keys = [...new Set([
+                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
+                  ])].sort((a, b) => new Date(a) - new Date(b));
+                  return keys.map(ts => {
+                    const point = new Date(ts); point.setMinutes(59, 0, 0);
+                    const value = Number(source[ts]);
+                    return [point.getTime(), Number.isFinite(value) ? value : null];
+                  }).filter(([time]) => Number.isFinite(time));
+              - name: '@@total@@ EMA'
+                entity: sensor.battmind_powerwall_action
+                color: darkblue
+                yaxis_id: sum
+                opacity: 0.8
+                stroke_width: 3
+                data_generator: |
+                  const attrs = entity.attributes;
+                  const source = attrs.hour_cost_prediction_sum_ema || {};
+                  const keys = [...new Set([
+                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
+                  ])].sort((a, b) => new Date(a) - new Date(b));
+                  return keys.map(ts => {
+                    const point = new Date(ts); point.setMinutes(59, 0, 0);
+                    const value = Number(source[ts]);
+                    return [point.getTime(), Number.isFinite(value) ? value : null];
+                  }).filter(([time]) => Number.isFinite(time));
+              - name: '@@total@@ Trend'
+                entity: sensor.battmind_powerwall_action
+                color: darkgreen
+                yaxis_id: sum
+                opacity: 0.8
+                stroke_width: 3
+                data_generator: |
+                  const attrs = entity.attributes;
+                  const source = attrs.hour_cost_prediction_sum_trend || {};
+                  const keys = [...new Set([
+                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
+                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
+                  ])].sort((a, b) => new Date(a) - new Date(b));
+                  return keys.map(ts => {
+                    const point = new Date(ts); point.setMinutes(59, 0, 0);
+                    const value = Number(source[ts]);
+                    return [point.getTime(), Number.isFinite(value) ? value : null];
+                  }).filter(([time]) => Number.isFinite(time));
             grid_options:
               columns: full
-      # expensive hours with an empty battery
-      - type: grid
-        column_span: 1
-        cards:
-          - type: heading
-            heading: '@@section_expensive@@'
-            icon: mdi:battery-alert-variant-outline
-          - type: markdown
-            content: "<details><summary>@@read_more@@</summary>\n\n@@expensive_explain@@\n\n</details>"
-            grid_options:
-              columns: full
-          - type: markdown
-            card_mod:
-              style:
-                .: |
-                  ha-card {
-                    --markdown-table-border-color: transparent
-                  }
-                ha-markdown$: |
-                  table, th, td {
-                    border: none !important;
-                  }
-                  table {
-                    border-collapse: collapse;
-                  }
-                  table tbody tr:not(:only-child):nth-child(odd) td {
-                    background: rgba(127, 127, 127, 0.08);
-                  }
-                  td details details:not(:only-of-type):nth-of-type(odd) {
-                    background: rgba(127, 127, 127, 0.1);
-                    border-radius: 4px;
-                  }
-            content: |-
-              {% set a = states.sensor.battmind_analysis.attributes %}
-              {% set e = a.expensive_30 or {} %}
-              {% if a.expensive -%}
-              @@expensive_intro_1@@ **{{ e.days_empty }}** @@expensive_intro_2@@ {{ e.days }} @@days@@ ({{ e.hours }} @@hours@@, {{ e.kwh }} kWh, {{ e.cost | round(2) }} @@valuta@@)
-
-              | @@day@@ | @@hours@@ | kWh | @@valuta@@ |
-              |:---|---:|---:|---:|
-              {% for d in a.expensive | reverse -%}
-              | {{ d.date[8:10] }}/{{ d.date[5:7] }} | {{ '✅' if d.hours == 0 else d.hours }} | {{ d.kwh | round(1) }} | {{ d.cost | round(2) }} |
-              {% endfor %}
-              {%- else -%}
-              <ha-alert alert-type="info">@@no_data_yet@@</ha-alert>
-              {%- endif %}
-            grid_options:
-              columns: full
+              rows: auto
+        column_span: 4
       # the solar surplus forecast against the measured surplus
       - type: grid
         column_span: 2
@@ -1584,7 +1669,7 @@ views:
 
               | @@source@@ | @@days@@ | @@mae@@ kWh | @@bias@@ kWh |
               |:---|---:|---:|---:|
-              {% for key, label in [('plan', '@@solar_plan@@'), ('database', '@@solar_database@@'), ('forecast', 'Solcast')] if s[key] -%}
+              {% for key, label in [('plan', '@@solar_plan@@'), ('database', '@@solar_database@@'), ('forecast', '@@solar_integration@@')] if s[key] -%}
               | {{ label }} | {{ s[key].days }} | {{ n(s[key].mae) }} | {{ n(s[key].bias) }} |
               {% endfor %}
               {%- else -%}
@@ -1879,6 +1964,314 @@ views:
                   return ((entity.attributes.price_forecast || {}).days || []).filter(d => d.d7 !== undefined).map(d => [new Date(d.date + 'T12:00:00').getTime(), d.d7]);
             grid_options:
               columns: full
+      # group: group_battery (a full-width heading; removed with the group when no section of it is left)
+      - type: grid
+        column_span: 4
+        cards:
+          - type: heading
+            heading: '@@group_battery@@'
+            heading_style: title
+            card_mod:
+              style: |
+                ha-card {
+                  --ha-heading-card-title-font-size: 22px;
+                  border-bottom: 1px solid var(--divider-color);
+                }
+            icon: mdi:battery-heart-variant
+      # measured round trip loss
+      - type: grid
+        column_span: 2
+        cards:
+          - type: heading
+            heading: '@@section_loss@@'
+            icon: mdi:battery-arrow-down-outline
+          - type: markdown
+            content: "<details><summary>@@read_more@@</summary>\n\n@@loss_explain@@\n\n</details>"
+            grid_options:
+              columns: full
+          - type: markdown
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
+            content: |-
+              {% macro p(v) %}{{ (v * 100) | round(1) ~ ' %' if v is number else '–' }}{% endmacro %}
+              {% set a = states.sensor.battmind_analysis.attributes %}
+              {% set l = a.loss or {} %}
+              | @@loss_configured@@ | @@loss_used@@ | @@loss_30@@ | @@loss_all@@ |
+              |---:|---:|---:|---:|
+              | {{ p(l.configured) }} | {{ p(l.used) }} | **{{ p(l.last_30) }}** | {{ p(l.all) }} |
+
+              {% set months = (a.months or []) | selectattr('measured_charged', 'defined') | list -%}
+              {% if months -%}
+              | @@month@@ | @@charged@@ kWh | @@discharged@@ kWh | @@loss@@ | @@loss_outliers@@ |
+              |:---|---:|---:|---:|---:|
+              {% for m in months | reverse -%}
+              | **{{ m.label }}** | {{ m.measured_charged }} | {{ m.measured_discharged }} | {{ p(m.loss) }} | {{ m.loss_outliers or '–' }} |
+              {% endfor %}
+              {%- endif %}
+            grid_options:
+              columns: full
+          - type: custom:apexcharts-card
+            header:
+              show: true
+              title: '@@loss_title@@'
+              show_states: false
+            graph_span: 400d
+            span:
+              end: month
+            now:
+              show: false
+            yaxis:
+              - min: 0
+                decimals: 0
+            all_series_config:
+              type: line
+              unit: ' %'
+              float_precision: 1
+              stroke_width: 2
+              show:
+                legend_value: false
+                in_header: false
+            apex_config:
+              tooltip:
+                shared: true
+                intersect: false
+              chart:
+                height: 240px
+              markers:
+                size: 4
+              xaxis:
+                labels:
+                  format: MMM yy
+            series:
+              - entity: sensor.battmind_analysis
+                name: '@@loss_measured@@'
+                color: '#eb6834'
+                data_generator: |
+                  return (entity.attributes.months || []).filter(m => m.loss !== undefined && m.loss !== null).map(m => [new Date(m.month + '-15T12:00:00').getTime(), m.loss * 100]);
+              - entity: sensor.battmind_analysis
+                name: '@@loss_configured@@'
+                color: '#8a8a8a'
+                data_generator: |
+                  const c = (entity.attributes.loss || {}).configured;
+                  return (entity.attributes.months || []).map(m => [new Date(m.month + '-15T12:00:00').getTime(), c * 100]);
+            grid_options:
+              columns: full
+      # configured charging and discharging efficiency by AC power
+      - type: grid
+        column_span: 2
+        cards:
+          - type: heading
+            heading: '@@section_efficiency_curve@@'
+            icon: mdi:chart-bell-curve
+          - type: markdown
+            content: "<details><summary>@@read_more@@</summary>\n\n@@efficiency_curve_explain@@\n\n</details>"
+            grid_options:
+              columns: full
+          - type: entities
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: switch.battmind_enhance_battery_efficiency
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+          - type: markdown
+            visibility:
+              - condition: state
+                entity: switch.battmind_enhance_battery_efficiency
+                state: 'off'
+            content: '<ha-alert alert-type="warning">@@efficiency_curve_off@@</ha-alert>'
+            grid_options:
+              columns: full
+          - type: custom:apexcharts-card
+            header:
+              show: true
+              title: '@@efficiency_curve_title@@'
+              show_states: false
+            graph_span: 24h
+            span:
+              end: minute
+            now:
+              show: false
+            yaxis:
+              - min: 0
+                max: 100
+                decimals: 0
+            all_series_config:
+              type: line
+              curve: straight
+              unit: ' %'
+              float_precision: 1
+              stroke_width: 3
+              show:
+                legend_value: false
+                in_header: false
+            apex_config:
+              chart:
+                height: 240px
+              markers:
+                size: 5
+              tooltip:
+                shared: true
+                intersect: false
+                x:
+                  formatter: |
+                    EVAL:function(value) {
+                      const timestamp = typeof value === 'number' ? value : new Date(value).getTime();
+                      return `${(10 + (timestamp - Date.now()) / 8640000).toFixed(1)} kW`;
+                    }
+              xaxis:
+                labels:
+                  formatter: |
+                    EVAL:function(value, timestamp) {
+                      return `${(10 + (timestamp - Date.now()) / 8640000).toFixed(1)} kW`;
+                    }
+            series:
+              - entity: sensor.battmind_analysis
+                name: '@@efficiency_charging@@'
+                color: '#2a78d6'
+                data_generator: |
+                  const range = end.getTime() - start.getTime();
+                  return ((entity.attributes.efficiency_curves || {}).charging || [])
+                    .map(p => [start.getTime() + (p.power / 10000) * range, p.efficiency]);
+              - entity: sensor.battmind_analysis
+                name: '@@efficiency_discharging@@'
+                color: '#eb6834'
+                data_generator: |
+                  const range = end.getTime() - start.getTime();
+                  return ((entity.attributes.efficiency_curves || {}).discharging || [])
+                    .map(p => [start.getTime() + (p.power / 10000) * range, p.efficiency]);
+              - entity: sensor.battmind_analysis
+                name: '@@efficiency_measured_charging@@'
+                color: '#2a78d6'
+                stroke_width: 2
+                stroke_dash: 5
+                data_generator: |
+                  const range = end.getTime() - start.getTime();
+                  return (((entity.attributes.efficiency_curves || {}).measured || {}).charging || [])
+                    .map(p => [start.getTime() + (p.power / 10000) * range, p.efficiency]);
+              - entity: sensor.battmind_analysis
+                name: '@@efficiency_measured_discharging@@'
+                color: '#eb6834'
+                stroke_width: 2
+                stroke_dash: 5
+                data_generator: |
+                  const range = end.getTime() - start.getTime();
+                  return (((entity.attributes.efficiency_curves || {}).measured || {}).discharging || [])
+                    .map(p => [start.getTime() + (p.power / 10000) * range, p.efficiency]);
+            grid_options:
+              columns: full
+          - type: markdown
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+                  td details details:not(:only-of-type):nth-of-type(odd) {
+                    background: rgba(127, 127, 127, 0.1);
+                    border-radius: 4px;
+                  }
+            content: |-
+              {% set e = states.sensor.battmind_analysis.attributes.efficiency_curves or {} %}
+              {% macro status(e, direction) -%}
+              {%- set source = (e.source or {}).get(direction, 'none') -%}
+              {%- set steps = (e.measured or {}).get(direction, []) -%}
+              {%- if source == 'configured' %}@@efficiency_source_configured@@{% elif source == 'measured' %}@@efficiency_source_measured@@{% else %}@@efficiency_source_none@@{% endif %} | {{ steps | selectattr('used') | list | count }}/{{ steps | count }} @@efficiency_steps_used@@ | {{ steps | sum(attribute='kwh') | round(1) }} @@efficiency_measured_kwh@@
+              {%- endmacro %}
+              | | @@efficiency_source@@ | | |
+              |:---|:---|---:|---:|
+              | **@@efficiency_charging@@** | {{ status(e, 'charging') }} |
+              | **@@efficiency_discharging@@** | {{ status(e, 'discharging') }} |
+            grid_options:
+              columns: full
+          # the usable capacity as the battery's own power and level show it (always measured; the plan counts on it only with the switch)
+          - type: entities
+            state_color: true
+            show_header_toggle: false
+            entities:
+              - entity: switch.battmind_learn_battery_capacity
+                name:
+                  type: entity
+            grid_options:
+              columns: full
+          - type: markdown
+            visibility:
+              - condition: state
+                entity: switch.battmind_learn_battery_capacity
+                state: 'off'
+            content: '<ha-alert alert-type="info">@@capacity_off@@</ha-alert>'
+            grid_options:
+              columns: full
+          - type: markdown
+            card_mod:
+              style:
+                .: |
+                  ha-card {
+                    --markdown-table-border-color: transparent
+                  }
+                ha-markdown$: |
+                  table, th, td {
+                    border: none !important;
+                  }
+                  table {
+                    border-collapse: collapse;
+                  }
+                  table tbody tr:not(:only-child):nth-child(odd) td {
+                    background: rgba(127, 127, 127, 0.08);
+                  }
+            content: |-
+              {% set c = states.sensor.battmind_analysis.attributes.battery_capacity or {} %}
+              {% set up = c.charging or {} %}
+              {% set low = c.discharging or {} %}
+              {% macro kwh(v) -%}
+              {{ (v | round(1) ~ ' kWh') if v is number else '–' }}
+              {%- endmacro %}
+              **@@capacity_title@@**: @@capacity_note@@
+
+              | | @@capacity_kwh_per_full@@ | @@capacity_episodes@@ |
+              |:---|---:|---:|
+              | **@@capacity_configured@@** | {{ kwh(c.configured) }} | |
+              | **@@capacity_charging_bound@@** | {{ kwh(up.kwh) }} | {{ up.episodes or 0 }} |
+              | **@@capacity_discharging_bound@@** | {{ kwh(low.kwh) }} | {{ low.episodes or 0 }} |
+              | **@@capacity_round_trip@@** | {{ ((c.round_trip * 100) | round(1) ~ ' %') if c.round_trip is number else '–' }} | |
+
+              {% set used = c.used or {} -%}
+              **@@capacity_used@@**: {{ kwh(used.kwh) }} ({% if used.source == 'measured' %}@@capacity_source_measured@@{% elif used.source == 'efficiency' %}@@capacity_source_efficiency@@{% else %}@@capacity_source_configured@@{% endif %})
+
+              {% set s = c.status or 'too_few' -%}
+              {%- if s == 'below' %}@@capacity_status_below@@{% elif s == 'above' %}@@capacity_status_above@@{% elif s == 'within' %}@@capacity_status_within@@{% elif s == 'inconsistent' %}@@capacity_status_inconsistent@@{% else %}@@capacity_status_too_few@@{% endif %}
+            grid_options:
+              columns: full
       - type: grid
         cards:
           - type: heading
@@ -1908,194 +2301,6 @@ views:
             grid_options:
               columns: full
         column_span: 1
-      - type: grid
-        cards:
-          - type: heading
-            heading: '@@consumption_forecast@@'
-            icon: mdi:home-lightning-bolt
-          - type: markdown
-            content: "<details><summary>@@read_more@@</summary>\n\n@@consumption_forecast_explain@@\n\n</details>"
-            grid_options:
-              columns: full
-          - type: custom:apexcharts-card
-            header:
-              show: true
-              title: '@@consumption_forecast@@'
-              show_states: false
-            experimental:
-              brush: true
-            brush:
-              selection_span: '@@forecast_span@@'
-            graph_span: '@@forecast_span@@'
-            span:
-              start: hour
-            now:
-              show: true
-              label: '@@now@@'
-            apex_config:
-              tooltip:
-                shared: true
-                intersect: false
-                followCursor: true
-                fixed:
-                  enabled: false
-                x:
-                  show: true
-                  format: ddd dd/MM HH:mm
-              chart:
-                height: 340px
-              dataLabels:
-                enabled: false
-              markers:
-                size: 0
-                hover:
-                  size: 5
-              legend:
-                position: bottom
-                horizontalAlign: center
-              grid:
-                borderColor: 'rgba(127,127,127,0.2)'
-                strokeDashArray: 4
-              stroke:
-                curve: smooth
-                dashArray:
-                  - 0
-                  - 0
-                  - 0
-                  - 6
-                  - 6
-                  - 6
-            yaxis:
-              - id: type
-                decimals: 2
-                min: 0
-                apex_config:
-                  tickAmount: 10
-              - id: sum
-                opposite: true
-                decimals: 2
-                min: 0
-                apex_config:
-                  tickAmount: 10
-            all_series_config:
-              type: line
-              opacity: 0.75
-              stroke_width: 2
-              curve: smooth
-              yaxis_id: type
-              unit: kWh
-              show:
-                in_brush: true
-            series:
-              - name: Avg
-                entity: sensor.battmind_powerwall_action
-                color: orange
-                data_generator: |
-                  const attrs = entity.attributes;
-                  const source = attrs.hour_cost_prediction_avg || {};
-                  const keys = [...new Set([
-                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
-                  ])].sort((a, b) => new Date(a) - new Date(b));
-                  return keys.map(ts => {
-                    const point = new Date(ts); point.setMinutes(59, 0, 0);
-                    const value = Number(source[ts]);
-                    return [point.getTime(), Number.isFinite(value) ? value : null];
-                  }).filter(([time]) => Number.isFinite(time));
-              - name: EMA
-                entity: sensor.battmind_powerwall_action
-                color: blue
-                data_generator: |
-                  const attrs = entity.attributes;
-                  const source = attrs.hour_cost_prediction_ema || {};
-                  const keys = [...new Set([
-                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
-                  ])].sort((a, b) => new Date(a) - new Date(b));
-                  return keys.map(ts => {
-                    const point = new Date(ts); point.setMinutes(59, 0, 0);
-                    const value = Number(source[ts]);
-                    return [point.getTime(), Number.isFinite(value) ? value : null];
-                  }).filter(([time]) => Number.isFinite(time));
-              - name: Trend
-                entity: sensor.battmind_powerwall_action
-                color: green
-                data_generator: |
-                  const attrs = entity.attributes;
-                  const source = attrs.hour_cost_prediction_trend || {};
-                  const keys = [...new Set([
-                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
-                  ])].sort((a, b) => new Date(a) - new Date(b));
-                  return keys.map(ts => {
-                    const point = new Date(ts); point.setMinutes(59, 0, 0);
-                    const value = Number(source[ts]);
-                    return [point.getTime(), Number.isFinite(value) ? value : null];
-                  }).filter(([time]) => Number.isFinite(time));
-              - name: '@@total@@ Avg'
-                entity: sensor.battmind_powerwall_action
-                color: darkorange
-                yaxis_id: sum
-                opacity: 0.8
-                stroke_width: 3
-                data_generator: |
-                  const attrs = entity.attributes;
-                  const source = attrs.hour_cost_prediction_sum_avg || {};
-                  const keys = [...new Set([
-                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
-                  ])].sort((a, b) => new Date(a) - new Date(b));
-                  return keys.map(ts => {
-                    const point = new Date(ts); point.setMinutes(59, 0, 0);
-                    const value = Number(source[ts]);
-                    return [point.getTime(), Number.isFinite(value) ? value : null];
-                  }).filter(([time]) => Number.isFinite(time));
-              - name: '@@total@@ EMA'
-                entity: sensor.battmind_powerwall_action
-                color: darkblue
-                yaxis_id: sum
-                opacity: 0.8
-                stroke_width: 3
-                data_generator: |
-                  const attrs = entity.attributes;
-                  const source = attrs.hour_cost_prediction_sum_ema || {};
-                  const keys = [...new Set([
-                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
-                  ])].sort((a, b) => new Date(a) - new Date(b));
-                  return keys.map(ts => {
-                    const point = new Date(ts); point.setMinutes(59, 0, 0);
-                    const value = Number(source[ts]);
-                    return [point.getTime(), Number.isFinite(value) ? value : null];
-                  }).filter(([time]) => Number.isFinite(time));
-              - name: '@@total@@ Trend'
-                entity: sensor.battmind_powerwall_action
-                color: darkgreen
-                yaxis_id: sum
-                opacity: 0.8
-                stroke_width: 3
-                data_generator: |
-                  const attrs = entity.attributes;
-                  const source = attrs.hour_cost_prediction_sum_trend || {};
-                  const keys = [...new Set([
-                    ...Object.keys(attrs.hour_cost_prediction_avg || {}), ...Object.keys(attrs.hour_cost_prediction_ema || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_trend || {}), ...Object.keys(attrs.hour_cost_prediction_sum_avg || {}),
-                    ...Object.keys(attrs.hour_cost_prediction_sum_ema || {}), ...Object.keys(attrs.hour_cost_prediction_sum_trend || {})
-                  ])].sort((a, b) => new Date(a) - new Date(b));
-                  return keys.map(ts => {
-                    const point = new Date(ts); point.setMinutes(59, 0, 0);
-                    const value = Number(source[ts]);
-                    return [point.getTime(), Number.isFinite(value) ? value : null];
-                  }).filter(([time]) => Number.isFinite(time));
-            grid_options:
-              columns: full
-              rows: auto
-        column_span: 4
   - type: sections
     path: what-if
     title: '@@section_what_if@@'

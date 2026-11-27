@@ -132,6 +132,12 @@ ACTION_SWITCHES: dict[str, tuple[str, ...]] = {
 }
 
 
+# Full charge (number full_charge_recommended): the battery counts as full at powerwall_battery_level_max minus this
+# many percent (many battery management systems stop at 99 %). The same margin is used to register the last full charge
+# and for the plan's "reached full" check (rules and optimiser).
+FULL_CHARGE_MARGIN = 1.0
+
+
 def unsupported_actions(config: dict) -> frozenset[str]:
     """The actions the battery can't run (home.unsupported_actions in CONFIG)."""
     values = (config.get("home") or {}).get("unsupported_actions") or ()
@@ -247,9 +253,20 @@ CHARGING_TYPES = {
         "emoji": "🎁",
         "group": "charge"
     },
+    "full_charge_planner": {
+        "priority": 3.35,
+        "emoji": "💯",
+        "group": "charge"
+    },
     "grid_charge_to_sell": {
         "priority": 3.4,
         "emoji": "🔁",
+        "group": "charge"
+    },
+    # a charge or a hold that keeps the level of a storm warning (engine/storm.py); no switch belongs to it
+    "storm_warning": {
+        "priority": 3.45,
+        "emoji": "🌪️",
         "group": "charge"
     },
     "discharge_before_solar": {

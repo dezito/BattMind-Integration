@@ -99,6 +99,16 @@ class BattMindFlowPages:
     def _placeholders(self) -> dict[str, str]:
         return {}
 
+    def _notify_services(self) -> list[str]:
+        """The notify services and notify entities that can take a push notification ("notify.<name>"): not send_message (it needs an
+        entity) and not persistent_notification (that is the bell, not a push)."""
+        services = self.hass.services.async_services().get("notify", {})  # type: ignore[attr-defined]
+        entities = self.hass.states.async_entity_ids("notify")  # type: ignore[attr-defined]
+        return sorted({
+            *(f"notify.{name}" for name in services if name not in ("send_message", "persistent_notification")),
+            *entities,
+        })
+
     def _page_keys(self, step: str) -> list[str]:
         """The fields of a page; the fee page also asks for the VAT and the surcharge when a wholesale price provider is chosen."""
         keys = FLOW_STEPS[step]
@@ -126,7 +136,12 @@ class BattMindFlowPages:
             values_for_form.update(values)
         return self.async_show_form(  # type: ignore[attr-defined]
             step_id=step,
-            data_schema=build_schema(keys, values_for_form, self.hass.config.currency),  # type: ignore[attr-defined]
+            data_schema=build_schema(
+                keys,
+                values_for_form,
+                self.hass.config.currency,  # type: ignore[attr-defined]
+                self._notify_services() if step == "notifications" else None,
+            ),
             errors=errors,
             description_placeholders={
                 **self._placeholders(),
@@ -274,6 +289,12 @@ class BattMindFlowPages:
 
     async def async_step_weather(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("weather", user_input)
+
+    async def async_step_storm(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("storm", user_input)
+
+    async def async_step_notifications(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("notifications", user_input)
 
     async def async_step_advanced(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("advanced", user_input)

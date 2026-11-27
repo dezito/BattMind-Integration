@@ -2580,3 +2580,161 @@ def test_a_price_sensor_that_changes_to_a_subunit_keeps_the_plan_on_the_cached_p
     assert result.error is None, result.error
     assert not [message for message, title, _ in result.notifications if "error" in title.lower()]
     assert engine.grid_price_cache["prices"] == cached and engine.grid_price_cache["using_offline_prices"] is False  # the last successful prices
+def test_hour_rules_group_the_periods_that_follow_each_other() -> None:
+    """With 15 minute prices the periods of a rule that follow each other are one window, a gap starts a new one."""
+    from custom_components.battmind.engine.planner._helpers import _group_hour_rules
+
+    def at(hour: int, minute: int = 0) -> datetime.datetime:
+        return datetime.datetime.combine(DAY, datetime.time(hour, minute))
+
+    def reason(title: str) -> str:
+        return f"<details><summary>⏳{title} (1.00/10%)</summary>body<br></details>"
+
+    quarter = datetime.timedelta(minutes=15)
+    stamps = [at(3), at(3, 15), at(3, 30), at(3, 45), at(4), at(4, 15), at(5), at(5, 15)]
+    rows = [(stamp, reason("Dyreste timer")) for stamp in stamps]
+    ends = {stamp: stamp + quarter for stamp in stamps}
+    groups = _group_hour_rules(rows, ends)
+    assert [(group[0][0], group[-1][0]) for group in groups] == [(at(3), at(4, 15)), (at(5), at(5, 15))]
+    # another rule in the middle splits the window
+    rows[2] = (at(3, 30), reason("Billigste timer"))
+    assert [len(group) for group in _group_hour_rules(rows, ends)] == [2, 1, 3, 2]
+    # rows without an end (hours) keep the old rule: the next hour follows
+    hours = [(at(1), reason("Dyreste timer")), (at(2), reason("Dyreste timer")), (at(4), reason("Dyreste timer"))]
+    assert [len(group) for group in _group_hour_rules(hours)] == [2, 1]
+
+
+def test_overview_shows_the_charge_periods_that_follow_each_other_as_one_window() -> None:
+    import re
+
+    engine, _ = planned(3, 5, _only("most_expensive_planner"), options={"powerwall_charging_power_limit": 1000.0}, quarters=True)
+    sessions = sorted(timestamp for timestamp in engine.plan[0]["charging_sessions"] if timestamp.date() == DAY)
+    assert len(sessions) >= 8
+    runs: list[tuple[datetime.datetime, datetime.datetime]] = []
+    for timestamp in sessions:
+        if runs and runs[-1][1] == timestamp:
+            runs[-1] = (runs[-1][0], timestamp + datetime.timedelta(minutes=15))
+        else:
+            runs.append((timestamp, timestamp + datetime.timedelta(minutes=15)))
+    today = engine.last_overview.split("#### I morgen")[0].split("#### I dag")[1]
+    rows = re.findall(r"\| \*\*(\d\d:\d\d)-(\d\d:\d\d)\*\* \| <details><summary>(?:📦)?📈", today)
+    assert rows == [(start.strftime("%H:%M"), end.strftime("%H:%M")) for start, end in runs]
+
+
+def test_an_hourly_provider_is_planned_for_whole_hours_next_to_a_quarter_hour_provider() -> None:
+    """The reported case: Strømligning has hourly buy prices (02-05 cheap), Energi Data Service 15 minute prices that are
+    dearer. The cheap hours are planned at the cheap price and for the whole hour, not as one dear quarter each."""
+    now = datetime.datetime.combine(DAY, datetime.time(0, 30))
+    options = {
+        **OPTIONS,
+        "energidataservice_sell_entity_id": "sensor.sell",
+        "stromligning_buy_current_price": "sensor.sl",
+        "powerwall_charging_power_limit": 1000.0,
+    }
+
+    def with_hourly_provider(settings: dict | None) -> Snapshot:
+        snap = realistic_snapshot(now, 5, settings, quarters=True)
+        snap.price_data["attributes"]["sensor.sl"] = {
+            "prices": [{"start": datetime.datetime.combine(DAY, datetime.time(hour)).isoformat(), "price": 0.1} for hour in range(2, 6)]
+        }
+        return snap
+
+    engine = BattMindEngine(build_config(options), "test", TEXTS)
+    assert engine.run_job(with_hourly_provider(None), engine.startup, {"power_values": _power_values_db()}).error is None
+    result = engine.run_job(with_hourly_provider({}), engine.charge_if_needed, True)
+    assert result.error is None, result.error
+
+    provider = engine.price_provider
+    assert provider.buy_periods_in_hour(datetime.datetime.combine(DAY, datetime.time(3))) == 4
+    assert provider.get_buy_price(datetime.datetime.combine(DAY, datetime.time(3, 45))) == pytest.approx(0.1)
+    cheap = [timestamp for timestamp in charge_hours(engine) if timestamp.date() == DAY and 2 <= timestamp.hour < 6]
+    assert {timestamp.hour for timestamp in cheap} == {2, 3, 4, 5}
+    assert all(engine.charge_hours[timestamp]["Price"] == pytest.approx(0.1) for timestamp in cheap)
+    # every cheap hour is a full hour at the charge power (1 kWh), however many periods it is planned in
+    per_hour = _kwh_per_hour(engine)
+    assert all(per_hour[datetime.datetime.combine(DAY, datetime.time(hour))] == pytest.approx(1.0, abs=0.02) for hour in (2, 3, 4, 5)), per_hour
+
+
+def test_overview_of_the_optimiser_shows_whole_hours_on_15_minute_prices() -> None:
+    """The optimiser plans hours (a session at :00 may charge the whole hour): the rows end at the hour, not after a quarter."""
+    import re
+
+    engine, _ = planned(3, 5, {}, quarters=True)
+    assert engine.optimizer_shadow.get("controls")
+    sessions = sorted(timestamp for timestamp in engine.plan[0]["charging_sessions"] if timestamp.date() == DAY)
+    assert sessions and all(timestamp.minute == 0 for timestamp in sessions)
+    today = engine.last_overview.split("#### I morgen")[0].split("#### I dag")[1]
+    ranges = re.findall(r"\| \*\*(\d\d):(\d\d)-(\d\d):(\d\d)\*\*", today)
+    first = sessions[0]
+    assert any(start_h == f"{first.hour:02d}" and start_m == "00" and (int(end_h) * 60 + int(end_m) - int(start_h) * 60) % (24 * 60) >= 60 for start_h, start_m, end_h, end_m in ranges), ranges
+
+
+def test_cheapest_hours_rule_books_whole_hours_on_forecast_days_next_to_15_minute_prices() -> None:
+    """Energi Data Service alone: 15 minute prices today and tomorrow, an hourly forecast after that. The hourly forecast
+    prices are repeated over the periods of their hour, and the rule books every period of the hour it picks (it used to
+    book one period of each hour on those days, a quarter of the charge power)."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    options = {**OPTIONS, "energidataservice_sell_entity_id": "sensor.sell", "days_to_predict": 5, "powerwall_charging_power_limit": 1000.0}
+
+    def snap(settings: dict | None) -> Snapshot:
+        snapshot_ = realistic_snapshot(now, 5, settings)
+        for entity in ("sensor.price", "sensor.sell"):
+            attributes = snapshot_.price_data["attributes"][entity]
+            for key in ("raw_today", "raw_tomorrow"):
+                attributes[key] = [
+                    {**row, "hour": (datetime.datetime.fromisoformat(row["hour"]) + datetime.timedelta(minutes=15 * quarter)).isoformat()}
+                    for row in attributes[key]
+                    for quarter in range(4)
+                ]
+        return snapshot_
+
+    engine = BattMindEngine(build_config(options), "test", TEXTS)
+    assert engine.run_job(snap(None), engine.startup, {"power_values": _power_values_db()}).error is None
+    result = engine.run_job(snap(_only("cheapest_hour_fill_planner")), engine.charge_if_needed, True)
+    assert result.error is None, result.error
+
+    forecast_hour = datetime.datetime.combine(DAY + datetime.timedelta(days=2), datetime.time(12))
+    assert engine.price_provider.buy_periods_in_hour(forecast_hour) == 4
+    booked: dict[datetime.datetime, float] = {}
+    for timestamp in charge_hours(engine):
+        if timestamp.date() >= DAY + datetime.timedelta(days=2):
+            booked[timestamp.replace(minute=0)] = booked.get(timestamp.replace(minute=0), 0.0) + engine.charge_hours[timestamp]["kWh"]
+    assert sum(booked.values()) >= 4.0, booked
+    # every booked hour is a whole hour at the charge power (1 kWh), except the last one that ends the need
+    assert sum(1 for kwh in booked.values() if kwh >= 0.99) >= len(booked) - 1, booked
+    # and never more than the charge power in an hour
+    assert all(kwh <= 1.0 + 0.01 for kwh in booked.values()), booked
+
+
+def test_the_periods_booked_with_the_chosen_one_have_its_price_and_are_not_over() -> None:
+    from datetime import datetime as dt, timedelta
+    from types import SimpleNamespace
+
+    from custom_components.battmind.engine.planner.future.charge_rules import FutureChargeRules
+
+    def at(hour: int, minute: int) -> dt:
+        return dt.combine(DAY, datetime.time(hour, minute))
+
+    prices = {at(3, 0): 1.0, at(3, 15): 1.0, at(3, 30): 1.0, at(3, 45): 1.0, at(4, 0): 1.0, at(4, 15): 2.0}
+    provider = SimpleNamespace(buy_period_end=lambda ts: min([other for other in prices if ts < other < ts.replace(minute=0) + timedelta(hours=1)] or [ts.replace(minute=0) + timedelta(hours=1)]))
+    engine = SimpleNamespace(price_provider=provider)
+    ctx = SimpleNamespace(grid_prices=prices, now=at(3, 40))
+    periods = FutureChargeRules.periods_with_the_same_price(engine, ctx, at(3, 45))
+    # 03:00 and 03:15 are over, 03:30 is running; the other hour and another price are not part of this hour
+    assert periods == [at(3, 45), at(3, 30)]
+    assert FutureChargeRules.periods_with_the_same_price(engine, ctx, at(4, 15)) == [at(4, 15)]
+    assert FutureChargeRules.periods_with_the_same_price(engine, ctx, at(9, 0)) == [at(9, 0)]
+
+
+def test_a_gap_in_an_hour_gives_periods_that_do_not_overlap() -> None:
+    from custom_components.battmind.prices import CombinedPriceProvider
+    from custom_components.battmind.const import default_options
+
+    provider = CombinedPriceProvider(build_config(default_options()), [])
+    hour = datetime.datetime.combine(DAY, datetime.time(2))
+    provider.buy_prices = {hour: 1.0, hour + datetime.timedelta(minutes=30): 1.0, hour + datetime.timedelta(minutes=45): 1.0}
+    assert provider.buy_period_end(hour) == hour + datetime.timedelta(minutes=30)
+    assert provider.buy_period_end(hour + datetime.timedelta(minutes=30)) == hour + datetime.timedelta(minutes=45)
+    assert provider.buy_period_end(hour + datetime.timedelta(minutes=45)) == hour + datetime.timedelta(hours=1)
+    # an hour without prices of its own (from the price history) is one period
+    assert provider.buy_period_end(hour + datetime.timedelta(hours=3)) == hour + datetime.timedelta(hours=4)

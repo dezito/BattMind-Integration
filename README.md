@@ -2,148 +2,64 @@
 
 # BattMind🤵‍♂️🔋⚡ for Home Assistant
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories/)
-[![GitHub Release](https://img.shields.io/github/v/release/dezito/BattMind-Integration)](https://github.com/dezito/BattMind-Integration/releases)
-[![License](https://img.shields.io/github/license/dezito/BattMind-Integration)](LICENSE)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/dezito)
+[![Version](https://img.shields.io/github/v/release/dezito/BattMind-Integration?style=flat-square&label=version&color=00B894)](https://github.com/dezito/BattMind-Integration/releases)
+[![Home Assistant 2025.12+](https://img.shields.io/badge/Home%20Assistant-2025.12%2B-18BCF2?style=flat-square&logo=homeassistant&logoColor=white)](https://www.home-assistant.io)
+[![Validate](https://img.shields.io/github/actions/workflow/status/dezito/BattMind-Integration/validate.yml?branch=main&style=flat-square&label=validate)](https://github.com/dezito/BattMind-Integration/actions/workflows/validate.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/dezito/BattMind-Integration/tests.yml?branch=main&style=flat-square&label=tests)](https://github.com/dezito/BattMind-Integration/actions/workflows/tests.yml)
+[![Last commit](https://img.shields.io/github/last-commit/dezito/BattMind-Integration?style=flat-square)](https://github.com/dezito/BattMind-Integration/commits)
+[![Marketplace](https://img.shields.io/badge/Marketplace-Default-41BDF5?style=flat-square)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=dezito&repository=BattMind-Integration&category=integration)
+[![License](https://img.shields.io/github/license/dezito/BattMind-Integration?style=flat-square)](LICENSE)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/dezito)
 
-Home battery optimisation that aims to save and earn as much money as possible from the battery.
-
-BattMind uses electricity prices, house consumption, solar forecasts, battery losses and wear to work
-out when the home battery should charge from the grid, discharge or sell power. The result is exposed as an action
-(`sensor.battmind_powerwall_action`) that you use to control your inverter yourself.
-
-## How BattMind compares with other home battery optimisers
-
-Home battery optimisation can mean different things: a Home Assistant integration, a separate energy
-optimisation service, or software that directly controls supported inverters.
-
-BattMind plans in Home Assistant and exposes what the battery should do. An automation, such as the
-included blueprint, applies the action to your inverter.
-
-The examples below compare published approaches, not prices or performance in a controlled test.
-Features, supported hardware and tariffs can change, and actual savings depend on prices, forecasts,
-battery losses and household consumption.
-
-BattMind's main goal is to minimise the electricity bill and maximise profitable export from the battery.
-It combines whole-period optimisation with explainable rules and analyses what the battery actually
-earned and how accurately the plan performed.
-
-BattMind does more than select cheap charging hours. It tracks the cost of the energy stored in the
-battery, including its source, charging and discharging losses, and battery wear. The plan can use this
-to decide whether energy should be used now, kept for a more expensive period, or sold to the grid.
-
-Compare the projects by approach and use case. The table describes features from BattMind's
-documentation and the linked projects' published descriptions.
-
-| Area | BattMind | [Predbat](https://github.com/springfall2008/batpred) | [EMHASS](https://github.com/davidusb-geek/emhass) | [Battery Controller](https://github.com/bvweerd/battery_controller) |
-| --- | --- | --- | --- | --- |
-| Focus and setup | Maximising battery savings and export income in a native HACS integration. | Home Assistant app with broad inverter support and deep configuration. | Add-on, Docker or Python optimisation of batteries and flexible loads. | Native HACS integration for vendor-independent battery control. |
-| Planning | Whole-period optimisation or selectable rules, 1–7 days ahead. | Lowest-cost plan from available price, load and solar forecasts. | Configurable mathematical optimisation horizon and time step. | Dynamic programming over the available and modelled forecast horizon. |
-| Prices and forecasts | Buy/sell prices, stored-energy cost, Solcast and forecasts learned from HA history. | Import/export tariffs with configured solar and load forecasts. | Configurable price, PV and load forecasts, including ML options. | Import/export prices, PV forecasts and learned household consumption. |
-| Loss and wear | Round-trip loss, charge/discharge efficiency curves measured by BattMind (or entered) and configurable wear. | Separate battery, inverter and charging losses plus cycle cost. | Battery efficiency and stress cost can be modelled. | Efficiency curves and degradation cost. |
-| Charging and export | Grid charging, preserving energy for expensive hours and profitable forced export. | Modes from monitoring to automatic charging and forced export. | Determined by the selected model and connected automations. | Charge and discharge setpoints for several control modes. |
-| Inverter control | Generic actions mapped by the included blueprint. | Direct control of many supported inverter integrations. | Plan output connected to HA automations. | Generic setpoints connected through HA automations. |
-| Explanation and analysis | Named rules plus savings, wear, forecast accuracy and hindsight score. | Detailed plan, status, cost reports, web console and logs. | Publishes forecast and optimisation results. | Schedule, profitability and browser-based diagnostics. |
-| Best suited for | Getting the best financial result from a home battery with transparent decisions and detailed evaluation. | Extensive inverter support and advanced control. | Whole-home energy and flexible-load optimisation. | Generic real-time battery setpoint control. |
-
-Related projects include [PV Opt](https://github.com/stevebuk1/pv_opt), which focuses primarily on
-Solis inverters and time-of-use tariffs, and
-[Smart Battery Pilot](https://github.com/cygnusb/ha-smart-battery-pilot), a vendor-neutral Home Assistant
-integration for price, consumption and PV-based battery planning.
-
-### BattMind's trade-offs
-
-| ✅ Advantages | ⚠️ Trade-offs |
-| --- | --- |
-| Combines prices, solar, consumption, loss and wear in one multi-day plan. | Good results depend on reliable data and forecasts. |
-| Offers whole-period optimisation or individually selectable, explainable rules. | More options require more setup than a simple price scheduler. |
-| Tracks stored-energy cost and evaluates savings, forecasts, cycles and wear. | Analysis requires suitable Home Assistant recorder statistics. |
-| Works with any controllable inverter through generic actions and a blueprint. | You must map and test the inverter commands yourself. |
-
----
-
-> [!NOTE]
-> This is the **integration version** of BattMind, installed via HACS. It replaces the
-> [PyScript version](https://github.com/dezito/BattMind) and can import its configuration and
-> databases. See [Switching from the PyScript version](docs/migration.md).
-
-> [!IMPORTANT]
-> First HACS release. Please open an [issue](https://github.com/dezito/BattMind-Integration/issues) if something doesn't work.
+**Home battery optimisation that aims to save and earn as much money as possible from the battery.**
 
 <p align="center">
   <a href="https://sloth.nu/battmind.mp4" target="_blank"><img src="images/dashboard-demo.gif" alt="The BattMind dashboard in use: battery level forecast, electricity prices, plan, settings and analysis" width="100%"></a>
 </p>
 
+- 💰 **Knows what every stored kWh cost** – grid or solar, charging and discharging loss and battery wear
+- 📈 **Sells only when it pays** – after loss, wear and your own profit requirements (energy past its max. age is the exception)
+- 🧠 **Plans 1–7 days ahead** – whole-period optimisation, or individually selectable rules that explain every decision
+- 🔍 **Shows what the battery really earned** – savings, forecast accuracy and a hindsight score per day
+- 🔌 **Fits any controllable inverter** – the blueprint lets you map each action to your own inverter integration, so you set up the control yourself, with [ready-made actions](docs/README.md#inverters) for some
+- 🧪 **What-if simulator** – replay the planner on your own history with another battery or other settings
+
+[![Open BattMind in the Marketplace in your Home Assistant.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=dezito&repository=BattMind-Integration&category=integration)
+
+**How it works:** prices, solar forecast and consumption → BattMind's plan → `sensor.battmind_powerwall_action` → the
+included blueprint → your inverter. BattMind exposes what the battery should do; your automation applies it to the inverter.
+The included blueprint does that once you have added your inverter's commands for each action.
+
+> [!NOTE]
+> This is the **integration version** of BattMind. It replaces the
+> [PyScript version](https://github.com/dezito/BattMind) and can import its configuration and
+> databases. See [Switching from the PyScript version](docs/migration.md).
+
 📖 **[Documentation](docs/README.md)** – [getting started](docs/getting-started.md), [how BattMind plans](docs/how-it-works.md),
-every rule explained with examples, [inverter setups](docs/inverters/huawei.md) and [FAQ](docs/faq-troubleshooting.md).
+every rule explained with examples, [inverter setups](docs/README.md#inverters), [how BattMind compares with other
+optimisers](docs/comparison.md) and [FAQ](docs/faq-troubleshooting.md).
 
 ---
 
 ## Features
 
-- **Charging plan for several days** (1–7 days) based on electricity prices, forecasts and consumption history
-- **Two ways to control the battery** – [read more](docs/rules/optimizer.md)
-  - **Whole period optimisation** (default): calculates the cheapest action for every hour of the whole forecast
-    period at once (charging loss, wear, solar, buy and sell prices and the profit requirements). Every action is
-    shown as the rule it corresponds to, and the rule switches decide which actions it may use
-  - **Rules:** the charge and discharge rules below decide each hour
-- **[Charging rules](docs/rules/charging.md) that can be switched on and off individually** – solar surplus always
-  charges first, and grid charging never pushes out solar that would be sold for less than the grid kWh cost
-  - **Cheapest periods:** charge in the cheapest periods for the day's consumption (number of periods and price limits are configurable)
-  - **Fill up during cheapest period:** charge the battery fully in the cheapest period
-  - **Most expensive periods:** charge for the most expensive hours the battery doesn't cover
-  - **Required before max level:** only charge what is missing before the solar panels fill the battery
-  - **Negative prices:** fill the battery when charging pays, even if the energy is never used
-  - **Buy to sell:** charge cheaply from the grid only to sell the kWh again when it pays after loss and wear
-- **[Discharging rules](docs/rules/discharging.md)**
-  - **Profit only:** block discharging in hours where the battery's kWh cost (incl. loss and wear) is higher than the price
-  - **Prioritise by energy cost:** save the battery for the most expensive hours until it is charged again
-  - **Before the sun:** use/sell the battery before the sun fills it anyway and the surplus would be sold cheaply
-  - **Max. age of kWh:** energy older than X hours is used even without profit, and sold when that pays more
-- **[Selling rules](docs/rules/selling.md)**
-  - **Maximise profit:** sell in the most expensive periods when that pays more than using the energy yourself
-  - **Sell excess kWh:** sell the energy that isn't used before the battery is empty or full again (forced discharge)
-  - **Use midnight battery level:** only look until midnight instead of the whole forecast period
-  - min. profit per kWh and in total, min. kWh per sale, reserve for the house, and exclude specific selling hours
-- **[Solar](docs/rules/solar.md) (optional)**
-  - **Solar surplus charging:** include the solar surplus in the plan
-  - **Optimise solar charging:** sell the solar surplus in the expensive hours and fill the battery in the cheap solar hours instead
-  - forecast from [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar) and/or own history per cloud cover
-- **Consumption forecast** from own history: average, EMA or trend
-- **Price providers:** [Energi Data Service](https://github.com/MTrab/energidataservice) and/or
-  [Strømligning](https://github.com/MTrab/stromligning), incl. sell price, tariffs, selling fee and refund, and
-  [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) for prices and forecasts in most of Europe, and the
-  spot forecast integrations Spot Forecast, Elprisprognos and Wattcast (wholesale prices with your VAT and surcharge), and EPEX Spot, GE-Spot, Octopus Energy and Nord Pool (your own published prices, next to a provider with a forecast);
-  forecast prices are corrected with their measured bias
-- **[Cost price of the battery's energy](docs/how-it-works.md#the-cost-of-a-kwh-from-the-battery):** what the energy in the battery has cost (grid, solar, charge/discharge loss and wear)
-- **Detailed charging history and overview** as markdown
-- **[Analysis](docs/dashboard-analysis.md#analysis)** of what the battery earns and how well BattMind plans
-- **[What-if simulator](docs/what-if-simulator.md):** replay the BattMind planner (rules or optimisation) on your history and compare battery capacity, power, loss, wear, reserve, the controller and every planning setting without changing the active plan; it skips incomplete hours, uses available Recorder/statistics history, restarts each data segment at the battery's minimum level, and applies historical sell tariffs conservatively
-  - economy per month: charged (grid/solar), discharged, charge price, value of a discharged kWh, margin per kWh and savings
-  - charged and discharged per rule, cycles and wear
-  - measured round trip loss against the configured loss, and self-sufficiency (solar, battery, grid)
-  - the error of each consumption forecast type against the actual consumption, and why another type is suggested when it is more accurate; optionally the most accurate type is chosen automatically
-  - the price forecast against the real prices per day ahead: the error, and how often it found the cheapest and most expensive hours
-  - a hindsight score per day, planned against what happened, days with an empty battery in the most expensive
-    hours, and planned against measured solar surplus
-  - the first time, the last year is read from Home Assistant's long-term statistics
-- **[Ready-made dashboard](docs/dashboard-analysis.md)** in the sidebar with overview, settings, analysis and a what-if comparison, built from your setup
-- **Fail-safe:** BattMind stores the prices in its own [price database](docs/how-it-works.md#prices). Hours
-  without a price are filled from it, and if the price integration is down, the last prices are kept for 2
-  hours, and then planning falls back to the database
-- **Multiple instances:** each instance has its own prefix (e.g. one per battery)
-- **Languages:** Danish, English, German, Polish and Ukrainian
-- **Does not run in Home Assistant's main thread:** all calculations run in BattMind's own worker threads (the what-if
-  simulator has a thread of its own), so Home Assistant is not blocked while the plan is calculated
+The full list is in [Features](docs/features.md).
+
+- **Charging plan for 1–7 days** from electricity prices, forecasts and your own consumption history
+- **Two ways to control the battery:** [whole period optimisation](docs/rules/optimizer.md) (default) or rules that decide each hour
+- **[Charging rules](docs/rules/charging.md):** cheapest periods, fill up, most expensive periods, required before max level, negative prices, buy to sell and a periodic full charge
+- **[Discharging rules](docs/rules/discharging.md):** profit only, prioritise by energy cost, before the sun and max. age of kWh
+- **[Selling rules](docs/rules/selling.md):** maximise profit, sell excess kWh, minimum profit and excluded hours
+- **[Storm warning](docs/rules/storm.md) (optional):** keeps the battery charged for a MeteoAlarm storm warning
+- **[Solar](docs/rules/solar.md) (optional):** surplus charging, optimised solar charging and a forecast from Solcast, Forecast.Solar or Helios Forecast and/or own history
+- **[Cost price of the battery's energy](docs/how-it-works.md#the-cost-of-a-kwh-from-the-battery)** including source, loss and wear
+- **Price providers:** [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning), [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant), the spot forecast integrations (Spot Forecast, Elprisprognos, Wattcast) and your own published prices (EPEX Spot, GE-Spot, Octopus Energy, Nord Pool), with a [price database](docs/how-it-works.md#prices) as fail-safe
+- **[Analysis](docs/dashboard-analysis.md#analysis)** and a **[what-if simulator](docs/what-if-simulator.md)**
+- **[Ready-made dashboard](docs/dashboard-analysis.md)**, several instances, five languages (Danish, English, German, Polish and Ukrainian)
 
 | Battery level costs and plan | Bill with and without battery | Charging history |
 | --- | --- | --- |
 | ![Battery level costs and the charge/discharge plan](images/battery-level-costs-and-plan.png) | ![The bill of the period with and without the battery](images/plan-total-with-and-without-battery.png) | ![Charging history](images/charging-history.png) |
-
-| Economy per month | Planned against actual |
-| --- | --- |
-| ![Economy per month analysis](images/economy-per-month.png) | ![Planned against actual analysis](images/planned-against-actual.png) |
 
 ---
 
@@ -163,8 +79,10 @@ BattMind sends **no commands** to your inverter. It exposes what the battery sho
 The easiest way is the **blueprint** that is installed with the integration
 (*Settings → Automations & scenes → Blueprints → BattMind - control the home battery*). It works with all
 inverters: you add what your inverter should do for each action, and optionally what should happen while
-an EV is charging. See [Actions and battery control](docs/actions.md) and the complete
-[Huawei Solar example](docs/inverters/huawei.md).
+an EV is charging. See [Actions and battery control](docs/actions.md) and the
+[inverter pages](docs/README.md#inverters): [Huawei Solar](docs/inverters/huawei.md),
+[SolarEdge](docs/inverters/solaredge.md), [Deye](docs/inverters/deye-solarman.md) and
+[Sofar](docs/inverters/sofar-solarman.md) (the last three are checked against the source, not tested).
 
 Find a ready-made setup for your inverter, or share your own, under
 [Blueprint setups](https://github.com/dezito/BattMind-Integration/discussions/categories/blueprint-setups).
@@ -176,19 +94,22 @@ reloaded. If the file is deleted, the latest version is put back on the next res
 
 `sensor.battmind_current_charging_rule` shows why (e.g. *Charging up to 💸*), and
 `sensor.battmind_battery_level_needed` shows how much battery is needed until the next charge.
+The main entities and services are listed in [Entities and services](docs/reference.md).
 
 ---
 
 ## Requirements
 
-- Home Assistant **2025.1** or newer with recorder (default)
+- Home Assistant **2025.12** or newer with recorder (default)
 - A sensor for the home battery's **battery level** (%) and **power** (W)
 - A sensor for the **house consumption** (W)
 - Price integration: [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning), [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) and/or a spot forecast integration, EPEX Spot, GE-Spot, Octopus Energy or Nord Pool (HACS)
 - Optional:
   - battery temperature sensor for a configurable charge/discharge safety stop
   - solar production (W)
-  - [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar)
+  - a solar forecast: [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar),
+    [Forecast.Solar](https://www.home-assistant.io/integrations/forecast_solar/) or
+    [Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast)
   - a weather integration that supports `weather.get_forecasts` with cloud cover, e.g.
     [Meteorologisk institutt](https://www.home-assistant.io/integrations/met/),
     [AccuWeather](https://www.home-assistant.io/integrations/accuweather/) or
@@ -206,7 +127,7 @@ reloaded. If the file is deleted, the latest version is put back on the next res
 
 ### HACS (recommended)
 
-[![Open BattMind in HACS in your Home Assistant.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=dezito&repository=BattMind-Integration&category=integration)
+[![Open BattMind in the Marketplace in your Home Assistant.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=dezito&repository=BattMind-Integration&category=integration)
 
 1. Open **HACS**, search for **BattMind**, install it, and restart Home Assistant.
 2. Add the integration:
@@ -228,91 +149,27 @@ unpack it into `config/custom_components/battmind` and restart Home Assistant.
 
 ## Setup
 
-Setup is done in the UI, split into small pages with help texts:
-
-1. **Prefix and language:** the prefix becomes the start of all entity ids (default `battmind`)
-2. **Home battery:** battery level, power, size, min./max. level,
-   charge/discharge power, charge/discharge loss and optional efficiency curves. Without curves BattMind measures them itself. The curves can be enabled or disabled from **Settings** without deleting them.
-   If the inverter can't run a battery mode (e.g. selling from the battery or blocking solar charging), select it on the page **controllable modes**: BattMind then never plans it, and the rules that need it are switched off and hidden on the dashboard
-3. **Consumption:** the house consumption. You can also ignore consumers, e.g. the EV charger.
-   **Check the battery and consumption:** the sign of the battery power and whether the consumption includes the
-   battery's charging/discharging are suggested from the recorder's history (as far back as needed) with the numbers
-   used, so you can check and change them
-4. **Price providers:** Energi Data Service, Strømligning, Energy Price Forecast and/or a spot forecast integration or one of the providers of published prices (EPEX Spot, GE-Spot, Octopus Energy, Nord Pool) (buy and sell, and the tariffs of Strømligning), refund, selling fee and wear per kWh (and the VAT and the surcharge of the spot forecast integrations) (after the price pages, so a new installation suggests it in the currency of the prices)
-5. **Solar panels:** production, the inverter's max. power, fixed sell price or hourly price, and Solcast
-6. **Weather:** hourly and daily forecast (only with solar panels)
-7. **Advanced:** number of days to plan, interval, dashboard and diagnostic file log
-8. **Database:** how much history is stored
-
-Everything can be changed afterwards under **Configure** on the integration. The integration reloads when you save.
+Setup is done in the UI, split into small pages with help texts: prefix and language, the home battery
+(sensors, size, levels, power, loss, wear and controllable modes), consumption, price providers, solar panels
+and weather, advanced settings (days to plan, interval, dashboard, diagnostic file log) and the database.
+Everything can be changed afterwards under **Configure** on the integration, and it reloads when you save.
 [Getting started](docs/getting-started.md) goes through every page and how to set the values.
-
----
-
-## Entities
-
-The entity ids start with the prefix, here `battmind`.
-
-### Settings (changed from the dashboard)
-
-| Type | Entities |
-|---|---|
-| `switch` | Solar surplus charging, cheapest periods, fill up during cheapest period, most expensive periods, required before max level, discharge only at profit, prioritise discharging by energy cost, sell excess kWh, use midnight battery level, maximise profit, forced discharge of old kWh, optimise solar charging, negative prices, buy to sell, discharge before the sun, control the battery with the whole period optimisation, correct the price forecast, choose the forecast type automatically |
-| `number` | Cheap price periods, increase for cheapest price / cheap periods, min. profit per kWh, min. total profit, min. kWh for export, max. hours for old kWh |
-| `select` | Forecast type (average, EMA or trend) |
-| `text` | Exclude selling hours (e.g. `17,18,19`) |
-| `button` | Force planning, export data (a [backup](#backup-export-and-import-of-data)), reset dashboard |
-
-The plan is recalculated 5 seconds after a setting is changed. The values are kept across restarts.
-
-### Results
-
-| Entity | Content |
-|---|---|
-| `sensor.battmind_powerwall_action` | What the battery should do now (see [above](#how-to-control-the-home-battery)), the planned hours per action as [attributes](docs/actions.md#sensors-and-attributes) |
-| `sensor.battmind_current_charging_rule` | Current rule as text |
-| `sensor.battmind_battery_level_needed` | Required battery level until the next charge (%) |
-| `sensor.battmind_kwh_charged_by_solar` | kWh charged by solar (only with solar panels) |
-| `sensor.battmind_analysis` | Savings this month (in Home Assistant's currency); the analysis per month and day as attributes (used by the dashboard) |
-| `sensor.battmind_overview` | Overview and plan (markdown in the `overview` attribute) |
-| `sensor.battmind_charging_history` | Charging history (markdown in the `history` attribute) |
-| `sensor.battmind_emoji_description` | Emoji explanation (markdown in the `description` attribute) |
-
-Large attributes (markdown, plans) are not stored in the recorder database.
 
 ---
 
 ## Dashboard
 
 With **Dashboard in the sidebar** enabled (default), each instance gets its own dashboard,
-e.g. `/battmind-dashboard`, with four views. You choose its sidebar icon when adding the instance, and can change it under **Configure → General**:
+e.g. `/battmind-dashboard`, with four views:
 
-- **Overview:** the battery level forecast with the planned charging and discharging, the electricity
-  prices with sell price and solar forecast, the current rule and action, a status with battery, consumption, solar, price and savings, the charging history and the overview
-- **Settings:** the planners and their limits, grouped (control, profit, charging, discharging, selling,
-  solar), each with a "Read more"
+- **Overview:** battery level forecast, prices, current rule and action, status, charging history and the plan
+- **Settings:** the planners and their limits, grouped, each with a "Read more"
 - **Analysis:** what the battery earns and how well BattMind plans
-- **What-if:** run the what-if simulator from entities (battery size, a range of sizes, battery modules and
-  scenario rules and settings) and view the last saved calculation with tables and charts
+- **What-if:** run the what-if simulator and view the last saved calculation
 
 Every card is explained in [Dashboard and analysis](docs/dashboard-analysis.md). Once you save your own
 changes to the dashboard, your version is kept. Press **Reset dashboard** (on the integration's device) to
 go back to the generated dashboard.
-
----
-
-## Services
-
-| Service | Description |
-|---|---|
-| `battmind.enforce_planning` | Recalculate the plan now |
-| `battmind.recalc_charging_history_today` | Recalculate today's charging history |
-| `battmind.debug_info` | Returns internal state for troubleshooting |
-| `battmind.export_debug` | Save an anonymised debug file for a GitHub issue |
-| `battmind.export_data` | Save a backup of data and settings (see below) |
-| `battmind.import_data` | Replace data and settings with a backup |
-
-All services optionally take `config_entry_id` so they only affect one instance (`import_data` requires it).
 
 ---
 
@@ -352,7 +209,8 @@ See [FAQ and troubleshooting](docs/faq-troubleshooting.md). In short:
 
 1. **Settings → Devices & services → BattMind**: delete each entry with **⋮ → Delete**. BattMind first saves the
    entry's data to `battmind_backups/<prefix>_<time>_deleted.json`, so it can be imported again in a new entry, and then
-   removes its databases and its dashboard.
+   removes its databases, its health-check data (`.storage/battmind.<entry id>.health`), its push notification state
+   (`.storage/battmind.<entry id>.notices`), its repairs and its dashboard.
 2. Delete the automations that control the home battery, or switch them to other entities: they stop working without
    BattMind's entities.
 3. **HACS** → BattMind → ⋮ → **Remove**, then restart Home Assistant.

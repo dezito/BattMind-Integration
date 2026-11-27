@@ -1,10 +1,11 @@
 """Helpers of the charging plan: solar, available kWh and adding charge hours."""
 from __future__ import annotations
 
+import datetime
 import logging
 
 from ...const import price_decimals
-from ...utils.helpers import days_between, hour_in
+from ...utils.helpers import days_between, hour_in, reset_time_to_hour
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,12 +23,32 @@ class ChargingHours:
         solar = data["solar_kwh_prediction"]
         return solar[timestamp.hour] if timestamp.hour < len(solar) else 0.0
 
+    def taper_rate_at(self, charging_plan, current_hour, timestamp, max_kwh_charging):
+        """kWh per hour the battery takes in the hour of timestamp: the charge rate, or less where the battery tapers (utils/taper.py)
+        at the battery level the plan has when the hour starts (the level now for the hour that is going on)."""
+        if not self.charge_taper():
+            return max_kwh_charging
+        hour = reset_time_to_hour(timestamp)
+        if hour <= current_hour:
+            level = self.get_battery_level()
+        else:
+            before = hour - datetime.timedelta(hours=1)
+            data = charging_plan.get(days_between(current_hour, before))
+            flow = data["battery_level_flow"].get(before.hour) if data else None
+            level = sum(flow) if flow else None
+        return self.charge_rate_kwh(level, max_kwh_charging)
+
+    def slowest_charge_kwh(self, max_kwh_charging):
+        """The least the battery takes in an hour anywhere in its range (the lowest cap of the bands that taper)."""
+        # not below a tenth of the rate: a cap that low would make the rules look for hours without end
+        return max(min([max_kwh_charging, *(cap for _, cap in self.charge_taper())]), 0.1 * max_kwh_charging)
+
     def solar_kwh_in_hour(self, charging_plan, current_hour, max_kwh_charging, timestamp):
         """Predicted solar surplus charging the battery in this hour (0 when blocked/disabled)."""
         data = charging_plan.get(days_between(current_hour, timestamp))
         if data is None or hour_in(timestamp, data["blocked_solar_charge_timestamps"]):
             return 0.0
-        return min(self.solar_surplus_in_hour(charging_plan, current_hour, timestamp), max_kwh_charging)
+        return min(self.solar_surplus_in_hour(charging_plan, current_hour, timestamp), self.taper_rate_at(charging_plan, current_hour, timestamp, max_kwh_charging))
 
     def charge_periods_in_hour(self, timestamp) -> int:
         """Price periods in the hour of timestamp (4 with 15 min prices): each takes its share of the charge power."""
@@ -42,7 +63,8 @@ class ChargingHours:
         kwh_available = max_kwh_charging
         try:
             periods = self.charge_periods_in_hour(hour)
-            kwh = max_kwh_charging / periods
+            # where the battery tapers, the hour takes less than the charge rate (the periods share what it takes)
+            kwh = self.taper_rate_at(charging_plan, current_hour, hour, max_kwh_charging) / periods
             kwh_available = max(kwh - self.solar_kwh_in_hour(charging_plan, current_hour, max_kwh_charging, hour) / periods, 0.0)
             data = charging_plan.get(days_between(current_hour, hour))
             if data is not None and hour_in(hour, data["force_discharge_timestamps"]) and hour not in charge_hours:
@@ -67,7 +89,7 @@ class ChargingHours:
         except Exception:  # noqa: BLE001
             pass
         try:
-            min_charging_kwh_ev = config["solar"]["powerwall_battery_size"] / 100 / 2
+            min_charging_kwh_ev = self.battery_size_used()[0] / 100 / 2
         except Exception:  # noqa: BLE001
             pass
 

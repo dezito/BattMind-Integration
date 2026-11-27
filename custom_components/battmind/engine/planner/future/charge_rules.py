@@ -99,72 +99,96 @@ class FutureChargeRules:
             return
 
         for cheap_timestamp in cheap_timestamps:
-            for i in range(int(round_up(kwh_needed / ctx.max_kwh_charging) + 1)):
+            # hours enough for the energy at the pace of the slowest band (where the battery tapers it takes more of them)
+            for i in range(int(round_up(kwh_needed / self.slowest_charge_kwh(ctx.max_kwh_charging)) + 1)):
                 if finished:
                     break
-                timestamp = cheap_timestamp - datetime.timedelta(hours=i)
-                price = ctx.grid_prices.get(timestamp)
-                if price is None or timestamp < ctx.current_hour:
-                    continue
-                what_day = days_between(ctx.current_hour, timestamp)
-                if what_day < day - 1 or what_day not in ctx.charging_plan:
-                    continue
-                if cheapest_price is not None and price - cheapest_price > cheapest_price_rise_threshold:
-                    continue
-
-                # the hours of the day (after the charge hour) where using the charged kWh pays off
-                kwh_with_profit = []
-                profit_with_kwh = []
-                for hour in ctx.charging_plan[day]["hour_cost_prediction"][ctx.forecast_type]:
-                    loop_timestamp = ctx.charging_plan[day]["start_of_day"].replace(hour=hour)
-                    loop_price = ctx.grid_prices.get(loop_timestamp)
-                    if loop_price is None or loop_timestamp <= timestamp or self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, loop_timestamp) > 0.0:
+                base_timestamp = cheap_timestamp - datetime.timedelta(hours=i)
+                # an hourly price repeated over the periods of its hour is one price: every period of it is booked
+                for timestamp in self.periods_with_the_same_price(ctx, base_timestamp):
+                    if finished:
+                        break
+                    price = ctx.grid_prices.get(timestamp)
+                    if price is None or timestamp < ctx.current_hour:
                         continue
-                    profit = self.charge_kwh_profit(ctx, price, loop_price)
-                    if profit < ctx.get_min_profit_per_kwh():
+                    what_day = days_between(ctx.current_hour, timestamp)
+                    if what_day < day - 1 or what_day not in ctx.charging_plan:
                         continue
-                    kwh_with_profit.append(ctx.charging_plan[day]["hour_cost_prediction"][ctx.forecast_type][hour]["kwh"] / ctx.efficiency**2)
-                    profit_with_kwh.append(profit * kwh_with_profit[-1])
+                    if cheapest_price is not None and price - cheapest_price > cheapest_price_rise_threshold:
+                        continue
 
-                hour_in_charge_hours, kwh_available = self.kwh_available_in_hour(ctx.charge_hours, ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, timestamp)
-                if hour_in_charge_hours and kwh_available <= 0.0:
-                    continue
-                full_charge_kwh_needed = ctx.percentage_to_kwh(
-                    ctx.config["solar"]["powerwall_battery_level_max"] - ctx.config["solar"]["powerwall_battery_level_min"]
-                ) / ctx.efficiency
-                kwh_available = min(sum(kwh_with_profit), self.grid_headroom_kwh(ctx, timestamp, price), full_charge_kwh_needed, kwh_available)
-                if kwh_available <= 0.0:
-                    continue
-                average_profit = sum(profit_with_kwh) / sum(kwh_with_profit)
-                if not self.is_profitable(ctx, average_profit, min(kwh_available, kwh_needed)):
-                    _LOGGER.debug(
-                        "Cheapest hour fill: skipping %s (%.2f %s x %.2f kWh below the minimum profit)",
-                        timestamp, average_profit, ctx.valuta_kwh, min(kwh_available, kwh_needed),
-                    )
-                    continue
+                    # the hours of the day (after the charge hour) where using the charged kWh pays off
+                    kwh_with_profit = []
+                    profit_with_kwh = []
+                    for hour in ctx.charging_plan[day]["hour_cost_prediction"][ctx.forecast_type]:
+                        loop_timestamp = ctx.charging_plan[day]["start_of_day"].replace(hour=hour)
+                        loop_price = ctx.grid_prices.get(loop_timestamp)
+                        if loop_price is None or loop_timestamp <= timestamp or self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, loop_timestamp) > 0.0:
+                            continue
+                        profit = self.charge_kwh_profit(ctx, price, loop_price)
+                        if profit < ctx.get_min_profit_per_kwh():
+                            continue
+                        kwh_with_profit.append(ctx.charging_plan[day]["hour_cost_prediction"][ctx.forecast_type][hour]["kwh"] / ctx.efficiency**2)
+                        profit_with_kwh.append(profit * kwh_with_profit[-1])
 
-                if round(kwh_needed, 1) > 0.0 and ctx.kwh_to_percentage(kwh_needed) > 0.0:
-                    kwh_needed, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh, 
-                        kwh_needed, total_cost, total_kwh, timestamp, price, kwh_available,
-                        rules=["cheapest_hour_fill_planner"],
-                    )
-                    ctx.totals[:] = total_cost, total_kwh
-                    if timestamp in ctx.charge_hours and battery_level_added:
-                        ctx.charging_plan[day]["total_cost"] += cost_added
-                        reason = (
-                            f"<details><summary>{emoji_parse({'charging': True})}{ctx.r('title.cheapest_hours')} ({price}/{battery_level_added:.0f}%)"
-                            f"{self.other_day_text(ctx, day, what_day)}</summary>"
-                            f"{ctx.r('highest_level_time')}: **{highest_battery_level_timestamp.strftime('%H:%M')}**<br>"
-                            f"{ctx.r('highest_level')}: **{highest_battery_level:.1f}%**<br>"
-                            f"{ctx.r('current_price')}: **{price}** {ctx.valuta_kwh}<br>"
-                            f"{ctx.r('avg_profit_use')}: **{average_profit:.2f} {ctx.valuta_kwh}**<br>"
-                            f"{ctx.r('level_added')}: **{battery_level_added:.2f}%**<br>"
-                            "</details>"
+                    hour_in_charge_hours, kwh_available = self.kwh_available_in_hour(ctx.charge_hours, ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, timestamp)
+                    if hour_in_charge_hours and kwh_available <= 0.0:
+                        continue
+                    full_charge_kwh_needed = ctx.percentage_to_kwh(
+                        ctx.config["solar"]["powerwall_battery_level_max"] - ctx.config["solar"]["powerwall_battery_level_min"]
+                    ) / ctx.efficiency
+                    kwh_available = min(sum(kwh_with_profit), self.grid_headroom_kwh(ctx, timestamp, price), full_charge_kwh_needed, kwh_available)
+                    if kwh_available <= 0.0:
+                        continue
+                    average_profit = sum(profit_with_kwh) / sum(kwh_with_profit)
+                    if not self.is_profitable(ctx, average_profit, min(kwh_available, kwh_needed)):
+                        _LOGGER.debug(
+                            "Cheapest hour fill: skipping %s (%.2f %s x %.2f kWh below the minimum profit)",
+                            timestamp, average_profit, ctx.valuta_kwh, min(kwh_available, kwh_needed),
                         )
-                        self.add_charging_session_to_day(ctx, timestamp, what_day, reason=reason)
-                        self.add_charging_to_days(ctx, timestamp)
-                else:
-                    finished = True
+                        continue
+
+                    if round(kwh_needed, 1) > 0.0 and ctx.kwh_to_percentage(kwh_needed) > 0.0:
+                        kwh_needed, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh,
+                            kwh_needed, total_cost, total_kwh, timestamp, price, kwh_available,
+                            rules=["cheapest_hour_fill_planner"],
+                        )
+                        ctx.totals[:] = total_cost, total_kwh
+                        if timestamp in ctx.charge_hours and battery_level_added:
+                            ctx.charging_plan[day]["total_cost"] += cost_added
+                            reason = (
+                                f"<details><summary>{emoji_parse({'charging': True})}{ctx.r('title.cheapest_hours')} ({price}/{battery_level_added:.0f}%)"
+                                f"{self.other_day_text(ctx, day, what_day)}</summary>"
+                                f"{ctx.r('highest_level_time')}: **{highest_battery_level_timestamp.strftime('%H:%M')}**<br>"
+                                f"{ctx.r('highest_level')}: **{highest_battery_level:.1f}%**<br>"
+                                f"{ctx.r('current_price')}: **{price}** {ctx.valuta_kwh}<br>"
+                                f"{ctx.r('avg_profit_use')}: **{average_profit:.2f} {ctx.valuta_kwh}**<br>"
+                                f"{ctx.r('level_added')}: **{battery_level_added:.2f}%**<br>"
+                                "</details>"
+                            )
+                            self.add_charging_session_to_day(ctx, timestamp, what_day, reason=reason)
+                            self.add_charging_to_days(ctx, timestamp)
+                    else:
+                        finished = True
+
+    def periods_with_the_same_price(self, ctx, timestamp):
+        """The period at timestamp first, then the other periods of its hour that have exactly the same price.
+
+        An hourly price is repeated over every period of its hour, so they are one price and the hour is booked as a
+        whole. Periods with another price are not booked with it (the rule picks among them), and neither is a period
+        that is over."""
+        price = ctx.grid_prices.get(timestamp)
+        if price is None:
+            return [timestamp]
+        hour = reset_time_to_hour(timestamp)
+        now = ctx.now.replace(tzinfo=None)
+        same = sorted(
+            other for other, other_price in ctx.grid_prices.items()
+            if other != timestamp and hour <= other < hour + datetime.timedelta(hours=1) and other_price == price
+            # a period that is over can no longer be charged in
+            and (self.price_provider is None or self.price_provider.buy_period_end(other) > now)
+        )
+        return [timestamp, *same]
 
     def most_expensive_planner(self, ctx, day):
         total_cost, total_kwh = ctx.totals
@@ -208,7 +232,7 @@ class FutureChargeRules:
                     continue
 
                 if round(kwh_needed, 1) > 0.0 and ctx.kwh_to_percentage(kwh_needed) > 0.0:
-                    sorted_kwh_needed, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh, 
+                    sorted_kwh_needed, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh,
                         sorted_kwh_needed, total_cost, total_kwh, timestamp, price, kwh_available,
                         rules=["most_expensive_planner"],
                     )
@@ -285,7 +309,7 @@ class FutureChargeRules:
                 if kwh_available <= 0.0 or not self.is_profitable(ctx, kwh_profit, min(kwh_needed, kwh_available)):
                     continue
 
-                kwh_needed, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh, 
+                kwh_needed, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh,
                     kwh_needed, total_cost, total_kwh, timestamp, price, kwh_available,
                     rules=["needed_before_max_level_planner"],
                 )
@@ -325,7 +349,7 @@ class FutureChargeRules:
             kwh_available = _floor_kwh(min(kwh_available, self.grid_headroom_kwh(ctx, timestamp, price)))
             if kwh_available <= 0.0:
                 continue
-            _, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh, 
+            _, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh,
                 kwh_available, total_cost, total_kwh, timestamp, price, kwh_available, rules=["negative_price_planner"],
             )
             ctx.totals[:] = total_cost, total_kwh
@@ -396,7 +420,7 @@ class FutureChargeRules:
                 if delivered_kwh < min_sell_kwh or not self.is_profitable(ctx, kwh_profit, delivered_kwh, periods_in_hour, sale=True):
                     continue
                 charged_before = ctx.charge_hours.get(buy_timestamp, {}).get("kWh", 0.0)
-                _, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh, 
+                _, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh,
                     grid_kwh, total_cost, total_kwh, buy_timestamp, buy_price, grid_kwh, rules=["grid_charge_to_sell"],
                 )
                 ctx.totals[:] = total_cost, total_kwh
@@ -434,3 +458,81 @@ class FutureChargeRules:
                 self.add_charging_session_to_day(ctx, buy_timestamp, buy_day, reason=reason)
                 self.add_charging_to_days(ctx, buy_timestamp)
                 break
+
+    def full_charge_reached(self, ctx, deadline) -> bool:
+        """The planned battery level reaches full (max level - FULL_CHARGE_MARGIN) in an hour up to the deadline hour."""
+        return self.full_charge_reached_at(ctx, deadline) is not None
+
+    def full_charge_reached_at(self, ctx, deadline):
+        """The first hour up to the deadline hour the planned level is full (the current hour when full now), else None."""
+        full_level = self.full_charge_plan["full_level"]
+        if ctx.get_battery_level() >= full_level - 1e-6:
+            return ctx.current_hour
+        timestamp = ctx.current_hour
+        while timestamp <= deadline:
+            data = ctx.charging_plan.get(days_between(ctx.current_hour, timestamp))
+            if data is None:
+                break
+            flow = data["battery_level_flow"].get(timestamp.hour)
+            if flow and sum(flow) >= full_level - 1e-6:
+                return timestamp
+            timestamp += datetime.timedelta(hours=1)
+        return None
+
+    def full_charge_planner(self, ctx, day):
+        """💯 Full charge: fill the battery to the max level in the cheapest hours up to the deadline (number
+        full_charge_recommended; no switch).
+
+        Runs on the day of the deadline, after the other charge rules, and once more after the sell rules (they can
+        lower the levels): it only adds what the plan still lacks. It charges for the battery's health, so it has no
+        profit requirement (like negative prices), but the sun goes first: an hour gets at most the room the sun
+        doesn't fill before the deadline (grid_headroom_kwh until the deadline). There is no requirement while grid
+        charging is unsupported (full_charge_status). Sets full_charge_plan["rules_reached"].
+        """
+        plan = self.full_charge_plan
+        if not plan:
+            return
+        deadline = plan["deadline"]
+        if day != days_between(ctx.current_hour, deadline):
+            return
+        if not self.full_charge_reached(ctx, deadline):
+            total_cost, total_kwh = ctx.totals
+            elapsed = plan.get("elapsed_days")
+            for timestamp, price in list(ctx.sorted_by_cheapest_price):
+                if self.full_charge_reached(ctx, deadline):
+                    break
+                if timestamp < ctx.current_hour or reset_time_to_hour(timestamp) > deadline:
+                    continue
+                what_day = days_between(ctx.current_hour, timestamp)
+                if what_day not in ctx.charging_plan:
+                    continue
+                hour_in_charge_hours, kwh_available = self.kwh_available_in_hour(ctx.charge_hours, ctx.charging_plan, ctx.current_hour, ctx.max_kwh_charging, timestamp)
+                if hour_in_charge_hours and kwh_available <= 0.0:
+                    continue
+                headroom_kwh = self.grid_headroom_kwh(ctx, timestamp, until=deadline)
+                # never more than the room the sun leaves (solar goes first) or the hour's charge power. A top-up smaller
+                # than the smallest charge is fine: add_to_charge_hours() checks the hour's capacity (kwh_available), not the
+                # amount, so the last gap to full can be closed
+                kwh = _floor_kwh(min(kwh_available, headroom_kwh))
+                if kwh <= 0.0:
+                    continue
+                _, total_cost, total_kwh, battery_level_added, cost_added = self.add_to_charge_hours(ctx.charge_hours, ctx.config, ctx.efficiency, ctx.kwh_to_percentage, ctx.max_kwh_charging, ctx.name, ctx.percentage_to_kwh, ctx.valuta_kwh,
+                    kwh, total_cost, total_kwh, timestamp, price, kwh_available, rules=["full_charge_planner"],
+                )
+                ctx.totals[:] = total_cost, total_kwh
+                if timestamp in ctx.charge_hours and battery_level_added:
+                    ctx.charging_plan[what_day]["total_cost"] += cost_added
+                    elapsed_text = f"{elapsed:.0f}" if isinstance(elapsed, (int, float)) else "–"
+                    reason = (
+                        f"<details><summary>{emoji_parse({'full_charge_planner': True})}{ctx.r('title.full_charge')} ({price}/{battery_level_added:.0f}%)"
+                        f"{self.other_day_text(ctx, day, what_day)}</summary>"
+                        f"{ctx.r('full_charge_due')}: **{elapsed_text}**<br>"
+                        f"{ctx.r('needed_at')}: **{deadline.strftime('%d/%m %H')}:59**<br>"
+                        f"{ctx.r('current_price')}: **{price} {ctx.valuta_kwh}**<br>"
+                        f"{ctx.r('room_without_solar')}: **{headroom_kwh:.2f} kWh**<br>"
+                        f"{ctx.r('level_added')}: **{battery_level_added:.2f}%**<br>"
+                        "</details>"
+                    )
+                    self.add_charging_session_to_day(ctx, timestamp, what_day, reason=reason)
+                    self.add_charging_to_days(ctx, timestamp)
+        plan["rules_reached"] = self.full_charge_reached(ctx, deadline)

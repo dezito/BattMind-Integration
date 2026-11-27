@@ -85,7 +85,7 @@ AUTOMATIONS = """
         - action: goodwe.set_parameter
           data:
             device_id: {device_id}
-        - action: notify.mobile_app_thomas_phone
+        - action: notify.mobile_app_pixel_x
           data:
             message: "{{{{ states('sensor.thomas_inverter_soc') }}}}"
 - id: '1700000000001'
@@ -94,6 +94,28 @@ AUTOMATIONS = """
     path: homeassistant/motion_light.yaml
     input: {{}}
 """
+
+
+async def test_export_does_not_hold_the_notify_services_of_the_push_notifications(hass: HomeAssistant, config_dir: Path, mock_entry) -> None:
+    """A notify service is named after a device or a person (notify.mobile_app_<phone>): neither the options nor the config of
+    the export may hold it."""
+    from .conftest import set_source_states
+
+    set_source_states(hass)
+    mock_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(mock_entry, options={**mock_entry.options, "notify_list": ["notify.mobile_app_pixel_x", "notify.family_tablet"]})
+    assert await hass.config_entries.async_setup(mock_entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    response = await hass.services.async_call(DOMAIN, "export_debug", {}, blocking=True, return_response=True)
+    data, text = _read(config_dir.parent / response["files"][PREFIX])
+
+    for secret in ("mobile_app_pixel_x", "pixel_x", "family_tablet"):
+        assert secret not in text, secret
+    assert data["options"]["notify_list"] == "<redacted>" and data["config"]["notify_list"] == "<redacted>"
+    from .conftest import async_unload_and_join
+
+    await async_unload_and_join(hass, mock_entry)
 
 
 async def test_export_has_blueprint_automations_and_integrations(hass: HomeAssistant, config_dir: Path, loaded_entry) -> None:

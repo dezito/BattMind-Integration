@@ -19,6 +19,9 @@ hours with surplus the sun covers the house.
 Turn it off only if the battery can't charge from solar (e.g. an AC-coupled battery that is controlled
 separately). The plan then ignores the sun.
 
+The overview says it in words for today and tomorrow: how much surplus the sun gives and when, when the battery is full
+and what there is no room for – see [The sun in words](../dashboard-analysis.md#the-sun-in-words).
+
 ---
 
 ## 🎛️ Optimise solar charging

@@ -43,7 +43,8 @@ The home battery shouldn't be drained into the car – unless there is energy to
 
 1. BattMind setup → **Consumption**: leave **Ignore Cable Juice Planner chargers** on (the default), so the
    cars' chargers aren't in the consumption forecast. A charger that is not set up in Cable Juice Planner goes
-   under **Ignored consumers**.
+   under **Ignored consumers**, unless it is on its own meter that the house consumption sensor does not include
+   (then there is nothing to subtract).
 2. Blueprint → **EV (optional)**:
    - **EV charger power:** the charger's power sensor
    - **While the car is charging:** set the battery's discharge power to 0
@@ -89,3 +90,10 @@ Some batteries fall back to their own mode if no command arrives for a while.
 
 See [Huawei Solar](inverters/huawei.md) for complete actions. Keep the repeat interval at 5 minutes, so
 Huawei's forced charge/discharge (which stops by itself) is renewed.
+
+## SolarEdge, Deye and Sofar
+
+See [SolarEdge](inverters/solaredge.md), [Deye hybrid (Solarman)](inverters/deye-solarman.md) and
+[Sofar hybrid (Solarman)](inverters/sofar-solarman.md). They are checked against the integrations'
+source code, not tested on an inverter, so try each action by hand first. Keep the repeat interval at
+5 minutes.

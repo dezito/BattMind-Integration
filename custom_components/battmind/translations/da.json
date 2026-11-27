@@ -281,7 +281,7 @@
       },
       "solar": {
         "title": "Solceller",
-        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\nDeaktiverede Solcast-sensorer nu: {solcast_disabled}",
+        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.\n\nForecast.Solar og Helios Forecast læses fra deres solprognose til Energi-dashboardet; de timer, de ikke dækker, planlægges ud fra vejrudsigten og den gemte solhistorik; en time uden nogen af dem regnes som ingen sol.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\nDeaktiverede Solcast-sensorer nu: {solcast_disabled}",
         "data": {
           "production_entity_id": "Solproduktion",
           "inverter_discharging_power_limit": "Inverterens effektgrænse",
@@ -292,7 +292,7 @@
           "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW). Lad feltet være tomt hvis du ikke har solceller.",
           "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
           "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
-          "forecast_entity_id": "Solcast PV Forecast sensor, f.eks. sensor.solcast_pv_forecast_forecast_today. De kommende dage findes automatisk."
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar eller Helios Forecast. Solcast: f.eks. sensor.solcast_pv_forecast_forecast_today, de kommende dage findes automatisk. Forecast.Solar: en vilkårlig af dens sensorer; tagfladerne i samme solkilde i Energi-dashboardet lægges sammen. Helios Forecast: f.eks. sensor.helios_forecast_power_now."
         }
       },
       "weather": {
@@ -360,7 +360,7 @@
       "min_above_max": "Minimum niveau skal være lavere end maksimum niveau.",
       "invalid_icon": "Brug et ikonnavn som mdi:home-battery.",
       "invalid_efficiency_curve": "Brug et objekt, der knytter effekt over 0 W til en virkningsgrad over 0 og hoejst 100 procent.",
-      "price_unit_subunit": "Sensoren angiver prisen i cent, pence eller øre (eller, for Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot og Nord Pool, pr. MWh eller Wh). Vælg en sensor med prisen pr. kWh i valutaen (fx EUR/kWh). Wattcasts prissensor skal give ct/kWh; en anden enhed er forkert for den.",
+      "price_unit_subunit": "Sensoren angiver prisen i cent, pence eller øre (eller, for Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot og Nord Pool, pr. MWh eller Wh, og for Energy Price Forecast pr. Wh). Vælg en sensor med prisen pr. kWh i valutaen (fx EUR/kWh). Wattcasts prissensor skal give ct/kWh; en anden enhed er forkert for den.",
       "price_sensor_not_retail": "Det er ikke sensoren med detailprisen. Vælg Energy Price Forecasts sensor med detailprisen som købspris (engrosprisen er salgsprisen).",
       "price_sensor_not_wholesale": "Det er sensoren med detailprisen. Vælg Energy Price Forecasts sensor med engrosprisen som salgspris (detailprisen er højere end det, et salg giver).",
       "price_sensor_forecast_only": "Sensoren har lige nu ingen offentliggjorte priser for i dag, kun en prognose. Hvis Energy Price Forecast ikke offentliggør priser for dit marked (fx Finland eller Storbritannien), så vælg en Nord Pool- eller ENTSO-e-sensor som “Egen priskilde” i Energy Price Forecast (til købsprisen skal du også vælge “Egen formel” under “Detailpris” dér: estimatet bruger ikke priskilden), og vælg så sensoren igen. Ellers prøv igen, når priserne er offentliggjort.",
@@ -389,8 +389,9 @@
           "menu_battery": "Husbatteri",
           "menu_consumption": "Husets forbrug",
           "menu_prices": "Elpriser",
-          "menu_solar": "Solceller og vejr",
+          "menu_solar": "Solceller, vejr og stormvarsel",
           "menu_advanced": "Planlægning og datalagring",
+          "menu_notifications": "Push-beskeder",
           "backup": "Backup (eksportér / importér)"
         }
       },
@@ -664,7 +665,7 @@
       },
       "solar": {
         "title": "Solceller",
-        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\nDeaktiverede Solcast-sensorer nu: {solcast_disabled}",
+        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.\n\nForecast.Solar og Helios Forecast læses fra deres solprognose til Energi-dashboardet; de timer, de ikke dækker, planlægges ud fra vejrudsigten og den gemte solhistorik; en time uden nogen af dem regnes som ingen sol.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\nDeaktiverede Solcast-sensorer nu: {solcast_disabled}",
         "data": {
           "production_entity_id": "Solproduktion",
           "inverter_discharging_power_limit": "Inverterens effektgrænse",
@@ -675,7 +676,7 @@
           "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW). Lad feltet være tomt hvis du ikke har solceller.",
           "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
           "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
-          "forecast_entity_id": "Solcast PV Forecast sensor, f.eks. sensor.solcast_pv_forecast_forecast_today. De kommende dage findes automatisk."
+          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar eller Helios Forecast. Solcast: f.eks. sensor.solcast_pv_forecast_forecast_today, de kommende dage findes automatisk. Forecast.Solar: en vilkårlig af dens sensorer; tagfladerne i samme solkilde i Energi-dashboardet lægges sammen. Helios Forecast: f.eks. sensor.helios_forecast_power_now."
         }
       },
       "weather": {
@@ -688,6 +689,38 @@
         "data_description": {
           "hourly_service_entity_id": "Vejr-entitet med timeprognose. Skydække, UV og temperatur bruges til at vurdere soloverskuddet.",
           "daily_service_entity_id": "Vejr-entitet med dagsprognose. Bruges til de timer timeprognosen ikke dækker."
+        }
+      },
+      "storm": {
+        "title": "Stormvarsel",
+        "description": "Hold batteriet opladet til et stormvarsel. Vælg MeteoAlarms binary sensor; lad feltet stå tomt for at slå funktionen fra. Kun varsler om vind, sne/is og torden på eller over det valgte niveau tæller, og kun varsler med et starttidspunkt. Behovet er det forventede husforbrug under varslet uden sol plus en buffer for en prognose, der rammer ved siden af (mindst 20 %). Uden nødstrøm driver et fuldt batteri ikke huset ved strømsvigt.",
+        "data": {
+          "storm_warning_entity_id": "Stormvarsel (MeteoAlarm)",
+          "storm_min_level": "Laveste niveau der tæller"
+        },
+        "data_description": {
+          "storm_warning_entity_id": "MeteoAlarms binary sensor for din region. Tom = fra: funktionen, dens sensor og dens tal oprettes ikke.",
+          "storm_min_level": "2 = gul, 3 = orange, 4 = rød."
+        }
+      },
+      "notifications": {
+        "title": "Push-beskeder",
+        "description": "Send push-beskeder gennem de notify-tjenester eller -entiteter, du vælger (for eksempel mobilappen). Lad listen stå tom for ikke at sende nogen. En besked sendes, når noget ændrer sig: et problem opstår (og en besked, når det er forbi), en stormadvarsel, noget BattMind har lært, eller en gang om dagen et resumé af morgendagens plan. Manglende eller uklare data siger aldrig, at et problem er forbi. Beskederne er på det sprog, du har valgt til BattMind.",
+        "data": {
+          "notify_list": "Send gennem",
+          "notify_problems": "Problemer",
+          "notify_storm": "Stormadvarsel",
+          "notify_learning": "Læring færdig",
+          "notify_summary": "Dagligt resumé",
+          "notify_summary_hour": "Send resuméet fra (time)"
+        },
+        "data_description": {
+          "notify_list": "Notify-tjenester (notify.mobile_app_...) og notify-entiteter. Tom = ingen push-beskeder.",
+          "notify_problems": "Batteriniveauet er mistet, planen følges ikke, sensorer mangler, er frosset eller utilgængelige, batteriet er stoppet af temperaturen, eller BattMind kan ikke starte, regne eller gemme ladehistorikken. Der kommer også en besked, når det er forbi.",
+          "notify_storm": "En stormadvarsel er på vej eller i gang, og når den er forbi.",
+          "notify_learning": "Én gang hver: forbrugsprognosen, effektivitetskurverne og den målte kapacitet er klar.",
+          "notify_summary": "Én gang om dagen: hvad der er planlagt til i morgen (opladning fra nettet og salg). Sendes, når morgendagens priser kendes.",
+          "notify_summary_hour": "Resuméet sendes ved slutningen af den første time fra dette klokkeslæt, hvor morgendagens priser kendes (0-23)."
         }
       },
       "advanced": {
@@ -747,7 +780,7 @@
       "min_above_max": "Minimum niveau skal være lavere end maksimum niveau.",
       "invalid_icon": "Brug et ikonnavn som mdi:home-battery.",
       "invalid_efficiency_curve": "Brug et objekt, der knytter effekt over 0 W til en virkningsgrad over 0 og hoejst 100 procent.",
-      "price_unit_subunit": "Sensoren angiver prisen i cent, pence eller øre (eller, for Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot og Nord Pool, pr. MWh eller Wh). Vælg en sensor med prisen pr. kWh i valutaen (fx EUR/kWh). Wattcasts prissensor skal give ct/kWh; en anden enhed er forkert for den.",
+      "price_unit_subunit": "Sensoren angiver prisen i cent, pence eller øre (eller, for Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot og Nord Pool, pr. MWh eller Wh, og for Energy Price Forecast pr. Wh). Vælg en sensor med prisen pr. kWh i valutaen (fx EUR/kWh). Wattcasts prissensor skal give ct/kWh; en anden enhed er forkert for den.",
       "price_sensor_not_retail": "Det er ikke sensoren med detailprisen. Vælg Energy Price Forecasts sensor med detailprisen som købspris (engrosprisen er salgsprisen).",
       "price_sensor_not_wholesale": "Det er sensoren med detailprisen. Vælg Energy Price Forecasts sensor med engrosprisen som salgspris (detailprisen er højere end det, et salg giver).",
       "price_sensor_forecast_only": "Sensoren har lige nu ingen offentliggjorte priser for i dag, kun en prognose. Hvis Energy Price Forecast ikke offentliggør priser for dit marked (fx Finland eller Storbritannien), så vælg en Nord Pool- eller ENTSO-e-sensor som “Egen priskilde” i Energy Price Forecast (til købsprisen skal du også vælge “Egen formel” under “Detailpris” dér: estimatet bruger ikke priskilden), og vælg så sensoren igen. Ellers prøv igen, når priserne er offentliggjort.",
@@ -927,6 +960,9 @@
   },
   "entity": {
     "switch": {
+      "automation_test_run": {
+        "name": "Test min automation"
+      },
       "what_if_run": {
         "name": "Start simulering"
       },
@@ -981,6 +1017,12 @@
       "enhance_battery_efficiency": {
         "name": "Forbedr batteriets virkningsgrad"
       },
+      "learn_charge_taper": {
+        "name": "Lær ladeeffekt efter batteriniveau"
+      },
+      "learn_battery_capacity": {
+        "name": "Brug målt batterikapacitet"
+      },
       "price_forecast_correction": {
         "name": "Ret prisprognosen"
       },
@@ -1018,6 +1060,12 @@
       },
       "powerwall_max_hours_old": {
         "name": "Maks. timer gamle kWh i husbatteri"
+      },
+      "full_charge_recommended": {
+        "name": "Anbefalet fuld ladning hver"
+      },
+      "storm_cover_hours": {
+        "name": "Timer et stormvarsel uden sluttid dækker"
       },
       "what_if_history_days": {
         "name": "What-if – Historik (dage)"
@@ -1256,11 +1304,40 @@
       "kwh_charged_by_solar": {
         "name": "kWh ladet af solcellerne"
       },
+      "storm_warning": {
+        "name": "Stormvarsel",
+        "state": {
+          "no_warning": "Intet varsel",
+          "entity_unavailable": "Varsel-entitet utilgængelig",
+          "below_level": "Under det valgte niveau",
+          "other_type": "Ikke et stormvarsel",
+          "no_start": "Ingen starttid (ignoreret)",
+          "unreadable": "Niveau eller type kan ikke læses (ignoreret)",
+          "expired": "Slut",
+          "invalid": "Slut før start (ignoreret)",
+          "later": "Starter efter planen",
+          "coming": "Kommer",
+          "active": "Aktivt"
+        }
+      },
+      "last_full_charge": {
+        "name": "Sidste fulde opladning"
+      },
       "analysis": {
         "name": "Besparelse denne måned"
       },
       "what_if": {
         "name": "What-if-resultat"
+      },
+      "automation_test": {
+        "name": "Automationstest",
+        "state": {
+          "idle": "Inaktiv",
+          "running": "Kører",
+          "done": "Færdig",
+          "stopped": "Stoppet",
+          "failed": "Mislykket"
+        }
       },
       "what_if_status": {
         "name": "What-if-status",
@@ -1348,10 +1425,6 @@
       "title": "Energy Price Forecast-sensorer, som BattMind bruger, har ingen offentliggjorte priser ({prefix})",
       "description": "BattMind ({prefix}) bruger Energy Price Forecast-sensorer, der i mindst en time ikke har haft offentliggjorte priser for i dag eller i morgen, kun en prognose:\n{entities}\n\nUden en pris for i dag har de timer, der er gået, ingen pris, så de mangler i ladehistorikken, prisen på energien i batteriet og prishistorikken.\n\nHvis Energy Price Forecast ikke offentliggør priser for dit marked (fx Finland eller Storbritannien), så vælg en Nord Pool- eller ENTSO-e-sensor som “Egen priskilde” i Energy Price Forecast (til købsprisen skal du også vælge “Egen formel” under “Detailpris” dér: estimatet bruger ikke priskilden). Ellers er priserne blot forsinket.\n\nDenne reparation forsvinder af sig selv, når sensorerne har offentliggjorte priser igen."
     },
-    "price_sensor_unit": {
-      "title": "Prissensorer som BattMind bruger giver prisen i en forkert enhed ({prefix})",
-      "description": "BattMind ({prefix}) bruger prissensorer, der giver prisen i en underenhed af valutaen (fx ct/kWh eller p/kWh) eller, for Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot og Nord Pool, pr. MWh eller Wh:\n{entities}\n\nDeres priser er 100 eller 1000 gange forkerte, så BattMind bruger dem ikke: den planlægger i stedet på de gemte priser. Vælg en sensor med prisen pr. kWh i valutaen (fx EUR/kWh) i prisindstillingerne, eller sæt sensorens enhed tilbage.\n\nDenne reparation forsvinder af sig selv, når sensorerne igen giver prisen pr. kWh.\n\nWattcasts prissensor skal give ct/kWh; en anden enhed er forkert for den."
-    },
     "stromligning_entities": {
       "title": "Strømligning-sensorer som BattMind skal bruge er ikke tilgængelige ({prefix})",
       "description": "BattMind ({prefix}) bruger Strømligning-sensorer, der er deaktiveret eller som Strømligning ikke leverer. En manglende salgstarif tæller som 0, hvilket gør den beregnede salgspris for høj, og uden pris-sensorerne bruges de gemte priser.\n\nDeaktiveret i Home Assistant (Strømligning deaktiverer som standard sine sensorer uden moms – aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** med *Vis deaktiverede entiteter*):\n{disabled}\n\nIkke leveret af Strømligning (f.eks. er prisprognoserne slået fra i dens indstillinger):\n{not_provided}\n\nDenne reparation forsvinder af sig selv, når sensorerne virker igen."
@@ -1359,6 +1432,38 @@
     "solcast_entities": {
       "title": "Solcast-prognosesensorer som BattMind skal bruge er ikke tilgængelige ({prefix})",
       "description": "BattMind ({prefix}) kan ikke bruge alle de Solcast-prognosesensorer, den skal bruge, så dagene uden en planlægges i stedet ud fra vejrudsigten og den gemte solhistorik. Solcast deaktiverer som standard prognosesensorerne fra dag 3 og frem.\n\nDeaktiveret i Home Assistant (aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** med *Vis deaktiverede entiteter*):\n{disabled}\n\nIkke navngivet som BattMind forventer (entity-id'et skal ende på _today, _tomorrow eller _day_3 …):\n{renamed}\n\nUden timedetaljer (slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger):\n{no_detail}\n\nDenne reparation forsvinder af sig selv, når sensorerne er rettet."
+    },
+    "entities_missing": {
+      "title": "Sensorer BattMind bruger er deaktiveret eller mangler ({prefix})",
+      "description": "BattMind ({prefix}) bruger sensorer, der er deaktiveret i Home Assistant, eller som ikke findes længere, fordi de er slettet eller omdøbt. Planen regner så med manglende værdier, og batteriet følger måske ikke planen.\n\nDeaktiveret (aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter**, med *Vis deaktiverede entiteter*):\n{disabled}\n\nMangler (vælg sensoren igen under **Konfigurer** i BattMind-integrationen, eller giv den dens gamle navn tilbage):\n{missing}\n\nFor at kontrollere at batteriet stadig følger planen, kør *Test min automation* på BattMind-dashboardet.\n\nDenne reparation forsvinder af sig selv, når alle sensorerne er aktiveret og fundet igen."
+    },
+    "entity_units": {
+      "title": "Sensorenheder BattMind ikke kan læse ({prefix})",
+      "description": "BattMind ({prefix}) læser effektsensorer i mW, W, kW, MW eller GW (en enhed med h, fx Wh eller kWh, læses som enheden uden h), og batteriniveauet i %. Disse sensorer rapporterer en anden enhed, så deres værdier læses i en forkert størrelse, og planen er forkert:\n{entities}\n\nSkift enheden i integrationen, der opretter sensoren, eller vælg under **Konfigurer** i BattMind-integrationen en sensor, der rapporterer effekt eller batteriniveau i disse enheder. Kør derefter *Test min automation* på BattMind-dashboardet for at kontrollere, at batteriet stadig følger planen.\n\nDenne reparation forsvinder af sig selv, når alle sensorerne rapporterer en enhed, BattMind kan læse."
+    },
+    "blueprint_automation_lost": {
+      "title": "Automationen lavet af BattMind-blueprintet er slået fra ({prefix})",
+      "description": "BattMind ({prefix}) har set en automation lavet ud fra dens blueprint til batteriet, som var slået til. Den er nu slået fra eller slettet, så batteriet ikke længere får planens handlinger.\n\nSlået fra (en tankestreg betyder, at automationen er slettet fra automations.yaml):\n{automations}\n\nSlå automationen til igen under **Indstillinger → Automationer og scener**, eller lav en ny ud fra BattMind-blueprintet og kør *Test min automation* på BattMind-dashboardet.\n\nDenne reparation forsvinder af sig selv, når automationen er tændt igen. Hvis du har stoppet med blueprintet med vilje, kan du ignorere reparationen."
+    },
+    "power_without_unit": {
+      "title": "Effektsensorer uden enhed ({prefix})",
+      "description": "BattMind ({prefix}) læser disse effektsensorer i watt (W), fordi de ikke har en enhed. Tallet efter ≤ er den højeste værdi, der er set (uden fortegn):\n{entities}\n\nI de seneste {days} dage har deres værdier aldrig været over {max}, og nogle af dem er decimaltal. Det ligner kilowatt (kW): læst som W bliver værdierne 1000 gange for små, og planen bruger langt for lidt effekt.\n\nRet det ved kilden: giv sensoren dens enhed, fx `unit_of_measurement: kW` på en template-sensor, eller den enhed, som integrationen, der opretter sensoren, angiver. Kør derefter *Test min automation* på BattMind-dashboardet for at kontrollere, at batteriet stadig følger planen.\n\nHvis værdierne virkelig er i W, kan du ignorere reparationen. Den forsvinder af sig selv, når sensorerne har en enhed, eller når deres værdier viser, at de er i W."
+    },
+    "battery_level_fraction": {
+      "title": "Batteriniveauet ligner en andel, ikke en procent ({prefix})",
+      "description": "BattMind ({prefix}) læser batteriniveau-sensoren som procent (%). Tallet efter ≤ er den højeste værdi, der er set (uden fortegn):\n{entities}\n\nI de seneste {days} dage lå alle værdierne mellem 0 og 1, så den ligner en andel (0,85 = 85 %). Læst som procent bliver 0,85 til 0,85 % i stedet for 85 %.\n\nRet det ved kilden: lad sensoren vise 0 til 100, fx ved at gange med 100 i en template-sensor, og vælg den sensor under **Konfigurer** i BattMind-integrationen. Kør derefter *Test min automation* på BattMind-dashboardet for at kontrollere, at batteriet stadig følger planen.\n\nHvis batteriniveauet virkelig ligger under 1 % hele tiden, kan du ignorere reparationen. Den forsvinder af sig selv, når sensoren viser værdier over 1."
+    },
+    "price_unit_scale": {
+      "title": "Prissensorer i underenhed, pr. MWh eller pr. Wh ({prefix})",
+      "description": "BattMind ({prefix}) læser priser fra disse sensorer, men de er i en enhed, BattMind ikke omregner:\n{entities}\n\nPriserne er i en underenhed af valutaen (øre eller cent), pr. MWh eller pr. Wh (Energy Price Forecast omregner selv en pris pr. MWh), så de er 100 gange for store (underenhed), 1000 gange for store (pr. MWh) eller 1000 gange for små (pr. Wh). BattMind bruger ikke priserne fra en sådan sensor hos Energi Data Service, Energy Price Forecast, Spot Forecast, Elprisprognos, Wattcast, EPEX Spot, GE-Spot og Nord Pool: i stedet bruges den næste udbyders priser eller de gemte priser. En Strømligning-sensor, en Octopus Energy-sensor eller en tarifsensor læses, som den er, så for dem er planen og besparelsesberegningen forkerte.\n\nRet det ved kilden: i Energi Data Service slår du **Vis priser i øre** fra og sætter **Pris beregnes i** til kWh i integrationens indstillinger. Ellers vælger du en sensor med valutaen pr. kWh (fx kr/kWh) under **Konfigurer** i BattMind-integrationen. Kør derefter *Test min automation* på BattMind-dashboardet for at kontrollere, at batteriet stadig følger planen.\n\nHvis priserne virkelig er i valutaen pr. kWh, kan du ignorere reparationen. Den forsvinder af sig selv, når ingen prissensor er i en underenhed, pr. MWh eller pr. Wh.\n\nWattcasts prissensor skal give ct/kWh; en anden enhed er forkert for den."
+    },
+    "consumption_frozen": {
+      "title": "Husets forbrugssensor viser den samme værdi ({prefix})",
+      "description": "BattMind ({prefix}) bruger forbrugssensoren {entity} til planen. Den har vist den samme værdi, {value}, siden {since}. Når en forbrugssensor holder op med at ændre sig, er integrationen eller enheden, der leverer den, typisk gået i stå, så planen bruger en gammel værdi for husets forbrug.\n\nTjek integrationen eller enheden, der leverer sensoren, og genstart den om nødvendigt. Kør derefter *Test min automation* på BattMind-dashboardet for at kontrollere, at batteriet stadig følger planen.\n\nReparationen forsvinder af sig selv, når sensoren viser en anden værdi. Den ændrer intet i BattMind eller dine automationer: ignorér den, hvis værdien virkelig er stabil."
+    },
+    "plan_not_followed": {
+      "title": "Batteriet følger ikke planen ({prefix})",
+      "description": "BattMind har de seneste {days} dage vurderet {checked} timer, hvor batteriet skulle gøre det, handlingen i `sensor.{prefix}_powerwall_action` siger. I {mismatches} af dem gjorde batteriet det ikke, og {percent} % passede. Reparationen vises ved {min_checked} eller flere vurderede timer med mindst {min_mismatches} uoverensstemmelser og en overensstemmelse under {max_percent} %.\n\nSeneste uoverensstemmelser (time, handling, opladet / afladet kWh):\n{latest}\n\nTypiske årsager:\n- automationen kører ikke trinnet for den handling: kør *Test min automation* på BattMind-dashboardet og læs resultatet for hver handling\n- en anden app, en anden automation eller inverterens egen plan styrer også batteriet\n- et forkert fortegn: opladning måles som afladning, eller omvendt (tjek sensoren for batteriets effekt)\n- en indstilling i inverteren, fx minimum ladetilstand eller maks. effekt, stopper batteriet\n\nTimer, hvor batteriet ikke kunne følge med, tælles ikke med: batteriet var ved en grænse, testen kørte, data manglede, eller handlingen ændrede sig i timen.\n\nDenne reparation forsvinder af sig selv, når batteriet følger planen igen: færre end {min_mismatches} uoverensstemmelser, eller mindst {max_percent} % overensstemmelse. Timerne tælles over de seneste {days} dage, så det kan tage flere dage."
     }
   }
 }

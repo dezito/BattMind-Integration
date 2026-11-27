@@ -137,6 +137,7 @@ class Planner(WhatIf, Overview, ChargingHours, ChargingFlow, FutureCharging):
                 "charging_sessions": {},
                 "solar_kwh_prediction": [],
                 "solar_cost_prediction": [],
+                "solar_known_hours": 0,  # hours of solar_kwh_prediction with a value (the others are 0.0: no known sun)
                 "solar_prediction_corrected": False,
                 "battery_level_start_of_day": [],
                 "battery_level_end_of_day": [],
@@ -206,6 +207,7 @@ class Planner(WhatIf, Overview, ChargingHours, ChargingFlow, FutureCharging):
                 prediction = self.solar_prediction_db.get(day, {})
                 charging_plan[day]["solar_kwh_prediction"] = prediction.get("total", [])
                 charging_plan[day]["solar_cost_prediction"] = prediction.get("total_sell", [])
+                charging_plan[day]["solar_known_hours"] = prediction.get("known_hours", len(prediction.get("total", [])))
 
             solar_kwh_sum = sum(charging_plan[day]["solar_kwh_prediction"])
             max_charging_kwh = percentage_to_kwh(

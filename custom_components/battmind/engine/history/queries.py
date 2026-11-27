@@ -173,13 +173,15 @@ class HistoryQueries:
                     if round(expenses["percentage"]) >= round(current_battery_level):
                         break
                     charged = self.charging_history_db[key].get("charged", {})
-                    if any(k not in charged for k in ("price", "cost", "kWh", "kWh_from_local_energy", "percentage")):
+                    if any(k not in charged for k in ("price", "cost", "kWh", "kWh_from_local_energy")):
                         continue
                     if not isinstance(charged["price"], (int, float)):
                         continue
                     cost = charged["cost"] or 0.0
                     kwh = charged["kWh"]
-                    percentage = charged["percentage"]
+                    # the level the energy is worth NOW: the stored percentage is the level at the size of the time it was written
+                    # (the configured one, or the measured one the plan counted on), the kWh do not change with it
+                    percentage = self.kwh_to_percentage(kwh)
                     solar_percentage = self.kwh_to_percentage(charged["kWh_from_local_energy"])
                     cost_loss = self.calc_battery_loss_cost(cost)
                     total_cost = (cost + cost_loss) + abs(cfg["solar"]["powerwall_wear_cost_per_kwh"])

@@ -55,6 +55,63 @@ def test_every_language_renders_without_placeholders(language: str) -> None:
     assert [view["path"] for view in views] == ["overview", "settings", "analysis", "what-if"]
 
 
+@pytest.mark.parametrize("language", list(LANGUAGES))
+def test_the_analysis_sections_are_grouped_under_full_width_headings(language: str) -> None:
+    """One analysis view: results, the plan, forecasts, the battery, then the history. A group heading is a span 4 title."""
+    texts = load_texts(language)
+    analysis = next(view for view in yaml.safe_load(rendered(language))["views"] if view["path"] == "analysis")
+    assert "dense_section_placement" not in analysis  # dense placement could pull a section above its group heading
+    groups: list[tuple[str, list[str]]] = []
+    for section in analysis["sections"]:
+        cards = section["cards"]
+        if len(cards) == 1 and cards[0]["type"] == "heading" and cards[0].get("heading_style") == "title":
+            assert section["column_span"] == 4
+            groups.append((cards[0]["heading"], []))
+            continue
+        heading = next(card["heading"] for card in cards if card["type"] == "heading")
+        if heading == texts["dashboard.section_history"]:
+            groups.append(("history", []))  # the History has its own heading and ends the last group
+        else:
+            groups[-1][1].append(heading)
+    expected = [
+        ("group_results", ["section_economy", "section_rules", "section_score", "section_cycles", "section_sufficiency"]),
+        ("group_plan", ["section_planned", "section_expensive"]),
+        ("group_forecasts", ["section_forecast", "consumption_forecast", "section_solar_forecast", "section_price_forecast"]),
+        ("group_battery", ["section_loss", "section_efficiency_curve"]),
+    ]
+    assert groups == [(texts[f"dashboard.{group}"], [texts[f"dashboard.{key}"] for key in keys]) for group, keys in expected] + [("history", [])]
+
+
+@pytest.mark.parametrize(
+    ("platform", "forecast"),
+    [("forecast_solar", "sensor.energy_production_today"), ("helios_forecast", "sensor.helios_forecast_power_now")],
+)
+def test_the_solcast_entities_are_not_mapped_to_another_forecast_integration(platform: str, forecast: str) -> None:
+    """The charts read Solcast's detailedHourly. Forecast.Solar's energy_production_today would match the _today rule
+    and Helios' power_now is in W: with those the Solcast entities stay unmapped (no solar forecast in the charts)."""
+    from custom_components.battmind.management.dashboard_build import external_entities
+
+    config = build_config({**OPTIONS, "forecast_entity_id": forecast})
+    solcast = {key: value for key, value in external_entities(config, platform).items() if key.startswith("sensor.solcast_pv_forecast_forecast_")}
+    assert len(solcast) == 7 and set(solcast.values()) == {""}
+    content = render_dashboard(config, "battmind", forecast_platform=platform)
+    assert forecast not in content and "sensor.energy_production_tomorrow" not in content
+    # a Solcast sensor, and a sensor whose integration is unknown, are mapped as before
+    solcast_config = build_config({**OPTIONS, "forecast_entity_id": "sensor.my_solcast_today"})
+    mapping = external_entities(solcast_config, "solcast_solar")
+    assert mapping["sensor.solcast_pv_forecast_forecast_today"] == "sensor.my_solcast_today"
+    assert mapping["sensor.solcast_pv_forecast_forecast_day_3"] == "sensor.my_solcast_day_3"
+    assert external_entities(solcast_config) == mapping
+    assert "sensor.my_solcast_day_3" in render_dashboard(solcast_config, "battmind", forecast_platform="solcast_solar")
+
+
+@pytest.mark.parametrize("language", list(LANGUAGES))
+def test_the_solar_forecast_analysis_names_the_forecast_integration(language: str) -> None:
+    content = rendered(language)
+    label = load_texts(language)["dashboard.solar_integration"]
+    assert f"('forecast', '{label}')" in content and "'Solcast'" not in content
+
+
 def _what_if_view(language: str, prefix: str = "battmind", **options) -> dict:
     content = render_dashboard(build_config({**OPTIONS, "language": language, **options}), prefix)
     return next(view for view in yaml.safe_load(content)["views"] if view["path"] == "what-if")
@@ -421,6 +478,7 @@ def test_analysis_sections_include_controls_for_their_graphs() -> None:
 
     assert section_entities(texts["dashboard.section_rules"]) == set()
     assert "switch.battmind_enhance_battery_efficiency" in section_entities(texts["dashboard.section_efficiency_curve"])
+    assert "switch.battmind_learn_battery_capacity" in section_entities(texts["dashboard.section_efficiency_curve"])  # (also its off notice)
     assert "select.battmind_forecast_type" in section_entities(texts["dashboard.section_forecast"])
     assert "switch.battmind_auto_forecast_type" in section_entities(texts["dashboard.section_forecast"])
     assert "switch.battmind_price_forecast_correction" in section_entities(texts["dashboard.section_price_forecast"])
@@ -759,9 +817,11 @@ def test_unsupported_action_hides_its_rules_on_the_settings_view(action: str) ->
     hidden = {f"switch.battmind_{key}" for key in ACTION_SWITCHES[action]}
     assert hidden <= set(all_entities)
     assert not hidden & set(entities)
+    # the settings only grid charging uses: the cheap price numbers, and the full charge (a grid charge)
+    grid_settings = ("number.battmind_cheap", "number.battmind_full_charge_recommended", "sensor.battmind_last_full_charge")
     # everything else stays
     for entity in all_entities:
-        if entity not in hidden and not entity.startswith("number.battmind_cheap"):
+        if entity not in hidden and not (action == "grid_charging" and entity.startswith(grid_settings)):
             assert entity in entities, entity
     for rows in _entities_lists([action]):
         types = [row.get("type") for row in rows]
@@ -769,8 +829,9 @@ def test_unsupported_action_hides_its_rules_on_the_settings_view(action: str) ->
         assert all(not (a == b == "divider") for a, b in zip(types, types[1:])), rows
 
     if action == "grid_charging":
-        # the whole section goes: its switches and the cheap price settings only those rules use
-        assert not any(entity.startswith("number.battmind_cheap") for entity in entities)
+        # the whole section goes: its switches and the settings only those rules use (cheap price, full charge)
+        assert {"number.battmind_full_charge_recommended", "sensor.battmind_last_full_charge"} <= set(all_entities)
+        assert not any(entity.startswith(grid_settings) for entity in entities)
         assert "Charging from the grid" in all_headings
         assert "Charging from the grid" not in headings
     else:
@@ -797,3 +858,26 @@ async def test_sidebar_icon_follows_the_dashboard_icon_option(hass: HomeAssistan
     await hass.async_block_till_done(wait_background_tasks=True)
     assert hass.data["frontend_panels"][f"{PREFIX}-dashboard"].sidebar_icon == "mdi:home-battery"
     await async_unload_and_join(hass, entry)
+
+
+def _group(title: str) -> dict:
+    return {"type": "grid", "column_span": 4, "cards": [{"type": "heading", "heading": title, "heading_style": "title"}]}
+
+
+def _section(title: str, icon: str = "mdi:x") -> dict:
+    return {"type": "grid", "column_span": 2, "cards": [{"type": "heading", "heading": title, "icon": icon}, {"type": "markdown", "content": "x"}]}
+
+
+def test_a_group_heading_never_stands_alone() -> None:
+    """Without a section below it (before the next group or the History) the group heading goes; other views are left alone."""
+    from custom_components.battmind.management.dashboard_build import _drop_empty_groups
+
+    history = _section("History", "mdi:chart-line")
+    graphs = {"type": "grid", "cards": [{"type": "history-graph"}]}  # (a History whose heading was dropped as empty)
+    sections = [_group("A"), _section("a1"), _group("B"), _group("C"), _section("c1"), _group("D"), history, _group("E")]
+    kept = _drop_empty_groups({"views": [{"path": "analysis", "sections": sections}]})["views"][0]["sections"]
+    assert [s["cards"][0]["heading"] for s in kept] == ["A", "a1", "C", "c1", "History"]
+    kept = _drop_empty_groups({"path": "analysis", "sections": [_group("A"), _section("a1"), _group("B"), graphs]})["sections"]
+    assert [s["cards"][0].get("heading") for s in kept] == ["A", "a1", None]
+    other = {"path": "what-if", "sections": [_group("A"), _group("B")]}
+    assert _drop_empty_groups(other) == other

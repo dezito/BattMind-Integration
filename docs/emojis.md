@@ -32,6 +32,8 @@ emoji always means the same rule.
 | 🩹 | Charging what is needed before the maximum battery level is reached | [Required before max level](rules/charging.md#-required-before-max-level) |
 | 🎁 | Charging at negative prices | [Negative prices](rules/charging.md#-negative-prices) |
 | 🔁 | Bought to sell later | [Buy to sell](rules/charging.md#-buy-to-sell) |
+| 🌪️ | Charged or held back to keep the level for a storm warning | [Storm warning](rules/storm.md) |
+| 💯 | Full charge to the maximum level, because the battery has not been full for the recommended number of days | [Full charge](rules/charging.md#-full-charge) |
 | 📈 | Charging (in general, and in the history's headers) | |
 | ☀️ | Solar charging / surplus production | [Solar](rules/solar.md) |
 | 🌤️ | Maximum charge reached – the rest is solar surplus | [Solar](rules/solar.md) |

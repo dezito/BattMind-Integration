@@ -22,6 +22,45 @@ class FutureSupport:
         for held_timestamp in [item for item in held if item.hour == timestamp.hour]:
             del held[held_timestamp]
 
+    def apply_taper_to_rules(self, ctx) -> bool:
+        """The rules control the battery: the charge hours that ask more than the battery takes (shadow_plan found them with the
+        same model as the optimiser) are cut to what it takes, and the plan says so. Returns True when the plan changed.
+
+        Rules add their charge hours in the order of the prices, so an hour can have been planned at a level that a charge before it,
+        planned later, has since raised. What is cut is not planned elsewhere: the plan is made again every interval from the real level.
+        """
+        changed = False
+        for hour, allowed in sorted((getattr(self, "rule_taper", None) or {}).items()):
+            group = [ts for ts, session in ctx.charge_hours.items() if isinstance(ts, datetime.datetime) and isinstance(session, dict) and reset_time_to_hour(ts) == hour]
+            total = sum(ctx.charge_hours[ts]["kWh"] for ts in group)
+            if not group or total <= allowed + 0.005:
+                continue
+            factor = allowed / total
+            plan_day = ctx.charging_plan.get(days_between(ctx.current_hour, hour))
+            delta_cost = delta_kwh = 0.0
+            for ts in group:
+                session = ctx.charge_hours[ts]
+                kwh = round(session["kWh"] * factor, 2)
+                if kwh < 0.1:  # a few Wh is not worth a charge hour: all of it goes
+                    delta_cost += session["Cost"]
+                    delta_kwh += session["kWh"]
+                    del ctx.charge_hours[ts]
+                    if plan_day is not None:
+                        plan_day["charging_sessions"].pop(ts, None)
+                    continue
+                delta_cost += session["Cost"] - round(session["Cost"] * factor, price_decimals(self.config))
+                delta_kwh += session["kWh"] - kwh
+                session["battery_level"] = round(session["battery_level"] * factor, 2)
+                session["Cost"] = round(session["Cost"] * factor, price_decimals(self.config))
+                session["kWh"] = kwh
+                if isinstance(session.get("reason"), str) and "</details>" in session["reason"]:
+                    session["reason"] = session["reason"].replace("</details>", f"<br>{ctx.r('taper_limited', kwh=f'{kwh:.2f}')}</details>", 1)
+            if plan_day is not None:
+                plan_day["total_cost"] -= delta_cost  # negative at negative prices: never clamped
+            ctx.totals[:] = round(ctx.totals[0] - delta_cost, price_decimals(self.config)), round(ctx.totals[1] - delta_kwh, 2)
+            changed = True
+        return changed
+
     def add_charging_to_days(self, ctx, timestamp):
         days = days_between(ctx.now, timestamp)
         for day in range(days, ctx.amount_of_days):
@@ -71,19 +110,22 @@ class FutureSupport:
         predicted = data["solar_cost_prediction"] if data else []
         return float(predicted[hour_timestamp.hour]) if hour_timestamp.hour < len(predicted) else 0.0
 
-    def grid_headroom_kwh(self, ctx, timestamp, price=None):
+    def grid_headroom_kwh(self, ctx, timestamp, price=None, until=None):
         """Grid kWh that can be charged at timestamp without pushing solar surplus out of the battery.
 
         Grid energy stays in the battery until it runs down to min level, so the highest
         predicted level (incl. solar) from the charge hour until then must stay below max.
         With price: solar first is soft - when the solar surplus that would be pushed out is
         sold for more than the grid kWh costs (e.g. negative buy prices), it may be pushed out.
+        until (the full charge's deadline hour): the levels after that hour don't count.
         """
         minimum = ctx.config["solar"]["powerwall_battery_level_min"]
         maximum = ctx.config["solar"]["powerwall_battery_level_max"]
         highest = minimum
         loop_timestamp = reset_time_to_hour(timestamp)
         while (data := ctx.charging_plan.get(days_between(ctx.current_hour, loop_timestamp))) is not None:
+            if until is not None and loop_timestamp > until:
+                break
             flow = data["battery_level_flow"].get(loop_timestamp.hour)
             if flow:
                 level = sum(flow)

@@ -12,12 +12,15 @@ from ...optimizer import (
     OptimizerHour,
     breakdown,
     enforce_max_age,
+    enforce_storm_floor,
+    taper_cuts,
     optimize_per_day,
     optimize_with_rules,
     requirement_cost,
     simulate,
 )
 from ....const import price_decimals, price_scale
+from ...storm import STORM_RULE
 from ....utils.formatting import emoji_parse
 from ....utils.helpers import average, days_between, float_or_none, reset_time_to_hour
 from .._helpers import _running_battery_price
@@ -39,7 +42,7 @@ class FutureOptimizer:
         """The battery model of the optimizer from the configuration and the current settings."""
         solar = self.config["solar"]
         return OptimizerConfig(
-            battery_size=solar["powerwall_battery_size"],
+            battery_size=self.battery_size_used()[0],  # the configured size, or the measured one (battery.py)
             level_min=solar["powerwall_battery_level_min"],
             level_max=solar["powerwall_battery_level_max"],
             max_charge=max_kwh_charging,
@@ -54,6 +57,7 @@ class FutureOptimizer:
             min_total_profit=self.get_min_total_profit(),
             price_scale=price_scale(self.config),
             usage_reserve=self.number("usage_reserve"),
+            charge_taper=self.charge_taper(),
             unsupported=self.unsupported_actions(),
         )
 
@@ -71,8 +75,9 @@ class FutureOptimizer:
         charged_before = []
         for key in sorted((key for key in ctx.battery_expenses if isinstance(key, datetime.datetime)), reverse=True):
             entry = ctx.battery_expenses[key]
-            # the history counts the kWh charged from the grid/sun, the battery level what got into the battery
-            percentage = (float_or_none(entry.get("percentage") if isinstance(entry, dict) else None) or 0.0) * ctx.efficiency
+            # the history counts the kWh charged from the grid/sun, the battery level what got into the battery; the level comes from
+            # the stored kWh at the size in use now (the stored percentage is on the scale of the time it was written)
+            percentage = ctx.kwh_to_percentage(float_or_none(entry.get("kWh") if isinstance(entry, dict) else None) or 0.0) * ctx.efficiency
             taken = min(max(percentage, 0.0), max(remaining, 0.0))
             if taken > 0.0:
                 charged_before.append((reset_time_to_hour(key), taken))
@@ -96,6 +101,7 @@ class FutureOptimizer:
                 charge_hour_kwh[reset_time_to_hour(ts)] += session["kWh"]
         exclude_hours = self.get_exclude_sell_hours()
         hours, rule_actions, rule_limits = [], [], []
+        gross_kwh = {}  # the forecast house kWh of each hour with no solar (what a storm warning needs)
         for day in days:
             data = ctx.charging_plan[day]
             # the planned kWh per sell hour - force discharge only runs in the planned sell periods
@@ -106,6 +112,9 @@ class FutureOptimizer:
             for hour in sorted(data["battery_level_flow"]):
                 timestamp = data["start_of_day"].replace(hour=hour)
                 prediction = data["hour_cost_prediction"][ctx.forecast_type].get(hour)
+                if prediction is not None:
+                    # also an hour without a price: a storm warning needs the whole window (the part of the current hour that is left)
+                    gross_kwh[timestamp] = prediction["kwh"] * (max(1.0 - ctx.now.minute / 60.0, 0.05) if timestamp == ctx.current_hour else 1.0)
                 if prediction is None or not buy_by_hour.get(timestamp):
                     continue
                 solar = self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, timestamp)
@@ -137,12 +146,19 @@ class FutureOptimizer:
                 rule_actions.append(action)
                 rule_limits.append(limit)
         if not hours:
+            self.storm_setup([], gross_kwh, ctx.efficiency, 0.5)  # no prices: the status says what the warning is, nothing is planned
             return None
         wear = abs(ctx.config["solar"]["powerwall_wear_cost_per_kwh"])
         start_level = ctx.get_battery_level()
         optimizer_config = replace(
             self.optimizer_config(ctx.max_kwh_charging, ctx.max_kwh_discharging, ctx.efficiency), **self.age_limits(ctx, start_level)
         )
+        # 💯 full charge: from the engine's state (never in optimizer_config(), which the what-if replay uses too)
+        full_charge = getattr(self, "full_charge_plan", None)
+        if full_charge:
+            optimizer_config = replace(optimizer_config, full_deadline=full_charge["deadline"], full_level=full_charge["full_level"])
+        # 🌪️ storm warning (engine/storm_warning.py): the level to keep at the end of each hour, None without the option
+        storm = self.storm_setup(hours, gross_kwh, ctx.efficiency, optimizer_config.step)
         # the rules don't know the age of the energy they charge themselves: they may not hold it back either
         # (the optimiser enforces it in its own plan)
         self.rule_old_energy = {}
@@ -155,8 +171,28 @@ class FutureOptimizer:
         # a kWh left in the battery at the end saves the average buy price later (after wear and
         # the min. profit, else buying just to hold the energy at the end would pay)
         end_value = ctx.efficiency * max(average([hour.buy for hour in hours]) - wear - ctx.get_min_profit_per_kwh(), 0.0)
+        storm_changes = {}
+        if storm is not None and storm.floors:
+            # the rules' plan keeps the level too: it charges in the cheapest hours before it is missed and cancels sales under it
+            rule_actions, rule_limits, storm_changes = enforce_storm_floor(hours, start_level, optimizer_config, rule_actions, rule_limits)
+        # known before the optimiser runs: if it fails, the rules still keep the level and the pace of the battery (future_charging())
+        early = simulate(hours, start_level, optimizer_config, rule_actions, end_value, rule_limits) if storm_changes or optimizer_config.charge_taper else None
+        self.rule_storm = {
+            hours[index].timestamp: (
+                before, after, early.grid_kwh[index] if after == "grid_charging" else rule_limits[index] or 0.0, hours[index].buy
+            )
+            for index, (before, after) in storm_changes.items()
+        }
+        self.rule_taper = (
+            {hours[index].timestamp: kwh for index, kwh in taper_cuts(hours, start_level, optimizer_config, rule_actions, rule_limits, early).items()}
+            if optimizer_config.charge_taper else {}
+        )
         optimal, explanations = self.shadow_optimize(hours, start_level, optimizer_config, end_value)
         rules = simulate(hours, start_level, optimizer_config, rule_actions, end_value, rule_limits)
+        if storm is not None:
+            controls = self.enabled("optimizer_control") and optimal.converged
+            self.storm_outcome(hours, optimal.levels if controls else rules.levels, "optimal" if controls else "rules")
+            self.storm_finish(storm, hours)
         self_consumption = simulate(hours, start_level, optimizer_config, ["discharge_allowed"] * len(hours), end_value)
         optimal_limits = [
             grid if action == "grid_charging" else sold if action == "force_discharge" else None
@@ -176,6 +212,12 @@ class FutureOptimizer:
             "self_consumption": round(self_consumption.total, 2),
             # False: the optimal plan still has actions of switched off rules, so the rules control the battery
             "converged": optimal.converged,
+            # 💯 the full charge of the optimal plan: when it gets full, or why the requirement was dropped (None: none due)
+            "full_charge": None if not full_charge else {
+                "deadline": full_charge["deadline"],
+                "reached": hours[optimal.full_reached].timestamp if optimal.full_reached is not None else None,
+                "dropped": optimal.full_dropped,
+            },
             # the totals above are real money. The optimisation also adds the profit requirements (min. profit
             # per kWh, min. total profit) to the cost of an action as a steering figure: not money, but the
             # reason why an optimal plan can cost more than plain self consumption
@@ -202,6 +244,9 @@ class FutureOptimizer:
                 )
             ],
         }
+        if full_charge:
+            full_charge["optimal_reached"] = self.optimizer_shadow["full_charge"]["reached"]
+            full_charge["optimal_dropped"] = optimal.full_dropped
         _LOGGER.debug(
             "Whole period optimisation over %s hours: optimal %.2f, rules %.2f, self consumption %.2f",
             len(hours), optimal.total, rules.total, self_consumption.total,
@@ -286,6 +331,8 @@ class FutureOptimizer:
             "needed_before_max_level_planner": ctx.r("title.needed"),
             "negative_price_planner": ctx.r("title.negative_price"),
             "grid_charge_to_sell": ctx.r("title.buy_to_sell"),
+            STORM_RULE: ctx.r("title.storm"),
+            "full_charge_planner": ctx.r("title.full_charge"),
         }
         sale_titles = {
             "grid_charge_to_sell": ctx.r("title.sell_bought_cheap"),
@@ -330,11 +377,20 @@ class FutureOptimizer:
                     "Cost": round(grid_kwh * hour.buy, price_decimals(self.config)),
                     "kWh": round(grid_kwh, 2),
                     "battery_level": round(percentage, 2),
-                    "Price": round(hour.buy, 2),
+                    "Price": round(hour.buy, price_decimals(self.config)),
                     rule: True,
                 }
-                if target is None:
+                if rule == "full_charge_planner":
+                    # the hour the plan gets full, and the days since the battery was last full
+                    elapsed = (getattr(self, "full_charge_plan", None) or {}).get("elapsed_days")
+                    target_text = (
+                        f"{ctx.r('full_charge_due')}: **{f'{elapsed:.0f}' if isinstance(elapsed, (int, float)) else '–'}**<br>"
+                        + (f"{ctx.r('highest_level_time')}: **{when(target)}**<br>" if target is not None else "")
+                    )
+                elif target is None:
                     target_text = ""
+                elif rule == STORM_RULE:
+                    target_text = f"{self.storm_reason(ctx, self.storm_state['plan'], timestamp)}<br>"
                 elif rule == "grid_charge_to_sell":
                     target_text = (
                         f"{ctx.r('sold_at', time=when(target), price=f'{hours[target].sell:.2f} {ctx.valuta_kwh}')} · "
@@ -401,6 +457,13 @@ class FutureOptimizer:
                         "</details>"
                     )
                 }
+            elif rule == STORM_RULE:
+                # held for the storm warning: the battery keeps its energy
+                plan_day["blocked_discharge_timestamps"][timestamp] = (
+                    f"<details><summary>{emoji_parse({STORM_RULE: True})}{ctx.r('title.storm_hold')}</summary>"
+                    f"{self.storm_reason(ctx, self.storm_state['plan'], timestamp)}<br>{level_text}"
+                    "</details>"
+                )
             elif rule == "only_discharge_on_profit":
                 # held back without a later, more expensive use: the energy is worth more kept
                 plan_day["blocked_discharge_timestamps"][timestamp] = (

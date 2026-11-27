@@ -48,7 +48,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "powerwall_battery_level_entity_id": "",
             "battery_temperature_entity_id": "",
             "ignore_consumption_from_entity_ids": [],
+            # a storm warning (MeteoAlarm's binary sensor): the battery is kept charged for it. "" = off, and then the
+            # function, its sensor and its number are not made (engine/storm.py)
+            "storm_warning_entity_id": "",
         },
+        # the lowest MeteoAlarm awareness level that counts as a storm: 2 yellow, 3 orange, 4 red
+        "storm_min_level": 3,
         "power_consumption_entity_id_include_powerwall_charging": False,
         "power_consumption_entity_id_include_powerwall_discharging": False,
         "invert_powerwall_watt_flow_entity_id": False,
@@ -59,10 +64,20 @@ DEFAULT_CONFIG: dict[str, Any] = {
         # all the chargers of Cable Juice Planner, also when they are not added automatically (set by the coordinator, not an option):
         # the only ignored sensors that are checked for a hung reading (engine/energy/energy.py)
         "charger_entity_ids": [],
+        # the chargers that are on their own meter (not in the house consumption): read for the hindsight score only (set by the coordinator)
+        "own_meter_charger_entity_ids": [],
         # battery actions the inverter can't run (CONTROLLABLE_ACTIONS); their rules are off
         "unsupported_actions": [],
     },
     "language": "da",
+    # push notifications (management/notifier.py): the notify services and notify entities the user chose ("notify.<name>"), none =
+    # nothing is sent; what is sent: problems, a storm, what was learned, and a daily summary of tomorrow's plan from this hour
+    "notify_list": [],
+    "notify_problems": True,
+    "notify_storm": True,
+    "notify_learning": True,
+    "notify_summary": True,
+    "notify_summary_hour": 20,
     "prices": {
         "entity_ids": {
             "energidataservice_buy_entity_id": "",
@@ -131,6 +146,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
 OPTION_PATHS: dict[str, str] = {
     # general
     "language": "language",
+    "notify_list": "notify_list",
+    "notify_problems": "notify_problems",
+    "notify_storm": "notify_storm",
+    "notify_learning": "notify_learning",
+    "notify_summary": "notify_summary",
+    "notify_summary_hour": "notify_summary_hour",
     # battery / home
     "powerwall_battery_level_entity_id": "home.entity_ids.powerwall_battery_level_entity_id",
     "powerwall_watt_flow_entity_id": "home.entity_ids.powerwall_watt_flow_entity_id",
@@ -154,6 +175,8 @@ OPTION_PATHS: dict[str, str] = {
     "battery_discharging_efficiency_curve": "solar.battery_discharging_efficiency_curve",
     "powerwall_wear_cost_per_kwh": "solar.powerwall_wear_cost_per_kwh",
     "unsupported_actions": "home.unsupported_actions",
+    "storm_warning_entity_id": "home.entity_ids.storm_warning_entity_id",
+    "storm_min_level": "home.storm_min_level",
     # prices
     "energidataservice_buy_entity_id": "prices.entity_ids.energidataservice_buy_entity_id",
     "energidataservice_sell_entity_id": "prices.entity_ids.energidataservice_sell_entity_id",
@@ -280,6 +303,8 @@ FLOW_STEPS: dict[str, list[str]] = {
         "forecast_entity_id",
     ],
     "weather": ["hourly_service_entity_id", "daily_service_entity_id"],
+    "storm": ["storm_warning_entity_id", "storm_min_level"],
+    "notifications": ["notify_list", "notify_problems", "notify_storm", "notify_learning", "notify_summary", "notify_summary_hour"],
     "advanced": [
         "days_to_predict",
         "cron_interval",
@@ -329,7 +354,8 @@ OPTIONS_MENU: dict[str, list[str]] = {
         "prices_stromligning_tariffs",
         "price_fees",
     ],
-    "solar": ["solar", "weather"],
+    "solar": ["solar", "weather", "storm"],
+    "notifications": ["notifications"],
     "advanced": ["advanced", "database"],
 }
 

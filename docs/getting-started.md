@@ -16,7 +16,9 @@ few days of watching the plan before you trust it.
 Optional, but recommended with solar panels:
 
 - a **solar production** sensor (W or kW)
-- [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar)
+- a solar forecast: [Solcast PV Forecast](https://github.com/BJReplay/ha-solcast-solar),
+  [Forecast.Solar](https://www.home-assistant.io/integrations/forecast_solar/) (built into Home Assistant) or
+  [Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast)
 - a weather integration with `weather.get_forecasts` (Met.no, AccuWeather, OpenWeather …)
 
 For the dashboard you need the HACS frontend cards `apexcharts-card`, `mushroom`, `config-template-card`, `timer-bar-card`
@@ -60,6 +62,13 @@ leave the field empty for the default icon.
 
 ### Home battery – sensors
 
+When you set up BattMind, the solar power and battery power fields are pre-filled from the Energy dashboard of Home
+Assistant 2025.12 or newer. Each field is filled only when the dashboard has exactly one source of that kind (solar or
+battery) and that source has a power sensor, and not when another BattMind entry already uses that sensor. For an inverted or two-sensor battery, the battery
+field gets the sensor that the Energy dashboard generates for it; that sensor disappears if the
+Energy configuration is changed. They are only suggestions: you can pick another sensor, or clear the solar field. The
+battery power field is required, so it can be changed but not cleared. The battery sign is still read from the recorder.
+
 - **Battery power:** BattMind expects **positive while discharging, negative while charging**. If your
   sensor is the other way round, **Invert** should be on; the [check page](#check-the-battery-and-consumption-settings)
   suggests it from the recorder.
@@ -99,9 +108,16 @@ off and are hidden on the dashboard. See [When the inverter can't run an action]
 - **Ignore Cable Juice Planner chargers** (on by default): with [Cable Juice Planner](cookbook.md#together-with-cable-juice-planner-ev)
   installed, BattMind also subtracts the charger power of every car you have set up there, so you don't add
   them to the list yourself. The page shows the chargers it found. A car added later is picked up
-  automatically (BattMind reloads once), and a charger that is also in your list is subtracted once. Turn it off if the
-  house consumption sensor does not include the chargers, e.g. a separate meter: subtracting them would
-  then take consumption that was never there out of the forecast.
+  automatically (BattMind reloads once), and a charger that is also in your list is subtracted once. A car whose
+  charger has its own meter (*House consumption includes this car's charger* off in that car's Cable Juice Planner
+  settings) is left out, also when that setting is changed later: the house consumption sensor doesn't measure it, so
+  there is nothing to subtract, and don't add it under *Ignored consumers* either (that would take consumption that
+  was never there out of the forecast). BattMind never adds a charger that the sensor doesn't measure, whatever this
+  switch says: if the home battery also supplies such a charger, the forecast is too low for it, so use a house
+  consumption sensor that includes the charger then. Turn this switch off if the house consumption sensor includes
+  none of the chargers, e.g. a separate meter: subtracting them would then take consumption that was never there out
+  of the forecast. For a single car on its own meter, turn off *House consumption includes this car's charger* on that
+  car in Cable Juice Planner instead.
 - **A charger that hangs:** A Cable Juice Planner charger that has not reported for over 30 minutes while it still reads a number other
   than 0 (a hung integration is not *unavailable*) is taken to be stuck: it is not subtracted, in the current hour and in the
   hours since it got stuck, until it reports again, and a warning is logged. The higher consumption is the safe side. It is the
@@ -233,8 +249,79 @@ Leave the page empty without solar. With solar:
   *Hourly detail* on under *Forecast attributes breakdown* in the Solcast options. A **repair** lists the sensors that are disabled, named
   differently or without hourly detail; the days without Solcast are planned from the weather forecast and
   the stored solar history.
+- **Forecast.Solar or Helios Forecast:** see [Forecast.Solar or Helios Forecast](#forecastsolar-or-helios-forecast)
+  below.
 - **Weather:** the hourly and daily forecast. Together with the stored solar history per weather type it
-  gives a solar forecast that learns your roof – also without Solcast.
+  gives a solar forecast that learns your roof – also without a forecast integration.
+
+#### Forecast.Solar or Helios Forecast
+
+Instead of Solcast the **Solar forecast** field also takes a sensor of
+[Forecast.Solar](https://www.home-assistant.io/integrations/forecast_solar/) or
+[Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast). BattMind reads the hourly forecast these
+integrations give the Energy dashboard of Home Assistant, not the state of the sensor, so any sensor of the
+integration works:
+
+- **Helios Forecast:** e.g. `sensor.helios_forecast_power_now`. Helios learns your roof from your production, so
+  give it your solar production sensor in its own setup.
+- **Forecast.Solar:** any sensor of it, e.g. `sensor.energy_production_today`. Forecast.Solar has one entry per roof
+  plane. If you added the planes as the forecast of a solar source in the Energy dashboard
+  (**Settings → Dashboards → Energy**, the solar panels), every plane of that source is added up; otherwise only the
+  plane of the selected sensor is used. An hour that one of the planes does not cover gets no forecast at all
+  (never half of one), and while a plane is not loaded the whole forecast waits for it. A plane you disabled is left
+  out.
+- The free plan of Forecast.Solar covers today and tomorrow. BattMind plans the hours a forecast does not cover (and
+  any hour while the integration has no forecast) from the weather forecast and the stored solar history, the same
+  as without a forecast integration. An hour with neither counts as no sun.
+- Only whole hours are used: the hour of the first sunrise in the forecast and an hour at the end of the forecast that
+  is only covered in part are planned the same way.
+- Helios Forecast sums its own forecast points per hour. If it had to drop some of them, the hour looks complete to
+  BattMind and is too low.
+- The forecast counts 75 % and the stored solar history 25 %, as with Solcast (see
+  [How it works](how-it-works.md#solar-forecast)). Forecast.Solar does not learn from your production; Helios does,
+  so with Helios your own production counts in both parts.
+- The Solcast repair does not apply to these integrations, and the solar forecast in the price charts of the
+  dashboard is drawn only for Solcast.
+
+### Storm warning (optional)
+
+Under **Configure → Solar panels, weather and storm warning**. Choose MeteoAlarm's binary sensor to keep the
+battery charged for a storm warning, or leave it empty (default) and the function, its sensor and its number are not
+made. See [Storm warning](rules/storm.md).
+
+### Push notifications (optional)
+
+Under **Configure → Push notifications**. Choose the notify services or notify entities that should get the messages (for
+example the mobile app: `notify.mobile_app_<phone>`). With none chosen (default) nothing is sent. All four categories below are on by default, so choosing a service is enough; switch off
+what you do not want. The messages are in the
+language you chose for BattMind. BattMind only informs; it controls nothing, and the messages go only to the services you chose.
+
+A message is sent when something **changes**, never on a timer:
+
+| Category | Message | Sent when |
+|---|---|---|
+| Problems | Battery level lost | the battery level sensor has given no number for 2 hours (the plan then assumes a full battery) |
+| | The plan is not followed | the repair *plan not followed* is raised (see [Troubleshooting](faq-troubleshooting.md)) |
+| | Sensors missing | the repair *entities missing* is raised (the battery level sensor is left out: *battery level lost* says it) |
+| | House consumption frozen | the repair *consumption frozen* is raised |
+| | Sensors unavailable | the house consumption or the battery power sensor has been unavailable for more than 30 minutes (checked hourly; the prices, the solar sensors and the battery level, which has its own message, are not part of it) |
+| | The battery is stopped | the battery temperature is out of range, or unavailable, for 15 minutes |
+| | Could not start / the plan cannot be calculated / the charging history fails | BattMind stops while starting, the plan fails three times in a row, or the history of an hour cannot be saved after three tries |
+| Storm warning | Storm warning | a storm warning is coming or going on (once) |
+| Learning finished | Consumption, efficiency, capacity | once each: the consumption forecast has enough history, the efficiency curves are measured, the usable capacity is measured |
+| Daily summary | Plan for tomorrow | once a day, at the end of the first hour from the one you choose in which tomorrow's prices are all known: grid charging (kWh and hours), sale, the battery level now |
+
+- **When it is over.** A problem is followed by a message when it is over, with the same tag, so it replaces the problem on the
+  phone. "Over" is only said when BattMind positively knows; missing or unclear data says nothing.
+- **Not flapping.** Some conditions have to hold for a while before the message goes (15 minutes for the temperature), and have to be
+  over for a while before "over" goes (5 minutes for the battery level, 10 for unavailable sensors and a failing plan, 15 for the
+  temperature, 30 for the storm), so a value that flaps around a limit sends one message, not ten.
+- **Once.** What BattMind sent is remembered (in `.storage/battmind.<entry id>.notices`), also after a restart, so a problem that
+  goes on is not sent again. A message that could not be delivered (the mobile app registers its service a little after Home
+  Assistant has started) is tried again every 5 minutes until a service takes it.
+- **Learning.** What is already learned when you turn the messages on, or after an update, is not announced; a message comes when it
+  becomes ready later. A measurement that starts again (a new sensor or battery size) can send it again.
+- **The summary** shows the plan as it is now: it changes with the prices and the forecast. It is not a promise and shows no savings.
 
 ### Planning (advanced)
 
@@ -243,6 +330,9 @@ Leave the page empty without solar. With solar:
 | Days to plan | 7 | the plan covers today and the next days. More days give better decisions about saving energy for later, but cost more CPU and rely on price forecasts |
 | Interval | 5 min | how often the plan is checked. It is only recalculated when prices, battery level or settings have changed |
 | Dashboard | on | a ready-made dashboard in the sidebar |
+| Diagnostic file log | off | writes `battmind_<prefix>.log` in the config folder, for [troubleshooting](faq-troubleshooting.md) |
+
+The last page of the setup, **Database**, sets how much history BattMind stores.
 
 Everything can be changed later under **Configure** on the integration.
 
@@ -273,13 +363,23 @@ yours. The easiest way is the blueprint that comes with the integration:
 1. *Settings → Automations & scenes → Blueprints* → **BattMind - control the home battery** → **Create automation**.
 2. Select the BattMind sensor.
 3. For each of the six actions, add what your inverter should do. See [Actions](actions.md) for what each
-   action means, and [Huawei Solar](inverters/huawei.md) for a complete example.
+   action means, and the [inverter pages](README.md#inverters) for complete examples
+   ([Huawei Solar](inverters/huawei.md) is the tested one).
 4. Keep **Repeat interval** at 5 minutes (default): the action is sent again, so a lost command or a mode
    the inverter changed by itself is put right. Use 30 seconds for a battery controlled via Modbus.
 
 > [!TIP]
 > Start with the automation **off** and watch `sensor.<prefix>_powerwall_action` for a day. When the actions
-> look right, turn it on.
+> look right, turn it on. After a day with the automation on, check the attribute `plan_check` of the action
+> sensor: it shows whether the battery did what the actions asked (see
+> [Does the battery follow the action?](actions.md#does-the-battery-follow-the-action)). The hours from the day
+> with the automation off count as mismatches for 14 days, so look at `latest_mismatches` and the hours since you
+> turned it on.
+>
+> Don't want to wait for the plan to use every action? Turn the automation on and run **Test my automation**
+> under *Settings* on the dashboard: it publishes each action in turn and shows which ones the battery follows
+> (see [Test your automation](actions.md#test-your-automation)). It charges the battery from the grid and
+> discharges it to the grid for a few minutes.
 
 ## 6. Next steps
 

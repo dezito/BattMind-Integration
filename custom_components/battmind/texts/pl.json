@@ -51,6 +51,9 @@
     "negative_price_planner": {
       "description": "Ładowanie przy ujemnych cenach"
     },
+    "full_charge_planner": {
+      "description": "Pełne ładowanie do poziomu maksymalnego (kondycja baterii)"
+    },
     "grid_charge_to_sell": {
       "description": "Kupione, aby sprzedać później"
     },
@@ -77,9 +80,80 @@
     },
     "blocked_solar_charge": {
       "description": "Zablokowane ładowanie z energii słonecznej"
+    },
+    "storm_warning": {
+      "description": "Naładowane lub wstrzymane na czas ostrzeżenia przed burzą"
     }
   },
   "ui": {
+    "push": {
+      "battery_level_lost": {
+        "title": "BattMind: utracono poziom baterii",
+        "problem": "Poziom baterii ({entity}) nie podał liczby od 2 godzin. Plan zakłada pełną baterię, dopóki nie wróci.",
+        "resolved": "Poziom baterii wrócił."
+      },
+      "plan_not_followed": {
+        "title": "BattMind: plan nie jest wykonywany",
+        "problem": "Bateria nie zrobiła tego, o co prosił plan, w {mismatches} z ostatnich {checked} sprawdzonych godzin (zgodnych: {percent} %). Sprawdź automatyzację wykonującą akcje.",
+        "resolved": "Bateria znów wykonuje plan."
+      },
+      "entities_missing": {
+        "title": "BattMind: brakuje czujników",
+        "problem": "Czujnika potrzebnego BattMind brakuje lub jest wyłączony:\n{entities}",
+        "resolved": "Wszystkie czujniki potrzebne BattMind są znów dostępne."
+      },
+      "consumption_frozen": {
+        "title": "BattMind: zużycie domu zamrożone",
+        "problem": "Czujnik zużycia domu {entity} pokazuje {value} od {since}. Zamrożona wartość daje błędny plan.",
+        "resolved": "Czujnik zużycia domu znów się zmienia."
+      },
+      "sensors_unavailable": {
+        "title": "BattMind: czujniki niedostępne",
+        "problem": "Te czujniki są niedostępne od ponad 30 minut:\n{entities}",
+        "resolved": "Czujniki są znów dostępne."
+      },
+      "temperature_stop": {
+        "title": "BattMind: bateria zatrzymana",
+        "problem": "{detail}",
+        "resolved": "Temperatura baterii wróciła do zakresu, bateria znów pracuje."
+      },
+      "startup_failed": {
+        "title": "BattMind: nie udało się wystartować",
+        "problem": "BattMind zatrzymał się podczas startu: {error}",
+        "resolved": "BattMind wystartował."
+      },
+      "job_failing": {
+        "title": "BattMind: nie można obliczyć planu",
+        "problem": "Nie udało się obliczyć planu trzy razy z rzędu ({error}). BattMind przeładowuje się.",
+        "resolved": "Plan jest znów obliczany."
+      },
+      "history_failing": {
+        "title": "BattMind: historia ładowania zawodzi",
+        "problem": "Historii ładowania z ostatniej godziny nie udało się zapisać po trzech próbach: {error}",
+        "resolved": "Historia ładowania jest znów zapisywana."
+      },
+      "storm": {
+        "title": "BattMind: ostrzeżenie o burzy",
+        "problem": "Ostrzeżenie o burzy (poziom {level}) od {start} do {end}. Bateria jest na to utrzymywana na poziomie {keep} % lub wyższym.",
+        "resolved": "Ostrzeżenie o burzy minęło."
+      },
+      "learning_consumption": {
+        "title": "BattMind nauczył się Twojego zużycia",
+        "once": "Jest dość historii do prognozy zużycia. Reguły sprzedające z baterii i blokujące ładowanie solarne działają teraz."
+      },
+      "learning_efficiency": {
+        "title": "BattMind zmierzył sprawność",
+        "once": "BattMind zmierzył sprawność Twojej baterii przy różnych mocach (zobacz analizę)."
+      },
+      "learning_capacity": {
+        "title": "BattMind zmierzył pojemność",
+        "once": "BattMind zmierzył użyteczną pojemność Twojej baterii (zobacz analizę). Plan liczy z nią tylko przy włączonym *Używaj zmierzonej pojemności baterii*."
+      },
+      "daily_summary": {
+        "title": "BattMind: plan na {day}",
+        "summary": "Ładowanie z sieci {grid} kWh ({hours}), sprzedaż {sale} kWh. Bateria ma teraz {level} %. Plan zmienia się wraz z cenami i prognozą."
+      }
+    },
     "common": {
       "valuta": "zł",
       "valuta_kwh": "zł/kWh",
@@ -186,6 +260,13 @@
       "no_upcoming_charging_planned": "Brak zaplanowanego ładowania",
       "solar_production_title": "Dostępna nadwyżka energii słonecznej",
       "no_solar_production": "Brak dostępnej nadwyżki energii słonecznej",
+      "solar_day_surplus": "{day}: słońce da około {kwh} kWh nadwyżki między {start} a {end}.",
+      "solar_day_full": "Bateria jest pełna ({level} %) do {at}.",
+      "solar_day_rises": "Bateria osiągnie około {level} % do {at}.",
+      "solar_day_to_grid": "Około {kwh} kWh nadwyżki po tym nie mieści się w baterii.",
+      "solar_day_already_full": "Bateria jest już pełna, gdy wyjdzie słońce: na około {kwh} kWh nadwyżki nie ma miejsca.",
+      "solar_day_blocked": "Ładowanie energią słoneczną jest wstrzymane {hours}, aby sprzedać nadwyżkę przy wyższej cenie.",
+      "full_charge_dropped": "Pełne ładowanie odrzucone: bateria nie osiągnie {level} % przed terminem.",
       "last_scheduled": "Ostatnio zaplanowane",
       "plan_title": "Plan ładowania/rozładowania",
       "show_all_days": "Pokaż wszystkie dni",
@@ -242,6 +323,7 @@
       "temperature_safety_stop": "Bateria zatrzymana: {temperature} °C poza zakresem {minimum}-{maximum} °C",
       "planned_charging": "Ładowanie do {emoji}",
       "not_charging": "Nie ładuje",
+      "calculation_error": "Błąd: {error}",
       "force_solar_only_charging": "Dozwolone tylko ładowanie z energii słonecznej",
       "grid_charging": "Ładowanie z sieci",
       "discharge_allowed": "Rozładowanie dozwolone",
@@ -341,6 +423,85 @@
       "enhance_battery_efficiency": "Zwiększ wydajność baterii",
       "cheapest_hour_fill_up": "Ładowanie: Doładuj w najtańszym okresie"
     },
+    "automation_test": {
+      "rule": "Test Twojej automatyzacji: {action}",
+      "not_run": "Test nie został jeszcze uruchomiony. Włącz **Przetestuj moją automatyzację**, aby go rozpocząć.",
+      "status": {
+        "idle": "Test nie jest uruchomiony",
+        "running": "Test trwa…",
+        "done": "Test zakończony",
+        "stopped": "Test zatrzymano",
+        "failed": "Test nie mógł się uruchomić"
+      },
+      "column_action": "Akcja",
+      "column_result": "Wynik",
+      "action": {
+        "grid_charging": "Ładowanie z sieci",
+        "force_discharge": "Wymuszone rozładowanie",
+        "battery_stopped": "Zatrzymaj baterię",
+        "discharge_allowed": "Rozładowanie dozwolone",
+        "force_solar_only_charging": "Tylko ładowanie słoneczne",
+        "blocked_solar_charge": "Ładowanie słoneczne zablokowane"
+      },
+      "running_note": "Każda akcja jest publikowana do 5 minut i zalicza się, gdy tylko bateria pokaże, co powinna zrobić. Wyłącz przełącznik, aby zatrzymać; wtedy znów publikowana jest własna akcja BattMind.",
+      "waiting": "Czeka na test",
+      "testing": "Trwa test…",
+      "progress": "Ukończono {done} z {total} akcji.",
+      "legend_running": "✅ zadziałało · ❌ bateria nie zareagowała · 🔧 nie testowano · ⏳ czeka · ▶️ trwa test",
+      "summary": "{ok} z {total} akcji zadziałało, {fail} nie zadziałało, {skip} nie dało się przetestować.",
+      "stop_reason": {
+        "battery_stopped": "Test zakończono, ponieważ bateria jest zatrzymana z powodu temperatury. To zabezpieczenie, którego test nigdy nie omija.",
+        "expired": "Test zakończono, ponieważ opublikowana akcja wygasła przed końcem kroku.",
+        "stopped": "Test zatrzymano.",
+        "internal_error": "Test zakończył się błędem. Zobacz dziennik Home Assistant.",
+        "not_configured": "Test wymaga czujników mocy baterii, poziomu baterii i zużycia domu.",
+        "not_ready": "BattMind nie opublikował jeszcze akcji. Spróbuj ponownie po pierwszym obliczeniu.",
+        "no_level": "Czujnik poziomu baterii nie ma teraz wartości."
+      },
+      "fail_hint": "Gdy akcja nie zadziałała: otwórz ślad (trace) automatyzacji i sprawdź, czy wykonała kroki tej akcji oraz czy falownik przyjął polecenia.",
+      "put_back": "Własna akcja BattMind jest znów publikowana, a nic innego nie zostało zmienione.",
+      "legend": "✅ zadziałało · ❌ bateria nie zareagowała · 🔧 nie testowano",
+      "ev_hint": "Jeśli samochód się ładuje, blueprint uruchamia zamiast tego swoją akcję EV.",
+      "ok": {
+        "grid_charging": "Bateria ładowała się z sieci mocą {charge} W.",
+        "force_discharge": "Bateria rozładowywała się mocą {discharge} W, więcej niż zużywał dom.",
+        "battery_stopped": "Bateria stała w miejscu ({charge} W ładowania, {discharge} W rozładowania).",
+        "discharge_allowed": "Bateria rozładowywała się {discharge} W do domu.",
+        "force_solar_only_charging": "Bateria nie rozładowywała się ({discharge} W), gdy dom zużywał o {deficit} W więcej, niż dawało słońce.",
+        "blocked_solar_charge": "Bateria się nie ładowała ({charge} W), gdy słońce dawało o {surplus} W więcej, niż zużywał dom."
+      },
+      "fail": {
+        "grid_charging": "Bateria nie ładowała się z sieci (pokazała {charge} W).",
+        "force_discharge": "Bateria nie rozładowywała się mocniej, niż zużywał dom (pokazała {discharge} W).",
+        "battery_stopped": "Bateria nadal się poruszała ({charge} W ładowania, {discharge} W rozładowania).",
+        "discharge_allowed": "Bateria nie rozładowywała się do domu (pokazała {discharge} W).",
+        "discharge_allowed_export": "Bateria nadal sprzedawała: rozładowywała się {discharge} W, gdy domowi brakowało {deficit} W, więc wymuszone rozładowanie nie zostało zakończone.",
+        "force_solar_only_charging": "Bateria rozładowywała się {discharge} W.",
+        "blocked_solar_charge": "Bateria ładowała się {charge} W."
+      },
+      "skip": {
+        "no_flow": "Nie testowano: wymaga to, aby dom zużywał 300 W więcej, niż daje słońce, albo aby słońce dawało 300 W więcej, niż zużywa dom, tak by bateria poruszyła się bez zatrzymania, a teraz tak nie jest.",
+        "quiet": "Nie testowano: czujnik mocy baterii od 5 minut pokazuje te same 0 W bez raportowania, więc zatrzymania nie da się odróżnić od czujnika, który przestał się aktualizować.",
+        "unsupported": "Nie testowano: konfiguracja falownika mówi, że nie może wykonać tej akcji.",
+        "limit": "Nie testowano: bateria jest teraz zbyt pełna lub zbyt pusta, aby to pokazać.",
+        "limit_full": "Nie testowano: bateria jest teraz zbyt pełna, aby to pokazać (blisko najwyższego poziomu).",
+        "limit_empty": "Nie testowano: bateria jest teraz zbyt pusta, aby to pokazać (blisko najniższego poziomu lub rezerwy dla domu).",
+        "no_load": "Nie testowano: wymaga to, aby dom zużywał więcej, niż daje słońce, a teraz tak nie jest.",
+        "no_surplus": "Nie testowano: wymaga to nadwyżki z paneli, a teraz jej nie ma.",
+        "unproven": "Nie udowodniono: to, co zaobserwowano, mogą tłumaczyć słońce lub zużycie domu.",
+        "ev": "Nie testowano: samochód się ładuje, a zamiast tej akcji może działać akcja EV blueprintu.",
+        "no_data": "Nie testowano: czujnik nie miał wartości lub nie raportował od 5 minut.",
+        "not_reached": "Nie dotarto: test zakończył się przed tym krokiem.",
+        "battery_stopped": "Nie testowano: bateria była zatrzymana z powodu temperatury.",
+        "expired": "Nie ukończono: opublikowana akcja wygasła.",
+        "no_baseline": "Nie udowodniono: bateria już robiła to, o co prosi ta akcja, więc nie widać zmiany.",
+        "not_published": "Nie testowano: BattMind nie mógł opublikować akcji (zobacz dziennik).",
+        "no_steps": "Nie testowano: Twoja automatyzacja nie ma kroków dla tej akcji.",
+        "no_steps_temperature": "Nie testowano: Twoja automatyzacja nie ma kroków dla tej akcji. BattMind wysyła ją jako zatrzymanie bezpieczeństwa, gdy temperatura baterii jest za wysoka, za niska lub nieznana; bez kroków Twoja automatyzacja nie zatrzyma baterii.",
+        "no_steps_no_temperature": "Nie testowano: Twoja automatyzacja nie ma kroków dla tej akcji i to jest w porządku. BattMind wysyła ją tylko jako zatrzymanie bezpieczeństwa, gdy temperatura baterii jest za wysoka, za niska lub nieznana, a nie wybrano czujnika temperatury, więc nigdy nie jest wysyłana."
+      },
+      "automation_unknown": "BattMind nie znalazł Twojej automatyzacji w automations.yaml, więc nie widzi, które akcje mają kroki (automatyzacja w pakiecie lub w trybie YAML nie jest znajdowana)."
+    },
     "backup": {
       "exported": "Kopia zapasowa zapisana jako {file}",
       "imported": "Przywrócono kopię zapasową {file} (bazy danych: {databases})."
@@ -364,10 +525,13 @@
         "old_energy_sold": "Sprzedaż starej energii",
         "blocked_solar": "Zablokowane ładowanie z PV",
         "negative_price": "Ujemna cena",
+        "full_charge": "Pełne ładowanie",
         "sell_bought_cheap": "Sprzedaż taniej kupionej energii",
         "buy_to_sell": "Kup, aby sprzedać",
         "sell_before_solar": "Sprzedaż, zanim słońce napełni baterię",
-        "sell_before_cheap_charge": "Sprzedaż przed tanim ładowaniem"
+        "sell_before_cheap_charge": "Sprzedaż przed tanim ładowaniem",
+        "storm": "Ostrzeżenie przed burzą",
+        "storm_hold": "Zachowane na czas ostrzeżenia przed burzą"
       },
       "highest_level_time": "Czas najwyższego poziomu baterii",
       "highest_level": "Najwyższy poziom baterii",
@@ -437,7 +601,10 @@
       "level_after_hour": "Poziom baterii po tej godzinie",
       "solar_sold_for": "Nadwyżka z PV sprzedawana za",
       "no_data": "Brak danych",
-      "no_charging_history": "**Brak historii ładowania**"
+      "no_charging_history": "**Brak historii ładowania**",
+      "full_charge_due": "Dni od ostatniego pełnego ładowania",
+      "storm_keep": "Utrzymuje co najmniej **{level}%** na burzę od {time}: oczekiwane zużycie {kwh} kWh plus {buffer}% zapasu",
+      "taper_limited": "Ograniczono do {kwh} kWh: bateria ładuje się wolniej, gdy jest prawie pełna"
     },
     "dashboard_cards": {
       "title": "Brakujące karty dashboardu",
@@ -451,6 +618,10 @@
     "view_overview": "Przegląd",
     "view_settings": "Ustawienia",
     "view_analysis": "Analiza",
+    "group_results": "Wyniki",
+    "group_plan": "Plan",
+    "group_forecasts": "Prognozy",
+    "group_battery": "Bateria",
     "soc_chart_title": "Prognoza poziomu naładowania baterii domowej",
     "battery_forecast": "Prognoza baterii",
     "charge": "Ładowanie",
@@ -575,12 +746,14 @@
     "section_discharging": "Rozładowanie",
     "section_selling": "Sprzedaż",
     "section_solar": "Fotowoltaika",
-    "help_control": "* **Steruj baterią optymalizacją całego okresu**: oblicza najtańsze działanie dla każdej godziny całego okresu prognozy naraz (straty, zużycie, PV, ceny zakupu i sprzedaży oraz wymagany zysk) i według niego steruje baterią. Każde działanie jest pokazywane jako odpowiadająca mu reguła, a przełączniki reguł decydują, z których działań może korzystać. Wyłączone: baterią sterują reguły.\n* **Zwiększ wydajność baterii**: plan używa krzywych sprawności baterii zamiast jednej stałej straty ładowania. Zobacz *Sprawność baterii* w analizie.\n* **Typ prognozy**: jak prognozowane jest zużycie na godzinę z historii. EMA najbardziej waży ostatnie dni, trend podąża za rozwojem sytuacji, a średnia traktuje wszystkie dni jednakowo.\n* **Wybieraj typ prognozy automatycznie**: plan używa typu prognozy, który ostatnio najlepiej przewidywał zużycie, i zmienia go tylko, gdy inny jest wyraźnie lepszy. Zobacz *Trafność prognozy* w analizie.\n* **Koryguj prognozę cen**: plan koryguje ceny z prognozy (np. Carnot) o ich zwykłe odchylenie. Zobacz *Prognoza cen* w analizie.",
+    "help_control": "* **Steruj baterią optymalizacją całego okresu**: oblicza najtańsze działanie dla każdej godziny całego okresu prognozy naraz (straty, zużycie, PV, ceny zakupu i sprzedaży oraz wymagany zysk) i według niego steruje baterią. Każde działanie jest pokazywane jako odpowiadająca mu reguła, a przełączniki reguł decydują, z których działań może korzystać. Wyłączone: baterią sterują reguły.\n* **Zwiększ wydajność baterii**: plan używa krzywych sprawności baterii zamiast jednej stałej straty ładowania. Zobacz *Sprawność baterii* w analizie.\n* **Ucz się mocy ładowania według poziomu baterii**: bateria ładuje się wolniej, gdy jest prawie pełna. BattMind mierzy to sam na podstawie mocy i poziomu baterii (te same pomiary co sprawność), a plan liczy tylko na energię, którą bateria przyjmuje w każdej godzinie; bez wystarczającej liczby pomiarów lub po wyłączeniu używana jest ustawiona moc ładowania. Symulator tego nie używa.\n* **Używaj zmierzonej pojemności baterii**: BattMind zawsze mierzy, ile energii bateria pobiera i oddaje na 100 % poziomu (zobacz *Zmierzona pojemność* w analizie). Włączone: gdy wartość z ładowania jest wyraźnie poniżej ustawionej pojemności, plan liczy ze zmierzoną pojemnością, nigdy z większą niż ustawiona; nie jest używana tam, gdzie używana jest zmierzona krzywa sprawności (zmierzono ją przy ustawionej pojemności). Wyłączone: plan używa ustawionej pojemności. Symulator jej nie używa.\n* **Typ prognozy**: jak prognozowane jest zużycie na godzinę z historii. EMA najbardziej waży ostatnie dni, trend podąża za rozwojem sytuacji, a średnia traktuje wszystkie dni jednakowo.\n* **Wybieraj typ prognozy automatycznie**: plan używa typu prognozy, który ostatnio najlepiej przewidywał zużycie, i zmienia go tylko, gdy inny jest wyraźnie lepszy. Zobacz *Trafność prognozy* w analizie.\n* **Koryguj prognozę cen**: plan koryguje ceny z prognozy (np. Carnot) o ich zwykłe odchylenie. Zobacz *Prognoza cen* w analizie.",
     "help_profit": "Progi zysku decydują, kiedy bateria jest rozładowywana i kiedy następuje sprzedaż.\n\n* **Min. zysk na kWh**: każda kWh pobrana z baterii (zużyta w domu lub sprzedana) musi zarobić co najmniej tyle na kWh po stratach i zużyciu. Ładowanie z sieci jest planowane tylko wtedy, gdy to rozładowanie się opłaca.\n* **Min. całkowity zysk**: sprzedaż do sieci musi zarobić łącznie co najmniej tyle (na godzinę; nie dotyczy ładowania ani własnego zużycia domu).\n* **Min. nadwyżka kWh do eksportu**: najmniejsza sprzedawana ilość.\n* **Rezerwa dla domu**: procent baterii pozostawiany na własne zużycie domu i niesprzedawany.\n* **Wyklucz godziny sprzedaży**: godziny (np. 17,18,19) bez sprzedaży.",
-    "help_charging": "Nadwyżka PV zawsze ładuje pierwsza; sieć nigdy nie wypiera energii PV, która zostałaby sprzedana taniej niż kosztuje energia z sieci.\n\n* **Najtańsze godziny**: naładuj baterię w najtańszych godzinach na dzienne zużycie (*do pełna*: do maks.).\n  * **Tanie okresy cenowe**: liczba lokalnych okresów niskiej ceny wykrywanych każdego dnia.\n  * **Wzrost ceny w tanich okresach**: o ile cena może wzrosnąć powyżej najniższej ceny w okresie, zanim okres się zakończy.\n  * **Wzrost względem najniższej ceny**: o ile cena w danej godzinie może przekroczyć najniższą cenę dnia, aby nadal kwalifikować się do tej reguły.\n* **Najdroższe godziny**: ładuj na najdroższe godziny, których bateria nie pokrywa.\n* **Potrzebne przed maks. poziomem**: doładuj brakującą odrobinę, zanim słońce naładuje baterię.\n* **Ujemne ceny**: napełnij baterię, gdy ładowanie się opłaca, nawet jeśli energia nie zostanie zużyta.",
+    "help_charging": "Nadwyżka PV zawsze ładuje pierwsza; sieć nigdy nie wypiera energii PV, która zostałaby sprzedana taniej niż kosztuje energia z sieci.\n\n* **Najtańsze godziny**: naładuj baterię w najtańszych godzinach na dzienne zużycie (*do pełna*: do maks.).\n  * **Tanie okresy cenowe**: liczba lokalnych okresów niskiej ceny wykrywanych każdego dnia.\n  * **Wzrost ceny w tanich okresach**: o ile cena może wzrosnąć powyżej najniższej ceny w okresie, zanim okres się zakończy.\n  * **Wzrost względem najniższej ceny**: o ile cena w danej godzinie może przekroczyć najniższą cenę dnia, aby nadal kwalifikować się do tej reguły.\n* **Najdroższe godziny**: ładuj na najdroższe godziny, których bateria nie pokrywa.\n* **Potrzebne przed maks. poziomem**: doładuj brakującą odrobinę, zanim słońce naładuje baterię.\n* **Ujemne ceny**: napełnij baterię, gdy ładowanie się opłaca, nawet jeśli energia nie zostanie zużyta.\n* **Zalecane pełne ładowanie co**: niektóre baterie LFP wymagają od czasu do czasu pełnego naładowania, aby system zarządzania baterią (BMS) mógł się skalibrować. Gdy od ostatniego osiągnięcia przez baterię poziomu maksymalnego (minus 1 %) minęło więcej dni niż tu ustawiono, BattMind ładuje ją z sieci w kierunku tego poziomu w najtańszych godzinach przed końcem jutrzejszego dnia (przed końcem dzisiejszego dnia, gdy jest spóźnione o dobę, także gdy nie zarejestrowano pełnego naładowania i nie ma go w historii). Czeka, aż będą znane ceny do tego terminu, pomija *Min. zysk na kWh*, a słońce ładuje jako pierwsze. Jeśli bateria nie zdąży osiągnąć tego poziomu, plan to zaznacza i rezygnuje z ładowania. Przy *Dni do zaplanowania* równym 1 planowane jest tylko spóźnione pełne ładowanie. 0 = wyłączone.\n* **Ostatnie pełne ładowanie**: kiedy bateria ostatnio osiągnęła poziom maksymalny (minus 1 %); rejestrowane także, gdy liczba wynosi 0.",
     "help_discharging": "* **Tylko z zyskiem**: blokuj rozładowanie w godzinach, gdy koszt kWh w baterii (ze stratami i zużyciem) jest wyższy od ceny.\n* **Priorytet najdroższych godzin**: oszczędzaj baterię na najdroższe godziny do kolejnego ładowania.\n* **Przed słońcem**: zużyj/sprzedaj energię przed słońcem, gdy bateria i tak napełni się z PV, a nadwyżka sprzedawana jest tanio.\n* **Maks. godzin starych kWh**: starsza energia jest zużywana nawet bez zysku i sprzedawana, gdy to się bardziej opłaca.",
     "help_selling": "* **Maksymalizuj zysk**: sprzedawaj w najdroższych okresach, gdy daje to więcej niż własne zużycie.\n* **Sprzedaj nadwyżkę kWh**: sprzedaj energię, która nie zostanie zużyta, zanim bateria będzie pusta lub znów pełna.\n* **Poziom baterii o północy**: patrz tylko do północy zamiast na cały okres prognozy.\n* **Kup, aby sprzedać**: ładuj tanio z sieci tylko po to, by sprzedać kWh, gdy opłaca się to po stratach i zużyciu.",
     "help_solar": "* **Ładowanie z PV**: uwzględnij nadwyżkę PV w planie.\n* **Optymalizuj ładowanie z PV**: sprzedawaj nadwyżkę PV w drogich godzinach, a baterię ładuj w tanich godzinach słonecznych. Tylko gdy słońce i tak później naładuje baterię.",
+    "section_automation_test": "Przetestuj moją automatyzację",
+    "help_automation_test": "BattMind nigdy sam nie steruje baterią: robi to Twoja własna automatyzacja, gdy zmienia się akcja BattMind. Test sprawdza, czy automatyzacja naprawdę robi to, czego wymaga każda akcja.\n\n* **Przetestuj moją automatyzację**: włącz, aby rozpocząć. BattMind publikuje akcje jedna po drugiej (Ładowanie z sieci, Wymuszone rozładowanie, Rozładowanie dozwolone, Tylko ładowanie słoneczne, Ładowanie słoneczne zablokowane, Zatrzymaj baterię) i mierzy baterię. Krok zalicza się, gdy tylko bateria pokaże, co powinna zrobić, i czeka najwyżej 5 minut. Wyłącz przełącznik, aby zatrzymać; wtedy znów publikowana jest własna akcja BattMind.\n* **Test automatyzacji**: stan testu: bezczynny, działa, zakończono, zatrzymano lub niepowodzenie.\n* Tabela poniżej od początku wymienia każdą akcję i pokazuje postęp testu (⏳ czeka, ▶️ trwa test); każda akcja dostaje wynik, gdy jest gotowa: ✅ zadziałało, ❌ bateria nie zareagowała, 🔧 nie testowano. Akcje zależne od słońca lub zużycia domu można udowodnić tylko wtedy, gdy warunki są odpowiednie (np. akcja blokująca ładowanie słoneczne wymaga nadwyżki z paneli), więc są pokazywane jako nietestowane z podaniem powodu, zamiast się zaliczyć. *Zatrzymaj baterię* to zatrzymanie bezpieczeństwa przy temperaturze baterii za wysokiej, za niskiej lub nieznanej: bez czujnika temperatury BattMind nigdy jej nie wysyła, więc nie potrzebuje ona kroków. Jest testowana na końcu: zatrzymanie można udowodnić tylko zmianą, więc gdy bateria stoi, test najpierw wprawia ją w ruch (na krótko publikuje *Wymuszone rozładowanie* lub *Ładowanie z sieci*).\n\n**Uwaga:** test przez kilka minut ładuje baterię z sieci i rozładowuje ją do sieci oraz zmienia to, co robi falownik. Gdy bateria jest zatrzymana z powodu temperatury, nic nie jest testowane; plan i ustawienia nie są zmieniane. Energia przeniesiona przez test jest liczona jak każda inna w historii godziny.",
     "consumption_forecast": "Prognoza zużycia",
     "history_title": "Historia",
     "section_economy": "Ekonomia miesięcznie",
@@ -634,7 +807,7 @@
     "efficiency_curve_title": "Sprawność według mocy",
     "efficiency_charging": "Ładowanie",
     "efficiency_discharging": "Rozładowanie",
-    "efficiency_curve_explain": "Sprawność ładowania i rozładowania przy różnych mocach (jaka część energii trafia do baterii lub do domu). BattMind mierzy ją sam na podstawie mocy i poziomu baterii i odczytuje pierwsze pomiary z historii Home Assistanta, żeby krzywa nie musiała czekać na nowe dane. Linie przerywane to wartości zmierzone, linie ciągłe to krzywa, z którą BattMind planuje. Krzywa ustawiona przez Ciebie ma pierwszeństwo przed zmierzoną. Gdy *Zwiększ wydajność baterii* jest wyłączone lub nie ma jeszcze krzywej, BattMind używa całkowitej straty ładowania. Błędna pojemność baterii przesuwa ładowanie i rozładowanie w przeciwnych kierunkach, ale całkowita strata pozostaje prawidłowa.",
+    "efficiency_curve_explain": "Sprawność ładowania i rozładowania przy różnych mocach (jaka część energii trafia do baterii lub do domu). BattMind mierzy ją sam na podstawie mocy i poziomu baterii i odczytuje pierwsze pomiary z historii Home Assistanta, żeby krzywa nie musiała czekać na nowe dane. Linie przerywane to wartości zmierzone, linie ciągłe to krzywa, z którą BattMind planuje. Krzywa ustawiona przez Ciebie ma pierwszeństwo przed zmierzoną. Gdy *Zwiększ wydajność baterii* jest wyłączone lub nie ma jeszcze krzywej, BattMind używa całkowitej straty ładowania. Błędna pojemność baterii przesuwa ładowanie i rozładowanie w przeciwnych kierunkach, ale całkowita strata pozostaje prawidłowa. Pod tabelą sprawności pozycja *Zmierzona pojemność* pokazuje, co czujnik mocy baterii zarejestrował na 100 % poziomu baterii w przebiegach obejmujących co najmniej 40 % poziomu: ładowanie daje górną granicę użytecznej pojemności, a rozładowanie dolną, bo sprawność nie jest znana. Obie wartości są pokazane osobno, a sprawność cyklu to ich stosunek. Jeśli poziom baterii podąża za energią równomiernie, wartość z ładowania wyraźnie poniżej ustawionej pojemności sugeruje mniejszą użyteczną pojemność, a wartość z rozładowania wyraźnie powyżej – większą. Więcej energii na wyjściu niż na wejściu na punkt procentowy wskazuje na problem z pomiarem (czujnik mierzy oba kierunki inaczej albo poziom nie podąża za energią równomiernie). Jest mierzone zawsze. Gdy przełącznik *Używaj zmierzonej pojemności baterii* (*Ustawienia → Sterowanie*) jest włączony, plan liczy ze zmierzoną pojemnością, jeśli wartość z ładowania jest wyraźnie poniżej ustawionej pojemności, nigdy z większą niż ustawiona i nie tam, gdzie używana jest zmierzona krzywa sprawności (zmierzono ją przy ustawionej pojemności i już podąża za baterią, więc zmiana pojemności korygowałaby podwójnie). *Używana teraz* pokazuje, z czym liczy plan.",
     "efficiency_curve_off": "Krzywe wydajności są wyłączone. BattMind używa obecnie strat round-trip; skonfigurowane krzywe pozostają zapisane, a pomiary trwają dalej i pozostają widoczne.",
     "efficiency_measured_charging": "Ładowanie, zmierzone",
     "efficiency_measured_discharging": "Rozładowanie, zmierzone",
@@ -644,6 +817,24 @@
     "efficiency_source_none": "jeszcze brak: strata cyklu",
     "efficiency_steps_used": "stopni mocy w użyciu",
     "efficiency_measured_kwh": "kWh zmierzono",
+    "capacity_title": "Zmierzona pojemność",
+    "capacity_kwh_per_full": "kWh na 100 %",
+    "capacity_episodes": "przebiegi",
+    "capacity_configured": "Ustawiona pojemność",
+    "capacity_charging_bound": "Ładowanie: najwyżej",
+    "capacity_discharging_bound": "Rozładowanie: co najmniej",
+    "capacity_round_trip": "Sprawność cyklu",
+    "capacity_note": "Mierzone zawsze. Plan liczy z nią tylko przy włączonym przełączniku *Używaj zmierzonej pojemności baterii* i tylko gdy pomiar jest wyraźnie poniżej ustawionej pojemności.",
+    "capacity_status_too_few": "Jeszcze za mało przebiegów obejmujących co najmniej 40 % poziomu baterii (potrzeba po 3 w każdą stronę).",
+    "capacity_status_within": "Pomiary nie przeczą ustawionej pojemności.",
+    "capacity_status_below": "Ładowanie zużyło na 100 % poziomu mniej niż ustawiona pojemność: użyteczna pojemność wydaje się mniejsza niż ustawiona.",
+    "capacity_status_above": "Rozładowanie dało na 100 % poziomu więcej niż ustawiona pojemność: użyteczna pojemność wydaje się większa niż ustawiona.",
+    "capacity_status_inconsistent": "Na punkt procentowy wyszło więcej energii, niż weszło. Czujnik mocy baterii może mierzyć oba kierunki inaczej albo poziom baterii nie podąża za energią równomiernie.",
+    "capacity_off": "Plan używa ustawionej pojemności: *Używaj zmierzonej pojemności baterii* jest wyłączone. Pomiar trwa.",
+    "capacity_used": "Używana teraz",
+    "capacity_source_configured": "ustawiona",
+    "capacity_source_measured": "zmierzona, z wartości z ładowania",
+    "capacity_source_efficiency": "ustawiona: używana jest zmierzona krzywa sprawności (zmierzona przy ustawionej pojemności)",
     "section_sufficiency": "Samowystarczalność",
     "sufficiency_intro": "Samowystarczalność (słońce + bateria) z ostatnich 30 dni:",
     "sufficiency_title": "Energia domu miesięcznie",
@@ -672,7 +863,17 @@
     "day": "Dzień",
     "saved": "Zaoszczędzono",
     "possible": "Możliwe",
-    "score_explain": "Pokazuje, jaka część możliwych oszczędności została osiągnięta. **Zaoszczędzono** to to, co bateria zaoszczędziła w porównaniu z brakiem baterii. **Możliwe** to to, co mógłby zaoszczędzić najlepszy plan z perspektywy czasu. Najniższy możliwy koszt jest obliczany po fakcie na podstawie rzeczywistego zużycia, PV i cen z danego dnia, tego samego poziomu na początku i na końcu, strat, zużycia i wymaganego zysku. Działanie, które nie spełniałoby wymagań, nie liczy się jako możliwa oszczędność. Błędy prognoz są uwzględnione.",
+    "score_explain": "Pokazuje, jaka część możliwej oszczędności została osiągnięta. **Możliwe** to to, co bateria mogła zaoszczędzić tego dnia, obliczone po fakcie: koszt bez baterii minus najniższy możliwy koszt przy rzeczywistym zużyciu, produkcji słonecznej i cenach z tego dnia, stratach, zużyciu i wymaganiach dotyczących zysku, przy czym bateria kończy dzień tam, gdzie go zaczęła. **Zaoszczędzono** to wartość możliwa minus to, co plan stracił w porównaniu z najlepszym planem, który daje baterii netto tyle samo energii co ten dzień. Energia zostawiona w baterii na jutro albo wzięta z wczoraj nie jest więc ani zyskiem, ani stratą. Energia, którą ignorowani odbiorcy i ładowarki Cable Juice Planner pobrali ze słońca lub z baterii, oraz własny pobór baterii w trybie czuwania nie wchodzą do wyniku. Dzień dostaje wynik tylko wtedy, gdy każda godzina jest zmierzona z rzeczywistymi cenami i zmierzonym poziomem baterii; dni bez wyniku i powód podano pod tabelą. Dzień z bardzo małą możliwą oszczędnością pokazuje – zamiast wyniku. Błędy prognoz są wliczone. Dzień oceniony starszą wersją obliczeń jest pokazany z 🔄 według ówczesnego wzoru i nie jest wliczany do 30 dni.",
+    "score_missing_intro": "Dni bez wyniku w ostatnich 30 dniach:",
+    "score_no_hours": "godzina nie została zapisana",
+    "score_no_gap": "czujnik przestał działać",
+    "score_no_prices": "brak rzeczywistej ceny",
+    "score_no_soc": "brak zmierzonego poziomu baterii",
+    "score_no_drift": "bilans energii się nie zgadzał",
+    "score_no_battery": "nie można było zamodelować baterii",
+    "score_no_history": "starszy dzień bez danych godzinowych",
+    "score_no_version": "dzień zapisany przez starszą wersję",
+    "score_old_note": "🔄 = obliczono starszą wersją wyniku. Nie można go porównać z nowszymi dniami i nie jest wliczany do 30 dni.",
     "section_planned": "Plan a rzeczywistość",
     "planned_summary_1": "Planowane ładowanie z sieci",
     "planned_summary_2": "naładowano",
@@ -692,6 +893,7 @@
     "source": "Źródło",
     "solar_plan": "Plan",
     "solar_database": "Historia (pogoda)",
+    "solar_integration": "Integracja prognozy",
     "solar_actual": "Zmierzona nadwyżka",
     "solar_forecast_title": "Nadwyżka słoneczna dziennie",
     "section_price_forecast": "Prognoza cen",
@@ -719,7 +921,7 @@
     "section_history": "Historia",
     "sufficiency_explain": "Skąd pochodziło zużycie domu godzina po godzinie: najpierw słońce, potem bateria, reszta z sieci. **Samowystarczalność** = (słońce + bateria) / zużycie. **Eksport** to energia słoneczna i z baterii sprzedana do sieci. Za pierwszym razem rok jest odczytywany z długoterminowych statystyk Home Assistant.",
     "planned_explain": "Każdego wieczoru o 23 BattMind zapisuje, ile plan chce następnego dnia naładować z sieci i sprzedać. Tutaj porównuje się to z tym, co faktycznie naładowano z sieci i sprzedano. Duże różnice wynikają z błędów prognoz (zużycie, słońce) i planów zmieniających się w ciągu dnia wraz z cenami lub poziomem baterii.",
-    "solar_forecast_explain": "Nadwyżka słoneczna (produkcja minus zużycie domu) oczekiwana przez plan na następny dzień, zapisana poprzedniego wieczoru, a zmierzona nadwyżka. **Plan** to łączna prognoza BattMind, **Historia (pogoda)** to część z zapisanej historii słonecznej według typu pogody, **Solcast** to integracja prognozy. **Odchylenie** > 0: oczekiwano za dużo słońca.",
+    "solar_forecast_explain": "Nadwyżka słoneczna (produkcja minus zużycie domu) oczekiwana przez plan na następny dzień, zapisana poprzedniego wieczoru, a zmierzona nadwyżka. **Plan** to łączna prognoza BattMind, **Historia (pogoda)** to część z zapisanej historii słonecznej według typu pogody, **Integracja prognozy** to wybrana integracja prognozy słonecznej (Solcast, Forecast.Solar lub Helios Forecast). **Odchylenie** > 0: oczekiwano za dużo słońca.",
     "history_explain": "* **Wymagany poziom baterii do następnego ładowania**: ostatnie 48 godzin.\n* **kWh naładowane przez panele**: energia słoneczna do baterii, ostatnie 7 dni.",
     "consumption_forecast_explain": "Przewidywane zużycie na godzinę w okresie prognozy według trzech typów prognozy (lewa oś) oraz zużycie skumulowane (prawa oś, grube linie). Wybrany typ prognozy jest używany w planie; **Trafność prognozy** pokazuje, który jest najdokładniejszy.",
     "what_if_duration_years": "{n} r.",
@@ -777,6 +979,13 @@
     "what_if_reason_module_invalid": "Pojemność modułu musi być większa niż 0 i nie większa niż 1000 kWh, cena nie może być ujemna, a liczba modułów musi wynosić od 1 do 12.",
     "what_if_reason_invalid_inputs": "Jedna z wartości what-if jest nieprawidłowa lub nie ma wartości.",
     "what_if_reason_save_failed": "Nie udało się zapisać wyniku.",
-    "what_if_reason_internal_error": "Symulacja nie powiodła się; zobacz dziennik Home Assistanta."
+    "what_if_reason_internal_error": "Symulacja nie powiodła się; zobacz dziennik Home Assistanta.",
+    "section_storm": "Ostrzeżenie przed burzą",
+    "help_storm": "BattMind utrzymuje baterię naładowaną na czas ostrzeżenia przed burzą z encji wybranej w ustawieniach (MeteoAlarm). Liczą się tylko ostrzeżenia o wietrze, śniegu/lodzie lub burzy z piorunami na wybranym poziomie lub wyższym i tylko te z czasem rozpoczęcia: bez niego nic nie jest planowane, a status to pokazuje.\n\n* **Ostrzeżenie przed burzą**: status ostrzeżenia. *Nadchodzące* lub *Aktywne* oznacza, że plan utrzymuje dla niego poziom baterii. Poniżej: kiedy ostrzeżenie się zaczyna i kończy, utrzymywany poziom baterii, oczekiwane zużycie domu bez słońca oraz zapas na wypadek błędnej prognozy (o ile prognoza mijała się z rzeczywistością w ostatnich 30 dniach, co najmniej 20 %).\n* **Godziny objęte ostrzeżeniem bez czasu końca**: jak długo liczy się ostrzeżenie, które ma czas rozpoczęcia, ale nie ma czasu końca.\n\nUtrzymywany poziom spada godzina po godzinie w miarę trwania burzy i poniżej niego nic się nie sprzedaje. Ładowanie jest planowane w najtańszych godzinach przed momentem, gdy poziom jest potrzebny; jeśli bateria nie zdąży go osiągnąć, jest ładowana najwyżej, jak to możliwe. Bez zasilania awaryjnego pełna bateria nie zasili domu podczas przerwy w dostawie prądu.",
+    "storm_start": "Początek",
+    "storm_end": "Koniec",
+    "storm_keep_percent": "Utrzymywany poziom",
+    "storm_expected_use": "Oczekiwane zużycie",
+    "storm_buffer": "Zapas"
   }
 }
