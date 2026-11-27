@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import datetime
 import math
+import zoneinfo
 from types import SimpleNamespace
 
 import pytest
 
 from custom_components.battmind.const import build_config, default_options
 from custom_components.battmind.prices import CombinedPriceProvider, create_price_provider
-from custom_components.battmind.prices.base import calculate_sell_price, is_number
+from custom_components.battmind.prices.base import calculate_sell_price, is_number, price_timestamp
 from custom_components.battmind.prices.energidataservice import EnergiDataServicePriceProvider
 from custom_components.battmind.prices.stromligning import StromligningPriceProvider
 
@@ -215,6 +216,37 @@ def test_stromligning_tariff_that_is_not_a_finite_number_drops_the_sell_prices(b
     assert provider.get_sell_prices()
 
 
+def test_a_forecast_day_with_quarter_sell_prices_has_four_sell_periods_per_hour() -> None:
+    """Strømligning's sell forecast in 15-minute rows: every quarter sells a quarter of the hour, not a whole hour's energy.
+    Today's real hourly sell prices are repeated over the four quarters of the hour (one common interval for the whole plan)."""
+    _config, data = _stromligning()
+    config = build_config({
+        **default_options(),
+        "stromligning_buy_current_price": "sensor.buy",
+        "stromligning_sell_current_price": "sensor.sell",
+        "stromligning_sell_tomorrow_available": "binary_sensor.sell_tomorrow",
+        "stromligning_sell_forecasts": "sensor.sell_forecasts",
+        "stromligning_sell_distribution": "sensor.sell_distribution",
+        "stromligning_sell_electricity_tax": "sensor.sell_tax",
+        "stromligning_sell_nettariff": "sensor.sell_nettariff",
+        "stromligning_sell_systemtariff": "sensor.sell_systemtariff",
+        "stromligning_sell_surcharge": "sensor.sell_surcharge",
+    })
+    day_3 = TODAY + datetime.timedelta(days=2)
+    rows = [
+        {"start": (datetime.datetime.combine(day_3, datetime.time(0)) + datetime.timedelta(minutes=15 * i)).isoformat() + "+01:00", "price": 3.0}
+        for i in range(96)
+    ]
+    data["attributes"]["sensor.sell_forecasts"] = {"prices": rows}
+    provider = CombinedPriceProvider(config, [StromligningPriceProvider(config)])
+    provider.update_prices(data, NOW)
+    noon = datetime.datetime.combine(day_3, datetime.time(12))
+    assert provider.is_forecast(noon, sell_prices=True)
+    assert provider.sell_periods_in_hour(noon) == 4
+    # one common interval: today's hourly sell price is repeated over the four quarters, each selling a quarter of the hour's energy
+    assert provider.sell_periods_in_hour(datetime.datetime.combine(TODAY, datetime.time(12))) == 4
+
+
 def test_is_number_accepts_only_finite_numbers() -> None:
     assert is_number(1) and is_number(-0.5) and is_number(0.0)
     assert not any(is_number(value) for value in (None, "1.0", True, float("nan"), float("inf"), float("-inf")))
@@ -285,6 +317,113 @@ def test_combined_provider_reads_the_price_entities_and_merges_the_prices() -> N
     assert provider.buy_price_entity_id() == "sensor.stromligning, sensor.eds"
 
 
+# --- time zones: an offset is converted to Home Assistant's time zone, not just dropped ---
+
+COPENHAGEN = zoneinfo.ZoneInfo("Europe/Copenhagen")
+
+
+def _at(hour: int, minute: int = 0, day: datetime.date = TODAY) -> datetime.datetime:
+    return datetime.datetime.combine(day, datetime.time(hour, minute))
+
+
+@pytest.mark.parametrize(
+    ("value", "tz", "expected"),
+    [
+        ("2026-10-30T22:00:00+00:00", COPENHAGEN, _at(23)),  # UTC from Nord Pool / EPEX: 23:00 in CET
+        ("2026-10-30T22:00:00Z", COPENHAGEN, _at(23)),
+        ("2026-10-30T22:00:00+00:00", None, _at(22)),  # no tz: the offset is dropped as before
+        ("2026-10-30T23:00:00+01:00", COPENHAGEN, _at(23)),  # already local: unchanged
+        ("2026-10-30T23:00:00+01:00", zoneinfo.ZoneInfo("UTC"), _at(22)),  # another local time zone
+        ("2026-10-30T23:00:00", COPENHAGEN, _at(23)),  # no offset: local time already
+        (datetime.datetime(2026, 10, 30, 22, tzinfo=datetime.timezone.utc), COPENHAGEN, _at(23)),  # a datetime, not text
+        (_at(23), COPENHAGEN, _at(23)),
+        ("2026-03-29T00:30:00+00:00", COPENHAGEN, _at(1, 30, datetime.date(2026, 3, 29))),  # before the spring change
+        ("2026-03-29T01:00:00+00:00", COPENHAGEN, _at(3, 0, datetime.date(2026, 3, 29))),  # 02:00-03:00 does not exist
+    ],
+)
+def test_price_timestamp_converts_the_offset_to_local_time(value, tz, expected) -> None:
+    assert price_timestamp(value, tz) == expected
+
+
+@pytest.mark.parametrize("value", ["not a time", "", None, 5, [], {}])
+def test_price_timestamp_leaves_what_is_no_timestamp(value) -> None:
+    assert price_timestamp(value, COPENHAGEN) == value
+
+
+def test_the_repeated_autumn_hour_shares_one_key() -> None:
+    """02:00 CEST and 02:00 CET are the same wall-clock time: one price key (accepted twice a year)."""
+    first = price_timestamp("2026-10-25T00:00:00+00:00", COPENHAGEN)
+    second = price_timestamp("2026-10-25T01:00:00+00:00", COPENHAGEN)
+    assert first == second == _at(2, 0, datetime.date(2026, 10, 25))
+
+
+def _utc_rows(day: datetime.date, price, key: str) -> list[dict]:
+    """Every local hour of the day as a UTC timestamp, like a price integration that reports UTC."""
+    return [
+        {key: _at(hour, day=day).replace(tzinfo=COPENHAGEN).astimezone(datetime.timezone.utc).isoformat(), "price": price(hour)}
+        for hour in range(24)
+    ]
+
+
+def test_stromligning_rows_in_utc_land_on_the_local_hour() -> None:
+    provider = StromligningPriceProvider(build_config({**default_options(), "stromligning_buy_current_price": "sensor.buy"}))
+    data = {"attributes": {"sensor.buy": {"prices": _utc_rows(TODAY, lambda hour: 1.0 + hour, "start")}}, "values": {}}
+    provider.update(data, NOW, COPENHAGEN)
+    assert provider.buy_real_prices == {_at(hour): 1.0 + hour for hour in range(24)}
+    # without the time zone the UTC hours are taken as local time: one hour early
+    provider.update(data, NOW)
+    assert provider.buy_real_prices[_at(22)] == 1.0 + 23
+
+
+def test_energi_data_service_rows_in_utc_land_on_the_local_hour() -> None:
+    provider = EnergiDataServicePriceProvider(build_config({**default_options(), "energidataservice_buy_entity_id": "sensor.eds"}))
+    data = {"attributes": {"sensor.eds": {"raw_today": _utc_rows(TODAY, lambda hour: 1.0 + hour, "hour"), "tomorrow_valid": False}}, "values": {}}
+    provider.update(data, NOW, COPENHAGEN)
+    assert provider.buy_real_prices == {_at(hour): 1.0 + hour for hour in range(24)}
+
+
+def test_the_time_zone_reaches_every_provider() -> None:
+    combined = _both_providers()
+    seen = []
+    for provider in combined.providers:
+        provider.update = lambda data, now, tz=None, provider=provider: seen.append((provider.source_name, tz))
+    combined.update_prices({"attributes": {}, "values": {}}, NOW, COPENHAGEN)
+    assert seen == [("stromligning", COPENHAGEN), ("energidataservice", COPENHAGEN)]
+
+
+def test_price_timestamp_survives_the_edge_of_the_calendar() -> None:
+    """A conversion that leaves the calendar keeps the wall time of the row instead of stopping the update."""
+    assert price_timestamp("9999-12-31T23:59:59+00:00", COPENHAGEN) == datetime.datetime(9999, 12, 31, 23, 59, 59)
+
+
+def test_stromligning_tariff_rows_in_utc_follow_the_same_conversion() -> None:
+    """The sell price takes the distribution tariff of the same hour as the price: both rows are converted."""
+    config, _ = _stromligning()
+    provider = StromligningPriceProvider(config)
+    data = {
+        "attributes": {
+            "sensor.buy": {"prices": _utc_rows(TODAY, lambda hour: 4.0, "start")},
+            "sensor.sell": {"prices": _utc_rows(TODAY, _sell_with_tariffs(TODAY), "start")},
+            "sensor.sell_distribution": {"prices": _utc_rows(TODAY, DISTRIBUTION.get, "start")},
+            **{entity_id: {} for entity_id in FLAT_TARIFFS},
+        },
+        "values": dict(FLAT_TARIFFS),
+    }
+    provider.update(data, NOW, COPENHAGEN)
+    for hour in (3, 17, 20, 21):  # 17-20 have the high distribution tariff
+        assert provider.sell_real_prices[_at(hour)] == pytest.approx(round(SPOT[TODAY] - 0.03 - 0.043 - 0.072, 2))
+
+
+def test_the_what_if_has_no_sell_history_for_energi_data_service_without_a_sell_sensor() -> None:
+    """The live prices sell at the buy sensor's price less its tariffs, but the tariffs of past hours are not recorded
+    (Energi Data Service keeps its tariffs attribute out of the recorder): reading the buy history as the sell history would
+    leave out every hour, so the what-if keeps reporting that the sell price history is not available."""
+    provider = create_price_provider(build_config({**default_options(), "energidataservice_buy_entity_id": "sensor.eds"}))
+    states = {"sensor.eds": _State("1.0", {"tariffs": {"transmissions_nettarif": 0.1}})}
+    (source,) = provider.history_sources(states.get)
+    assert source["buy_entity_id"] == "sensor.eds" and source["sell_entity_id"] is None
+    chosen = create_price_provider(build_config({**default_options(), "energidataservice_buy_entity_id": "sensor.eds", "energidataservice_sell_entity_id": "sensor.eds_sell"}))
+    assert chosen.history_sources(states.get)[0]["sell_entity_id"] == "sensor.eds_sell"
 def _price_state(value):
     """A price entity for price_unit_problems: (state, unit or None), or None when the entity has no state."""
     if value is None:
@@ -324,3 +463,40 @@ def test_the_price_units_that_are_wrong_are_reported_and_missing_ones_are_not_ju
         "energidataservice_sell_entity_id": "sensor.eds_sell",
     }))
     assert provider.price_unit_problems(states.get) == (problems, judged)
+
+
+def test_energy_price_forecast_converts_a_price_per_mwh_but_a_price_per_wh_is_wrong_on_it() -> None:
+    from custom_components.battmind.prices.base import price_unit_error
+
+    key = "energypriceforecast_buy_entity_id"
+    assert price_unit_error(key, "EUR/MWh") is False and price_unit_error(key, "EUR/kWh") is False
+    assert price_unit_error(key, "EUR/Wh") is True and price_unit_error(key, "ct/kWh") is True
+
+
+def test_the_price_unit_repair_judges_each_sensor_by_the_unit_rules_of_its_key() -> None:
+    """A price per MWh is wrong on a sensor that is read per kWh, but Energy Price Forecast converts its own and Wattcast gives ct/kWh
+    (euro cents): neither is named, whatever the unit rules of the others. A subunit is wrong everywhere else."""
+    provider = create_price_provider(build_config({**default_options(), "energidataservice_buy_entity_id": "sensor.eds_buy", "energidataservice_sell_entity_id": "sensor.eds_sell"}))
+    provider.entity_ids = {
+        "energypriceforecast_buy_entity_id": "sensor.epf",
+        "energidataservice_buy_entity_id": "sensor.eds",
+        "nordpool_buy_entity_id": "sensor.nordpool",
+        "wattcast_buy_entity_id": "sensor.wattcast",
+        "epexspot_buy_entity_id": "sensor.epex",
+        "stromligning_buy_current_price": "sensor.sl",  # not a sensor of PRICE_SENSOR_KEYS: judged by its unit alone
+        "wattcast_forecast_entity_id": "sensor.wattcast_forecast",  # its provider checks its unit
+        "energidataservice_sell_entity_id": "sensor.eds",  # one sensor under two keys: named once
+    }
+    states = {
+        "sensor.epf": _price_state(("25", "EUR/MWh")),  # converted by its provider
+        "sensor.eds": _price_state(("2.0", "DKK/MWh")),
+        "sensor.nordpool": _price_state(("unavailable", "EUR/MWh")),  # the unit stays while a sensor is down
+        "sensor.wattcast": _price_state(("9.0", "ct/kWh")),  # its own unit
+        "sensor.epex": _price_state(("9.0", "ct/kWh")),
+        "sensor.sl": _price_state(("1.0", "øre/kWh")),
+        "sensor.wattcast_forecast": _price_state(("9.0", "ct/kWh")),
+    }
+    problems, judged = provider.price_unit_problems(states.get)
+    assert sorted(problems) == [("sensor.eds", "DKK/MWh"), ("sensor.epex", "ct/kWh"), ("sensor.nordpool", "EUR/MWh"), ("sensor.sl", "øre/kWh")] and judged
+    states["sensor.wattcast"] = _price_state(("9.0", "EUR/kWh"))  # anything else is wrong for Wattcast
+    assert ("sensor.wattcast", "EUR/kWh") in provider.price_unit_problems(states.get)[0]

@@ -10,7 +10,8 @@ PLATFORMS = ["sensor", "binary_sensor", "switch", "number", "select", "text", "b
 
 # Price providers in priority order. For each hour the planner and the what-if use the
 # first configured provider that has a price, then fall back to the next one.
-PRICE_PROVIDER_PRIORITY = ("stromligning", "energidataservice")
+# the user's own tariff or sensor (the providers of published prices) before the estimates made with a VAT and a surcharge
+PRICE_PROVIDER_PRIORITY = ("stromligning", "energidataservice", "octopus", "nordpool", "epexspot", "gespot", "energypriceforecast", "spotforecast", "elprognos", "wattcast")
 
 LEGACY_DB_FILES = {
     "charging_history": "{prefix}_charging_history_db.yaml",
@@ -22,6 +23,55 @@ LEGACY_DB_FILES = {
 STORAGE_VERSION = 1
 
 PRICE_ADDER_DAY_BETWEEN_DIVIDER = 30
+
+# The money limits of the planner (the forecast adder, the profit floors and ties, the rounding of prices) were chosen
+# for prices in Danish kroner (about 1-3 per kWh). A config entry whose prices are in another currency stores
+# prices.price_scale: how many of its units one krone is worth (EUR 0.134), so a floor of 0.01 kr becomes 0.00134 EUR.
+# A missing or invalid value is 1.0 (kroner): an entry made before is unchanged. The rates are only rough, they set
+# the order of magnitude of a limit and are never used to convert a price.
+CURRENCY_PRICE_SCALE = {
+    "DKK": 1.0,
+    "SEK": 1.4,
+    "NOK": 1.5,
+    "EUR": 0.134,
+    "GBP": 0.115,
+    "CHF": 0.125,
+    "PLN": 0.57,
+    "RON": 0.67,
+    "BGN": 0.26,
+    "USD": 0.145,
+}
+# Currencies that are worth much less than a krone (CZK, HUF, ISK, UAH) are left out: their amounts would be above the
+# limits of the number entities and the flow fields, so an unknown unit keeps the scale as it is.
+# what a price sensor writes before the "/kWh" of its unit: the symbols and "kr" (kroner, in practice DKK)
+CURRENCY_UNIT_ALIASES = {"KR": "DKK", "KR.": "DKK", "€": "EUR", "£": "GBP", "ZŁ": "PLN", "$": "USD"}
+# a stored scale outside this range is not a currency of the table (a hand edit, a damaged backup): kroner
+PRICE_SCALE_RANGE = (0.01, 100.0)
+# a scale below this rounds prices to 3 decimals instead of 2 (EUR 0.134: a price of 0.134 would lose most of its precision)
+PRICE_DECIMALS_SCALE_LIMIT = 0.5
+# the smallest gain per kWh a sale or a discharge has to earn, and the tolerance that makes two prices "the same" (kroner)
+MIN_GAIN_PER_KWH = 0.01
+PRICE_TIE_MARGIN = 0.005
+
+
+def price_scale(config: dict) -> float:
+    """prices.price_scale of the config: 1.0 (kroner) when it is missing, not a number or outside PRICE_SCALE_RANGE."""
+    value = (config.get("prices") or {}).get("price_scale", 1.0)
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and PRICE_SCALE_RANGE[0] <= value <= PRICE_SCALE_RANGE[1]:
+        return float(value)
+    return 1.0
+
+
+def price_decimals(config: dict) -> int:
+    """Decimals a per kWh price is rounded to: 2 for kroner, 3 for a currency worth much more (EUR, GBP)."""
+    return 2 if price_scale(config) >= PRICE_DECIMALS_SCALE_LIMIT else 3
+
+
+def scaled(config: dict, amount: float) -> float:
+    """An amount of money chosen for kroner (a floor, a tolerance) in the currency of the prices."""
+    return amount * price_scale(config)
+
+
 CHARGING_HISTORY_COMBINE_AFTER = 24 * 3
 HISTORY_BUFFER_HOURS = 50
 CHARGING_HISTORY_CORRECT_HOURS = 48  # hours of the charging history that can be measured again from the buffers (within HISTORY_BUFFER_HOURS)

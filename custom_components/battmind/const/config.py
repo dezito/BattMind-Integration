@@ -82,6 +82,21 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "entity_ids": {
             "energidataservice_buy_entity_id": "",
             "energidataservice_sell_entity_id": "",
+            "energypriceforecast_buy_entity_id": "",
+            "energypriceforecast_sell_entity_id": "",
+            "spotforecast_buy_entity_id": "",
+            "elprognos_buy_entity_id": "",
+            "wattcast_buy_entity_id": "",
+            "wattcast_forecast_entity_id": "",
+            "epexspot_buy_entity_id": "",
+            "epexspot_sell_entity_id": "",
+            "gespot_buy_entity_id": "",
+            "octopus_buy_entity_id": "",
+            "octopus_buy_next_day_entity_id": "",
+            "octopus_sell_entity_id": "",
+            "octopus_sell_next_day_entity_id": "",
+            "nordpool_buy_entity_id": "",
+            "nordpool_sell_entity_id": "",
             "stromligning_buy_current_price": "",
             "stromligning_buy_tomorrow_available": "",
             "stromligning_buy_forecasts": "",
@@ -96,6 +111,13 @@ DEFAULT_CONFIG: dict[str, Any] = {
         },
         "refund": 0.0,
         "sell_fee": 0.03,
+        # the VAT (%) and the surcharge per kWh (grid fee, taxes, margin) added to the wholesale price of the spot forecast providers:
+        # none by default, a buy price without them would be too low, so they must be set
+        "spot_vat": None,
+        "spot_surcharge": None,
+        "country": "DK",  # ISO 3166-1 alpha-2: the country of the prices (the price provider page); Denmark for entries from before it
+        # not a page of the flow: set when the entry is made from the unit of the price sensors (const/base.py price_scale)
+        "price_scale": 1.0,
     },
     "solar": {
         "entity_ids": {
@@ -158,6 +180,21 @@ OPTION_PATHS: dict[str, str] = {
     # prices
     "energidataservice_buy_entity_id": "prices.entity_ids.energidataservice_buy_entity_id",
     "energidataservice_sell_entity_id": "prices.entity_ids.energidataservice_sell_entity_id",
+    "energypriceforecast_buy_entity_id": "prices.entity_ids.energypriceforecast_buy_entity_id",
+    "energypriceforecast_sell_entity_id": "prices.entity_ids.energypriceforecast_sell_entity_id",
+    "spotforecast_buy_entity_id": "prices.entity_ids.spotforecast_buy_entity_id",
+    "elprognos_buy_entity_id": "prices.entity_ids.elprognos_buy_entity_id",
+    "wattcast_buy_entity_id": "prices.entity_ids.wattcast_buy_entity_id",
+    "wattcast_forecast_entity_id": "prices.entity_ids.wattcast_forecast_entity_id",
+    "epexspot_buy_entity_id": "prices.entity_ids.epexspot_buy_entity_id",
+    "epexspot_sell_entity_id": "prices.entity_ids.epexspot_sell_entity_id",
+    "gespot_buy_entity_id": "prices.entity_ids.gespot_buy_entity_id",
+    "octopus_buy_entity_id": "prices.entity_ids.octopus_buy_entity_id",
+    "octopus_buy_next_day_entity_id": "prices.entity_ids.octopus_buy_next_day_entity_id",
+    "octopus_sell_entity_id": "prices.entity_ids.octopus_sell_entity_id",
+    "octopus_sell_next_day_entity_id": "prices.entity_ids.octopus_sell_next_day_entity_id",
+    "nordpool_buy_entity_id": "prices.entity_ids.nordpool_buy_entity_id",
+    "nordpool_sell_entity_id": "prices.entity_ids.nordpool_sell_entity_id",
     "stromligning_buy_current_price": "prices.entity_ids.stromligning_buy_current_price",
     "stromligning_buy_tomorrow_available": "prices.entity_ids.stromligning_buy_tomorrow_available",
     "stromligning_buy_forecasts": "prices.entity_ids.stromligning_buy_forecasts",
@@ -170,7 +207,11 @@ OPTION_PATHS: dict[str, str] = {
     "stromligning_sell_systemtariff": "prices.entity_ids.stromligning_sell_systemtariff",
     "stromligning_sell_surcharge": "prices.entity_ids.stromligning_sell_surcharge",
     "refund": "prices.refund",
+    "spot_vat": "prices.spot_vat",
+    "spot_surcharge": "prices.spot_surcharge",
     "sell_fee": "prices.sell_fee",
+    "price_country": "prices.country",
+    "price_scale": "prices.price_scale",
     # solar / forecast
     "production_entity_id": "solar.entity_ids.production_entity_id",
     "forecast_entity_id": "solar.entity_ids.forecast_entity_id",
@@ -210,7 +251,6 @@ FLOW_STEPS: dict[str, list[str]] = {
         "use_charge_discharge_loss_from_history",
         "battery_charging_efficiency_curve",
         "battery_discharging_efficiency_curve",
-        "powerwall_wear_cost_per_kwh",
     ],
     "battery_actions": ["unsupported_actions"],
     "consumption": [
@@ -228,6 +268,17 @@ FLOW_STEPS: dict[str, list[str]] = {
         "energidataservice_buy_entity_id",
         "energidataservice_sell_entity_id",
     ],
+    "prices_energypriceforecast": [
+        "energypriceforecast_buy_entity_id",
+        "energypriceforecast_sell_entity_id",
+    ],
+    "prices_spotforecast": ["spotforecast_buy_entity_id"],
+    "prices_elprognos": ["elprognos_buy_entity_id"],
+    "prices_wattcast": ["wattcast_buy_entity_id", "wattcast_forecast_entity_id"],
+    "prices_epexspot": ["epexspot_buy_entity_id", "epexspot_sell_entity_id"],
+    "prices_gespot": ["gespot_buy_entity_id"],
+    "prices_octopus": ["octopus_buy_entity_id", "octopus_buy_next_day_entity_id", "octopus_sell_entity_id", "octopus_sell_next_day_entity_id"],
+    "prices_nordpool": ["nordpool_buy_entity_id", "nordpool_sell_entity_id"],
     "prices_stromligning": [
         "stromligning_buy_current_price",
         "stromligning_buy_tomorrow_available",
@@ -243,7 +294,8 @@ FLOW_STEPS: dict[str, list[str]] = {
         "stromligning_sell_systemtariff",
         "stromligning_sell_surcharge",
     ],
-    "price_fees": ["refund", "sell_fee"],
+    # the wear cost is an amount in the price currency: on the page after the price pages, where it is known
+    "price_fees": ["refund", "sell_fee", "powerwall_wear_cost_per_kwh"],
     "solar": [
         "production_entity_id",
         "inverter_discharging_power_limit",
@@ -270,6 +322,14 @@ FLOW_STEPS: dict[str, list[str]] = {
 # Price provider -> option keys belonging to it (cleared when the provider is deselected)
 PRICE_PROVIDER_KEYS: dict[str, list[str]] = {
     "energidataservice": FLOW_STEPS["prices_energidataservice"],
+    "energypriceforecast": FLOW_STEPS["prices_energypriceforecast"],
+    "spotforecast": FLOW_STEPS["prices_spotforecast"],
+    "elprognos": FLOW_STEPS["prices_elprognos"],
+    "wattcast": FLOW_STEPS["prices_wattcast"],
+    "epexspot": FLOW_STEPS["prices_epexspot"],
+    "gespot": FLOW_STEPS["prices_gespot"],
+    "octopus": FLOW_STEPS["prices_octopus"],
+    "nordpool": FLOW_STEPS["prices_nordpool"],
     "stromligning": FLOW_STEPS["prices_stromligning"]
     + FLOW_STEPS["prices_stromligning_tariffs"],
 }
@@ -282,6 +342,14 @@ OPTIONS_MENU: dict[str, list[str]] = {
     "prices": [
         "price_provider",
         "prices_energidataservice",
+        "prices_energypriceforecast",
+        "prices_spotforecast",
+        "prices_elprognos",
+        "prices_wattcast",
+        "prices_epexspot",
+        "prices_gespot",
+        "prices_octopus",
+        "prices_nordpool",
         "prices_stromligning",
         "prices_stromligning_tariffs",
         "price_fees",

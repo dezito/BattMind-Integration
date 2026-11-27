@@ -30,7 +30,6 @@ BATTERY_SPECS = {
     "powerwall_discharging_power": 5000,
     "powerwall_charge_discharge_loss": 0.1,
     "use_charge_discharge_loss_from_history": True,
-    "powerwall_wear_cost_per_kwh": 0.1,
     "battery_temperature_min": 0,
     "battery_temperature_max": 50,
 }
@@ -63,6 +62,7 @@ async def _to_price_provider(hass: HomeAssistant, **extra):
 
 
 async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
+    hass.config.country = "SE"
     result = await _to_price_provider(hass, dashboard_icon="mdi:solar-power")
     result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
@@ -86,6 +86,7 @@ async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
     assert result["title"] == "BattMind (bmflow)"
     assert result["data"][CONF_ENTITY_PREFIX] == "bmflow"
     options = result["options"]
+    assert options["price_country"] == "SE"  # a new entry: the country of Home Assistant is suggested and stored
     assert options["powerwall_battery_level_entity_id"] == BATTERY_LEVEL
     assert options["invert_powerwall_watt_flow_entity_id"] is True
     assert options["powerwall_battery_size"] == 13.5
@@ -94,6 +95,136 @@ async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
     assert options["stromligning_buy_current_price"] == ""  # provider not chosen
     assert options["hourly_service_entity_id"] == ""
     assert options["dashboard_icon"] == "mdi:solar-power"
+
+
+async def _finish_after_the_price_pages(hass: HomeAssistant, result):
+    result = await _configure(hass, result, "solar", {"production_entity_id": PRODUCTION, "inverter_discharging_power_limit": 6000, "production_price": -1})
+    result = await _configure(hass, result, "weather", {})
+    result = await _configure(hass, result, "advanced", {"days_to_predict": 3, "cron_interval": "5", "dashboard": False})
+    return await _configure(
+        hass, result, "database",
+        {"power_values_db_data_to_save": 15, "solar_available_db_data_to_save": 10, "kwh_avg_prices_db_data_to_save": 15, "charging_history_db_data_to_save": 12},
+    )
+
+
+@pytest.mark.parametrize(
+    ("unit", "scale", "fee", "thresholds"),
+    [
+        ("DKK/kWh", 1.0, 0.03, None),
+        ("EUR/kWh", 0.134, 0.004, {"cheapest_price_rise_threshold": 0.067, "cheap_price_period_rise_threshold": 0.013}),
+        ("XYZ/kWh", None, 0.03, None),
+        (None, None, 0.03, None),
+    ],
+)
+async def test_a_new_entry_gets_the_price_scale_of_its_price_sensor(hass: HomeAssistant, unit, scale, fee, thresholds) -> None:
+    """The scale comes from the unit of the price sensor, not from Home Assistant's currency (EUR by default); the suggested
+    sell fee and wear cost (on the fee page, after the price pages) and the starting values of the two price rise
+    thresholds follow it, in kroner they stay as they are."""
+    hass.states.async_set(PRICE, "0.5", {"unit_of_measurement": unit} if unit else {})
+    result = await _to_price_provider(hass)
+    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
+    assert result["step_id"] == "price_fees"
+    assert form_defaults(result)["sell_fee"] == fee  # the suggestion is 0.03 kroner in the price currency
+    wear = 0.013 if scale == 0.134 else 0.1  # 0.1 kroner in the price currency, shown before it is stored
+    assert form_defaults(result)["powerwall_wear_cost_per_kwh"] == wear
+    result = await _configure(hass, result, "price_fees", form_defaults(result))
+    result = await _finish_after_the_price_pages(hass, result)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    options = result["options"]
+    assert options.get("price_scale", 1.0) == (scale or 1.0)
+    assert options["sell_fee"] == fee and options["powerwall_wear_cost_per_kwh"] == wear
+    assert {key: value for key, value in result["data"]["initial_settings"].items() if key.endswith("rise_threshold")} == (thresholds or {})
+
+
+async def test_a_wear_cost_the_user_changed_is_kept_when_the_scale_is_found(hass: HomeAssistant) -> None:
+    hass.states.async_set(PRICE, "0.5", {"unit_of_measurement": "EUR/kWh"})
+    result = await _to_price_provider(hass)
+    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
+    result = await _configure(hass, result, "price_fees", {**form_defaults(result), "powerwall_wear_cost_per_kwh": 0.05})
+    result = await _finish_after_the_price_pages(hass, result)
+    assert result["options"]["price_scale"] == 0.134 and result["options"]["powerwall_wear_cost_per_kwh"] == 0.05
+
+
+async def test_a_sell_fee_the_user_changed_is_kept_when_the_scale_is_found(hass: HomeAssistant) -> None:
+    hass.states.async_set(PRICE, "0.5", {"unit_of_measurement": "EUR/kWh"})
+    result = await _to_price_provider(hass)
+    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
+    result = await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.05})
+    result = await _finish_after_the_price_pages(hass, result)
+    assert result["options"]["price_scale"] == 0.134 and result["options"]["sell_fee"] == 0.05
+
+
+async def test_energy_price_forecast_page_refuses_cents_a_wholesale_buy_sensor_and_two_currencies(hass: HomeAssistant) -> None:
+    retail = {"unit_of_measurement": "EUR/kWh", "raw_today": [], "retail_source": "estimate"}
+    hass.states.async_set("sensor.epf_retail", "0.2", retail)
+    hass.states.async_set("sensor.epf_cents", "20", {**retail, "unit_of_measurement": "ct/kWh"})
+    hass.states.async_set("sensor.epf_wholesale", "0.1", {"unit_of_measurement": "EUR/kWh", "raw_today": []})
+    hass.states.async_set("sensor.epf_wholesale_2", "0.1", {"unit_of_measurement": "EUR/kWh", "raw_today": []})
+    hass.states.async_set(PRICE, "1.2", {"unit_of_measurement": "DKK/kWh"})
+    result = await _to_price_provider(hass)
+    result = await _configure(hass, result, "price_provider", {"price_providers": ["energypriceforecast", "energidataservice"]})
+    result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
+    assert result["step_id"] == "prices_energypriceforecast"
+    sell = {"energypriceforecast_sell_entity_id": "sensor.epf_wholesale"}
+    # the sell sensor is required: a retail price is more than a sale pays, so it is not taken for one
+    with pytest.raises(InvalidData):
+        await hass.config_entries.flow.async_configure(result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_retail"})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_cents", **sell})
+    mismatch = {"energypriceforecast_sell_entity_id": "price_currency_mismatch"}  # the wholesale sell sensor is EUR, Energi Data Service DKK
+    assert result["errors"] == {"energypriceforecast_buy_entity_id": "price_unit_subunit", **mismatch}
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_wholesale", "energypriceforecast_sell_entity_id": "sensor.epf_wholesale_2"})
+    assert result["errors"] == {"energypriceforecast_buy_entity_id": "price_sensor_not_retail", **mismatch}
+    # the retail price is more than a sale pays: it is refused as the sell sensor (the sensor error comes before the currency one)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_retail", "energypriceforecast_sell_entity_id": "sensor.epf_retail"}
+    )
+    assert result["errors"] == {"energypriceforecast_buy_entity_id": "price_currency_mismatch", "energypriceforecast_sell_entity_id": "price_sensor_not_wholesale"}
+    # a backup provider in another currency (EUR next to the DKK of Energi Data Service) would be planned as kroner
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_retail", **sell})
+    assert result["errors"] == {"energypriceforecast_buy_entity_id": "price_currency_mismatch", **mismatch}
+
+
+async def test_energy_price_forecast_alone_sets_the_scale_from_its_retail_sensor(hass: HomeAssistant) -> None:
+    retail = {"unit_of_measurement": "EUR/kWh", "raw_today": [], "retail_source": "estimate"}
+    hass.states.async_set("sensor.epf_retail", "0.2", retail)
+    hass.states.async_set("sensor.epf_wholesale", "0.1", {"unit_of_measurement": "EUR/kWh", "raw_today": []})
+    result = await _to_price_provider(hass)
+    result = await _configure(hass, result, "price_provider", {"price_providers": ["energypriceforecast"]})
+    result = await _configure(
+        hass, result, "prices_energypriceforecast", {"energypriceforecast_buy_entity_id": "sensor.epf_retail", "energypriceforecast_sell_entity_id": "sensor.epf_wholesale"}
+    )
+    assert result["step_id"] == "price_fees" and form_defaults(result)["sell_fee"] == 0.004
+    result = await _configure(hass, result, "price_fees", form_defaults(result))
+    result = await _finish_after_the_price_pages(hass, result)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    options = result["options"]
+    assert options["price_scale"] == 0.134 and options["energidataservice_buy_entity_id"] == ""
+    assert options["energypriceforecast_buy_entity_id"] == "sensor.epf_retail" and options["energypriceforecast_sell_entity_id"] == "sensor.epf_wholesale"
+
+
+async def test_options_flow_finds_the_price_scale_and_keeps_it_without_a_unit(hass: HomeAssistant, loaded_entry) -> None:
+    async def save():
+        result = await hass.config_entries.options.async_init(loaded_entry.entry_id)
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "menu_battery"})
+        for _ in range(4):
+            result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    price_entity = loaded_entry.options["energidataservice_buy_entity_id"]
+    hass.states.async_set(price_entity, "0.5", {"unit_of_measurement": "GBP/kWh"})
+    await save()
+    assert loaded_entry.options["price_scale"] == 0.115
+    sell_fee, wear = loaded_entry.options["sell_fee"], loaded_entry.options["powerwall_wear_cost_per_kwh"]
+    # a sensor without a known unit (not loaded yet at startup): the entry keeps its scale
+    hass.states.async_set(price_entity, "unavailable", {})
+    await save()
+    assert loaded_entry.options["price_scale"] == 0.115
+    # an existing entry's amounts are never rescaled
+    assert (loaded_entry.options["sell_fee"], loaded_entry.options["powerwall_wear_cost_per_kwh"]) == (sell_fee, wear)
 
 
 async def test_stromligning_pages(hass: HomeAssistant) -> None:
@@ -227,6 +358,7 @@ async def test_import_legacy_pyscript_config(hass: HomeAssistant, tmp_path: Path
     """A PyScript battmind_config.yaml in the config dir is offered and its values prefill the pages."""
     shutil.copy(FIXTURES / "battmind_config.yaml", tmp_path / "battmind_config.yaml")
     hass.config.config_dir = str(tmp_path)
+    hass.config.country = "DE"
     result = await _start(hass)
     assert result["step_id"] == "import_legacy"
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"import_source": "battmind"})
@@ -245,6 +377,7 @@ async def test_import_legacy_pyscript_config(hass: HomeAssistant, tmp_path: Path
     assert options["ignore_consumption_from_entity_ids"] == ["sensor.bil_lader_power"]
     assert options["energidataservice_sell_entity_id"] == "sensor.energi_data_service_salg"
     assert options["language"] == "da"
+    assert options["price_country"] == "DK"  # an import keeps its own: Denmark, not the country of Home Assistant
     # the removed testing mode in the legacy file (testing_mode: true) is ignored, not imported
     assert "testing_mode" not in options
 

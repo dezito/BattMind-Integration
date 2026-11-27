@@ -6,15 +6,16 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
-from ..const import FLOW_STEPS, PRICE_PROVIDER_KEYS
+from ..const import FLOW_STEPS, PRICE_PROVIDER_KEYS, default_options, price_scale
 from ..management.dependency_checks import disabled_sensors
-from ..prices import STROMLIGNING_PLATFORM, STROMLIGNING_UNIQUE_ID_PREFIXES, has_stromligning_sell_prices
+from ..prices import STROMLIGNING_PLATFORM, STROMLIGNING_UNIQUE_ID_PREFIXES, detect_price_scale, has_stromligning_sell_prices, price_currency_errors, price_sensor_errors, DEFAULT_COUNTRY, default_providers, provider_errors
 from ..utils.cjp import cjp_charger_power_entities
 from ..utils.solcast import SOLCAST_PLATFORM
 from .detection import Detection, async_detect, evidence_placeholders, verdict_values
-from .schema import BOOLEAN, ENERGIDATASERVICE_URL, PRICE_PROVIDERS, build_schema, normalize_input, validate_step
+from .schema import BOOLEAN, ENERGIDATASERVICE_URL, PRICE_PROVIDERS, SPOT_PRICE_PROVIDERS, build_schema, normalize_input, validate_step
 
 # the sensors the suggestions are made from; they are only made again when one of them was changed in this session
 DETECTION_SENSORS = ("power_consumption_entity_id", "powerwall_watt_flow_entity_id", "powerwall_battery_level_entity_id")
@@ -47,6 +48,10 @@ class BattMindFlowPages:
     def _page_enabled(self, step: str) -> bool:
         if step == "prices_energidataservice":
             return "energidataservice" in self._providers
+        if step == "prices_energypriceforecast":
+            return "energypriceforecast" in self._providers
+        if step in ("prices_spotforecast", "prices_elprognos", "prices_wattcast", "prices_epexspot", "prices_gespot", "prices_octopus", "prices_nordpool"):
+            return step.removeprefix("prices_") in self._providers
         if step == "prices_stromligning":
             return "stromligning" in self._providers
         if step == "prices_stromligning_tariffs":
@@ -65,6 +70,32 @@ class BattMindFlowPages:
     async def _async_finish(self) -> ConfigFlowResult:
         raise NotImplementedError
 
+    # True while a new entry is made (not changed): the defaults that are amounts of money follow the price currency then
+    _new_entry: bool = False
+
+    # set when a new entry's prices are not in kroner: the starting values of the price rise thresholds are scaled on finish
+    _kroner_defaults_scaled = False
+
+    def _apply_price_scale(self, suggest_fee: bool = False) -> None:
+        """Store prices.price_scale from the unit of the price sensors (kept as it is when no sensor has a known unit).
+
+        suggest_fee (the page of the fee, before it is shown): a new installation gets the default sell fee (0.03 kroner) and
+        wear cost (0.1 kroner) in the price currency, so the user sees the amount that is stored. Not for an import or a
+        restored backup (their own values stay) and not once the user has seen the page. For a new installation the
+        thresholds follow on finish (_scale_money_defaults)."""
+        previous = price_scale({"prices": {"price_scale": self._options.get("price_scale", 1.0)}})
+        scale = detect_price_scale(self._options, self.hass.states.get)  # type: ignore[attr-defined]
+        if scale is None:
+            return
+        self._options["price_scale"] = scale
+        own_values = getattr(self, "_restore_backup", None) is not None or getattr(self, "_legacy_prefix", None) is not None
+        if self._new_entry and not own_values and previous == 1.0 and scale != 1.0:
+            self._kroner_defaults_scaled = True
+            for key in ("sell_fee", "powerwall_wear_cost_per_kwh"):
+                default = default_options()[key]
+                if suggest_fee and self._options.get(key) == default:
+                    self._options[key] = round(default * scale, 3)
+
     def _placeholders(self) -> dict[str, str]:
         return {}
 
@@ -78,13 +109,27 @@ class BattMindFlowPages:
             *entities,
         })
 
-    async def _async_page(self, step: str, user_input: dict[str, Any] | None) -> ConfigFlowResult:
+    def _page_keys(self, step: str) -> list[str]:
+        """The fields of a page; the fee page also asks for the VAT and the surcharge when a wholesale price provider is chosen."""
         keys = FLOW_STEPS[step]
+        if step == "price_fees" and any(name in self._providers for name in SPOT_PRICE_PROVIDERS):
+            return [*keys, "spot_vat", "spot_surcharge"]
+        return keys
+
+    async def _async_page(self, step: str, user_input: dict[str, Any] | None) -> ConfigFlowResult:
+        keys = self._page_keys(step)
         errors: dict[str, str] = {}
+        if step == "price_fees" and user_input is None:
+            self._apply_price_scale(suggest_fee=True)  # the price pages are done: the fee suggestion follows the currency
         values_for_form = dict(self._options)
         if user_input is not None:
             values = normalize_input(keys, user_input)
             errors = validate_step(step, values)
+            if step.startswith("prices_"):
+                get_state = self.hass.states.get  # type: ignore[attr-defined]
+                registry = er.async_get(self.hass)  # type: ignore[attr-defined]
+                unique_id_of = lambda entity_id: getattr(registry.async_get(entity_id), "unique_id", None)  # noqa: E731
+                errors = {**price_currency_errors({**self._options, **values}, keys, get_state), **price_sensor_errors(values, get_state, unique_id_of), **errors}
             if not errors:
                 self._options.update(values)
                 return await self._async_next()
@@ -146,12 +191,29 @@ class BattMindFlowPages:
         chargers = cjp_charger_power_entities(self.hass) if self._options.get("ignore_cjp_chargers", True) else []  # type: ignore[attr-defined]
         return [*([ignored] if isinstance(ignored, str) else ignored), *chargers]
 
+    # the country field is suggested from Home Assistant's country once, for a new entry (an import or a backup keeps its own)
+    _price_country_shown = False
+
+    def _suggest_price_country(self) -> None:
+        own_values = getattr(self, "_restore_backup", None) is not None or getattr(self, "_legacy_prefix", None) is not None
+        if self._new_entry and not own_values and not self._price_country_shown:
+            country = str(self.hass.config.country or DEFAULT_COUNTRY).upper()  # type: ignore[attr-defined]
+            self._options["price_country"] = country
+            if country != DEFAULT_COUNTRY:
+                self._providers = default_providers(country)
+        self._price_country_shown = True
+
     async def async_step_price_provider(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
+        self._suggest_price_country()
         if user_input is not None:
             providers = [p for p in user_input.get("price_providers", []) if p in PRICE_PROVIDERS]
+            country = str(user_input.get("price_country") or DEFAULT_COUNTRY).upper()
+            self._options["price_country"] = country
             if not providers:
                 errors["base"] = "no_price_provider"
+            elif errors := provider_errors(country, providers):
+                self._providers = providers
             else:
                 self._providers = providers
                 for provider, keys in PRICE_PROVIDER_KEYS.items():
@@ -161,14 +223,10 @@ class BattMindFlowPages:
                 return await self._async_next()
         schema = vol.Schema(
             {
+                vol.Required("price_country", default=self._options.get("price_country", DEFAULT_COUNTRY)): selector.CountrySelector(),
                 vol.Required("price_providers", default=self._providers): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=PRICE_PROVIDERS,
-                        multiple=True,
-                        mode=selector.SelectSelectorMode.LIST,
-                        translation_key="price_providers",
-                    )
-                )
+                    selector.SelectSelectorConfig(options=PRICE_PROVIDERS, multiple=True, mode=selector.SelectSelectorMode.LIST, translation_key="price_providers")
+                ),
             }
         )
         return self.async_show_form(  # type: ignore[attr-defined]
@@ -192,6 +250,30 @@ class BattMindFlowPages:
 
     async def async_step_prices_energidataservice(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("prices_energidataservice", user_input)
+
+    async def async_step_prices_energypriceforecast(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_energypriceforecast", user_input)
+
+    async def async_step_prices_spotforecast(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_spotforecast", user_input)
+
+    async def async_step_prices_elprognos(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_elprognos", user_input)
+
+    async def async_step_prices_wattcast(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_wattcast", user_input)
+
+    async def async_step_prices_epexspot(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_epexspot", user_input)
+
+    async def async_step_prices_gespot(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_gespot", user_input)
+
+    async def async_step_prices_octopus(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_octopus", user_input)
+
+    async def async_step_prices_nordpool(self, user_input=None) -> ConfigFlowResult:
+        return await self._async_page("prices_nordpool", user_input)
 
     async def async_step_prices_stromligning(self, user_input=None) -> ConfigFlowResult:
         return await self._async_page("prices_stromligning", user_input)

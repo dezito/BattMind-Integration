@@ -19,6 +19,7 @@ from ...optimizer import (
     requirement_cost,
     simulate,
 )
+from ....const import price_decimals, price_scale
 from ...storm import STORM_RULE
 from ....utils.formatting import emoji_parse
 from ....utils.helpers import average, days_between, float_or_none, reset_time_to_hour
@@ -54,6 +55,7 @@ class FutureOptimizer:
             min_profit_per_kwh=self.get_min_profit_per_kwh(),
             min_sell_kwh=self.number("min_sell_kwh"),
             min_total_profit=self.get_min_total_profit(),
+            price_scale=price_scale(self.config),
             usage_reserve=self.number("usage_reserve"),
             charge_taper=self.charge_taper(),
             unsupported=self.unsupported_actions(),
@@ -372,10 +374,10 @@ class FutureOptimizer:
             if action == "grid_charging" and grid_kwh >= 0.1:  # a few Wh is not worth a charge hour
                 percentage = ctx.kwh_to_percentage(grid_kwh) * ctx.efficiency
                 session = {
-                    "Cost": round(grid_kwh * hour.buy, 2),
+                    "Cost": round(grid_kwh * hour.buy, price_decimals(self.config)),
                     "kWh": round(grid_kwh, 2),
                     "battery_level": round(percentage, 2),
-                    "Price": round(hour.buy, 2),
+                    "Price": round(hour.buy, price_decimals(self.config)),
                     rule: True,
                 }
                 if rule == "full_charge_planner":

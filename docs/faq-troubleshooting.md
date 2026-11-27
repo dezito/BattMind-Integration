@@ -201,8 +201,10 @@ restart, until the problem is gone.
   between 0 and 1 % for 3 days. If so, ignore the repair.
 - **Prices in a subunit, per MWh or per Wh:** a price sensor's unit is a subunit of the currency (øre or cent), per MWh
   or per Wh. BattMind does not convert prices, so the prices are in another scale: 100 times too large (subunit), 1000
-  times too large (per MWh) or 1000 times too small (per Wh), and the plan and the savings calculation are wrong. Only the
-  unit is checked. Fix it at the source: in Energi Data Service, turn off the option that shows prices in cent (English
+  times too large (per MWh) or 1000 times too small (per Wh). A price sensor of Energi Data Service, Energy Price Forecast, the spot forecast
+  integrations or the published-price integrations (EPEX Spot, GE-Spot, Nord Pool) in such a unit is not used: the next
+  provider or the stored prices fill in. A Strømligning, Octopus Energy or tariff sensor is read as it is, so for those the plan and the savings calculation
+  are wrong. Energy Price Forecast's own price per MWh is converted, and Wattcast's price sensor must give ct/kWh. Only the unit is checked. Fix it at the source: in Energi Data Service, turn off the option that shows prices in cent (English
   *Show prices in cent*, Danish *Vis priser i øre*, German *Preise in Cent anzeigen*) and set *Price calculated in*
   (Danish *Pris beregnes i*, German *Preis wird berechnet in*) to kWh in the integration's options. Or select a sensor
   with the currency per kWh (e.g. kr/kWh) under **Configure**. The repair disappears when no price sensor is in a

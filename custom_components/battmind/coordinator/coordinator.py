@@ -472,6 +472,11 @@ class BattMindCoordinator(CoordinatorLifecycle, CoordinatorEvents, CoordinatorDa
         combined_stats, statistical_timestamps, tariff_history = await self.hass.async_add_executor_job(
             self._what_if_history, entities, stats, states, tariff_states, start, end
         )
+        # a price sensor that gives the price per MWh (Energy Price Forecast): its history is per kWh like the live prices; a sensor in the wrong unit has none
+        for entity_id, divisor in (self.price_provider.price_unit_divisors(self.hass.states.get) if self.price_provider else {}).items():
+            if entity_id in combined_stats:
+                # (no divisor: the sensor is not in Home Assistant, its unit is unknown and its history is left out)
+                combined_stats[entity_id] = [] if divisor is None else [(timestamp, value / divisor) for timestamp, value in combined_stats[entity_id]]
         if cancel_check:
             cancel_check()
         for provider in price_providers:

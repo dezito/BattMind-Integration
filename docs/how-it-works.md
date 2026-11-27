@@ -105,8 +105,28 @@ In an hour with solar surplus the sun covers the house, so the battery isn't pla
 
 ### Prices
 
-Buy and sell prices per hour (or per 15 minutes) from Energi Data Service and/or Strømligning, incl.
-tariffs, refund and sell fee.
+Buy and sell prices per hour (or per 15 minutes) from Energi Data Service, Strømligning, Energy Price
+Forecast and/or a spot forecast integration, incl. tariffs, refund and sell fee. Energy Price Forecast has no tariffs in its prices: the sell price is
+the price of its sell sensor (the wholesale price, required: the retail price is higher than what a sale pays) less the sell fee.
+
+**Spot forecast integrations** (Spot Forecast, Elprisprognos, Wattcast) give a wholesale price: the buy price is the spot price ×
+(1 + VAT) + surcharge, both from the fee page with no default (without them there are no prices), and the sell price is the
+spot price less the sell fee (Wattcast's ct/kWh is read as euro). The published prices are real; the forecast follows them
+from tomorrow on, and today's hours without a published price are not planned. The recorded state of these sensors is not used.
+
+**Providers of your own published prices** (EPEX Spot, GE-Spot, Octopus Energy, Nord Pool) give the buy price of the sensor as it is (the
+VAT, surcharge and fees are the user's, set in the integration); the sell price is the wholesale price of a second sensor, a field of the
+same sensor (GE-Spot) or the export rates (Octopus Energy), less the sell fee, and 0 less the fee for Octopus without an export tariff.
+They give today and tomorrow, no forecast, and stand before the estimating providers: a provider with a forecast fills the days after. An hourly
+price is repeated over the quarters of the hour when another provider has 15-minute prices (one common interval for the whole plan), so the
+quarters of a later provider never fill a slot of it.
+
+**A market without published prices** (Energy Price Forecast in Finland, Great Britain, SE1/SE2 and others) needs
+the own price source of Energy Price Forecast (a Nord Pool or ENTSO-e sensor), which gives it published prices from
+midnight: with only a forecast, today has no price before the present, so the price page refuses the sensor, and an existing setup gets a repair when a sensor has had only a forecast for at least an hour (it goes by itself when published prices are back). A
+forecast never fills a slot that has a real price, also not one of another provider with other periods, and only
+real prices are stored in the price history. A forecast day with 15-minute sell prices (Strømligning) is planned per
+quarter: each quarter sells at most a quarter of the hour's energy.
 
 **Two price integrations with different intervals.** The providers can have different interval lengths
 (Strømligning's buy price is hourly, Energi Data Service's is every 15 minutes). BattMind puts all prices on one
@@ -132,6 +152,22 @@ forecast was the last 30 days for that day ahead: if the forecast 2 days ahead w
 average, the plan subtracts 0.15 kr. A day ahead is only corrected after 7 days of measurements, and by at
 most ±0.50 kr. The [price forecast analysis](dashboard-analysis.md#price-forecast) shows the measurements
 and the correction used.
+
+**Prices in another currency.** The amounts above (and the small limits of the planner, such as the 0.01 kr a
+sale or a charge has to earn at least, and the smallest saving that gives a score) are chosen for Danish
+kroner. When BattMind is set up, and again each time its options are saved, it reads the unit of the price
+sensor (e.g. `EUR/kWh`) and stores a *price scale*, so these amounts follow the currency: with euro prices the
+adder is about 0.0045 € per day, the correction limit about ±0.07 € and the smallest gain about 0.0013 €, and
+prices are rounded to 3 decimals instead of 2. What you enter yourself is never changed. For a new installation
+the *Sell fee* and the *Wear cost* suggested on the page *Refund and fees* (after the price pages, so they are shown
+in the currency of the prices: 0.013 € wear with euro prices) and the starting values of the two *price rise*
+thresholds follow the currency (an import or a restored backup keeps its own values), so after changing to prices
+in another currency, check the *Sell fee*, the *Wear cost* and the thresholds yourself. A sensor without a known unit leaves the scale as it is (kroner for a new
+installation), and Home Assistant's own currency setting is not used for this. The price pages of Energi Data
+Service, Energy Price Forecast and the spot forecast integrations refuse a sensor in cents or pence (and Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot and Nord Pool one per MWh or Wh, Energy Price Forecast one per Wh; Energy Price Forecast converts a price per MWh to kWh; Wattcast gives ct/kWh and is read as euro). A sensor that gets such a unit after the setup gives no prices (the planner uses the stored prices instead, a repair names the sensor, and its recorded history is left out of the what-if). The forecast sensor of Wattcast says its unit too (`forecast_unit`): in another unit than ct/kWh it gives no prices, with a warning in the log and no repair. Every price sensor must be in the same
+currency (a backup provider in another currency is refused). The rates are rough: they only
+set the size of the limits, no price is ever converted between currencies. Currencies worth much less than a krone (CZK, HUF, ISK)
+are not recognised yet.
 
 BattMind also keeps its **own price database**: every day the buy and sell prices from the price
 integration are stored per hour of the day and weekday (only real prices – never the estimates below). It

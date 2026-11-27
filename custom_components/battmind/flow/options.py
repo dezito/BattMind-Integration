@@ -96,4 +96,5 @@ class BattMindOptionsFlow(BattMindFlowPages, OptionsFlow):
         return await self._async_menu("advanced")
 
     async def _async_finish(self) -> ConfigFlowResult:
+        self._apply_price_scale()
         return self.async_create_entry(data=strip_removed_options(self._options))

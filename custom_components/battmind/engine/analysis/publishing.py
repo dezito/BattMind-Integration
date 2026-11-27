@@ -4,13 +4,14 @@ from __future__ import annotations
 import datetime
 import logging
 
-from ...const import CHARGING_TYPES
+from ...const import CHARGING_TYPES, price_decimals, scaled
 from ...utils.capacity import capacity_summary
 from ...utils.efficiency import learned_efficiency_curve, measured_efficiency_steps, parse_efficiency_curve
 from ...utils.taper import band_powers, taper_caps
 from .helpers import ANALYSIS_LIST_DAYS, ANALYSIS_MONTHS, ANALYSIS_TABLE_DAYS, DAY_SUMS, FORECAST_AUTO_MIN_DAYS, FORECAST_TYPES, LOSS_DAY_MIN_CHARGED, MONTH_NAMES, PRICE_CHART_DAYS, PRICE_CHART_LEADS, PRICE_CORRECTION_DAYS, PRICE_CORRECTION_MIN_DAYS, PRICE_FORECAST_DAYS, PRICE_RANK_HOURS, SCORE_MIN_POSSIBLE, SCORE_VERSION, _is_num, _num, forecast_errors, loss_days, measured_loss, old_score_figures, score_figures
 
 _LOGGER = logging.getLogger(__name__)
+
 
 
 class AnalysisPublishing:
@@ -300,6 +301,7 @@ class AnalysisPublishing:
 
         # hindsight score --------------------------------------------------------
         scores = []
+        min_possible = scaled(self.config, SCORE_MIN_POSSIBLE)
         score_missing: dict[str, int] = {}  # the closed days of the last 30 without a score, per reason
         recent_first = (today - datetime.timedelta(days=30)).isoformat()
         for date, day in sorted(closed.items()):
@@ -319,9 +321,9 @@ class AnalysisPublishing:
             saved, possible = figures
             row = {
                 "date": date,
-                "saved": round(saved, 2),
-                "possible": round(possible, 2),
-                "score": round(min(max(saved / possible, -1.0), 1.0), 3) if possible > max(_num(score.get("noise")), SCORE_MIN_POSSIBLE) else None,
+                "saved": round(saved, price_decimals(self.config)),
+                "possible": round(possible, price_decimals(self.config)),
+                "score": round(min(max(saved / possible, -1.0), 1.0), 3) if possible > max(_num(score.get("noise")), min_possible) else None,
             }
             if not current:
                 row["old"] = True
@@ -368,7 +370,7 @@ class AnalysisPublishing:
             "price_forecast": price_forecast,
             "solar_forecast": {key: solar_errors(source) for key, source in (("plan", "plan_solar"), ("database", "solar_database"), ("forecast", "solar_forecast"))},
             "scores": scores[-ANALYSIS_TABLE_DAYS:],
-            "score_30": round(sum(row["saved"] for row in recent_scores) / possible_30, 3) if possible_30 > SCORE_MIN_POSSIBLE else None,
+            "score_30": round(sum(row["saved"] for row in recent_scores) / possible_30, 3) if possible_30 > min_possible else None,
             "score_days": len(recent_scores),
             "score_missing": score_missing,
             "expensive": expensive[-ANALYSIS_TABLE_DAYS:],

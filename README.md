@@ -53,7 +53,7 @@ The full list is in [Features](docs/features.md).
 - **[Storm warning](docs/rules/storm.md) (optional):** keeps the battery charged for a MeteoAlarm storm warning
 - **[Solar](docs/rules/solar.md) (optional):** surplus charging, optimised solar charging and a forecast from Solcast, Forecast.Solar or Helios Forecast and/or own history
 - **[Cost price of the battery's energy](docs/how-it-works.md#the-cost-of-a-kwh-from-the-battery)** including source, loss and wear
-- **Price providers:** [Energi Data Service](https://github.com/MTrab/energidataservice) and/or [Strømligning](https://github.com/MTrab/stromligning), with a [price database](docs/how-it-works.md#prices) as fail-safe
+- **Price providers:** [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning), [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant), the spot forecast integrations (Spot Forecast, Elprisprognos, Wattcast) and your own published prices (EPEX Spot, GE-Spot, Octopus Energy, Nord Pool), with a [price database](docs/how-it-works.md#prices) as fail-safe
 - **[Analysis](docs/dashboard-analysis.md#analysis)** and a **[what-if simulator](docs/what-if-simulator.md)**
 - **[Ready-made dashboard](docs/dashboard-analysis.md)**, several instances, five languages (Danish, English, German, Polish and Ukrainian)
 
@@ -103,7 +103,7 @@ The main entities and services are listed in [Entities and services](docs/refere
 - Home Assistant **2025.12** or newer with recorder (default)
 - A sensor for the home battery's **battery level** (%) and **power** (W)
 - A sensor for the **house consumption** (W)
-- Price integration: [Energi Data Service](https://github.com/MTrab/energidataservice) and/or [Strømligning](https://github.com/MTrab/stromligning)
+- Price integration: [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning), [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) and/or a spot forecast integration, EPEX Spot, GE-Spot, Octopus Energy or Nord Pool (HACS)
 - Optional:
   - battery temperature sensor for a configurable charge/discharge safety stop
   - solar production (W)

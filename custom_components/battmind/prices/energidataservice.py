@@ -7,8 +7,8 @@ import math
 
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 
-from ..utils.helpers import days_between, to_datetime
-from .base import BasePriceProvider, GetState, _ZERO_TARIFFS, _naive, is_number
+from ..utils.helpers import days_between
+from .base import BasePriceProvider, GetState, _ZERO_TARIFFS, is_number, price_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,6 +19,8 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
     source_name = "energidataservice"
     display_name = "Energi Data Service"
     buy_key = "energidataservice_buy_entity_id"
+    # the regions of the Energi Data Service integration (its REGIONS): DK1/DK2, FI, EE, LT, LV, NO1-5, SE1-4, FR, NL, BE, AT, DE, LU
+    countries = frozenset({"DK", "FI", "EE", "LT", "LV", "NO", "SE", "FR", "NL", "BE", "AT", "DE", "LU"})
     sell_key = "energidataservice_sell_entity_id"
 
     def __init__(self, config: dict) -> None:
@@ -48,15 +50,16 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
                 source["sell_costs"] = sell_costs
         return source
 
-    @staticmethod
-    def _rows(rows):
+    def _rows(self, rows):
         for raw in rows or []:
-            timestamp = _naive(to_datetime(raw["hour"] if "hour" in raw else raw["time"]))
+            timestamp = price_timestamp(raw["hour"] if "hour" in raw else raw["time"], self.tz)
             price = raw["price"]
             if isinstance(timestamp, datetime.datetime) and is_number(price):
                 yield timestamp, price
 
     def _real(self, entity_id: str) -> dict:
+        if self._wrong_unit(entity_id):
+            return {}
         attr = self._attr(entity_id)
         prices = {ts: p for ts, p in self._rows(attr.get("raw_today")) if days_between(self.current_hour, ts) == 0}
         if attr.get("tomorrow_valid"):
@@ -64,6 +67,8 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
         return dict(sorted(prices.items()))
 
     def _forecast(self, entity_id: str, sell: bool = False) -> dict:
+        if self._wrong_unit(entity_id):
+            return {}
         attr = self._attr(entity_id)
         return {
             ts: p + self._forecast_adder(ts, sell)
@@ -73,10 +78,9 @@ class EnergiDataServicePriceProvider(BasePriceProvider):
 
     @classmethod
     def dashboard_entities(cls, prices: dict[str, str]) -> dict[str, str]:
-        return {
-            "sensor.energi_data_service": prices["energidataservice_buy_entity_id"],
-            "sensor.energi_data_service_salg": prices["energidataservice_sell_entity_id"],
-        }
+        # the chart draws the plan's prices (attribute price_chart of the plan entity) and only watches the buy sensor of the provider:
+        # the card with the restart button when it is unavailable
+        return {"sensor.energi_data_service": prices["energidataservice_buy_entity_id"]}
 
     def _load_buy_real_prices(self):
         return self._real(self.buy_entity_id)

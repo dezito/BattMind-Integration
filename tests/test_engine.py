@@ -124,6 +124,25 @@ def charge_hours(engine: BattMindEngine) -> list[datetime.datetime]:
     return sorted(ts for ts in engine.charge_hours if isinstance(ts, datetime.datetime))
 
 
+def test_the_engine_gives_the_price_provider_home_assistants_time_zone() -> None:
+    """Price rows in UTC give the same prices as the same rows in local time: the engine passes the snapshot's time zone on."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 30))
+
+    def buy_prices(utc: bool) -> dict:
+        snap = snapshot(now, 50)
+        if utc:
+            for key in ("raw_today", "raw_tomorrow", "forecast"):
+                for row in snap.price_data["attributes"]["sensor.price"][key]:
+                    row["hour"] = datetime.datetime.fromisoformat(row["hour"]).astimezone(datetime.timezone.utc).isoformat()
+        engine = BattMindEngine(build_config(OPTIONS), "test", TEXTS)
+        assert engine.run_job(snap, engine.startup, {}).error is None
+        assert engine.run_job(snap, engine.update_grid_prices).error is None
+        return dict(engine.price_provider.get_buy_prices())
+
+    local = buy_prices(False)
+    assert local and buy_prices(True) == local
+
+
 @pytest.mark.parametrize("hour", [1, 5, 10, 18, 23])
 @pytest.mark.parametrize("battery_level", [5, 50, 100])
 def test_action_is_always_valid(hour: int, battery_level: float) -> None:
@@ -563,6 +582,19 @@ def test_price_history_stores_only_the_providers_prices() -> None:
     assert engine.kwh_avg_prices_db["history"][15][dow] == _price_history()["history"][15][dow]
 
 
+def test_price_history_never_stores_a_forecast_as_a_real_price() -> None:
+    """A market without published prices (Energy Price Forecast in Finland, ...): today is only a forecast, nothing is stored."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 0))
+    engine, snap = solar_engine(now, 50, False)
+    engine.kwh_avg_prices_db = deepcopy(_price_history())
+    engine.price_provider.get_buy_real_prices = lambda: {}
+    engine.price_provider.get_sell_real_prices = lambda: {}
+    assert engine.run_job(snap, engine.update_grid_prices).error is None
+    dow = DAY.weekday()
+    assert engine.kwh_avg_prices_db["history"][17][dow] == _price_history()["history"][17][dow]
+    assert engine.kwh_avg_prices_db["history_sell"][17][dow] == _price_history()["history_sell"][17][dow]
+
+
 def test_codec_roundtrip() -> None:
     data = {
         0: {"a": [[datetime.datetime(2026, 1, 1, 12), 1.5]]},
@@ -739,6 +771,71 @@ def test_solcast_alone_when_there_is_no_solar_history(solar_history: bool) -> No
     assert prediction[12] == pytest.approx((1.0 * 0.5 + 2.0 * 1.5) / 2 if solar_history else 2.0, abs=0.051)
 
 
+def _as_utc(moment: datetime.datetime) -> datetime.datetime:
+    return moment.replace(tzinfo=TZ).astimezone(datetime.timezone.utc)
+
+
+def test_weather_forecast_times_are_read_in_the_home_assistant_time_zone() -> None:
+    """Home Assistant gives forecast times in UTC: 12:00 local (CEST) is 10:00 UTC, and a day starts at 22:00 UTC the day before."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options=SOLAR_OPTIONS)
+    tomorrow = datetime.datetime.combine(DAY + datetime.timedelta(days=1), datetime.time(0))
+    hourly = {"datetime": _as_utc(tomorrow.replace(hour=12)).isoformat(), "condition": "sunny"}
+    daily = {"datetime": _as_utc(tomorrow).isoformat(), "condition": "rainy"}
+    snap = snapshot(now, 50)
+    snap.forecast_dict = {"hourly": [hourly], "daily": [daily]}
+    for moment, expected in (
+        (tomorrow.replace(hour=12), hourly),
+        (tomorrow.replace(hour=5), daily),
+        (tomorrow - datetime.timedelta(hours=1), None),  # 23:00 the evening before is still the day before
+    ):
+        result = engine.run_job(snap, engine.get_forecast, moment)
+        assert result.error is None, result.error
+        assert result.value == expected
+
+
+@pytest.mark.parametrize("stamp", ["2026-10-23T00:00:00+00:00", "2026-10-23T04:00:00+00:00", "2026-10-23T00:00:00-04:00"])
+def test_a_daily_forecast_keeps_its_day_west_of_utc(stamp: str) -> None:
+    """New York: a daily row stamped with the date at 00:00Z, the local midnight in UTC (04:00Z) and the local midnight keep the 23rd."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options=SOLAR_OPTIONS)
+    daily = {"datetime": stamp, "condition": "rainy"}
+    snap = snapshot(now, 50)
+    snap.tz = zoneinfo.ZoneInfo("America/New_York")
+    snap.forecast_dict = {"hourly": [], "daily": [daily]}
+    for moment, expected in ((datetime.datetime(2026, 10, 23, 5), daily), (datetime.datetime(2026, 10, 22, 23), None)):
+        result = engine.run_job(snap, engine.get_forecast, moment)
+        assert result.error is None, result.error
+        assert result.value == expected
+
+
+@pytest.mark.parametrize("period_start", [
+    lambda noon: noon.replace(tzinfo=TZ).astimezone(datetime.timezone.utc),
+    lambda noon: noon.replace(tzinfo=TZ),
+    lambda noon: noon.replace(tzinfo=TZ).astimezone(datetime.timezone.utc).isoformat(),
+], ids=["utc", "local-offset", "text"])
+def test_solcast_hours_are_read_in_the_home_assistant_time_zone(period_start) -> None:
+    """Solcast's period_start has its own offset: the hour of the price is the one in Home Assistant's time zone."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options=SOLAR_OPTIONS)
+    noon = datetime.datetime.combine(DAY, datetime.time(12))
+    snap = snapshot(now, 50)
+    snap.solcast = {"sensor.solcast_today": [{"period_start": period_start(noon), "pv_estimate": 2.0}]}
+    result = engine.run_job(snap, engine.get_solar_kwh_forecast)
+    assert result.error is None, result.error
+    assert list(result.value) == [noon]
+
+
+def test_solcast_keeps_the_first_row_of_a_repeated_hour() -> None:
+    """The repeated hour of the autumn change has one key: the first row wins, like in the weather forecast."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine = started_engine(now, 50, options=SOLAR_OPTIONS)
+    noon = datetime.datetime.combine(DAY, datetime.time(12))
+    snap = snapshot(now, 50)
+    snap.solcast = {"sensor.solcast_today": [{"period_start": noon, "pv_estimate": 1.0}, {"period_start": noon, "pv_estimate": 3.0}]}
+    result = engine.run_job(snap, engine.get_solar_kwh_forecast)
+    assert result.error is None, result.error
+    assert 0.0 < result.value[noon][0] < 1.0  # 1 kWh from the first row less the house use; the second row (3 kWh) would be above 2
 def _solar_kw(day: int, hour: int) -> float:
     """A sunny day: 0 at night, up to 4.2 kW at noon, a little less every day."""
     return round(max(0.0, 4.2 - abs(hour - 12) * 0.7) * (1 - 0.1 * day), 3) if 6 <= hour <= 18 else 0.0
@@ -1012,3 +1109,55 @@ def test_unsupported_actions_ignore_unknown_values() -> None:
     config = build_config({**OPTIONS, "unsupported_actions": ["force_discharge", "discharge_allowed", "battery_stopped", "x"]})
     assert unsupported_actions(config) == {"force_discharge"}
     assert unsupported_actions(build_config(OPTIONS)) == frozenset()
+
+
+def test_every_price_update_publishes_the_prices_the_plan_is_made_on_for_the_price_chart() -> None:
+    """Attribute price_chart of sensor.battmind_powerwall_action, set with every price update (not by the plan, which may not run): one
+    row per price period for 7 days, real and forecast in one list. The dashboard's price chart of every provider is drawn from it."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 30))
+    engine = started_engine(now, 50)
+    result = engine.run_job(snapshot(now, 50), engine.update_grid_prices)
+    assert result.error is None, result.error
+    rows = result.attributes["powerwall_action"]["price_chart"]
+    times = [datetime.datetime.fromisoformat(row["time"]) for row in rows]
+    midnight = datetime.datetime.combine(DAY, datetime.time())
+    assert times == sorted(set(times)) and times[0] == midnight and times[-1] < midnight + datetime.timedelta(days=7)
+    buy, sell = engine.get_grid_prices(), engine.get_sell_prices()
+    for row, time in zip(rows, times):
+        assert row["buy"] == pytest.approx(buy[time], abs=0.006)
+        assert row["sell"] == (pytest.approx(sell[time], abs=0.006) if time in sell else None)
+    # and the prices of the test itself (_price_rows): 1.0 + 0.6 (7-16) or 1.5 (17-20) + hour/100 today, 0.8 tomorrow
+    by_time = dict(zip(times, rows))
+    assert by_time[midnight + datetime.timedelta(hours=8)]["buy"] == 1.68 and by_time[midnight + datetime.timedelta(hours=18)]["buy"] == 2.68
+    assert by_time[midnight + datetime.timedelta(days=1, hours=3)]["buy"] == 0.83
+    # today and tomorrow are published prices, the days after a forecast
+    forecast_from = midnight + datetime.timedelta(days=2)
+    assert not any(row["forecast"] for row, time in zip(rows, times) if time < forecast_from)
+    assert all(row["forecast"] for row, time in zip(rows, times) if time >= forecast_from) and times[-1] >= forecast_from
+    # the sell price is the wholesale (here: the buy) price less the sell fee, once
+    fee = abs(float(engine.config["prices"]["sell_fee"]))
+    real = next(row for row in rows if not row["forecast"] and row["sell"] is not None)
+    assert real["sell"] == pytest.approx(real["buy"] - fee, abs=0.011)
+
+
+def test_a_failed_price_update_publishes_what_the_plan_has_never_the_rows_of_an_earlier_update(monkeypatch) -> None:
+    """A sell price that cannot be had is no sell price (never the buy price); without buy prices there is nothing to draw: the chart
+    must not keep the rows of an update that worked."""
+    now = datetime.datetime.combine(DAY, datetime.time(12, 30))
+    engine = started_engine(now, 50)
+
+    def published() -> list:
+        result = engine.run_job(snapshot(now, 50), engine.update_grid_prices)
+        return result.attributes["powerwall_action"]["price_chart"]
+
+    rows = published()
+    assert rows and any(row["sell"] is not None for row in rows)
+
+    def fail(*args, **kwargs):
+        raise ValueError("no prices")
+
+    monkeypatch.setattr(engine, "get_sell_prices", fail)
+    without_sell = published()
+    assert [row["buy"] for row in without_sell] == [row["buy"] for row in rows] and all(row["sell"] is None for row in without_sell)
+    monkeypatch.setattr(engine, "get_grid_prices", fail)
+    assert published() == []

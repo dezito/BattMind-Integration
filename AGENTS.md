@@ -50,6 +50,32 @@ Read the relevant documentation before changing behavior. In particular:
 - Respect Home Assistant timestamps and configured time zones. Avoid naive
   datetime assumptions and test day boundaries, missing/future price data,
   and daylight-saving transitions when relevant.
+- Timestamps from other integrations (price rows, the weather forecast, Solcast `period_start`) can carry any
+  offset, often UTC. Read them with `to_local_datetime(value, tz)` (`utils/helpers.py`; `price_timestamp()` in
+  `prices/base.py` is the same call for price rows): it converts to Home Assistant's time zone (`snapshot.tz`)
+  before it drops the offset. A naive timestamp is local time. The providers get the zone through
+  `CombinedPriceProvider.update_prices(..., tz)`. A daily weather forecast whose time is midnight in its own offset names a date and keeps it
+  (`forecast_day()`); any other time is converted. The repeated hour of the autumn change shares one price key;
+  which row wins depends on the provider (Energi Data Service: the last row; Strømligning: the first, its
+  distribution tariff the last; Energy Price Forecast: the first). Data stored before the conversion (prices, averages and price hours, the
+  weather score of `solar_available_db`) keeps its old hours when the source gave UTC; it is not migrated and
+  phases out.
+- Money limits are chosen for Danish kroner (the forecast adder, the rounding of prices, profit floors and ties, score
+  thresholds, the cap of the price correction). A config entry stores `prices.price_scale` (how many of its units one
+  krone is worth, `CURRENCY_PRICE_SCALE` in `const/base.py`); missing means 1.0, so existing entries and every result in
+  kroner stay exactly as they were. The flow sets it from the unit of the price sensors (`prices/currency.py`), never
+  from Home Assistant's currency setting (EUR by default, also in Denmark). A new money amount per kWh in the code is
+  chosen for kroner and read through `price_scale(config)`, `scaled(config, amount)` and `price_decimals(config)`;
+  never scale a value the user entered (the wear cost is theirs, in their currency) or the `-1` of the fixed solar sell
+  price. A new entry's suggested sell fee and wear cost (both on the `price_fees` page, after the price pages, so the
+  user sees the amount that is stored) and the starting values of the two price rise thresholds follow the price
+  currency (an import or a restored backup keeps its own). A money field belongs on a page after the price pages. The
+  rates are rough and only set the size of a limit, no price is converted between currencies. A price sensor in a subunit (ct, p, GBp, øre …) is refused on the Energi Data Service, Energy Price Forecast, spot forecast and published-price
+  pages (`price_sensor_errors()`), and so is a price per MWh from Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot,
+  Octopus Energy or Nord Pool. Energy Price Forecast converts a
+  price per MWh to kWh (`price_unit_divisor()`): its rows in the provider and its recorded history where the history is
+  read (`CombinedPriceProvider.price_unit_divisors()`; the unit is the sensor's current one); units are read case-sensitively (`GBp` is not `GBP`), and all price sensors must be in one
+  currency (`price_currency_errors()`), so a backup provider with a known unit is never in another currency.
 - Preserve compatibility of config-entry options, entity IDs/unique IDs,
   stored data, backups, and migration from the PyScript version. Changes to
   these formats or identifiers require a migration/compatibility path and
@@ -88,7 +114,8 @@ Read the relevant documentation before changing behavior. In particular:
 - All price handling goes through `CombinedPriceProvider` (`prices/`, built by
   `create_price_provider()`): which price entities to read, the snapshot, the
   recorded price history, the provider priority (`PRICE_PROVIDER_PRIORITY`:
-  Strømligning before Energi Data Service) and the prices themselves. Other
+  Strømligning, then Energi Data Service, then the providers of published prices (Octopus Energy, Nord Pool, EPEX Spot, GE-Spot), then Energy Price Forecast,
+  then Spot Forecast, Elprisprognos and Wattcast) and the prices themselves. Other
   code calls its methods (the coordinator via `coordinator.price_provider`)
   and never reads price entities, config keys or provider attributes itself.
 - Providers are merged on one common price interval, never a fixed one: the
@@ -599,11 +626,93 @@ electricity supplier charges for selling. Formula:
   selling costs (net and system tariff) then come from the buy sensor's
   `tariffs` attribute (`get_sell_costs()` / `eds_sell_costs()`, what-if:
   provider `sell_costs`).
+- `sell_fee` is what the buyer of your electricity charges for buying it (user's definition).
+- Energy Price Forecast has no tariffs in its prices: sell price = the price of its sell sensor − `sell_fee`. The page
+  requires the sell sensor and refuses a retail sensor or the buy sensor as the sell sensor (the retail price is higher than
+  what a sale pays). An entry without one (a backup restored in the options menu) sells at its buy sensor's price less the fee (decided with the user): higher than a sale pays.
+- Energy Price Forecast in a market without published prices (empty `raw_today`/`raw_tomorrow`, today only in
+  `raw_forecast`) is refused on the price page (`price_sensor_forecast_only`), for both the buy and the sell sensor: past
+  hours of today would have no price. Its own price source (Nord Pool/ENTSO-e) gives such a market published prices. A
+  forecast never fills a slot that has a real price (`_combine`, per slot of the common interval, also across providers), and the
+  price history stores only real prices.
+- An entry that already has such a sensor (set up before, restored from a backup, or whose own price source was removed
+  later) gets the repair `energypriceforecast_forecast_only` (`DependencyWatcher._check_forecast_only()`), only once the
+  sensor has had only a forecast for about an hour (late prices make none). A sensor that can't be judged (unavailable,
+  unknown, no price rows yet) is never judged: it neither creates nor removes the repair. A repair the user ignored stays
+  ignored (do not delete and recreate it). A restored state of a sensor that Energy Price Forecast no longer provides
+  does not count while its entry runs. Do not use the `freezer` fixture to test it: the clock is `_utcnow()`.
+- A price sensor whose unit makes its prices 100 or 1000 times off (`price_unit_error()`: a subunit such as ct/kWh on any price
+  key except Wattcast's own price key, which accepts exactly ct/kWh, read as euro; per MWh or per Wh on an Energi Data Service,
+  Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot, Octopus Energy or Nord Pool key, per Wh on an Energy Price Forecast key, in the history too
+  (`price_unit_divisors()`); Energy Price Forecast converts its own per MWh) is refused on the price
+  page and, while running, gives no prices (`_wrong_unit()` in the providers: the next provider or the stored prices fill in,
+  never a price that is too high). Its recorded history is left out of the what-if (`price_unit_divisors()` returns None), and the
+  health check repair `price_unit_scale` names it (`CombinedPriceProvider.price_unit_problems()` judges a sensor of `PRICE_SENSOR_KEYS` by `price_unit_error()`
+  of its key, so Wattcast's ct/kWh and Energy Price Forecast's own per MWh are not flagged, any other entity of a price integration
+  (Strømligning, Octopus Energy, the tariffs) by its unit alone with `price_unit_wrong()`, and Wattcast's forecast sensor not at all (its provider
+  checks its unit). Only the first group is refused by the providers; a Strømligning sensor in the wrong unit is flagged but still used; no grace time).
+- Spot forecast providers (`prices/spotprices.py`: Spot Forecast, Elprisprognos, Wattcast; pure row parsers in
+  `prices/spot_rows.py`, the same file in both repositories) give wholesale prices, not retail prices. Buy price = spot ×
+  (1 + `spot_vat`/100) + `spot_surcharge`; sell price = spot − `sell_fee`, with no VAT or surcharge. `spot_vat` and
+  `spot_surcharge` have no default (None), are asked on the fee page only when such a provider is chosen, and a provider
+  without them raises instead of giving prices, never a default of 0 (a 0 entered by the user is valid). Published rows are
+  real; a forecast row never fills a slot that has a published price, and today's hours without a published price are not
+  planned. Their recorded state is a wholesale price, so `records_history = False` keeps the recorded state of the sensors out of the
+  price history, the analysis and the what-if (the combined provider still names the sensor in messages); their published
+  prices are still stored in the integration's own price database. Wattcast needs its forecast sensor too and gives
+  ct/kWh; its unit rule is the only subunit exception, and its forecast sensor's `forecast_unit` must be ct/kWh too (else
+  no prices, one log warning, no repair). A spot sensor with price rows but none published is
+  refused on the price page (`price_sensor_no_published`), and while running it logs a warning once; there is no repair
+  for it. Spot Forecast is not offered in Denmark. Fixtures are synthetic, built from the documented row shapes: no running
+  installation of the three integrations was checked.
+- Providers of published prices (`prices/publishedprices.py`: EPEX Spot, GE-Spot, Octopus Energy, Nord Pool; pure row parsers of
+  the first three in `prices/published_rows.py`, the same file in both repositories) read the prices the user's own integration
+  publishes. They have no forecast (`has_forecast = False`: alone they are refused by `provider_errors()`), so a provider with a
+  forecast fills the days after tomorrow; they stand before the estimating providers in `PRICE_PROVIDER_PRIORITY`. The buy price is
+  the price of the sensor as it is (no VAT or surcharge of ours). The sell price is the wholesale price less `sell_fee`, never the
+  buy price, and it exists only where the user's integration has a source for it: EPEX Spot's Market Price sensor, the required
+  second Nord Pool sensor, GE-Spot's `raw_value` only from a `data_source` that is known and has a market price (not Strømligning
+  or Amber), Octopus Energy's export rates. A missing sell sensor means no sell prices (never the buy price). Octopus Energy
+  without an export tariff sells at 0 less the fee (`sells_nothing`) in every hour of the buy prices, also on the days a
+  provider with a forecast fills (`_apply_sells_nothing()` in `CombinedPriceProvider`). Only today's and tomorrow's rows are
+  prices (GE-Spot's tomorrow only while `tomorrow_valid is True`). The real prices of a provider are the price of the whole
+  hour: `_combine()` repeats an hourly price over every slot of the common interval, so the quarters of a later provider never fill a
+  slot of it. Octopus rates
+  are pounds (an event entity has no unit; a rate above `OCTOPUS_MAX_PLAUSIBLE` is pence, so no prices), `records_history` is
+  False for Octopus Energy (the state of its entity is a time), and GE-Spot has no recorded sell sensor. The price pages refuse
+  a sensor without price rows (`price_sensor_no_rows`), the same sensor as buy and sell price (`price_sensor_same_sensor`), a
+  sensor in the wrong role (`price_sensor_wrong_role`: EPEX Spot's Market Price and Total Price swapped, an Octopus Energy
+  import event as export or the other way, found from the entity registry's unique id) and EPEX Spot's non-exchange sources
+  (`price_sensor_not_exchange`). The Nord Pool provider is a subclass of the Energy Price Forecast provider and must not inherit
+  its sell fallback, its MWh conversion or its checks. Fixtures are synthetic, built from the upstream integrations' code: the
+  unit of GE-Spot's `raw_value` and Octopus Energy's entity ids and date formats were not checked against a running installation.
+  A key twice in a json translation file is read without a word (the last one wins); `tests/test_published_providers.py`
+  checks that no file has one.
+- What-if without a sell sensor (a restored backup may lack it): Energy Price Forecast follows the live prices (the history of
+  the buy sensor less the sell fee), but is not given a module payback or year estimate (`sell_price_from_buy_sensor`, the retail
+  price is higher than what a sale pays). Energi Data Service does not: its tariffs attribute is not recorded (its
+  `_unrecorded_attributes`), so the buy history cannot be turned into a sell price and the what-if keeps reporting that the sell
+  price history is not available.
+- The country of the prices (`price_country`, stored as `prices.country`, default `"DK"`: an entry, backup or import from before it
+  is Danish, no migration) is chosen on the price provider page, which the options menu also shows. Home Assistant's country is
+  only a suggestion, once, for a new entry (an import or a backup keeps its own), and a new entry outside DK starts with Energy
+  Price Forecast. `provider_errors()` (`prices/availability.py`) refuses a provider with no prices in the country and a choice
+  with no forecast; it runs only on that page, never on an unrelated page of a running setup. Every provider class has
+  `countries` (None = any; Energi Data Service: the regions of its own integration; Strømligning: DK) and `has_forecast` (a
+  property of the provider, not of what its sensor shows now).
 - `sell_fee` is stored positive (`abs()`) and is always subtracted.
-- The dashboard's sell price series (Strømligning and Energi Data Service
-  charts) must use the same formula and the configured sell entities
-  (`@@sell_fee_value@@` is the configured fee). Keep it in sync with
-  `calculate_sell_price()`.
+- Every price chart (`dashboard/prices/<provider>.yaml`, one per provider) is the Energy Price Forecast chart with its data source replaced by
+  one inline `adapt()`: it reads the prices the plan is made on, whatever provider gave them, from attribute `price_chart` of
+  `sensor.battmind_powerwall_action`. The attribute is set with every price update (`Pricing.update_grid_prices()`, `Pricing.price_chart_rows()`,
+  `prices/chart_rows.py`, the same file in both repositories), not by the plan, which may not run: one row `{time, buy, sell, forecast}` per
+  price period (15 minutes or an hour) for 7 days, real and forecast in one list. The sell price in it has `sell_fee` off already, so a
+  chart never takes it off again (a test checks that no chart has the placeholder); it is `null` where the plan has none (a sell price from the
+  price history is one), never the buy price or 0. The forecast zone starts at the first forecast period and is empty without one. A chart's
+  card lists the plan entity in `entities` (an empty list never re-renders the card, so the chart would stay as it was at page load), and
+  `dashboard_entities()` of a provider maps only the sensor of its restart card. The charts are generated from one template and differ only in
+  the provider's entity and name (a test pins the adapter): change the template, regenerate all of them, and keep the attribute, the
+  charts and their tests in step. `../ha-dev/tools/chart_check.py` runs the charts in headless Edge against the real combined provider
+  (Strømligning and Energi Data Service have no stubs there, so they are not run).
 - `plan_inputs_hash()` includes the sell prices, so new sell prices replan.
 
 ### Debug export
@@ -670,7 +779,7 @@ electricity supplier charges for selling. Formula:
   `POWER_SCALE_DAYS` stay at most `KW_LOOKING_MAX` with fractions, so kW read
   as W), `battery_level_fraction` (every value 0..1 with fractions) and
   `price_unit_scale` (a price entity in a subunit, per MWh or per Wh, judged by
-  its unit only, through `CombinedPriceProvider.price_unit_problems`). The
+  its unit, and for the price sensors also the key it is configured under (`price_unit_error()`), through `CombinedPriceProvider.price_unit_problems`). The
   verdicts are in `management/value_checks.py`, the same file as in CJP
   (change both together, with `tests/test_value_checks.py`): True, False or
   None, and None never clears a repair. History is read in the recorder's

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime
 
+from ....const import MIN_GAIN_PER_KWH, price_decimals, scaled
 from ....utils.helpers import average, days_between, hour_in, in_between, reset_time_to_hour
 from .._helpers import _running_battery_price
 
@@ -47,16 +48,16 @@ class FutureSupport:
                     if plan_day is not None:
                         plan_day["charging_sessions"].pop(ts, None)
                     continue
-                delta_cost += session["Cost"] - round(session["Cost"] * factor, 2)
+                delta_cost += session["Cost"] - round(session["Cost"] * factor, price_decimals(self.config))
                 delta_kwh += session["kWh"] - kwh
                 session["battery_level"] = round(session["battery_level"] * factor, 2)
-                session["Cost"] = round(session["Cost"] * factor, 2)
+                session["Cost"] = round(session["Cost"] * factor, price_decimals(self.config))
                 session["kWh"] = kwh
                 if isinstance(session.get("reason"), str) and "</details>" in session["reason"]:
                     session["reason"] = session["reason"].replace("</details>", f"<br>{ctx.r('taper_limited', kwh=f'{kwh:.2f}')}</details>", 1)
             if plan_day is not None:
                 plan_day["total_cost"] -= delta_cost  # negative at negative prices: never clamped
-            ctx.totals[:] = round(ctx.totals[0] - delta_cost, 2), round(ctx.totals[1] - delta_kwh, 2)
+            ctx.totals[:] = round(ctx.totals[0] - delta_cost, price_decimals(self.config)), round(ctx.totals[1] - delta_kwh, 2)
             changed = True
         return changed
 
@@ -131,7 +132,7 @@ class FutureSupport:
                 if (
                     price is not None and loop_timestamp > timestamp and level >= maximum - 0.01
                     and self.solar_surplus_in_hour(ctx.charging_plan, ctx.current_hour, loop_timestamp) > 0.0
-                    and self.sell_price_in_hour(ctx, loop_timestamp) - price >= max(ctx.get_min_profit_per_kwh(), 0.01)
+                    and self.sell_price_in_hour(ctx, loop_timestamp) - price >= max(ctx.get_min_profit_per_kwh(), scaled(ctx.config, MIN_GAIN_PER_KWH))
                 ):
                     # the battery is full of solar from here on anyway, the pushed out solar is sold well
                     break
@@ -231,7 +232,7 @@ class FutureSupport:
         sell_price = ctx.config["solar"]["production_price"]
         using_grid_sell_price = sell_price == -1.0
         prices = {
-            ts: price if using_grid_sell_price else round(self.sell_value(price), 2)
+            ts: price if using_grid_sell_price else round(self.sell_value(price), price_decimals(ctx.config))
             for ts, price in ctx.grid_sell_prices.items() if in_between(ts, from_timestamp, to_timestamp)
         }
         return prices, sell_price, using_grid_sell_price

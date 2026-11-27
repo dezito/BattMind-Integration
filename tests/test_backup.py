@@ -223,3 +223,22 @@ async def test_imported_max_age_is_kept_inside_the_limits_of_the_entity(hass: Ho
     await _settle(hass)
     assert float(hass.states.get(MAX_AGE).state) == 12.0
     await async_unload_and_join(hass, entry)
+
+
+async def test_restoring_an_old_backup_without_a_country_puts_the_entry_in_denmark(hass: HomeAssistant, config_dir: Path, loaded_entry) -> None:
+    """A backup from before the country existed is in Denmark: the country the entry has now is not kept for it."""
+    first = loaded_entry.runtime_data
+    hass.config_entries.async_update_entry(loaded_entry, options={**loaded_entry.options, "price_country": "DE"})
+    await _settle(hass)
+    await async_join_workers(hass, first)
+    response = await hass.services.async_call(DOMAIN, "export_data", {}, blocking=True, return_response=True)
+    path = config_dir.parent / response["files"][PREFIX]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["options"].pop("price_country", None)
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    old_coordinator = loaded_entry.runtime_data
+    await backup.async_import(hass, loaded_entry, path.name, restore_configuration=True)
+    await _settle(hass)
+    await async_join_workers(hass, old_coordinator)
+    assert loaded_entry.options["price_country"] == "DK"

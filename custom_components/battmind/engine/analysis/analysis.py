@@ -37,6 +37,7 @@ from __future__ import annotations
 import datetime
 import logging
 
+from ...const import price_decimals, scaled
 from ..energy.energy import derive_power_values
 from ...utils.capacity import clean_capacity
 from ...utils.power import unique_entity_ids, unit_factor_to_w
@@ -84,7 +85,8 @@ class Analysis(AnalysisRecording, AnalysisPublishing, PlanCheck):
             hours = sum(_num(entry.get("n")) for entry in entries)
             if len(entries) >= PRICE_CORRECTION_MIN_DAYS and hours:
                 bias = sum(_num(entry.get("bias")) for entry in entries) / hours
-                corrections[lead] = round(min(max(-bias, -PRICE_CORRECTION_MAX), PRICE_CORRECTION_MAX), 3)
+                limit = scaled(self.config, PRICE_CORRECTION_MAX)
+                corrections[lead] = round(min(max(-bias, -limit), limit), 3 if price_decimals(self.config) == 2 else 4)
         return corrections
 
     def auto_forecast_type(self, manual: str) -> str | None:

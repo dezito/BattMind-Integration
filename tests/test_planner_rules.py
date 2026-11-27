@@ -482,12 +482,14 @@ def test_negative_prices_fill_the_battery() -> None:
     assert max(sum(engine.plan[0]["battery_level_flow"][hour]) for hour in (1, 2, 3)) == pytest.approx(100.0, abs=1.0)
 
 
-def _charge_tags_at_3(price_at_3: float, wear: float, rules_on: list[str]) -> list[list[str]]:
-    """Rules that tag the charge hours of the optimiser's plan (optimiser on, prices 1.0 except `price_at_3` at 03:00)."""
-    settings = {key: False for key in RULES_BESIDES_MOST_PROFIT} | {"optimizer_control": True, "most_profit": False} | {rule: True for rule in rules_on}
+def _charge_tags_at_3(
+    price_at_3: float, wear: float, rules_on: list[str], price_scale: float | None = None, base: float = 1.0, optimizer: bool = True
+) -> list[list[str]]:
+    """Rules that tag the charge hours of the optimiser's plan (optimiser on, prices `base` except `price_at_3` at 03:00)."""
+    settings = {key: False for key in RULES_BESIDES_MOST_PROFIT} | {"optimizer_control": optimizer, "most_profit": False} | {rule: True for rule in rules_on}
     engine, _ = planned(
-        0, 20, settings, days=1, price_fn=lambda ts: price_at_3 if ts.hour == 3 and ts.date() == DAY else 1.0,
-        options={"powerwall_charge_discharge_loss": 0.0, "powerwall_wear_cost_per_kwh": wear},
+        0, 20, settings, days=1, price_fn=lambda ts: price_at_3 if ts.hour == 3 and ts.date() == DAY else base,
+        options={"powerwall_charge_discharge_loss": 0.0, "powerwall_wear_cost_per_kwh": wear, **({"price_scale": price_scale} if price_scale else {})},
     )
     return [[key for key in engine.charge_hours[ts] if key in RULES_BESIDES_MOST_PROFIT] for ts in charge_hours(engine)]
 
@@ -640,6 +642,16 @@ def test_a_charge_at_a_price_that_does_not_pay_without_use_is_not_a_negative_pri
     assert _charge_tags_at_3(-0.10, 0.50, ["negative_price_planner"]) == []
     # -1.0 with 0.10 wear pays on its own: still a negative price charge
     assert _charge_tags_at_3(-1.0, 0.10, ["negative_price_planner"]) == [["negative_price_planner"]]
+
+
+def test_the_negative_price_limit_follows_the_currency_of_the_prices() -> None:
+    """A kWh has to earn 0.01 kroner to be a negative price charge: -0.004 (rounded to 0.00 in kroner) does not, but it does
+    in a currency worth a tenth (limit 0.001, prices rounded to 3 decimals)."""
+    assert _charge_tags_at_3(-0.004, 0.0, ["negative_price_planner"], base=0.1) == []
+    assert _charge_tags_at_3(-0.004, 0.0, ["negative_price_planner"], price_scale=0.1, base=0.1) == [["negative_price_planner"]]
+    # the rules themselves (the optimiser off) have the same limit
+    assert _charge_tags_at_3(-0.004, 0.0, ["negative_price_planner"], base=0.1, optimizer=False) == []
+    assert _charge_tags_at_3(-0.004, 0.0, ["negative_price_planner"], price_scale=0.1, base=0.1, optimizer=False) == [["negative_price_planner"]]
 
 
 def test_grid_charge_to_sell_buys_cheap_and_sells_expensive() -> None:
@@ -1070,6 +1082,39 @@ def test_profit_requirements_are_shown_as_a_steering_figure_for_every_plan() -> 
     overview = result.attributes["overview"]["overview"]
     assert f"{requirements['optimal']:.2f}" in overview.split("🎯", 1)[1].splitlines()[0]
     assert "🎯" not in zero_engine.last_overview
+
+
+def test_what_if_epf_without_a_sell_sensor_sells_at_the_buy_sensor_but_gives_no_payback() -> None:
+    """Like the live prices: the history of the buy sensor less the fee is the sell price. It is higher than a sale pays, so
+    the result says so (sell_price_from_buy_sensor) and the module payback is refused (missing_sell_price)."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine, _ = planned(3, 40, {"optimizer_control": True}, solar=True)
+    snap = realistic_snapshot(now, 40, {"optimizer_control": True})
+    ids = engine.config["home"]["entity_ids"]
+    solar_id = engine.config["solar"]["entity_ids"]["production_entity_id"]
+    buy_id, sell_id = "sensor.historical_buy", "sensor.historical_sell"
+    start = datetime.datetime.combine(DAY - datetime.timedelta(days=1), datetime.time())
+    timestamps = [(start + datetime.timedelta(hours=hour)).timestamp() for hour in range(48)]
+    stats = {
+        ids["power_consumption_entity_id"]: [(ts, 1000.0) for ts in timestamps],
+        ids["powerwall_watt_flow_entity_id"]: [(ts, 0.0) for ts in timestamps],
+        solar_id: [(ts, 1500.0 if 9 <= datetime.datetime.fromtimestamp(ts).hour <= 15 else 0.0) for ts in timestamps],
+        buy_id: [(ts, 0.5 if datetime.datetime.fromtimestamp(ts).hour < 6 else 2.0) for ts in timestamps],
+        sell_id: [(ts, 0.4 if datetime.datetime.fromtimestamp(ts).hour < 6 else 1.5) for ts in timestamps],
+    }
+
+    def run(provider: dict):
+        return engine.run_job(snap, engine.what_if, {"buy_entity_id": buy_id, "sell_entity_id": sell_id, "price_providers": [provider], "stats": stats}, {})
+
+    from_buy = run({"name": "Energy Price Forecast", "buy_entity_id": buy_id, "sell_entity_id": buy_id, "sell_fee": 0.05})
+    assert from_buy.error is None, from_buy.error
+    assert from_buy.value["assumptions"]["sell_price_history_available"] is True
+    assert from_buy.value["assumptions"]["sell_price_from_buy_sensor"] is True
+    assert from_buy.value["current"]["without"]["solar_income"] != 0.0  # the solar is priced at the buy price less the fee, not at 0
+    own = run({"name": "Energy Price Forecast", "buy_entity_id": buy_id, "sell_entity_id": sell_id, "sell_fee": 0.05})
+    assert own.error is None, own.error
+    assert own.value["assumptions"]["sell_price_from_buy_sensor"] is False
+    assert own.value["current"]["without"]["solar_income"] != from_buy.value["current"]["without"]["solar_income"]
 
 
 def test_what_if_simulator_does_not_change_the_active_plan() -> None:
@@ -2475,6 +2520,66 @@ def test_replay_plans_when_the_prices_of_the_next_day_are_published() -> None:
     assert _next_planning(afternoon) == datetime.datetime(2026, 10, 23, 13)
 
 
+def test_a_forecast_day_with_quarter_prices_sells_at_most_a_quarter_of_the_rate_per_quarter() -> None:
+    """A forecast day with 15-minute rows (Strømligning, Energy Price Forecast) has four sell periods per hour: a rule
+    sells at most a quarter of the discharge rate in each, not the rate of a whole hour (rule plan; prices change every
+    hour; 20 kWh at 90 %, 3 kW: the rate limits the sale, not the energy)."""
+    engine, _ = planned(
+        0, 90, {"optimizer_control": False, "usage_reserve": 0, "min_profit_per_kwh": 0.0, "prioritize_discharge_hours_by_energy_cost": True, "only_discharge_on_profit": False,
+                "grid_charge_to_sell": True, "most_profit": False, "sell_excess_kwh_available": False},
+        price_fn=lambda ts: 0.3 if ts.hour % 2 == 0 else 2.2, days=4, quarters=True,
+        options={"powerwall_battery_size": 20.0, "powerwall_charge_discharge_loss": 0.0, "powerwall_wear_cost_per_kwh": 0.3, "powerwall_discharging_power": 3000},
+    )
+    quarter = abs(engine.max_kwh_discharging) / 4
+    forecast_sales = [
+        sale["kwh"] for day in engine.plan if isinstance(day, int) and day >= 2 for sale in engine.plan[day]["force_discharge_timestamps"].values()
+    ]
+    assert forecast_sales, "the forecast days sell"
+    assert max(forecast_sales) <= quarter + 0.011, (max(forecast_sales), quarter)
+
+
+def test_the_battery_costs_per_kwh_have_the_decimals_of_the_currency() -> None:
+    """In euro a per kWh amount of the battery costs has 3 decimals (a wear cost of 0.013 is not shown as 0.01); in
+    kroner 2. The totals stay at 2 decimals."""
+    for scale, wear, total, shown in ((0.134, 0.013, "0.07", "0.013"), (1.0, 0.1, "0.50", "0.10")):
+        engine, _ = planned(0, 30, {}, days=1, options={"price_scale": scale})
+        expenses = {"kwh": 5.0, "percentage": 50.0, "solar_percentage": 0.0, "unit": 0.2, "cost_wear": 5.0 * wear, "cost_loss": 0.0}
+        battery_costs = "\n".join(engine._build_overview(engine.plan, {}, expenses, {}))
+        assert f"**{total} " in battery_costs and f"(**{shown} " in battery_costs, (scale, battery_costs)
+
+
+def test_a_buy_to_sell_sale_shows_its_prices_per_kwh_with_the_decimals_of_the_currency() -> None:
+    """In euro the details of a sale of bought energy show the buy price, the sell price, loss and wear and the profit
+    per kWh with 3 decimals (a wear cost of 0.013 is not 0.01)."""
+    engine, _ = planned(
+        0, 30, {"optimizer_control": False, "usage_reserve": 0, "min_profit_per_kwh": 0.0, "prioritize_discharge_hours_by_energy_cost": True, "only_discharge_on_profit": False,
+                "grid_charge_to_sell": True, "most_profit": False, "sell_excess_kwh_available": False},
+        price_fn=lambda ts: 0.3 if ts.hour % 2 == 0 else 2.2, days=2,
+        options={"price_scale": 0.134, "powerwall_battery_size": 10.0, "powerwall_charge_discharge_loss": 0.0, "powerwall_wear_cost_per_kwh": 0.013, "powerwall_discharging_power": 3000},
+    )
+    reasons = [
+        sale["reason"] for day in engine.plan if isinstance(day, int) for sale in engine.plan[day]["force_discharge_timestamps"].values()
+        if sale["title"] == "Sælger strøm købt billigt"
+    ]
+    assert reasons, "the scenario sells bought energy"
+    assert "til **0.300 kr/kWh**" in reasons[0] and "Ladetab + slid pr. kWh: **0.013 kr/kWh**" in reasons[0], reasons[0]
+
+
+def test_a_price_sensor_that_changes_to_a_subunit_keeps_the_plan_on_the_cached_prices() -> None:
+    """Running with prices, then the sensor gives ct/kWh: it gives no prices (never 100 times too high), the plan stays on the
+    prices it has, and nothing fails."""
+    now = datetime.datetime.combine(DAY, datetime.time(3, 30))
+    engine, _ = planned(3, 40, {"optimizer_control": False})
+    cached = dict(engine.grid_price_cache["prices"])
+    assert cached
+    snap = realistic_snapshot(now, 40, {"optimizer_control": False})
+    snap.price_data["attributes"]["sensor.price"]["unit_of_measurement"] = "ct/kWh"
+    assert engine.run_job(snap, engine.update_grid_prices).error is None  # the hourly price update reads the sensor
+    assert engine.price_provider.buy_prices_available() is False
+    result = engine.run_job(snap, engine.charge_if_needed, True)
+    assert result.error is None, result.error
+    assert not [message for message, title, _ in result.notifications if "error" in title.lower()]
+    assert engine.grid_price_cache["prices"] == cached and engine.grid_price_cache["using_offline_prices"] is False  # the last successful prices
 def test_hour_rules_group_the_periods_that_follow_each_other() -> None:
     """With 15 minute prices the periods of a rule that follow each other are one window, a gap starts a new one."""
     from custom_components.battmind.engine.planner._helpers import _group_hour_rules

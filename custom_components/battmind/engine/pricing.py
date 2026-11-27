@@ -5,10 +5,11 @@ import datetime
 import logging
 import math
 
-from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER
+from ..const import PRICE_ADDER_DAY_BETWEEN_DIVIDER, price_decimals, price_scale
 from ..utils.helpers import day_of_week, days_between, minutes_between, reset_time_to_hour, start_of_day
 from ..prices import price_at
 from ..prices.base import sell_adder_sign
+from ..prices.chart_rows import price_chart_rows
 from ..prices.intervals import interval_slots, price_grid_minutes
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ class Pricing:
         if self.price_provider is None:
             return
         try:
-            self.price_provider.update_prices(self._snap.price_data if self._snap else None, self.now())
+            self.price_provider.update_prices(self._snap.price_data if self._snap else None, self.now(), self._snap.tz if self._snap else None)
             self.get_grid_prices(update_prices=True)
             self.get_sell_prices(update_prices=True)
             if not initial_run:
@@ -33,6 +34,9 @@ class Pricing:
                 title=f"{self.title} error",
                 notification_id=f"{self.name}_update_grid_prices_error",
             )
+        # the prices of the plan (real and forecast) for the price chart of the dashboard, after every price update, also one that failed: the
+        # chart shows what the plan has now (the cached or offline prices, or none), never the rows of an earlier update
+        self.set_attr("powerwall_action", "price_chart", self.price_chart_rows())
 
     def get_hour_prices(self, update_prices: bool = False, sell_prices: bool = False) -> dict:
         """Prices per period. Returned dicts are shared - do not modify them.
@@ -57,7 +61,7 @@ class Pricing:
             if corrections:
                 current_hour = reset_time_to_hour(now)
                 prices = {
-                    timestamp: round(price + corrections.get(days_between(current_hour, timestamp), 0.0), 2)
+                    timestamp: round(price + corrections.get(days_between(current_hour, timestamp), 0.0), price_decimals(self.config))
                     if provider.is_forecast(timestamp, sell_prices) else price
                     for timestamp, price in prices.items()
                 }
@@ -122,10 +126,10 @@ class Pricing:
         while timestamp < end:
             values = history.get(timestamp.hour, {}).get(day_of_week(timestamp), [])
             if timestamp not in priced_hours and values:
-                adder = days_between(current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER
+                adder = days_between(current_hour, timestamp) / PRICE_ADDER_DAY_BETWEEN_DIVIDER * price_scale(self.config)
                 if history_key == "history_sell":
                     adder *= sell_adder_sign(self.config)
-                missing[timestamp] = round(self.get_forecast_value(values) + adder, 2)
+                missing[timestamp] = round(self.get_price_forecast_value(values) + adder, price_decimals(self.config))
             timestamp += datetime.timedelta(hours=1)
         return missing
 
@@ -134,6 +138,24 @@ class Pricing:
 
     def get_sell_prices(self, update_prices: bool = False) -> dict:
         return self.get_hour_prices(update_prices=update_prices, sell_prices=True)
+
+    def price_chart_rows(self) -> list[dict]:
+        """The buy and sell prices the plan is made on, per price period for the next 7 days (real and forecast in one list), for the
+        price charts of the dashboard. A price that is not there is left out: the chart shows what the plan has, never a favorable default."""
+        def prices(sell: bool) -> dict:
+            try:
+                return self.get_sell_prices() if sell else self.get_grid_prices()
+            except Exception as err:  # noqa: BLE001 - a missing sell price (a provider without one) must not stop the buy prices
+                _LOGGER.debug("No %s prices for the price chart: %s", "sell" if sell else "buy", err)
+                return {}
+
+        return price_chart_rows(
+            prices(False), prices(True), self.grid_price_cache.get("sources", {}), start_of_day(self.now()), 7, price_decimals(self.config)
+        )
+
+    def get_price_forecast_value(self, data: list | None = None) -> float:
+        """get_forecast_value of a list of prices: rounded to the decimals of the price currency (2 for kroner)."""
+        return self.get_forecast_value(data, price_decimals(self.config))
 
     def real_hour_price(self, hour: datetime.datetime, sell_prices: bool = False) -> float | None:
         """The mean of the price slots of the hour (the raw price: sell_value() is applied by the caller), only when every slot has
@@ -170,7 +192,7 @@ class Pricing:
         if result is not None:
             return round(self.sell_value(result[1]), 3)
         try:
-            return self.sell_value(self.get_forecast_value(self.kwh_avg_prices_db["history_sell"][self.now().hour][day_of_week(self.now())]))
+            return self.sell_value(self.get_price_forecast_value(self.kwh_avg_prices_db["history_sell"][self.now().hour][day_of_week(self.now())]))
         except KeyError:
             return 0.0
 
@@ -217,14 +239,14 @@ class Pricing:
                     try:
                         grid_price = history["history"][hour][dow][days_ago]
                     except (KeyError, IndexError):
-                        grid_price = self.get_forecast_value(history["history"][hour][dow])
+                        grid_price = self.get_price_forecast_value(history["history"][hour][dow])
                 if loop_timestamp in sell_prices:
                     sell_price = sell_prices[loop_timestamp]
                 else:
                     try:
                         sell_price = history["history_sell"][hour][dow][days_ago]
                     except (KeyError, IndexError):
-                        sell_price = self.get_forecast_value(history["history_sell"][hour][dow])
+                        sell_price = self.get_price_forecast_value(history["history_sell"][hour][dow])
 
                 kwh_price = grid_price * grid_share + self.sell_value(sell_price) * solar_share
                 kwh_prices.append(round(kwh_price, 3))

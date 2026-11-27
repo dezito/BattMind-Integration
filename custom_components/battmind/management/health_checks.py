@@ -676,7 +676,7 @@ class HealthWatcher:
             _LOGGER.warning("BattMind could not read the history of the power and battery level sensors, retried later: %s", err)
 
     async def _check_price_units(self) -> None:
-        """price_unit_scale: a price sensor in a subunit of its currency (øre, cent), per MWh or per Wh, judged by its unit alone. The
+        """price_unit_scale: a price sensor in a subunit of its currency (øre, cent), per MWh or per Wh, judged by its unit (and, for a price sensor, the key it is configured under). The
         price provider is asked for it; None (no provider yet) judges nothing, and the repair stays as it is."""
         result = None if self._price_units is None else self._price_units()
         if result is None:

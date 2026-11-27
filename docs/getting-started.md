@@ -10,7 +10,7 @@ few days of watching the plan before you trust it.
 | A **battery level** sensor (%) | where the plan starts from |
 | A **battery power** sensor (W or kW) | measures what goes in and out (charging history, cost price, loss) |
 | A **house consumption** sensor (W or kW) – the house's consumption, not the grid import | the consumption forecast per hour |
-| [Energi Data Service](https://github.com/MTrab/energidataservice) and/or [Strømligning](https://github.com/MTrab/stromligning) | buy and sell prices per hour |
+| [Energi Data Service](https://github.com/MTrab/energidataservice), [Strømligning](https://github.com/MTrab/stromligning), [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) and/or a spot forecast integration, EPEX Spot, GE-Spot, Octopus Energy or Nord Pool | buy and sell prices per hour |
 | A way to control the inverter from Home Assistant | BattMind only decides – your automation does it |
 
 Optional, but recommended with solar panels:
@@ -87,11 +87,10 @@ battery power field is required, so it can be changed but not cleared. The batte
 | Loss from history | after 6 full cycles BattMind measures the loss itself – leave it on |
 | Charging / discharging efficiency curve | optional object mapping AC power in W to efficiency in percent, e.g. 1000 W = 88 %, 3000 W = 94 %, 5000 W = 96 %. BattMind interpolates between points. Leave empty to let BattMind measure the curve itself (the round-trip loss is used until there are enough measurements) |
 | Enhance battery efficiency | switch under **Settings → Control** that decides whether BattMind uses the configured curves. Turning it off keeps the curves and uses the round-trip loss instead |
-| Wear per kWh | battery price ÷ expected lifetime in kWh, e.g. 40 000 kr ÷ (10 kWh × 6000 cycles) ≈ 0.67 kr/kWh. Default is 0.10. A higher value makes BattMind more careful |
 | Min. / max. safe temperature | limits in °C from the battery manufacturer; defaults are 0 to 50 °C |
 
-The loss and the wear decide how big a price difference has to be before BattMind uses the battery. See
-[How BattMind plans](how-it-works.md#the-cost-of-a-kwh-from-the-battery).
+The loss and the wear (on the page *Refund and fees*, see [prices](#prices)) decide how big a price difference has
+to be before BattMind uses the battery. See [How BattMind plans](how-it-works.md#the-cost-of-a-kwh-from-the-battery).
 
 ### Home battery – controllable modes
 
@@ -163,13 +162,63 @@ again.
 
 ### Prices
 
-Choose Energi Data Service and/or Strømligning. With both, Strømligning has priority: its price is used for
-every hour it has one, and Energi Data Service fills the gaps (also in the what-if and the analysis).
+Choose Energi Data Service, Strømligning, Energy Price Forecast and/or a spot forecast integration. With several, the priority is Strømligning,
+then Energi Data Service, then Octopus Energy, Nord Pool, EPEX Spot and GE-Spot, then Energy Price Forecast, then the spot forecast integrations: the price of the first one that has one is used for every hour,
+and the next fills the gaps (also in the what-if and the analysis). All price sensors must be in the same currency
+(a backup provider in another currency is refused).
+
+**Spot forecast integrations** (wholesale prices with a forecast, for markets where no retail price sensor exists):
+[Spot Forecast](https://github.com/cygnusb/ha-spot-forecast) (Germany, Luxembourg, the Netherlands and Southern Norway; Denmark
+is left out, Energi Data Service and Strømligning are better there), [Elprisprognos](https://github.com/AlexAsplund/ha-elprognos)
+(Sweden) and [Wattcast](https://github.com/SectorTll/wattcast-homeassistant) (Finland, Estonia, Latvia, Lithuania; it gives
+ct/kWh, the only subunit that is accepted, and needs its forecast sensor too). They give the exchange price, not a price a household pays.
+The buy price is made from it: **spot price × (1 + VAT) + surcharge**, where the VAT (%) and the surcharge per kWh (grid fee,
+taxes and the supplier's margin, with VAT) are asked on the fee page and have **no default**: without them there are no prices,
+because a surcharge of 0 would make every buy price too low. The sell price is the spot price less the sell fee. A flat surcharge
+cannot follow a grid tariff that changes through the day, so the plan is less exact than with a retail price. The price page refuses a sensor that has price rows but none of them
+published (it is probably not the price sensor of the integration) and a price per MWh or Wh. The recorded history
+of these sensors is not used (their state is a wholesale price): BattMind stores their published prices in its own price history,
+which fills hours that have no price, but the what-if has no history for them (it needs Energi Data Service, Strømligning or
+Energy Price Forecast in the setup too). Elprisprognos only keeps today's coming hours in its list.
+
+**Providers of your own published prices** ([EPEX Spot](https://github.com/mampfes/ha_epex_spot), [GE-Spot](https://github.com/enoch85/ge-spot),
+[Octopus Energy](https://github.com/BottlecapDave/HomeAssistant-OctopusEnergy) for the United Kingdom and [Nord Pool](https://github.com/custom-components/nordpool)
+from HACS): their sensors already have the VAT, the surcharge and the fees you set up in them, so the **buy price is what the sensor says**
+(no VAT or surcharge of ours is asked for). They give today and tomorrow and **no forecast**, so each works only next to a provider with a
+forecast (Energy Price Forecast, Energi Data Service with Carnot, or a spot forecast integration), and they come **before the estimating
+providers** in the priority: the days after tomorrow come from the other provider's own formula, so the level can step between tomorrow and
+the day after. The price chart of the dashboard (the same for every provider) shows 7 days in one chart: the prices the plan is made on, the
+published ones and, shaded from the first forecast period on, the forecast for the rest (tomorrow is shaded until its prices are out); it follows the price updates (about once an hour), not every minute. A forecast
+price is the forecast provider's price with its small adder per day ahead and the measured correction; the sell series is the sell price the plan has
+(the wholesale price less the sell fee, or one from the price history where no provider has one), not what a fixed solar sell price settles. The **sell price** is the wholesale price less the sell fee: EPEX Spot's *Market Price* sensor (its *Total Price* sensor is
+the buy price), a second Nord Pool sensor without VAT and costs (add the integration twice, the second with VAT off), GE-Spot's `raw_value`
+(only from a source that has a market price, not Strømligning or Amber; tomorrow's rows only once tomorrow is complete) and Octopus Energy's export rates
+(optional: without an export tariff a sale is worth nothing in every hour, also in the days after tomorrow that another provider fills, never the buy price). The page refuses a sensor in cents or øre or per MWh or Wh,
+a sensor without price rows (Home Assistant's own Nord Pool has none), the same sensor as buy and sell price, a sensor in the wrong field (EPEX Spot's
+Market Price and Total Price swapped, an Octopus Energy import event as export or the other way, a gas event) and EPEX Spot's sources Tibber and Energyforecast.de, whose price is not
+the exchange price. Octopus Energy's rates are in pounds: a rate above 5 is taken for pence and gives no prices. A price page with its sensors
+asks for no VAT and surcharge; those are only for the wholesale prices of the spot forecast integrations.
+
+The **country** of the prices is chosen on the same page as the providers (Home Assistant's country is suggested, and a new
+entry outside Denmark starts with Energy Price Forecast). A provider with no prices in the country is refused: Strømligning
+only works in Denmark, Energi Data Service in Denmark, Norway, Sweden, Finland, Estonia, Latvia, Lithuania, France, the
+Netherlands, Belgium, Austria, Germany and Luxembourg, and Energy Price Forecast in most of Europe.
 
 - **Energi Data Service:** enable *Carnot* in Energi Data Service to plan beyond the published prices.
   Without a separate sell sensor, the buy price minus tariffs is used as sell price. A sell sensor
   without tariffs is used as the spot price; the net and system tariff paid when selling then come
   from the buy sensor.
+- **Energy Price Forecast** (for prices outside Denmark): choose its retail price sensor (*Current retail price*) as
+  the buy price – it gives the published prices of today and tomorrow and the forecast after them. It only exists when
+  retail pricing is turned on in Energy Price Forecast: its estimate (Germany, the Netherlands, Denmark, Austria and
+  Norway) or your own formula (every market). In a market where Energy Price Forecast publishes no prices, only a
+  forecast (Finland, Great Britain, SE1/SE2 and others), set a Nord Pool or ENTSO-e sensor as its own price source
+  and use its own retail formula: the page refuses a buy or sell sensor with only a forecast for today, and an existing setup gets a repair when one has had only a forecast for at least an hour. Choose its wholesale price sensor
+  (*Price forecast series*) as the sell
+  price (required: the retail price is higher than what a sale pays, so it is refused as a sell sensor; an entry
+  restored from a backup without one sells at the buy price less the sell fee). The sensors must give the
+  price per kWh in the currency (EUR/kWh, GBP/kWh, …), not in cents or pence: BattMind refuses a sensor in
+  ct/kWh or p/kWh, and one whose unit is changed to that later gives no prices (a repair names it). A sensor in EUR/MWh (a wholesale sensor often is) is converted to kWh, also in the recorded history (read in the unit the sensor has now: if you change its unit, the old history is off by 1000 (MWh) or 100 (ct); a sensor that is missing from Home Assistant has its history left out).
 - **Strømligning:** the buy sensors are required. The sell sensors and the tariff page give an accurate
   sell price: Strømligning's sell price includes every tariff, so the distribution (transport) tariff,
   net tariff, system tariff, electricity tax and surcharge are all subtracted. The distribution sensor
@@ -179,10 +228,13 @@ every hour it has one, and Energi Data Service fills the gaps (also in the what-
   Entities** (*Show disabled entities*). The price forecasts also need *Include price forecasts for the next week?* in
   the Strømligning options. If a sensor BattMind uses is disabled later, or Strømligning stops providing it, a
   **repair** names it. Until it is fixed a missing tariff counts as 0, which makes the sell price too high.
-- **Refund** is subtracted from the buy price. Selling costs the **sell fee** plus Energinet's net
+- **Refund** is subtracted from the buy price. Selling costs the **sell fee** (what the buyer of your electricity charges for buying it) plus Energinet's net
   and system tariff:
   sell price = price − the tariffs and taxes in it − (sell fee + net tariff + system tariff).
   The price charts on the dashboard show the same sell price.
+- **Wear per kWh:** battery price ÷ expected lifetime in kWh, e.g. 40 000 kr ÷ (10 kWh × 6000 cycles) ≈ 0.67 kr/kWh.
+  It is on this page because it is an amount in the currency of the prices: a new installation suggests 0.10 kr in
+  that currency (0.013 € with euro prices). A higher value makes BattMind more careful.
 
 ### Solar panels and weather (optional)
 

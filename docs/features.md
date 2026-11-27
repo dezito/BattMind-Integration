@@ -38,7 +38,9 @@ The full feature list. Back to the [README](../README.md) · [Documentation inde
     [Helios Forecast](https://github.com/ReikanYsora/Helios-Forecast) and/or own history per cloud cover
 - **Consumption forecast** from own history: average, EMA or trend
 - **Price providers:** [Energi Data Service](https://github.com/MTrab/energidataservice) and/or
-  [Strømligning](https://github.com/MTrab/stromligning), incl. sell price, tariffs, selling fee and refund;
+  [Strømligning](https://github.com/MTrab/stromligning), incl. sell price, tariffs, selling fee and refund, and
+  [Energy Price Forecast](https://github.com/BackupBaTTerY/energypriceforecast-home-assistant) for prices and forecasts in most of Europe, and the
+  spot forecast integrations Spot Forecast, Elprisprognos and Wattcast (wholesale prices with your VAT and surcharge), and EPEX Spot, GE-Spot, Octopus Energy and Nord Pool (your own published prices, next to a provider with a forecast);
   forecast prices are corrected with their measured bias
 - **[Cost price of the battery's energy](how-it-works.md#the-cost-of-a-kwh-from-the-battery):** what the energy in the battery has cost (grid, solar, charge/discharge loss and wear)
 - **Detailed charging history and overview** as markdown

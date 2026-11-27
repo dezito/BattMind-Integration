@@ -27,8 +27,7 @@
           "powerwall_charge_discharge_loss": "Lade-/Entladeverlust in Prozent basierend auf Round-Trip-Effizienz (z.B. 10% Verlust = 0.1)",
           "use_charge_discharge_loss_from_history": "Verwende tatsächliche Lade- und Entladeverluste basierend auf dem Ladeverlauf anstelle des geschätzten Verlusts in der Konfiguration",
           "battery_charging_efficiency_curve": "AC-Ladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 1000 W = 88 %, 3000 W = 94 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet).",
-          "battery_discharging_efficiency_curve": "AC-Entladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet).",
-          "powerwall_wear_cost_per_kwh": "Kosten pro kWh aus dem Heimspeicher basierend auf Lebensdauer und Preis"
+          "battery_discharging_efficiency_curve": "AC-Entladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet)."
         },
         "data": {
           "powerwall_battery_level_max": "Maximaler Stand",
@@ -39,7 +38,6 @@
           "battery_temperature_min": "Minimum safe temperature",
           "battery_temperature_max": "Maximum safe temperature",
           "powerwall_discharging_power": "Max. Entladeleistung",
-          "powerwall_wear_cost_per_kwh": "Verschleißkosten",
           "use_charge_discharge_loss_from_history": "Gemessenen Verlust nutzen",
           "battery_charging_efficiency_curve": "Wirkungsgradkurve Laden (optional)",
           "battery_discharging_efficiency_curve": "Wirkungsgradkurve Entladen (optional)"
@@ -99,6 +97,100 @@
         "description": "Sensoren der Integration [Energi Data Service]({eds_url}). Aktiviere Carnot (KI-Preisprognose) in Energi Data Service, um über die veröffentlichten Preise hinaus zu planen.",
         "title": "Energi Data Service"
       },
+      "prices_energypriceforecast": {
+        "title": "Energy Price Forecast",
+        "description": "Sensoren der Integration Energy Price Forecast (Preise und Prognosen für große Teile Europas). Wähle ihren Sensor mit dem Endkundenpreis als Kaufpreis: Er liefert die veröffentlichten Preise von heute und morgen und die Prognose danach. Wähle ihren Sensor mit dem Großhandelspreis als Verkaufspreis. Die Preise müssen pro kWh in der Währung angegeben sein (nicht in Cent oder Pence); ein Preis pro MWh wird in kWh umgerechnet.",
+        "data": {
+          "energypriceforecast_buy_entity_id": "Kaufpreis (Sensor mit Endkundenpreis)",
+          "energypriceforecast_sell_entity_id": "Verkaufspreis"
+        },
+        "data_description": {
+          "energypriceforecast_buy_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Endkundenpreis, einschließlich Marge des Lieferanten, Steuern und Netzentgelt. In Energy Price Forecast heißt er „Aktueller Endkundenpreis“, und es gibt ihn nur, wenn dort „Endkundenpreis“ („Schätzung“ oder „Eigene Formel“) eingeschaltet ist",
+          "energypriceforecast_sell_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Großhandelspreis. Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr (der Endkundenpreis liegt über dem, was ein Verkauf einbringt, und wird deshalb nicht als Verkaufspreis verwendet). In Energy Price Forecast heißt er „Preisreihe“"
+        }
+      },
+      "prices_spotforecast": {
+        "title": "Spot Forecast",
+        "description": "Der Preissensor der Spot-Forecast-Integration (Börsenpreise und eine 6-Tage-Prognose für Deutschland, Luxemburg, die Niederlande und Südnorwegen). Er liefert den Großhandelspreis ohne MwSt., Netzentgelt und Marge des Lieferanten: Der Kaufpreis wird daraus mit der MwSt. und dem Aufschlag gebildet, die du auf der Gebührenseite angibst. Wähle den Sensor „Price“ deiner Zone. Der Preis muss in EUR/kWh sein.",
+        "data": {
+          "spotforecast_buy_entity_id": "Preissensor"
+        },
+        "data_description": {
+          "spotforecast_buy_entity_id": "Der Spot-Forecast-Sensor mit dem Preis (seine Entität endet auf _price). Er enthält die veröffentlichten Preise von heute und morgen und die Prognose danach."
+        }
+      },
+      "prices_elprognos": {
+        "title": "Elprisprognos",
+        "description": "Der Prognosesensor der Elprisprognos-Integration (Börsenpreise und eine 7-Tage-Prognose für die schwedischen Zonen SE1–SE4). Er liefert den Börsenpreis ohne MwSt.: Der Kaufpreis wird daraus mit der MwSt. und dem Aufschlag gebildet, die du auf der Gebührenseite angibst. Die eigene MwSt. und die eigenen Zusatzkosten von Elprisprognos werden nicht verwendet.",
+        "data": {
+          "elprognos_buy_entity_id": "Prognosesensor"
+        },
+        "data_description": {
+          "elprognos_buy_entity_id": "Der Elprisprognos-Sensor „Elpris prognos SE3“. Sein Attribut enthält die veröffentlichten Preise von heute und morgen und die Prognose danach."
+        }
+      },
+      "prices_wattcast": {
+        "title": "Wattcast",
+        "description": "Die Sensoren der Wattcast-Integration (Börsenpreise und eine 7-Tage-Prognose für Finnland, Estland, Lettland und Litauen). Sie liefern den Preis in ct/kWh ohne MwSt., Netzentgelt und Marge des Lieferanten: Der Kaufpreis wird daraus mit der MwSt. und dem Aufschlag gebildet, die du auf der Gebührenseite angibst. Wattcast ist die einzige Quelle, die ct/kWh liefern darf; die Preise werden als Euro gelesen.",
+        "data": {
+          "wattcast_buy_entity_id": "Preissensor (Stunde)",
+          "wattcast_forecast_entity_id": "Prognosesensor"
+        },
+        "data_description": {
+          "wattcast_buy_entity_id": "Der Wattcast-Sensor „Price (hour)“ oder „Price“. Er enthält die Preise von heute und morgen.",
+          "wattcast_forecast_entity_id": "Der Wattcast-Sensor „Forecast“. Er sagt, welche Preise veröffentlicht sind (known_until), und enthält die Prognose für die Tage nach morgen."
+        }
+      },
+      "prices_epexspot": {
+        "title": "EPEX Spot",
+        "description": "Sensoren der EPEX-Spot-Integration (Day-Ahead-Preise für Deutschland, Österreich, die Niederlande, Belgien, Frankreich u. a.). Wähle den Sensor **Total Price** als Kaufpreis (er enthält den Aufschlag und die Steuer, die du in EPEX Spot eingestellt hast) und den Sensor **Market Price** als Verkaufspreis (der Börsenpreis). Die Preise müssen in der Währung pro kWh sein (€/kWh). Er liefert nur heute und morgen, wähle deshalb auch einen weiteren Preisanbieter mit Prognose. Nicht die Quellen Tibber und Energyforecast.de: ihre Preise sind nicht der Börsenpreis.",
+        "data": {
+          "epexspot_buy_entity_id": "Kaufpreis (Total Price)",
+          "epexspot_sell_entity_id": "Verkaufspreis (Market Price)"
+        },
+        "data_description": {
+          "epexspot_buy_entity_id": "Der EPEX-Spot-Sensor „Total Price“: der Börsenpreis mit dem Aufschlag und der Steuer, die du in EPEX Spot eingestellt hast.",
+          "epexspot_sell_entity_id": "Der EPEX-Spot-Sensor „Market Price“: der Börsenpreis ohne Aufschlag und Steuer. Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr."
+        }
+      },
+      "prices_gespot": {
+        "title": "GE-Spot",
+        "description": "Der Preissensor der GE-Spot-Integration (Day-Ahead-Preise von Nord Pool, ENTSO-E u. a., mit deiner MwSt., deinem Tarif und deiner Steuer). Wähle den Sensor „Current Price“ deines Gebiets mit dem Preis pro kWh in der Währung (nicht in Cent oder øre). Er liefert heute und morgen (morgen, wenn es vollständig ist): sein Preis ist der Kaufpreis, und sein Marktpreis (raw_value) ist der Verkaufspreis, wenn die Quelle einen hat. Er hat keine Prognose, wähle deshalb auch einen weiteren Preisanbieter mit Prognose.",
+        "data": {
+          "gespot_buy_entity_id": "Preissensor (Current Price)"
+        },
+        "data_description": {
+          "gespot_buy_entity_id": "Der GE-Spot-Sensor „Current Price“ deines Gebiets (seine Entität endet auf das Gebiet, zum Beispiel _se3)."
+        }
+      },
+      "prices_octopus": {
+        "title": "Octopus Energy",
+        "description": "Die Tarife der Octopus-Energy-Integration (Großbritannien, zum Beispiel Agile): die Events „Current Day Rates“ und „Next Day Rates“ enthalten die halbstündlichen Preise in Pfund pro kWh mit MwSt. Wähle die beiden deines Bezugszählers. Wenn du ins Netz einspeist, wähle auch die beiden des Einspeisezählers; ohne Einspeisetarif ist ein Verkauf nichts wert. Sie liefert heute und morgen (morgen, sobald Octopus ihn veröffentlicht hat), wähle deshalb auch einen weiteren Preisanbieter mit Prognose.",
+        "data": {
+          "octopus_buy_entity_id": "Kaufpreis: Preise des Tages",
+          "octopus_buy_next_day_entity_id": "Kaufpreis: Preise von morgen",
+          "octopus_sell_entity_id": "Verkaufspreis: Einspeisung, Preise des Tages (optional)",
+          "octopus_sell_next_day_entity_id": "Verkaufspreis: Einspeisung, Preise von morgen (optional)"
+        },
+        "data_description": {
+          "octopus_buy_entity_id": "Das Event „Current Day Rates“ des Bezugszählers bei Octopus Energy.",
+          "octopus_buy_next_day_entity_id": "Das Event „Next Day Rates“ des Bezugszählers. Leer, bis die Preise von morgen veröffentlicht sind.",
+          "octopus_sell_entity_id": "Das Event „Current Day Rates“ des Einspeisezählers (sein Name enthält export). Leer lassen, wenn du nicht einspeist.",
+          "octopus_sell_next_day_entity_id": "Das Event „Next Day Rates“ des Einspeisezählers."
+        }
+      },
+      "prices_nordpool": {
+        "title": "Nord Pool",
+        "description": "Sensoren der Nord-Pool-Integration aus HACS (nicht das eigene Nord Pool von Home Assistant, es hat keine Preiszeilen). Wähle einen Sensor mit dem Preis pro kWh inklusive der MwSt. und Kosten, die du dort eingestellt hast, als Kaufpreis und einen zweiten Sensor ohne MwSt. und Kosten (der Börsenpreis) als Verkaufspreis: füge die Integration zweimal hinzu, die zweite mit abgeschalteter MwSt. Die Preise müssen pro kWh in der Währung sein (nicht in Cent oder øre, nicht pro MWh). Sie liefert heute und morgen, wähle deshalb auch einen weiteren Preisanbieter mit Prognose.",
+        "data": {
+          "nordpool_buy_entity_id": "Kaufpreis (mit MwSt.)",
+          "nordpool_sell_entity_id": "Verkaufspreis (ohne MwSt.)"
+        },
+        "data_description": {
+          "nordpool_buy_entity_id": "Der Nord-Pool-Sensor mit dem Preis inklusive MwSt. und deiner Kosten.",
+          "nordpool_sell_entity_id": "Der Nord-Pool-Sensor ohne MwSt. und Kosten (der Börsenpreis). Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr."
+        }
+      },
       "prices_stromligning": {
         "data_description": {
           "stromligning_buy_current_price": "Strømligning aktueller Kaufpreis",
@@ -140,13 +232,19 @@
       "price_fees": {
         "data_description": {
           "refund": "Erstattungsbetrag vom Staat/Anbieter",
-          "sell_fee": "Verkaufsgebühr"
+          "sell_fee": "Die Gebühr pro kWh, die der Käufer deines Stroms für den Kauf verlangt. Wird vom Verkaufspreis abgezogen, bei Energi Data Service und Strømligning zusammen mit Energinets Netz- und Systemtarif, die der Verkauf ebenfalls kostet.",
+          "spot_vat": "Die MwSt. in Prozent, die auf den Börsenpreis der Anbieter von Börsenpreisen aufgeschlagen wird. Kein Standardwert: Er hängt von deinem Land und deinem Vertrag ab.",
+          "spot_surcharge": "Was pro kWh auf den Börsenpreis mit MwSt. aufgeschlagen wird: Netzentgelt, Abgaben und die Marge deines Lieferanten (mit MwSt.). Kein Standardwert: Mit 0 wäre der Kaufpreis zu niedrig und der Plan zu optimistisch. Nimm ihn von deiner Rechnung. Gib ihn in der Währung des Preissensors an.",
+          "powerwall_wear_cost_per_kwh": "Kosten pro kWh aus dem Heimspeicher basierend auf Lebensdauer und Preis"
         },
         "data": {
           "refund": "Erstattung",
-          "sell_fee": "Verkaufsgebühr"
+          "sell_fee": "Verkaufsgebühr",
+          "spot_vat": "MwSt. (Börsenpreise)",
+          "spot_surcharge": "Aufschlag (Börsenpreise)",
+          "powerwall_wear_cost_per_kwh": "Verschleißkosten"
         },
-        "description": "Beträge pro kWh, die den Wert von Laden und Verkaufen ändern.",
+        "description": "Beträge pro kWh in der Währung der Preise, die den Wert von Laden, Verkaufen und der Nutzung des Speichers ändern.",
         "title": "Erstattung und Gebühren"
       },
       "solar": {
@@ -225,9 +323,13 @@
       },
       "price_provider": {
         "data": {
+          "price_country": "Land",
           "price_providers": "Preisanbieter"
         },
-        "description": "Wähle, woher die Stundenpreise kommen. Bei beiden hat Strømligning Vorrang: sein Preis wird für jede Stunde genutzt, für die er einen hat, und Energi Data Service füllt die Lücken.",
+        "data_description": {
+          "price_country": "Das Land, für das die Preise gelten. Es bestimmt, welche Preisanbieter gewählt werden können. Das Land von Home Assistant wird vorgeschlagen."
+        },
+        "description": "Wähle, woher die Stundenpreise kommen. Bei mehreren gilt die Reihenfolge Strømligning, dann Energi Data Service, dann Energy Price Forecast: Für jede Stunde wird der Preis des ersten genutzt, der einen hat, und der nächste füllt die Lücken. Die Börsenpreis-Integrationen (Spot Forecast, Elprisprognos, Wattcast) kommen zuletzt; sie liefern Großhandelspreise, deshalb werden MwSt. und Aufschlag auf der Gebührenseite abgefragt. EPEX Spot, GE-Spot, Octopus Energy und Nord Pool liefern deine eigenen veröffentlichten Preise (heute und morgen): neben ihnen braucht es einen Anbieter mit Prognose, und sie stehen direkt nach Energi Data Service, vor Energy Price Forecast und den anderen Schätzungen.",
         "title": "Strompreise"
       },
       "user": {
@@ -259,7 +361,19 @@
       "min_above_max": "Der minimale Stand muss niedriger als der maximale sein.",
       "invalid_icon": "Verwende einen Symbolnamen wie mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
+      "price_unit_subunit": "Dieser Sensor gibt den Preis in Cent oder Pence an (oder, bei Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot und Nord Pool, pro MWh oder Wh, und für Energy Price Forecast pro Wh). Wähle einen Sensor mit dem Preis pro kWh in der Währung (z. B. EUR/kWh). Der Preissensor von Wattcast muss ct/kWh liefern; jede andere Einheit ist dafür falsch.",
+      "price_sensor_not_retail": "Das ist nicht der Sensor mit dem Endkundenpreis. Wähle den Endkundenpreis-Sensor von Energy Price Forecast als Kaufpreis (der Großhandelspreis ist der Verkaufspreis).",
+      "price_sensor_not_wholesale": "Das ist der Sensor mit dem Endkundenpreis. Wähle den Großhandelspreis-Sensor von Energy Price Forecast als Verkaufspreis (der Endkundenpreis liegt über dem, was ein Verkauf einbringt).",
+      "price_sensor_forecast_only": "Dieser Sensor hat gerade keine veröffentlichten Preise für heute, nur eine Prognose. Wenn Energy Price Forecast für deinen Markt keine Preise veröffentlicht (z. B. Finnland oder Großbritannien), wähle dort einen Nord-Pool- oder ENTSO-e-Sensor als „Eigene Preisquelle“ (für den Kaufpreis wähle dort auch „Eigene Formel“ unter „Endkundenpreis“: die Schätzung nutzt diese Preisquelle nicht) und wähle den Sensor erneut. Andernfalls versuche es erneut, sobald die Preise veröffentlicht sind.",
+      "price_sensor_no_published": "Dieser Sensor hat Preiszeilen, aber keine davon ist veröffentlicht; vermutlich ist es nicht der Preissensor der Integration (oder seine Attribute weichen vom Erwarteten ab). Wähle den Preissensor der Integration; bei Wattcast den Preissensor und als Prognosesensor dessen Prognosesensor (sie dürfen nicht vertauscht sein). Ist der Sensor gerade gestartet, versuche es erneut, sobald die Preise veröffentlicht sind.",
+      "price_sensor_no_rows": "Dieser Sensor hat keine Preiszeilen, ist also nicht der Preissensor der Integration (das Nord Pool von Home Assistant selbst hat zum Beispiel keine). Wähle den Preissensor der Integration.",
+      "price_sensor_not_exchange": "Dieser EPEX-Spot-Sensor bezieht seine Preise aus einer Quelle, die nicht den Börsenpreis liefert (Tibber liefert den eigenen Gesamtpreis, Energyforecast.de eine Prognose). Wähle einen Sensor einer anderen Quelle, zum Beispiel Awattar, ENTSO-E oder Energy-Charts.",
+      "price_sensor_same_sensor": "Der Verkaufspreis braucht einen anderen Sensor als der Kaufpreis. Wähle den Sensor mit dem Börsenpreis (ohne MwSt. und Kosten), bei Octopus Energy die Einspeisetarife.",
+      "price_sensor_wrong_role": "Dieser Sensor gehört nicht in dieses Feld: bei EPEX Spot ist der Kaufpreis der Sensor „Total Price“ und der Verkaufspreis „Market Price“; bei Octopus Energy ist der Kaufpreis ein Import-Event für Strom und der Verkaufspreis ein Export-Event, und der Tag muss passen (heute oder morgen).",
+      "price_currency_mismatch": "Dieser Sensor hat eine andere Währung als die anderen Preissensoren. Verwende Preissensoren in einer Währung (oder wähle den anderen Preisanbieter ab).",
       "no_price_provider": "Wähle mindestens einen Preisanbieter.",
+      "price_provider_country": "Ein gewählter Preisanbieter hat in diesem Land keine Preise. Strømligning funktioniert nur in Dänemark, Energi Data Service in Dänemark, Norwegen, Schweden, Finnland, Estland, Lettland, Litauen, Frankreich, den Niederlanden, Belgien, Österreich, Deutschland und Luxemburg. Wähle Energy Price Forecast (der größte Teil Europas) oder ändere das Land. Die Börsenpreis-Integrationen: Spot Forecast in Deutschland, Luxemburg, den Niederlanden und Norwegen, Elprisprognos in Schweden und Wattcast in Finnland, Estland, Lettland und Litauen. EPEX Spot und GE-Spot: der größte Teil Europas (GE-Spot auch Australien und die USA), Octopus Energy: Großbritannien, Nord Pool: Dänemark, Norwegen, Schweden, Finnland, das Baltikum, Frankreich, die Niederlande, Belgien, Österreich und Deutschland.",
+      "price_provider_no_forecast": "Keiner der gewählten Preisanbieter liefert eine Preisprognose, daher könnte die Planung nur die Preise von heute und morgen nutzen. Wähle zusätzlich einen weiteren Preisanbieter.",
       "prefix_entities_exist": "Es gibt bereits Entitäten mit diesem Präfix (z. B. aus der PyScript-Version). Wähle ein anderes Präfix, um beide gleichzeitig zu betreiben.",
       "prefix_in_use": "Dieses Präfix wird bereits von einem anderen BattMind-Eintrag genutzt.",
       "production_required": "Eine Solarprognose braucht einen Sensor für die Solarproduktion."
@@ -293,8 +407,7 @@
           "powerwall_charge_discharge_loss": "Lade-/Entladeverlust in Prozent basierend auf Round-Trip-Effizienz (z.B. 10% Verlust = 0.1)",
           "use_charge_discharge_loss_from_history": "Verwende tatsächliche Lade- und Entladeverluste basierend auf dem Ladeverlauf anstelle des geschätzten Verlusts in der Konfiguration",
           "battery_charging_efficiency_curve": "AC-Ladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 1000 W = 88 %, 3000 W = 94 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet).",
-          "battery_discharging_efficiency_curve": "AC-Entladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet).",
-          "powerwall_wear_cost_per_kwh": "Kosten pro kWh aus dem Heimspeicher basierend auf Lebensdauer und Preis"
+          "battery_discharging_efficiency_curve": "AC-Entladeleistung in W dem Wirkungsgrad in Prozent zuordnen, z. B. 500 W = 82 %, 2000 W = 93 %, 5000 W = 96 %. BattMind interpoliert zwischen den Punkten. Leer lassen, damit BattMind die Kurve selbst misst (bis genügend Messungen vorliegen, wird der Round-Trip-Verlust verwendet)."
         },
         "data": {
           "powerwall_battery_level_max": "Maximaler Stand",
@@ -305,7 +418,6 @@
           "battery_temperature_min": "Minimum safe temperature",
           "battery_temperature_max": "Maximum safe temperature",
           "powerwall_discharging_power": "Max. Entladeleistung",
-          "powerwall_wear_cost_per_kwh": "Verschleißkosten",
           "use_charge_discharge_loss_from_history": "Gemessenen Verlust nutzen",
           "battery_charging_efficiency_curve": "Wirkungsgradkurve Laden (optional)",
           "battery_discharging_efficiency_curve": "Wirkungsgradkurve Entladen (optional)"
@@ -365,6 +477,100 @@
         "description": "Sensoren der Integration [Energi Data Service]({eds_url}). Aktiviere Carnot (KI-Preisprognose) in Energi Data Service, um über die veröffentlichten Preise hinaus zu planen.",
         "title": "Energi Data Service"
       },
+      "prices_energypriceforecast": {
+        "title": "Energy Price Forecast",
+        "description": "Sensoren der Integration Energy Price Forecast (Preise und Prognosen für große Teile Europas). Wähle ihren Sensor mit dem Endkundenpreis als Kaufpreis: Er liefert die veröffentlichten Preise von heute und morgen und die Prognose danach. Wähle ihren Sensor mit dem Großhandelspreis als Verkaufspreis. Die Preise müssen pro kWh in der Währung angegeben sein (nicht in Cent oder Pence); ein Preis pro MWh wird in kWh umgerechnet.",
+        "data": {
+          "energypriceforecast_buy_entity_id": "Kaufpreis (Sensor mit Endkundenpreis)",
+          "energypriceforecast_sell_entity_id": "Verkaufspreis"
+        },
+        "data_description": {
+          "energypriceforecast_buy_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Endkundenpreis, einschließlich Marge des Lieferanten, Steuern und Netzentgelt. In Energy Price Forecast heißt er „Aktueller Endkundenpreis“, und es gibt ihn nur, wenn dort „Endkundenpreis“ („Schätzung“ oder „Eigene Formel“) eingeschaltet ist",
+          "energypriceforecast_sell_entity_id": "Der Energy-Price-Forecast-Sensor mit dem Großhandelspreis. Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr (der Endkundenpreis liegt über dem, was ein Verkauf einbringt, und wird deshalb nicht als Verkaufspreis verwendet). In Energy Price Forecast heißt er „Preisreihe“"
+        }
+      },
+      "prices_spotforecast": {
+        "title": "Spot Forecast",
+        "description": "Der Preissensor der Spot-Forecast-Integration (Börsenpreise und eine 6-Tage-Prognose für Deutschland, Luxemburg, die Niederlande und Südnorwegen). Er liefert den Großhandelspreis ohne MwSt., Netzentgelt und Marge des Lieferanten: Der Kaufpreis wird daraus mit der MwSt. und dem Aufschlag gebildet, die du auf der Gebührenseite angibst. Wähle den Sensor „Price“ deiner Zone. Der Preis muss in EUR/kWh sein.",
+        "data": {
+          "spotforecast_buy_entity_id": "Preissensor"
+        },
+        "data_description": {
+          "spotforecast_buy_entity_id": "Der Spot-Forecast-Sensor mit dem Preis (seine Entität endet auf _price). Er enthält die veröffentlichten Preise von heute und morgen und die Prognose danach."
+        }
+      },
+      "prices_elprognos": {
+        "title": "Elprisprognos",
+        "description": "Der Prognosesensor der Elprisprognos-Integration (Börsenpreise und eine 7-Tage-Prognose für die schwedischen Zonen SE1–SE4). Er liefert den Börsenpreis ohne MwSt.: Der Kaufpreis wird daraus mit der MwSt. und dem Aufschlag gebildet, die du auf der Gebührenseite angibst. Die eigene MwSt. und die eigenen Zusatzkosten von Elprisprognos werden nicht verwendet.",
+        "data": {
+          "elprognos_buy_entity_id": "Prognosesensor"
+        },
+        "data_description": {
+          "elprognos_buy_entity_id": "Der Elprisprognos-Sensor „Elpris prognos SE3“. Sein Attribut enthält die veröffentlichten Preise von heute und morgen und die Prognose danach."
+        }
+      },
+      "prices_wattcast": {
+        "title": "Wattcast",
+        "description": "Die Sensoren der Wattcast-Integration (Börsenpreise und eine 7-Tage-Prognose für Finnland, Estland, Lettland und Litauen). Sie liefern den Preis in ct/kWh ohne MwSt., Netzentgelt und Marge des Lieferanten: Der Kaufpreis wird daraus mit der MwSt. und dem Aufschlag gebildet, die du auf der Gebührenseite angibst. Wattcast ist die einzige Quelle, die ct/kWh liefern darf; die Preise werden als Euro gelesen.",
+        "data": {
+          "wattcast_buy_entity_id": "Preissensor (Stunde)",
+          "wattcast_forecast_entity_id": "Prognosesensor"
+        },
+        "data_description": {
+          "wattcast_buy_entity_id": "Der Wattcast-Sensor „Price (hour)“ oder „Price“. Er enthält die Preise von heute und morgen.",
+          "wattcast_forecast_entity_id": "Der Wattcast-Sensor „Forecast“. Er sagt, welche Preise veröffentlicht sind (known_until), und enthält die Prognose für die Tage nach morgen."
+        }
+      },
+      "prices_epexspot": {
+        "title": "EPEX Spot",
+        "description": "Sensoren der EPEX-Spot-Integration (Day-Ahead-Preise für Deutschland, Österreich, die Niederlande, Belgien, Frankreich u. a.). Wähle den Sensor **Total Price** als Kaufpreis (er enthält den Aufschlag und die Steuer, die du in EPEX Spot eingestellt hast) und den Sensor **Market Price** als Verkaufspreis (der Börsenpreis). Die Preise müssen in der Währung pro kWh sein (€/kWh). Er liefert nur heute und morgen, wähle deshalb auch einen weiteren Preisanbieter mit Prognose. Nicht die Quellen Tibber und Energyforecast.de: ihre Preise sind nicht der Börsenpreis.",
+        "data": {
+          "epexspot_buy_entity_id": "Kaufpreis (Total Price)",
+          "epexspot_sell_entity_id": "Verkaufspreis (Market Price)"
+        },
+        "data_description": {
+          "epexspot_buy_entity_id": "Der EPEX-Spot-Sensor „Total Price“: der Börsenpreis mit dem Aufschlag und der Steuer, die du in EPEX Spot eingestellt hast.",
+          "epexspot_sell_entity_id": "Der EPEX-Spot-Sensor „Market Price“: der Börsenpreis ohne Aufschlag und Steuer. Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr."
+        }
+      },
+      "prices_gespot": {
+        "title": "GE-Spot",
+        "description": "Der Preissensor der GE-Spot-Integration (Day-Ahead-Preise von Nord Pool, ENTSO-E u. a., mit deiner MwSt., deinem Tarif und deiner Steuer). Wähle den Sensor „Current Price“ deines Gebiets mit dem Preis pro kWh in der Währung (nicht in Cent oder øre). Er liefert heute und morgen (morgen, wenn es vollständig ist): sein Preis ist der Kaufpreis, und sein Marktpreis (raw_value) ist der Verkaufspreis, wenn die Quelle einen hat. Er hat keine Prognose, wähle deshalb auch einen weiteren Preisanbieter mit Prognose.",
+        "data": {
+          "gespot_buy_entity_id": "Preissensor (Current Price)"
+        },
+        "data_description": {
+          "gespot_buy_entity_id": "Der GE-Spot-Sensor „Current Price“ deines Gebiets (seine Entität endet auf das Gebiet, zum Beispiel _se3)."
+        }
+      },
+      "prices_octopus": {
+        "title": "Octopus Energy",
+        "description": "Die Tarife der Octopus-Energy-Integration (Großbritannien, zum Beispiel Agile): die Events „Current Day Rates“ und „Next Day Rates“ enthalten die halbstündlichen Preise in Pfund pro kWh mit MwSt. Wähle die beiden deines Bezugszählers. Wenn du ins Netz einspeist, wähle auch die beiden des Einspeisezählers; ohne Einspeisetarif ist ein Verkauf nichts wert. Sie liefert heute und morgen (morgen, sobald Octopus ihn veröffentlicht hat), wähle deshalb auch einen weiteren Preisanbieter mit Prognose.",
+        "data": {
+          "octopus_buy_entity_id": "Kaufpreis: Preise des Tages",
+          "octopus_buy_next_day_entity_id": "Kaufpreis: Preise von morgen",
+          "octopus_sell_entity_id": "Verkaufspreis: Einspeisung, Preise des Tages (optional)",
+          "octopus_sell_next_day_entity_id": "Verkaufspreis: Einspeisung, Preise von morgen (optional)"
+        },
+        "data_description": {
+          "octopus_buy_entity_id": "Das Event „Current Day Rates“ des Bezugszählers bei Octopus Energy.",
+          "octopus_buy_next_day_entity_id": "Das Event „Next Day Rates“ des Bezugszählers. Leer, bis die Preise von morgen veröffentlicht sind.",
+          "octopus_sell_entity_id": "Das Event „Current Day Rates“ des Einspeisezählers (sein Name enthält export). Leer lassen, wenn du nicht einspeist.",
+          "octopus_sell_next_day_entity_id": "Das Event „Next Day Rates“ des Einspeisezählers."
+        }
+      },
+      "prices_nordpool": {
+        "title": "Nord Pool",
+        "description": "Sensoren der Nord-Pool-Integration aus HACS (nicht das eigene Nord Pool von Home Assistant, es hat keine Preiszeilen). Wähle einen Sensor mit dem Preis pro kWh inklusive der MwSt. und Kosten, die du dort eingestellt hast, als Kaufpreis und einen zweiten Sensor ohne MwSt. und Kosten (der Börsenpreis) als Verkaufspreis: füge die Integration zweimal hinzu, die zweite mit abgeschalteter MwSt. Die Preise müssen pro kWh in der Währung sein (nicht in Cent oder øre, nicht pro MWh). Sie liefert heute und morgen, wähle deshalb auch einen weiteren Preisanbieter mit Prognose.",
+        "data": {
+          "nordpool_buy_entity_id": "Kaufpreis (mit MwSt.)",
+          "nordpool_sell_entity_id": "Verkaufspreis (ohne MwSt.)"
+        },
+        "data_description": {
+          "nordpool_buy_entity_id": "Der Nord-Pool-Sensor mit dem Preis inklusive MwSt. und deiner Kosten.",
+          "nordpool_sell_entity_id": "Der Nord-Pool-Sensor ohne MwSt. und Kosten (der Börsenpreis). Der Verkaufspreis ist dieser Preis abzüglich der Verkaufsgebühr."
+        }
+      },
       "prices_stromligning": {
         "data_description": {
           "stromligning_buy_current_price": "Strømligning aktueller Kaufpreis",
@@ -406,13 +612,19 @@
       "price_fees": {
         "data_description": {
           "refund": "Erstattungsbetrag vom Staat/Anbieter",
-          "sell_fee": "Verkaufsgebühr"
+          "sell_fee": "Die Gebühr pro kWh, die der Käufer deines Stroms für den Kauf verlangt. Wird vom Verkaufspreis abgezogen, bei Energi Data Service und Strømligning zusammen mit Energinets Netz- und Systemtarif, die der Verkauf ebenfalls kostet.",
+          "spot_vat": "Die MwSt. in Prozent, die auf den Börsenpreis der Anbieter von Börsenpreisen aufgeschlagen wird. Kein Standardwert: Er hängt von deinem Land und deinem Vertrag ab.",
+          "spot_surcharge": "Was pro kWh auf den Börsenpreis mit MwSt. aufgeschlagen wird: Netzentgelt, Abgaben und die Marge deines Lieferanten (mit MwSt.). Kein Standardwert: Mit 0 wäre der Kaufpreis zu niedrig und der Plan zu optimistisch. Nimm ihn von deiner Rechnung. Gib ihn in der Währung des Preissensors an.",
+          "powerwall_wear_cost_per_kwh": "Kosten pro kWh aus dem Heimspeicher basierend auf Lebensdauer und Preis"
         },
         "data": {
           "refund": "Erstattung",
-          "sell_fee": "Verkaufsgebühr"
+          "sell_fee": "Verkaufsgebühr",
+          "spot_vat": "MwSt. (Börsenpreise)",
+          "spot_surcharge": "Aufschlag (Börsenpreise)",
+          "powerwall_wear_cost_per_kwh": "Verschleißkosten"
         },
-        "description": "Beträge pro kWh, die den Wert von Laden und Verkaufen ändern.",
+        "description": "Beträge pro kWh in der Währung der Preise, die den Wert von Laden, Verkaufen und der Nutzung des Speichers ändern.",
         "title": "Erstattung und Gebühren"
       },
       "solar": {
@@ -545,9 +757,13 @@
       },
       "price_provider": {
         "data": {
+          "price_country": "Land",
           "price_providers": "Preisanbieter"
         },
-        "description": "Wähle, woher die Stundenpreise kommen. Bei beiden hat Strømligning Vorrang: sein Preis wird für jede Stunde genutzt, für die er einen hat, und Energi Data Service füllt die Lücken.",
+        "data_description": {
+          "price_country": "Das Land, für das die Preise gelten. Es bestimmt, welche Preisanbieter gewählt werden können. Das Land von Home Assistant wird vorgeschlagen."
+        },
+        "description": "Wähle, woher die Stundenpreise kommen. Bei mehreren gilt die Reihenfolge Strømligning, dann Energi Data Service, dann Energy Price Forecast: Für jede Stunde wird der Preis des ersten genutzt, der einen hat, und der nächste füllt die Lücken. Die Börsenpreis-Integrationen (Spot Forecast, Elprisprognos, Wattcast) kommen zuletzt; sie liefern Großhandelspreise, deshalb werden MwSt. und Aufschlag auf der Gebührenseite abgefragt. EPEX Spot, GE-Spot, Octopus Energy und Nord Pool liefern deine eigenen veröffentlichten Preise (heute und morgen): neben ihnen braucht es einen Anbieter mit Prognose, und sie stehen direkt nach Energi Data Service, vor Energy Price Forecast und den anderen Schätzungen.",
         "title": "Strompreise"
       }
     },
@@ -567,7 +783,19 @@
       "min_above_max": "Der minimale Stand muss niedriger als der maximale sein.",
       "invalid_icon": "Verwende einen Symbolnamen wie mdi:home-battery.",
       "invalid_efficiency_curve": "Use an object mapping power above 0 W to an efficiency above 0 and at most 100 percent.",
+      "price_unit_subunit": "Dieser Sensor gibt den Preis in Cent oder Pence an (oder, bei Energi Data Service, Spot Forecast, Elprisprognos, EPEX Spot, GE-Spot und Nord Pool, pro MWh oder Wh, und für Energy Price Forecast pro Wh). Wähle einen Sensor mit dem Preis pro kWh in der Währung (z. B. EUR/kWh). Der Preissensor von Wattcast muss ct/kWh liefern; jede andere Einheit ist dafür falsch.",
+      "price_sensor_not_retail": "Das ist nicht der Sensor mit dem Endkundenpreis. Wähle den Endkundenpreis-Sensor von Energy Price Forecast als Kaufpreis (der Großhandelspreis ist der Verkaufspreis).",
+      "price_sensor_not_wholesale": "Das ist der Sensor mit dem Endkundenpreis. Wähle den Großhandelspreis-Sensor von Energy Price Forecast als Verkaufspreis (der Endkundenpreis liegt über dem, was ein Verkauf einbringt).",
+      "price_sensor_forecast_only": "Dieser Sensor hat gerade keine veröffentlichten Preise für heute, nur eine Prognose. Wenn Energy Price Forecast für deinen Markt keine Preise veröffentlicht (z. B. Finnland oder Großbritannien), wähle dort einen Nord-Pool- oder ENTSO-e-Sensor als „Eigene Preisquelle“ (für den Kaufpreis wähle dort auch „Eigene Formel“ unter „Endkundenpreis“: die Schätzung nutzt diese Preisquelle nicht) und wähle den Sensor erneut. Andernfalls versuche es erneut, sobald die Preise veröffentlicht sind.",
+      "price_sensor_no_published": "Dieser Sensor hat Preiszeilen, aber keine davon ist veröffentlicht; vermutlich ist es nicht der Preissensor der Integration (oder seine Attribute weichen vom Erwarteten ab). Wähle den Preissensor der Integration; bei Wattcast den Preissensor und als Prognosesensor dessen Prognosesensor (sie dürfen nicht vertauscht sein). Ist der Sensor gerade gestartet, versuche es erneut, sobald die Preise veröffentlicht sind.",
+      "price_sensor_no_rows": "Dieser Sensor hat keine Preiszeilen, ist also nicht der Preissensor der Integration (das Nord Pool von Home Assistant selbst hat zum Beispiel keine). Wähle den Preissensor der Integration.",
+      "price_sensor_not_exchange": "Dieser EPEX-Spot-Sensor bezieht seine Preise aus einer Quelle, die nicht den Börsenpreis liefert (Tibber liefert den eigenen Gesamtpreis, Energyforecast.de eine Prognose). Wähle einen Sensor einer anderen Quelle, zum Beispiel Awattar, ENTSO-E oder Energy-Charts.",
+      "price_sensor_same_sensor": "Der Verkaufspreis braucht einen anderen Sensor als der Kaufpreis. Wähle den Sensor mit dem Börsenpreis (ohne MwSt. und Kosten), bei Octopus Energy die Einspeisetarife.",
+      "price_sensor_wrong_role": "Dieser Sensor gehört nicht in dieses Feld: bei EPEX Spot ist der Kaufpreis der Sensor „Total Price“ und der Verkaufspreis „Market Price“; bei Octopus Energy ist der Kaufpreis ein Import-Event für Strom und der Verkaufspreis ein Export-Event, und der Tag muss passen (heute oder morgen).",
+      "price_currency_mismatch": "Dieser Sensor hat eine andere Währung als die anderen Preissensoren. Verwende Preissensoren in einer Währung (oder wähle den anderen Preisanbieter ab).",
       "no_price_provider": "Wähle mindestens einen Preisanbieter.",
+      "price_provider_country": "Ein gewählter Preisanbieter hat in diesem Land keine Preise. Strømligning funktioniert nur in Dänemark, Energi Data Service in Dänemark, Norwegen, Schweden, Finnland, Estland, Lettland, Litauen, Frankreich, den Niederlanden, Belgien, Österreich, Deutschland und Luxemburg. Wähle Energy Price Forecast (der größte Teil Europas) oder ändere das Land. Die Börsenpreis-Integrationen: Spot Forecast in Deutschland, Luxemburg, den Niederlanden und Norwegen, Elprisprognos in Schweden und Wattcast in Finnland, Estland, Lettland und Litauen. EPEX Spot und GE-Spot: der größte Teil Europas (GE-Spot auch Australien und die USA), Octopus Energy: Großbritannien, Nord Pool: Dänemark, Norwegen, Schweden, Finnland, das Baltikum, Frankreich, die Niederlande, Belgien, Österreich und Deutschland.",
+      "price_provider_no_forecast": "Keiner der gewählten Preisanbieter liefert eine Preisprognose, daher könnte die Planung nur die Preise von heute und morgen nutzen. Wähle zusätzlich einen weiteren Preisanbieter.",
       "prefix_entities_exist": "Es gibt bereits Entitäten mit diesem Präfix (z. B. aus der PyScript-Version). Wähle ein anderes Präfix, um beide gleichzeitig zu betreiben.",
       "prefix_in_use": "Dieses Präfix wird bereits von einem anderen BattMind-Eintrag genutzt.",
       "production_required": "Eine Solarprognose braucht einen Sensor für die Solarproduktion."
@@ -1036,6 +1264,10 @@
         }
       }
     },
+    "energypriceforecast_forecast_only": {
+      "title": "Energy-Price-Forecast-Sensoren, die BattMind nutzt, haben keine veröffentlichten Preise ({prefix})",
+      "description": "BattMind ({prefix}) nutzt Energy-Price-Forecast-Sensoren, die seit mindestens einer Stunde keine veröffentlichten Preise für heute oder morgen haben, nur eine Prognose:\n{entities}\n\nOhne einen Preis für heute haben die vergangenen Stunden keinen Preis, daher fehlen sie im Ladeverlauf, im Preis der Energie im Speicher und im Preisverlauf.\n\nWenn Energy Price Forecast für deinen Markt keine Preise veröffentlicht (z. B. Finnland oder Großbritannien), wähle dort einen Nord-Pool- oder ENTSO-e-Sensor als „Eigene Preisquelle“ (für den Kaufpreis wähle dort auch „Eigene Formel“ unter „Endkundenpreis“: die Schätzung nutzt diese Preisquelle nicht). Andernfalls sind die Preise nur verspätet.\n\nDiese Reparatur verschwindet von selbst, wenn die Sensoren wieder veröffentlichte Preise haben."
+    },
     "stromligning_entities": {
       "title": "Strømligning-Sensoren, die BattMind braucht, sind nicht verfügbar ({prefix})",
       "description": "BattMind ({prefix}) nutzt Strømligning-Sensoren, die deaktiviert sind oder die Strømligning nicht liefert. Ein fehlender Verkaufstarif zählt als 0, wodurch der berechnete Verkaufspreis zu hoch wird; ohne die Preissensoren werden die gespeicherten Preise genutzt.\n\nIn Home Assistant deaktiviert (Strømligning deaktiviert seine Sensoren ohne MwSt. standardmäßig – aktiviere sie unter **Einstellungen → Geräte & Dienste → Entitäten** mit *Deaktivierte Entitäten anzeigen*):\n{disabled}\n\nNicht von Strømligning geliefert (z. B. sind die Preisprognosen in dessen Optionen ausgeschaltet):\n{not_provided}\n\nDiese Reparatur verschwindet von selbst, wenn die Sensoren wieder funktionieren."
@@ -1066,7 +1298,7 @@
     },
     "price_unit_scale": {
       "title": "Preissensoren in Untereinheit, pro MWh oder pro Wh ({prefix})",
-      "description": "BattMind ({prefix}) liest Preise von diesen Sensoren, aber sie sind in einer Einheit, die BattMind nicht umrechnet:\n{entities}\n\nDie Preise sind in einer Untereinheit der Währung (Øre oder Cent), pro MWh oder pro Wh. BattMind rechnet sie nicht um, daher haben die Preise eine andere Größenordnung: 100-mal zu groß (Untereinheit), 1000-mal zu groß (pro MWh) oder 1000-mal zu klein (pro Wh). Der Plan und die Berechnung der Ersparnis stimmen nicht.\n\nBehebe es an der Quelle: schalte in Energi Data Service **Preise in Cent anzeigen** aus und stelle in den Optionen der Integration **Preis wird berechnet in** auf kWh. Oder wähle unter **Konfigurieren** in der BattMind-Integration einen Sensor mit der Währung pro kWh (z. B. kr/kWh). Starte danach *Meine Automation testen* im BattMind-Dashboard, um zu prüfen, dass der Akku dem Plan weiter folgt.\n\nWenn die Preise wirklich in der Währung pro kWh sind, kannst du diese Reparatur ignorieren. Sie verschwindet von selbst, wenn kein Preissensor in einer Untereinheit, pro MWh oder pro Wh ist."
+      "description": "BattMind ({prefix}) liest Preise von diesen Sensoren, aber sie sind in einer Einheit, die BattMind nicht umrechnet:\n{entities}\n\nDie Preise sind in einer Untereinheit der Währung (Øre oder Cent), pro MWh oder pro Wh (Energy Price Forecast rechnet einen Preis pro MWh selbst um), also 100-mal zu groß (Untereinheit), 1000-mal zu groß (pro MWh) oder 1000-mal zu klein (pro Wh). BattMind nutzt die Preise eines solchen Sensors von Energi Data Service, Energy Price Forecast, Spot Forecast, Elprisprognos, Wattcast, EPEX Spot, GE-Spot und Nord Pool nicht: Stattdessen werden die Preise des nächsten Anbieters oder die gespeicherten Preise verwendet. Ein Strømligning-Sensor, ein Octopus-Energy-Sensor oder ein Tarifsensor wird so gelesen, wie er ist; für diese sind der Plan und die Berechnung der Ersparnis falsch.\n\nBehebe es an der Quelle: schalte in Energi Data Service **Preise in Cent anzeigen** aus und stelle in den Optionen der Integration **Preis wird berechnet in** auf kWh. Oder wähle unter **Konfigurieren** in der BattMind-Integration einen Sensor mit der Währung pro kWh (z. B. kr/kWh). Starte danach *Meine Automation testen* im BattMind-Dashboard, um zu prüfen, dass der Akku dem Plan weiter folgt.\n\nWenn die Preise wirklich in der Währung pro kWh sind, kannst du diese Reparatur ignorieren. Sie verschwindet von selbst, wenn kein Preissensor in einer Untereinheit, pro MWh oder pro Wh ist.\n\nDer Preissensor von Wattcast muss ct/kWh liefern; jede andere Einheit ist dafür falsch."
     },
     "consumption_frozen": {
       "title": "Der Hausverbrauchssensor zeigt immer denselben Wert ({prefix})",
@@ -1104,6 +1336,14 @@
     "price_providers": {
       "options": {
         "energidataservice": "Energi Data Service",
+        "energypriceforecast": "Energy Price Forecast (Europa)",
+        "spotforecast": "Spot Forecast (DE, LU, NL, NO)",
+        "elprognos": "Elprisprognos (Schweden)",
+        "wattcast": "Wattcast (Finnland, Baltikum)",
+        "epexspot": "EPEX Spot (Europa, keine Prognose)",
+        "gespot": "GE-Spot (Europa u. a., keine Prognose)",
+        "octopus": "Octopus Energy (Großbritannien, keine Prognose)",
+        "nordpool": "Nord Pool (HACS, keine Prognose)",
         "stromligning": "Strømligning"
       }
     }

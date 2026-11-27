@@ -12,6 +12,7 @@ import datetime
 import logging
 import math
 
+from ..const import price_decimals
 from ..utils.formatting import emoji_parse
 from ..utils.helpers import days_between, float_or_none, reset_time_to_hour
 from .analysis.helpers import FORECAST_AUTO_DAYS, FORECAST_AUTO_MIN_DAYS, forecast_errors
@@ -205,7 +206,8 @@ class StormWarning:
             reason = self.storm_reason(ctx, plan, timestamp)
             if after == "grid_charging" and kwh >= 0.1:  # a few Wh is not worth a charge hour
                 percentage = ctx.kwh_to_percentage(kwh) * ctx.efficiency
-                session = {"Cost": round(kwh * price, 2), "kWh": round(kwh, 2), "battery_level": round(percentage, 2), "Price": round(price, 2), STORM_RULE: True}
+                decimals = price_decimals(self.config)
+                session = {"Cost": round(kwh * price, decimals), "kWh": round(kwh, 2), "battery_level": round(percentage, 2), "Price": round(price, decimals), STORM_RULE: True}
                 for period in [ts for ts in plan_day["force_discharge_timestamps"] if reset_time_to_hour(ts) == timestamp]:
                     del plan_day["force_discharge_timestamps"][period]
                 # the hour's kWh are the whole hour's charge: what a rule already planned in it (one session per price period with
@@ -221,7 +223,7 @@ class StormWarning:
                 for blocked in [ts for ts in plan_day["blocked_solar_charge_timestamps"] if reset_time_to_hour(ts) == timestamp]:
                     del plan_day["blocked_solar_charge_timestamps"][blocked]
                 plan_day["total_cost"] += session["Cost"] - earlier_cost
-                ctx.totals[:] = round(ctx.totals[0] + session["Cost"] - earlier_cost, 2), round(ctx.totals[1] + session["kWh"] - earlier_kwh, 2)
+                ctx.totals[:] = round(ctx.totals[0] + session["Cost"] - earlier_cost, decimals), round(ctx.totals[1] + session["kWh"] - earlier_kwh, 2)
                 self.add_charging_session_to_day(
                     ctx,
                     timestamp,

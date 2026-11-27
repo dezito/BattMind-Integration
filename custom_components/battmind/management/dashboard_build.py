@@ -11,7 +11,7 @@ At setup it is rewritten for this config entry:
 * the switches and settings of rules that need an unsupported battery action are removed
 * a group heading of the analysis left without sections below it is removed (``_drop_empty_groups``)
 * ``@@key@@`` placeholders -> ``dashboard.key`` of texts/<language>.json (BattMind's language),
-  ``@@forecast_span@@`` -> days_to_predict - 0.5 days, ``@@sell_fee_value@@`` -> the sell fee,
+  ``@@forecast_span@@`` -> days_to_predict - 0.5 days,
   ``@@valuta@@`` / ``@@valuta_kwh@@`` -> the currency of Home Assistant
 
 The result is written to .storage and served as a Lovelace dashboard that can be edited in
@@ -353,8 +353,6 @@ def render_dashboard(
     texts = load_texts(normalize_language(config.get("language")), currency)
     # the charts show the forecast period: days_to_predict minus the half day already passed
     texts["dashboard.forecast_span"] = f"{max(float(config['days_to_predict']) - 0.5, 0.5):g}d"
-    # the sell price charts subtract the same sell fee as the planner
-    texts["dashboard.sell_fee_value"] = f"{abs(float(config['prices'].get('sell_fee', 0.0))):g}"
     template = _translate(template, texts)
     missing = {source for source, target in mapping.items() if not target}
     if existing is not None and DEBUG_BUTTON_SWITCH not in existing:

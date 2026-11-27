@@ -672,6 +672,18 @@ def test_price_forecast_is_compared_with_the_real_prices() -> None:
     assert row["real"] is not None and row["d1"] is not None
 
 
+def test_price_forecast_correction_is_capped_in_the_currency_of_the_prices() -> None:
+    """The cap is 0.5 kroner; with prices worth a fifth of that (price_scale 0.2) it is 0.1."""
+    now = datetime.datetime.combine(DAY, datetime.time(10, 5))
+    engine = started_engine(now, 50.0, options={"price_scale": 0.2})
+    for back in range(1, 8):
+        engine.analysis_db["price_days"][(DAY - datetime.timedelta(days=back)).isoformat()] = {
+            "1": {"n": 24, "abs": 4.8, "bias": 4.8},  # 0.2 too high a day ahead: more than the cap
+            "3": {"n": 24, "abs": 0.48, "bias": -0.48},  # 0.02 too low: below the cap, the same number in every currency
+        }
+    assert engine.run_job(snapshot(now, 50.0), engine.price_forecast_corrections).value == {1: -0.1, 3: 0.02}
+
+
 def test_price_forecast_is_corrected_with_its_bias() -> None:
     tomorrow = DAY + datetime.timedelta(days=1)
     now = datetime.datetime.combine(DAY, datetime.time(10, 5))

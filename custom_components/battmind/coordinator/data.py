@@ -494,6 +494,10 @@ class CoordinatorData:
                 for entity_id, rows in stats.items()
             },
         }
+        # a price sensor that gives the price per MWh (Energy Price Forecast): its history is per kWh like the live prices; a sensor in the wrong unit has none
+        for entity_id, divisor in (self.price_provider.price_unit_divisors(self.hass.states.get) if self.price_provider else {}).items():
+            if entity_id in data["stats"]:
+                data["stats"][entity_id] = [] if divisor is None else [(timestamp, value / divisor) for timestamp, value in data["stats"][entity_id]]
         if not data["stats"].get(home["power_consumption_entity_id"]):
             _LOGGER.info("Analysis: no long-term statistics of %s, the analysis starts from now", home["power_consumption_entity_id"])
         await self.async_run_job("analysis_update", data)

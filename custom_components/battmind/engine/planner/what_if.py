@@ -15,6 +15,7 @@ from ...const import (
     WHAT_IF_NUMBERS,
     WHAT_IF_SWITCHES,
     WHAT_IF_TEXTS,
+    price_decimals,
     unsupported_switches,
 )
 from ..optimizer import OptimizerConfig, OptimizerHour
@@ -588,6 +589,13 @@ class WhatIf:
         sell_price_history_available = all(
             source["sell_price_history_available"] for source in used_sources
         )
+        # an Energy Price Forecast entry without a sell sensor sells at its retail (buy) price less the fee, like the live
+        # prices: higher than a sale pays, so the module payback and the year estimate are not given (missing_sell_price)
+        sell_from_buy_sensor = any(
+            source["provider"].get("name") == "Energy Price Forecast"
+            and source["provider"].get("sell_entity_id") == source["provider"].get("buy_entity_id")
+            for source in used_sources
+        )
         sample_count = sum(len(required) + len(hour_sources[ts]["entity_ids"]) for ts in timestamps)
         if "long_term_statistics_timestamps" not in data:
             statistical_sample_count = sample_count
@@ -646,6 +654,7 @@ class WhatIf:
                     float(hour_provider.get("sell_fee", 0.0)),
                     # a raw sell price has no tariffs: the selling costs come from the buy sensor
                     None if tariffs else hour_provider.get("sell_costs"),
+                    price_decimals(self.config),
                 )
                 sell_value = self.sell_value(sell_price)
             else:
@@ -828,7 +837,7 @@ class WhatIf:
         if module_cases:
             annualization = _module_annualization(
                 timestamps, data.get("requested_period"), tz,
-                missing_sell_price=not sell_price_history_available,
+                missing_sell_price=not sell_price_history_available or sell_from_buy_sensor,
                 missing_sell_cost=raw_unknown_cost_hours > 0,
             )
             annual_cases = [
@@ -847,7 +856,7 @@ class WhatIf:
                 annual_cases,
                 annualization,
                 module_price,
-                missing_sell_price=not sell_price_history_available,
+                missing_sell_price=not sell_price_history_available or sell_from_buy_sensor,
                 missing_sell_cost=raw_unknown_cost_hours > 0,
             )
             baseline_profit = calculated[module_cases[0][2]]["profit"]
@@ -921,6 +930,7 @@ class WhatIf:
             "assumptions": {
                 **self._what_if_assumptions(cfg, scenario_settings, start_level),
                 "sell_price_history_available": sell_price_history_available,
+                "sell_price_from_buy_sensor": sell_from_buy_sensor,
             },
             "current_assumptions": self._what_if_assumptions(current_cfg, current_settings, current_start_level),
             "data_sources": data_sources,
