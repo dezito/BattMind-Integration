@@ -321,15 +321,24 @@
         "description": "Instalacje BattMind PyScript znalezione w folderze konfiguracji:\n{files}\n\nWybierz jedną do importu (może mieć inny prefiks niż **{prefix}**). Ustawienia są używane jako domyślne na kolejnych stronach, a bazy danych (historia ładowania, zużycie, ceny, słońce) są kopiowane przy pierwszym uruchomieniu. Pliki PyScript są tylko odczytywane, nigdy zmieniane - obie wersje mogą działać jednocześnie.",
         "title": "Import z wersji PyScript"
       },
+      "country": {
+        "title": "Kraj",
+        "description": "Wybierz kraj, którego dotyczą ceny energii. Na następnej stronie zobaczysz dostawców cen, którzy mają ceny w tym kraju. Proponowany jest kraj z Home Assistant; przywrócona kopia zapasowa lub import pokazuje własny kraj.",
+        "data": {
+          "price_country": "Kraj"
+        },
+        "data_description": {
+          "price_country": "Decyduje, których dostawców cen można wybrać. Można go później zmienić w sekcji Ogólne."
+        }
+      },
       "price_provider": {
         "data": {
-          "price_country": "Kraj",
           "price_providers": "Dostawcy cen"
         },
         "data_description": {
-          "price_country": "Kraj, którego dotyczą ceny. Decyduje, których dostawców cen można wybrać. Proponowany jest kraj z Home Assistant."
+          "price_providers": "Wyświetlani są tylko dostawcy, którzy mają ceny w wybranym kraju. Kraj można zmienić w sekcji Ogólne po zakończeniu konfiguracji."
         },
-        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy kilku kolejność to Strømligning, potem Energi Data Service, potem Energy Price Forecast: dla każdej godziny używana jest cena pierwszego, który ją ma, a następny uzupełnia luki. Integracje cen giełdowych (Spot Forecast, Elprisprognos, Wattcast) są na końcu; podają ceny hurtowe, więc VAT i dopłata są pytane na stronie opłat. EPEX Spot, GE-Spot, Octopus Energy i Nord Pool podają Twoje własne opublikowane ceny (dziś i jutro): obok nich potrzebny jest dostawca z prognozą, a one są zaraz po Energi Data Service, przed Energy Price Forecast i innymi szacunkami.",
+        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy kilku kolejność to Strømligning, potem Energi Data Service, potem Energy Price Forecast: dla każdej godziny używana jest cena pierwszego, który ją ma, a następny uzupełnia luki. Integracje cen giełdowych (Spot Forecast, Elprisprognos, Wattcast) są na końcu; podają ceny hurtowe, więc VAT i dopłata są pytane na stronie opłat. EPEX Spot, GE-Spot, Octopus Energy i Nord Pool podają Twoje własne opublikowane ceny (dziś i jutro): obok nich potrzebny jest dostawca z prognozą, a one są zaraz po Energi Data Service, przed Energy Price Forecast i innymi szacunkami.\n\n**Niedostępni w kraju {country}:** {unavailable}",
         "title": "Ceny energii"
       },
       "user": {
@@ -372,7 +381,7 @@
       "price_sensor_wrong_role": "Ten czujnik nie pasuje do tego pola: w EPEX Spot cena zakupu to czujnik „Total Price”, a cena sprzedaży „Market Price”; w Octopus Energy cena zakupu to zdarzenie poboru energii elektrycznej, a cena sprzedaży zdarzenie eksportu, i dzień musi pasować (dzisiejszy lub jutrzejszy).",
       "price_currency_mismatch": "Ten czujnik jest w innej walucie niż pozostałe czujniki cen. Używaj czujników cen w jednej walucie (lub odznacz innego dostawcę cen).",
       "no_price_provider": "Wybierz co najmniej jednego dostawcę cen.",
-      "price_provider_country": "Wybrany dostawca cen nie ma cen w tym kraju. Strømligning działa tylko w Danii, a Energi Data Service w Danii, Norwegii, Szwecji, Finlandii, Estonii, Łotwie, Litwie, Francji, Holandii, Belgii, Austrii, Niemczech i Luksemburgu. Wybierz Energy Price Forecast (większość Europy) albo zmień kraj. Integracje cen giełdowych: Spot Forecast w Niemczech, Luksemburgu, Holandii i Norwegii, Elprisprognos w Szwecji i Wattcast w Finlandii, Estonii, na Łotwie i Litwie. EPEX Spot i GE-Spot: większość Europy (GE-Spot także Australia i USA), Octopus Energy: Wielka Brytania, Nord Pool: Dania, Norwegia, Szwecja, Finlandia, kraje bałtyckie, Francja, Holandia, Belgia, Austria i Niemcy.",
+      "price_provider_country": "Wybrany dostawca cen nie ma cen w tym kraju. Strømligning działa tylko w Danii, a Energi Data Service w Danii, Norwegii, Szwecji, Finlandii, Estonii, Łotwie, Litwie, Francji, Holandii, Belgii, Austrii, Niemczech i Luksemburgu. Wybierz dostawcę, który ma ceny w tym kraju, na przykład Energy Price Forecast (większość Europy). Integracje cen giełdowych: Spot Forecast w Niemczech, Luksemburgu, Holandii i Norwegii, Elprisprognos w Szwecji i Wattcast w Finlandii, Estonii, na Łotwie i Litwie. EPEX Spot i GE-Spot: większość Europy (GE-Spot także Australia i USA), Octopus Energy: Wielka Brytania, Nord Pool: Dania, Norwegia, Szwecja, Finlandia, kraje bałtyckie, Francja, Holandia, Belgia, Austria i Niemcy.",
       "price_provider_no_forecast": "Żaden z wybranych dostawców cen nie podaje prognozy cen, więc planowanie mogłoby używać tylko cen na dziś i jutro. Wybierz dodatkowo innego dostawcę cen.",
       "prefix_entities_exist": "Encje z tym prefiksem już istnieją (np. z wersji PyScript). Wybierz inny prefiks, aby uruchomić obie jednocześnie.",
       "prefix_in_use": "Ten prefiks jest już używany przez inny wpis BattMind.",
@@ -747,23 +756,24 @@
       "general": {
         "data": {
           "language": "Język",
+          "price_country": "Kraj",
           "dashboard_icon": "Ikona w pasku bocznym"
         },
         "data_description": {
           "language": "Język nazw encji, przeglądu, historii ładowania, reguły ładowania i powiadomień.",
+          "price_country": "Kraj, którego dotyczą ceny energii. Decyduje, których dostawców cen można wybrać. Jeśli wybrany dostawca nie ma cen w tym kraju, pojawią się strony cen, aby można było wybrać ponownie.",
           "dashboard_icon": "Ikona panelu na pasku bocznym, np. mdi:home-battery. Zostaw puste, aby użyć ikony domyślnej."
         },
         "title": "Ogólne"
       },
       "price_provider": {
         "data": {
-          "price_country": "Kraj",
           "price_providers": "Dostawcy cen"
         },
         "data_description": {
-          "price_country": "Kraj, którego dotyczą ceny. Decyduje, których dostawców cen można wybrać. Proponowany jest kraj z Home Assistant."
+          "price_providers": "Wyświetlani są tylko dostawcy, którzy mają ceny w kraju ustawionym w sekcji Ogólne."
         },
-        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy kilku kolejność to Strømligning, potem Energi Data Service, potem Energy Price Forecast: dla każdej godziny używana jest cena pierwszego, który ją ma, a następny uzupełnia luki. Integracje cen giełdowych (Spot Forecast, Elprisprognos, Wattcast) są na końcu; podają ceny hurtowe, więc VAT i dopłata są pytane na stronie opłat. EPEX Spot, GE-Spot, Octopus Energy i Nord Pool podają Twoje własne opublikowane ceny (dziś i jutro): obok nich potrzebny jest dostawca z prognozą, a one są zaraz po Energi Data Service, przed Energy Price Forecast i innymi szacunkami.",
+        "description": "Wybierz, skąd pochodzą ceny godzinowe. Przy kilku kolejność to Strømligning, potem Energi Data Service, potem Energy Price Forecast: dla każdej godziny używana jest cena pierwszego, który ją ma, a następny uzupełnia luki. Integracje cen giełdowych (Spot Forecast, Elprisprognos, Wattcast) są na końcu; podają ceny hurtowe, więc VAT i dopłata są pytane na stronie opłat. EPEX Spot, GE-Spot, Octopus Energy i Nord Pool podają Twoje własne opublikowane ceny (dziś i jutro): obok nich potrzebny jest dostawca z prognozą, a one są zaraz po Energi Data Service, przed Energy Price Forecast i innymi szacunkami.\n\n**Niedostępni w kraju {country}:** {unavailable}",
         "title": "Ceny energii"
       }
     },
@@ -794,7 +804,7 @@
       "price_sensor_wrong_role": "Ten czujnik nie pasuje do tego pola: w EPEX Spot cena zakupu to czujnik „Total Price”, a cena sprzedaży „Market Price”; w Octopus Energy cena zakupu to zdarzenie poboru energii elektrycznej, a cena sprzedaży zdarzenie eksportu, i dzień musi pasować (dzisiejszy lub jutrzejszy).",
       "price_currency_mismatch": "Ten czujnik jest w innej walucie niż pozostałe czujniki cen. Używaj czujników cen w jednej walucie (lub odznacz innego dostawcę cen).",
       "no_price_provider": "Wybierz co najmniej jednego dostawcę cen.",
-      "price_provider_country": "Wybrany dostawca cen nie ma cen w tym kraju. Strømligning działa tylko w Danii, a Energi Data Service w Danii, Norwegii, Szwecji, Finlandii, Estonii, Łotwie, Litwie, Francji, Holandii, Belgii, Austrii, Niemczech i Luksemburgu. Wybierz Energy Price Forecast (większość Europy) albo zmień kraj. Integracje cen giełdowych: Spot Forecast w Niemczech, Luksemburgu, Holandii i Norwegii, Elprisprognos w Szwecji i Wattcast w Finlandii, Estonii, na Łotwie i Litwie. EPEX Spot i GE-Spot: większość Europy (GE-Spot także Australia i USA), Octopus Energy: Wielka Brytania, Nord Pool: Dania, Norwegia, Szwecja, Finlandia, kraje bałtyckie, Francja, Holandia, Belgia, Austria i Niemcy.",
+      "price_provider_country": "Wybrany dostawca cen nie ma cen w tym kraju. Strømligning działa tylko w Danii, a Energi Data Service w Danii, Norwegii, Szwecji, Finlandii, Estonii, Łotwie, Litwie, Francji, Holandii, Belgii, Austrii, Niemczech i Luksemburgu. Wybierz dostawcę, który ma ceny w tym kraju, na przykład Energy Price Forecast (większość Europy). Integracje cen giełdowych: Spot Forecast w Niemczech, Luksemburgu, Holandii i Norwegii, Elprisprognos w Szwecji i Wattcast w Finlandii, Estonii, na Łotwie i Litwie. EPEX Spot i GE-Spot: większość Europy (GE-Spot także Australia i USA), Octopus Energy: Wielka Brytania, Nord Pool: Dania, Norwegia, Szwecja, Finlandia, kraje bałtyckie, Francja, Holandia, Belgia, Austria i Niemcy.",
       "price_provider_no_forecast": "Żaden z wybranych dostawców cen nie podaje prognozy cen, więc planowanie mogłoby używać tylko cen na dziś i jutro. Wybierz dodatkowo innego dostawcę cen.",
       "prefix_entities_exist": "Encje z tym prefiksem już istnieją (np. z wersji PyScript). Wybierz inny prefiks, aby uruchomić obie jednocześnie.",
       "prefix_in_use": "Ten prefiks jest już używany przez inny wpis BattMind.",

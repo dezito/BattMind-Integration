@@ -129,6 +129,7 @@ async def test_deleted_entry_is_restored_by_the_config_flow(
     assert len(backups) == 1 and backups[0].endswith("_deleted.json")
     assert f"{DOMAIN}.{entry_id}.power_values" not in hass_storage
 
+    hass.config.country = "DE"  # the backup shows its own country (Denmark), not the one of Home Assistant
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_ENTITY_PREFIX: "restored", "language": "da"})
     assert result["step_id"] == "restore_backup"
@@ -143,6 +144,7 @@ async def test_deleted_entry_is_restored_by_the_config_flow(
     entry = result["result"]
     assert entry.state is ConfigEntryState.LOADED
     assert "restore_backup" not in entry.data  # only restored once
+    assert entry.options["price_country"] == "DK"  # the backup keeps its own country: the country page shows it, not the country of Home Assistant
     assert float(hass.states.get("number.restored_cheap_price_periods").state) == 4
     for name, data in databases.items():
         assert hass_storage[f"{DOMAIN}.{entry.entry_id}.{name}"]["data"] == data

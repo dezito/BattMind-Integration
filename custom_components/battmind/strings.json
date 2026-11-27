@@ -22,15 +22,24 @@
           "import_source": "Import from"
         }
       },
+      "country": {
+        "title": "Country",
+        "description": "Choose the country the electricity prices are for. The next page offers the price providers that have prices in this country. Home Assistant's country is suggested; a restored backup or an import shows its own.",
+        "data": {
+          "price_country": "Country"
+        },
+        "data_description": {
+          "price_country": "It decides which price providers can be chosen. It can be changed later under General."
+        }
+      },
       "price_provider": {
         "title": "Electricity prices",
-        "description": "Choose where the hourly prices come from. With several, the priority is Strømligning, then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour, and the next fills the gaps. The spot forecast integrations (Spot Forecast, Elprisprognos, Wattcast) come last; they give wholesale prices, so the VAT and the surcharge are asked on the fee page. EPEX Spot, GE-Spot, Octopus Energy and Nord Pool give your own published prices (today and tomorrow): they need a provider with a forecast next to them, and they come right after Energi Data Service, before Energy Price Forecast and the other estimates.",
+        "description": "Choose where the hourly prices come from. With several, the priority is Strømligning, then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour, and the next fills the gaps. The spot forecast integrations (Spot Forecast, Elprisprognos, Wattcast) come last; they give wholesale prices, so the VAT and the surcharge are asked on the fee page. EPEX Spot, GE-Spot, Octopus Energy and Nord Pool give your own published prices (today and tomorrow): they need a provider with a forecast next to them, and they come right after Energi Data Service, before Energy Price Forecast and the other estimates.\n\n**Not available in {country}:** {unavailable}",
         "data": {
-          "price_country": "Country",
           "price_providers": "Price providers"
         },
         "data_description": {
-          "price_country": "The country the prices are for. It decides which price providers can be chosen. Home Assistant's country is suggested."
+          "price_providers": "Only the providers that have prices in the chosen country are listed. The country can be changed under General after the setup."
         }
       },
       "battery_entities": {
@@ -371,7 +380,7 @@
       "price_sensor_wrong_role": "This sensor does not belong in this field: for EPEX Spot the buy price is the sensor “Total Price” and the sell price “Market Price”; for Octopus Energy the buy price is an import event of electricity and the sell price an export event, and the day must match (current or next day).",
       "price_currency_mismatch": "This sensor is in another currency than the other price sensors. Use price sensors in one currency (or deselect the other price provider).",
       "no_price_provider": "Choose at least one price provider.",
-      "price_provider_country": "A chosen price provider has no prices in this country. Strømligning only works in Denmark, and Energi Data Service in Denmark, Norway, Sweden, Finland, Estonia, Latvia, Lithuania, France, the Netherlands, Belgium, Austria, Germany and Luxembourg. Choose Energy Price Forecast (most of Europe) or change the country. The spot forecast integrations: Spot Forecast in Germany, Luxembourg, the Netherlands and Norway, Elprisprognos in Sweden and Wattcast in Finland, Estonia, Latvia and Lithuania. EPEX Spot and GE-Spot: most of Europe (GE-Spot also Australia and the USA), Octopus Energy: Great Britain, Nord Pool: Denmark, Norway, Sweden, Finland, the Baltics, France, the Netherlands, Belgium, Austria and Germany.",
+      "price_provider_country": "A chosen price provider has no prices in this country. Strømligning only works in Denmark, and Energi Data Service in Denmark, Norway, Sweden, Finland, Estonia, Latvia, Lithuania, France, the Netherlands, Belgium, Austria, Germany and Luxembourg. Choose a provider that has prices in this country, for example Energy Price Forecast (most of Europe). The spot forecast integrations: Spot Forecast in Germany, Luxembourg, the Netherlands and Norway, Elprisprognos in Sweden and Wattcast in Finland, Estonia, Latvia and Lithuania. EPEX Spot and GE-Spot: most of Europe (GE-Spot also Australia and the USA), Octopus Energy: Great Britain, Nord Pool: Denmark, Norway, Sweden, Finland, the Baltics, France, the Netherlands, Belgium, Austria and Germany.",
       "price_provider_no_forecast": "None of the chosen price providers gives a price forecast, so planning could only use the prices of today and tomorrow. Choose another price provider as well.",
       "production_required": "A solar forecast requires a solar production sensor."
     },
@@ -397,23 +406,24 @@
       },
       "price_provider": {
         "title": "Electricity prices",
-        "description": "Choose where the hourly prices come from. With several, the priority is Strømligning, then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour, and the next fills the gaps. The spot forecast integrations (Spot Forecast, Elprisprognos, Wattcast) come last; they give wholesale prices, so the VAT and the surcharge are asked on the fee page. EPEX Spot, GE-Spot, Octopus Energy and Nord Pool give your own published prices (today and tomorrow): they need a provider with a forecast next to them, and they come right after Energi Data Service, before Energy Price Forecast and the other estimates.",
+        "description": "Choose where the hourly prices come from. With several, the priority is Strømligning, then Energi Data Service, then Energy Price Forecast: the price of the first one that has one is used for every hour, and the next fills the gaps. The spot forecast integrations (Spot Forecast, Elprisprognos, Wattcast) come last; they give wholesale prices, so the VAT and the surcharge are asked on the fee page. EPEX Spot, GE-Spot, Octopus Energy and Nord Pool give your own published prices (today and tomorrow): they need a provider with a forecast next to them, and they come right after Energi Data Service, before Energy Price Forecast and the other estimates.\n\n**Not available in {country}:** {unavailable}",
         "data": {
-          "price_country": "Country",
           "price_providers": "Price providers"
         },
         "data_description": {
-          "price_country": "The country the prices are for. It decides which price providers can be chosen. Home Assistant's country is suggested."
+          "price_providers": "Only the providers that have prices in the country set under General are listed."
         }
       },
       "general": {
         "title": "General",
         "data": {
           "language": "Language",
+          "price_country": "Country",
           "dashboard_icon": "Sidebar icon"
         },
         "data_description": {
           "language": "Language used for entity names, the overview, charging history, charging rule and notifications.",
+          "price_country": "The country the electricity prices are for. It decides which price providers can be chosen. If a chosen provider has no prices in this country, the price pages follow, so you can choose again.",
           "dashboard_icon": "Icon of the dashboard in the sidebar, e.g. mdi:home-battery. Leave empty for the default icon."
         }
       },
@@ -791,7 +801,7 @@
       "price_sensor_wrong_role": "This sensor does not belong in this field: for EPEX Spot the buy price is the sensor “Total Price” and the sell price “Market Price”; for Octopus Energy the buy price is an import event of electricity and the sell price an export event, and the day must match (current or next day).",
       "price_currency_mismatch": "This sensor is in another currency than the other price sensors. Use price sensors in one currency (or deselect the other price provider).",
       "no_price_provider": "Choose at least one price provider.",
-      "price_provider_country": "A chosen price provider has no prices in this country. Strømligning only works in Denmark, and Energi Data Service in Denmark, Norway, Sweden, Finland, Estonia, Latvia, Lithuania, France, the Netherlands, Belgium, Austria, Germany and Luxembourg. Choose Energy Price Forecast (most of Europe) or change the country. The spot forecast integrations: Spot Forecast in Germany, Luxembourg, the Netherlands and Norway, Elprisprognos in Sweden and Wattcast in Finland, Estonia, Latvia and Lithuania. EPEX Spot and GE-Spot: most of Europe (GE-Spot also Australia and the USA), Octopus Energy: Great Britain, Nord Pool: Denmark, Norway, Sweden, Finland, the Baltics, France, the Netherlands, Belgium, Austria and Germany.",
+      "price_provider_country": "A chosen price provider has no prices in this country. Strømligning only works in Denmark, and Energi Data Service in Denmark, Norway, Sweden, Finland, Estonia, Latvia, Lithuania, France, the Netherlands, Belgium, Austria, Germany and Luxembourg. Choose a provider that has prices in this country, for example Energy Price Forecast (most of Europe). The spot forecast integrations: Spot Forecast in Germany, Luxembourg, the Netherlands and Norway, Elprisprognos in Sweden and Wattcast in Finland, Estonia, Latvia and Lithuania. EPEX Spot and GE-Spot: most of Europe (GE-Spot also Australia and the USA), Octopus Energy: Great Britain, Nord Pool: Denmark, Norway, Sweden, Finland, the Baltics, France, the Netherlands, Belgium, Austria and Germany.",
       "price_provider_no_forecast": "None of the chosen price providers gives a price forecast, so planning could only use the prices of today and tomorrow. Choose another price provider as well.",
       "production_required": "A solar forecast requires a solar production sensor."
     },
