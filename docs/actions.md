@@ -66,6 +66,7 @@ inverter can copy it.
 | BattMind action | `sensor.<prefix>_powerwall_action` |
 | Repeat interval | run the current action again with this interval (default 5 minutes, 0 = off). See [below](#repeat-interval) |
 | Custom triggers | extra triggers that run the current action again, e.g. a change on an inverter entity |
+| Fail-safe, Wait for an unavailable action | end a forced mode when BattMind stops. See [Fail-safe](#fail-safe) |
 
 ### Actions
 
@@ -131,6 +132,40 @@ Change it if your inverter needs something else:
 The repetition starts over every time BattMind changes action, and also when Home Assistant starts or the
 automations are reloaded (not with 0).
 
+### Fail-safe
+
+An action is a decision for now. If BattMind stops making new ones, a forced mode must not go on. Every
+successful calculation sets the attributes `updated` and `valid_until` on the action sensor: it counts for
+three planning intervals, at least 15 minutes. A calculation that fails renews neither.
+
+The blueprint runs **Discharge allowed** (while the car charges: *While the car is charging*) instead of
+`grid_charging`, `force_discharge`, `force_solar_only_charging` or `blocked_solar_charge` when
+
+- `valid_until` has passed: BattMind is there, but hangs or its calculation keeps failing. It is noticed
+  within about a minute, whatever the repeat interval is. It is run again with the repeat interval (once
+  with the repeat off), and the real action is back within about a minute after BattMind calculates again.
+- the action sensor stays `unavailable` or `unknown` for **Wait for an unavailable action** (default 15
+  minutes): the integration is stopped, disabled or doesn't start. It is run once.
+
+| Input | Meaning |
+|---|---|
+| Fail-safe | on by default. Off: nothing is changed, and the last action keeps being repeated while the sensor shows it |
+| Wait for an unavailable action | minutes before an unavailable action ends a forced mode (default 15) |
+
+**Stop battery** is the temperature safety and is never changed by the fail-safe. With the sensor
+unavailable, no temperature is watched either, so the battery stays stopped until BattMind is back.
+
+The fail-safe is part of the running automation, which remembers what it sent. It therefore does nothing
+
+- while Home Assistant is down, or after a restart where BattMind never comes up
+- after one of your steps has failed: the error ends the run until the action changes or something else
+  starts it again. For a step that may fail now and then (e.g. a cloud command), set `continue_on_error:
+  true` on it in the YAML editor
+- with the repeat off, after the automation was reloaded, edited or its blueprint updated, until the action
+  changes
+
+Keep the inverter's forced modes limited in time (see the tips above) as the last line of defence.
+
 ## Your own automation
 
 If you'd rather not use the blueprint:
@@ -153,6 +188,10 @@ actions:
         sequence: []  # e.g. charge power 0
     default: []  # discharge_allowed: normal operation, stop forced modes, charge/discharge power max
 ```
+
+Keep `not_to` (or `from`/`to`) on the trigger: without it, it also fires when only an attribute changes,
+such as `valid_until` at every calculation. This example has no [fail-safe](#fail-safe): to end a forced
+mode yourself, compare the attribute `valid_until` with the time now.
 
 ## Does the battery follow the action?
 
@@ -298,6 +337,7 @@ What the test does and does not do:
 | Entity | Content |
 |---|---|
 | `sensor.<prefix>_powerwall_action` | the action now |
+| ↳ `updated`, `valid_until` | when the action was last calculated, and until when it counts (see [Fail-safe](#fail-safe)) |
 | ↳ `battery_level_flow` | the forecast battery level per hour |
 | ↳ `price_check` | the self test of the price providers on their own prices, per provider (see [getting started](getting-started.md#prices)); it only reports |
 | ↳ `solar_check` | what the solar forecast delivers: the source, and per day the hours with a value and their kWh (see [getting started](getting-started.md#solar-panels-and-weather-optional)); only with a forecast, it only reports |

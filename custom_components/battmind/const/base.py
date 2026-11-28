@@ -98,6 +98,10 @@ POWERWALL_ACTION_STATES = (
     "force_discharge",
     "blocked_solar_charge",
 )
+# How long a published action counts (attribute valid_until, read by the blueprint's fail-safe): this many planning
+# intervals, and never under the minutes, so a long job that delays a run is not taken for a BattMind that has stopped
+ACTION_VALID_INTERVALS = 3
+ACTION_VALID_MIN_MINUTES = 15
 # Battery actions an inverter may not support (config option unsupported_actions).
 # discharge_allowed (normal operation) and battery_stopped (safety stop) are always needed.
 CONTROLLABLE_ACTIONS = (

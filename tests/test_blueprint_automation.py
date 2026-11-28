@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import shutil
 from typing import Any
@@ -327,3 +327,215 @@ async def test_discharge_into_car_only_above_level(hass: HomeAssistant, freezer:
     hass.states.async_set(HOME_BATTERY, "20")
     await _settle()
     assert ran == ["ev_charging", "discharge_allowed", "discharge_allowed"]
+
+
+# --- fail-safe: BattMind has stopped or hangs ---------------------------------------------------------------------
+
+FORCED = ["grid_charging", "force_discharge", "force_solar_only_charging", "blocked_solar_charge"]
+REPEAT_1_MIN = {"minutes": 1}
+
+
+def _publish(hass: HomeAssistant, action: str, valid_minutes: float = 15) -> None:
+    """The action sensor as BattMind publishes it: valid_until is renewed by every calculation."""
+    valid_until = (dt_util.now() + timedelta(minutes=valid_minutes)).isoformat(timespec="seconds")
+    hass.states.async_set(ACTION_SENSOR, action, {"valid_until": valid_until})
+
+
+@pytest.mark.parametrize("action", FORCED)
+async def test_an_action_that_is_no_longer_renewed_becomes_normal_operation(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str], action: str
+) -> None:
+    """BattMind is there but calculates nothing: a forced mode is not renewed for ever."""
+    await _setup(hass, freezer, repeat_interval=REPEAT_1_MIN)
+    _publish(hass, action)
+    await _settle()
+    await _wait(hass, freezer, 14 * 60, step=30)
+    assert set(ran) == {action}
+    ran.clear()
+    await _wait(hass, freezer, 5 * 60, step=30)
+    first = ran.index("discharge_allowed")
+    assert first <= 1  # at most the repeat that falls on the last valid minute
+    assert set(ran[first:]) == {"discharge_allowed"}
+    await _stop(hass)
+
+
+async def test_a_long_repeat_does_not_delay_the_fail_safe(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    """The wait looks at the time every minute: the repeat interval does not decide how soon an old action is noticed."""
+    await _setup(hass, freezer, repeat_interval={"hours": 1})
+    _publish(hass, "force_discharge")
+    await _settle()
+    await _wait(hass, freezer, 17 * 60, step=30)
+    assert ran == ["force_discharge", "discharge_allowed"]
+    await _stop(hass)
+
+
+async def test_a_car_that_starts_while_the_action_is_gone_is_kept_out_of_the_battery(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]
+) -> None:
+    """No trigger restarts the waiting run then: the car is looked at again when the fail-safe runs."""
+    hass.states.async_set(EV_POWER, "0")
+    await _setup(hass, freezer, **EV_INPUTS)
+    _publish(hass, "grid_charging", 60)
+    await _settle()
+    hass.states.async_set(ACTION_SENSOR, "unavailable")
+    await _settle()
+    ran.clear()
+    hass.states.async_set(EV_POWER, "7000")
+    await _wait(hass, freezer, 18 * 60, step=30)
+    assert ran == ["ev_charging"]
+    await _stop(hass)
+
+
+async def test_the_real_action_is_back_when_battmind_calculates_again(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    await _setup(hass, freezer, repeat_interval=REPEAT_1_MIN)
+    _publish(hass, "force_discharge")
+    await _settle()
+    await _wait(hass, freezer, 18 * 60, step=30)
+    assert ran[-1] == "discharge_allowed"
+    ran.clear()
+    _publish(hass, "force_discharge")  # only the attribute changes: no new trigger
+    await _wait(hass, freezer, 3 * 60, step=30)
+    assert ran and set(ran) == {"force_discharge"}
+    await _stop(hass)
+
+
+async def test_a_renewed_action_never_runs_the_fail_safe(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    await _setup(hass, freezer, repeat_interval={"minutes": 5})
+    _publish(hass, "grid_charging")
+    await _settle()
+    for _ in range(8):  # a calculation every 5 minutes for 40 minutes
+        await _wait(hass, freezer, 5 * 60, step=30)
+        _publish(hass, "grid_charging")
+        await _settle()
+    assert set(ran) == {"grid_charging"}
+    await _stop(hass)
+
+
+async def test_without_valid_until_nothing_is_ever_too_old(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    await _setup(hass, freezer, repeat_interval={"minutes": 5})
+    hass.states.async_set(ACTION_SENSOR, "force_discharge")
+    await _settle()
+    await _wait(hass, freezer, 3600, step=60)
+    assert set(ran) == {"force_discharge"}
+    await _stop(hass)
+
+
+async def test_a_temperature_stop_is_never_lifted_by_the_fail_safe(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    await _setup(hass, freezer, repeat_interval={"minutes": 5})
+    _publish(hass, "battery_stopped")
+    await _settle()
+    await _wait(hass, freezer, 3600, step=60)
+    assert set(ran) == {"battery_stopped"}
+    ran.clear()
+    hass.states.async_set(ACTION_SENSOR, "unavailable")
+    await _settle()
+    await _wait(hass, freezer, 3600, step=60)
+    assert ran == []
+    await _stop(hass)
+
+
+async def test_fail_safe_off_keeps_the_old_action(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    await _setup(hass, freezer, repeat_interval={"minutes": 5}, fail_safe=False)
+    _publish(hass, "force_discharge")
+    await _settle()
+    await _wait(hass, freezer, 3600, step=60)
+    assert set(ran) == {"force_discharge"}
+    ran.clear()
+    hass.states.async_set(ACTION_SENSOR, "unavailable")
+    await _settle()
+    await _wait(hass, freezer, 3600, step=60)
+    assert ran == []
+    await _stop(hass)
+
+
+async def test_without_a_repeat_the_fail_safe_still_works_once_each_way(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    await _setup(hass, freezer)  # repeat off
+    _publish(hass, "grid_charging")
+    await _settle()
+    await _wait(hass, freezer, 14 * 60, step=30)
+    assert ran == ["grid_charging"]
+    await _wait(hass, freezer, 30 * 60, step=30)
+    assert ran == ["grid_charging", "discharge_allowed"]
+    _publish(hass, "grid_charging")
+    await _wait(hass, freezer, 3 * 60, step=30)
+    assert ran == ["grid_charging", "discharge_allowed", "grid_charging"]
+    await _stop(hass)
+
+
+async def test_without_a_repeat_a_renewed_action_is_sent_only_once(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    await _setup(hass, freezer)
+    _publish(hass, "force_discharge")
+    await _settle()
+    for _ in range(8):
+        await _wait(hass, freezer, 5 * 60, step=30)
+        _publish(hass, "force_discharge")
+        await _settle()
+    assert ran == ["force_discharge"]
+    await _stop(hass)
+
+
+@pytest.mark.parametrize("repeat", [{"seconds": 0}, {"minutes": 5}], ids=["no repeat", "repeat"])
+@pytest.mark.parametrize("lost", [["unavailable"], ["unknown"], ["unavailable", "unknown"]], ids=["unavailable", "unknown", "reload"])
+async def test_a_lost_action_sensor_ends_a_forced_mode_after_the_wait(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str], repeat: dict, lost: list[str]
+) -> None:
+    await _setup(hass, freezer, repeat_interval=repeat)
+    _publish(hass, "force_discharge", 60)
+    await _settle()
+    ran.clear()
+    for state in lost:
+        hass.states.async_set(ACTION_SENSOR, state)
+        await _settle()
+        await _wait(hass, freezer, 4 * 60, step=30)
+    assert ran == []  # not before the 15 minutes (a restart or a reload is over by then)
+    await _wait(hass, freezer, 14 * 60, step=30)
+    assert ran == ["discharge_allowed"]
+    await _wait(hass, freezer, 30 * 60, step=30)
+    assert ran == ["discharge_allowed"]
+    await _stop(hass)
+
+
+async def test_a_sensor_that_comes_back_in_time_keeps_the_plan(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    await _setup(hass, freezer, fail_safe_minutes=10)
+    _publish(hass, "grid_charging", 60)
+    await _settle()
+    hass.states.async_set(ACTION_SENSOR, "unavailable")
+    await _settle()
+    await _wait(hass, freezer, 5 * 60, step=30)
+    _publish(hass, "grid_charging", 60)
+    await _settle()
+    await _wait(hass, freezer, 20 * 60, step=30)
+    assert ran == ["grid_charging", "grid_charging"]
+    await _stop(hass)
+
+
+async def test_normal_operation_needs_no_fail_safe_when_the_sensor_is_lost(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    await _setup(hass, freezer)
+    _publish(hass, "grid_charging")
+    await _settle()
+    _publish(hass, "discharge_allowed")
+    await _settle()
+    ran.clear()
+    hass.states.async_set(ACTION_SENSOR, "unavailable")
+    await _settle()
+    await _wait(hass, freezer, 3600, step=60)
+    assert ran == []
+    await _stop(hass)
+
+
+async def test_a_start_with_an_old_action_sends_normal_operation(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    await _setup(hass, freezer, repeat_interval={"minutes": 5})
+    _publish(hass, "force_discharge", -1)
+    await _settle()
+    assert ran == ["discharge_allowed"]
+    await _stop(hass)
+
+
+async def test_the_fail_safe_keeps_the_car_out_of_the_battery(hass: HomeAssistant, freezer: FrozenDateTimeFactory, ran: list[str]) -> None:
+    """Normal operation in the fail-safe is the same normal operation: while the car charges, the EV action runs."""
+    hass.states.async_set(EV_POWER, "7000")
+    await _setup(hass, freezer, **EV_INPUTS)
+    _publish(hass, "grid_charging", -1)
+    await _settle()
+    assert ran == ["ev_charging"]
+    await _stop(hass)

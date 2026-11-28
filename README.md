@@ -81,7 +81,8 @@ BattMind sends **no commands** to your inverter. It exposes what the battery sho
 The easiest way is the **blueprint** that is installed with the integration
 (*Settings → Automations & scenes → Blueprints → BattMind - control the home battery*). It works with all
 inverters: you add what your inverter should do for each action, and optionally what should happen while
-an EV is charging. See [Actions and battery control](docs/actions.md) and the
+an EV is charging. If BattMind stops renewing its action, the blueprint's
+[fail-safe](docs/actions.md#fail-safe) ends a forced mode. See [Actions and battery control](docs/actions.md) and the
 [inverter pages](docs/README.md#inverters): [Huawei Solar](docs/inverters/huawei.md),
 [SolarEdge](docs/inverters/solaredge.md), [Deye](docs/inverters/deye-solarman.md) and
 [Sofar](docs/inverters/sofar-solarman.md) (the last three are checked against the source, not tested).

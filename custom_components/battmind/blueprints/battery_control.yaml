@@ -45,6 +45,14 @@ blueprint:
     `number.cjp_<car>_ev_charge_after_powerwall_battery_level`).
 
 
+    **Fail-safe:** if BattMind stops calculating a new plan (the `valid_until`
+    attribute of the action has passed), or the action stays unavailable, a forced
+    mode is ended: "Discharge allowed" is run, so the battery does not keep
+    charging from the grid, selling or holding back on an old decision. "Stop
+    battery" (temperature safety) is never lifted. It needs a running automation,
+    so it does not cover a Home Assistant that is down.
+
+
     **Ready-made setups:** others' setups for many inverters, ready to paste,
     are shared under [Blueprint setups](https://github.com/dezito/BattMind-Integration/discussions/categories/blueprint-setups).
   domain: automation
@@ -145,6 +153,36 @@ blueprint:
           default: []
           selector:
             action:
+    safety:
+      name: Fail-safe
+      icon: mdi:shield-home
+      collapsed: true
+      input:
+        fail_safe:
+          name: Fail-safe
+          description: >-
+            End a forced mode (charge from grid, forced discharge, solar charging
+            only, solar charging blocked) with "Discharge allowed" when BattMind
+            no longer renews its action, or the action stays unavailable. "Stop
+            battery" is never changed.
+          default: true
+          selector:
+            boolean:
+        fail_safe_minutes:
+          name: Wait for an unavailable action
+          description: >-
+            How long the action may be unavailable or unknown before the fail-safe
+            runs. Keep it longer than a restart or reload of BattMind. How long a
+            calculation counts is set by BattMind itself (three planning
+            intervals, at least 15 minutes).
+          default: 15
+          selector:
+            number:
+              min: 5
+              max: 120
+              step: 5
+              unit_of_measurement: min
+              mode: box
     ev:
       name: EV (optional)
       icon: mdi:car-electric
@@ -294,6 +332,17 @@ variables:
   ev_threshold: !input ev_threshold
   ev_actions: !input ev_charging
   action: "{{ states(battmind_action) }}"
+  battmind_actions:
+    - battery_stopped
+    - grid_charging
+    - force_discharge
+    - discharge_allowed
+    - blocked_solar_charge
+    - force_solar_only_charging
+  fail_safe: !input fail_safe
+  fail_safe_minutes: !input fail_safe_minutes
+  # the actions the fail-safe ends: never "Stop battery" (temperature safety), and normal operation needs no end
+  watched: "{{ fail_safe and action not in ['battery_stopped', 'discharge_allowed'] }}"
   repeat_seconds: >-
     {% set r = repeat_interval %}
     {% if r is mapping %}
@@ -304,7 +353,7 @@ variables:
       {{ r | float(0) }}
     {% endif %}
   # the threshold is in W; a charger power sensor in kW (e.g. Easee) is converted
-  car_charging: >-
+  car_charging: &car_charging >-
     {%- set ns = namespace(on=false) -%}
     {%- for e in ([ev_chargers] if ev_chargers is string else ev_chargers or []) -%}
       {%- set unit = state_attr(e, 'unit_of_measurement') -%}
@@ -312,14 +361,12 @@ variables:
       {%- if watt > ev_threshold | float -%}{%- set ns.on = true -%}{%- endif -%}
     {%- endfor -%}
     {{ ev_actions | count > 0 and ns.on }}
-  ev_discharge_ok: "{{ ev_discharge_entity != '' and is_state(ev_discharge_entity, 'on') and (ev_discharge_min_entity == '' or states(home_battery_entity) | float(0) > states(ev_discharge_min_entity) | float(100)) }}"
+  ev_discharge_ok: &ev_discharge_ok "{{ ev_discharge_entity != '' and is_state(ev_discharge_entity, 'on') and (ev_discharge_min_entity == '' or states(home_battery_entity) | float(0) > states(ev_discharge_min_entity) | float(100)) }}"
 
 conditions:
   - alias: BattMind has a valid action
     condition: template
-    value_template: >-
-      {{ action in ['battery_stopped', 'grid_charging', 'force_discharge', 'discharge_allowed',
-                    'blocked_solar_charge', 'force_solar_only_charging'] }}
+    value_template: "{{ action in battmind_actions }}"
   - alias: Started or reloaded - only when the action is repeated
     condition: template
     value_template: "{{ trigger.id != 'start' or repeat_seconds | float > 0 }}"
@@ -331,31 +378,67 @@ actions:
   - alias: Run the action, and again every repeat interval
     repeat:
       sequence:
+        # judged in every round: a run can last for hours, and a new calculation only changes an attribute
+        - variables:
+            sent_stale: >-
+              {% set valid_until = as_timestamp(state_attr(battmind_action, 'valid_until'), 0) %}
+              {{ watched and states(battmind_action) == action and valid_until > 0 and as_timestamp(now()) > valid_until }}
+            run_action: "{{ 'discharge_allowed' if sent_stale else action }}"
         - choose:
             - alias: Stop battery
-              conditions: "{{ action == 'battery_stopped' }}"
+              conditions: "{{ run_action == 'battery_stopped' }}"
               sequence: !input battery_stopped
             - alias: Charge from grid
-              conditions: "{{ action == 'grid_charging' }}"
+              conditions: "{{ run_action == 'grid_charging' }}"
               sequence: !input grid_charging
             - alias: Forced discharge
-              conditions: "{{ action == 'force_discharge' }}"
+              conditions: "{{ run_action == 'force_discharge' }}"
               sequence: !input force_discharge
             - alias: Solar charging only
-              conditions: "{{ action == 'force_solar_only_charging' }}"
+              conditions: "{{ run_action == 'force_solar_only_charging' }}"
               sequence: !input force_solar_only_charging
             - alias: Car is charging (and discharging into it is not allowed)
               conditions: "{{ car_charging and not ev_discharge_ok }}"
               sequence: !input ev_charging
             - alias: Solar charging blocked
-              conditions: "{{ action == 'blocked_solar_charge' }}"
+              conditions: "{{ run_action == 'blocked_solar_charge' }}"
               sequence: !input blocked_solar_charge
           default: !input discharge_allowed
-        - alias: Wait for the repeat interval
+        - alias: Wait for the repeat interval, or until the calculation gets too old or is renewed
           if: "{{ repeat_seconds | float > 0 }}"
           then:
-            - delay: "{{ repeat_seconds | float }}"
+            - wait_template: &changed >-
+                {% set valid_until = as_timestamp(state_attr(battmind_action, 'valid_until'), 0) %}
+                {{ states(battmind_action) != action
+                   or (watched and valid_until > 0 and as_timestamp(now()) > valid_until) != sent_stale }}
+              timeout:
+                seconds: "{{ repeat_seconds | float }}"
+              continue_on_timeout: true
+          else:
+            # without a repeat nothing is sent again, but the fail-safe still watches the action that was sent
+            - if: "{{ watched }}"
+              then:
+                - wait_template: *changed
       until:
         # a changed action normally restarts the run, but if the sensor turns
         # unavailable the run must not keep sending the old action
-        - "{{ repeat_seconds | float <= 0 or states(battmind_action) != action }}"
+        - "{{ states(battmind_action) != action or (repeat_seconds | float <= 0 and not watched) }}"
+  - alias: Fail-safe - the action sensor stays unavailable during a forced mode
+    if: "{{ watched and states(battmind_action) not in battmind_actions }}"
+    then:
+      # the run still knows what it sent; an action that comes back restarts the automation
+      - wait_template: "{{ states(battmind_action) in battmind_actions }}"
+        timeout:
+          minutes: "{{ fail_safe_minutes | int(15) }}"
+        continue_on_timeout: true
+      - if: "{{ not wait.completed }}"
+        then:
+          # looked at again: no trigger restarts the waiting run, and the car may have started in the meantime
+          - variables:
+              car_charging: *car_charging
+              ev_discharge_ok: *ev_discharge_ok
+          - choose:
+              - alias: Car is charging (and discharging into it is not allowed)
+                conditions: "{{ car_charging and not ev_discharge_ok }}"
+                sequence: !input ev_charging
+            default: !input discharge_allowed
