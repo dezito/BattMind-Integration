@@ -14,6 +14,7 @@ from homeassistant.data_entry_flow import FlowResultType, InvalidData
 
 from custom_components.battmind.const import CONF_ENTITY_PREFIX, DOMAIN
 from custom_components.battmind.const.config import build_config, default_options
+from custom_components.battmind.flow.pages import SOLAR_PAGES
 from custom_components.battmind.flow.detection import Detection
 from custom_components.battmind.management.backup import BACKUP_DIR
 from custom_components.battmind.utils.formatting import format_charging_rule
@@ -43,8 +44,18 @@ async def _start(hass: HomeAssistant, prefix: str = "bmflow", **extra):
 
 
 async def _configure(hass: HomeAssistant, result, step_id: str, user_input: dict):
+    if step_id == "solar" and result.get("step_id") == "solar_forecast_source":
+        # the page before: the forecast the test is about to choose a sensor of
+        source = "solcast_solar" if user_input.get("forecast_entity_id") else "none"
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {"solar_forecast_source": source})
+        if "solar_forecast_source" in user_input:  # made from the page before: the solar page's own defaults, with what the test sets
+            user_input = {**form_defaults(result), **{key: value for key, value in user_input.items() if key != "solar_forecast_source"}}
     assert result["type"] is FlowResultType.FORM, result
-    assert result["step_id"] == step_id, result
+    # the solar page has a step id of its own for each forecast
+    other = (*SOLAR_PAGES.values(), "solar_solcast_ready") if step_id == "solar" else ()
+    if step_id in ("prices_stromligning", "prices_stromligning_tariffs"):
+        other = (f"{step_id}_ready", f"{step_id}_missing")
+    assert result["step_id"] == step_id or result["step_id"] in other, result
     return await hass.config_entries.flow.async_configure(result["flow_id"], user_input)
 
 
@@ -420,6 +431,13 @@ def _suggested(result, key: str):
     raise AssertionError(f"{key} is not on the form")
 
 
+async def _past_forecast_source(hass: HomeAssistant, result, source: str | None = None):
+    """Through the page that asks for the solar forecast (its default when no source is given) to the solar page."""
+    assert result["step_id"] == "solar_forecast_source", result
+    chosen = {"solar_forecast_source": source} if source else form_defaults(result)
+    return await hass.config_entries.flow.async_configure(result["flow_id"], chosen)
+
+
 async def _to_solar(hass: HomeAssistant, result: dict, battery: str = ENERGY_BATTERY) -> dict:
     """From the battery page (as returned by _start) to the solar page; the battery power sensor is kept as suggested."""
     result = await _configure(
@@ -433,7 +451,8 @@ async def _to_solar(hass: HomeAssistant, result: dict, battery: str = ENERGY_BAT
     result = await _configure(hass, result, "country", {})
     result = await _configure(hass, result, "price_provider", providers_input("energidataservice"))
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
-    return await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.03})
+    result = await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.03})
+    return await _past_forecast_source(hass, result)
 
 
 async def test_the_energy_dashboard_pre_fills_the_solar_and_battery_power(hass: HomeAssistant) -> None:

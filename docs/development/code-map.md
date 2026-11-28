@@ -40,6 +40,7 @@ custom_components/battmind/             The HA integration (HACS payload)
 │   └── notifier.py                      Push notifications to the chosen notify services: conditions, debounce, once, daily summary (own store `.notices`)
 ├── utils/                               Shared codecs, formatting, and calculations
 │   ├── solar_forecast.py                Forecast.Solar / Helios Forecast energy platform -> hourly solar rows (shared with Cable Juice Planner)
+│   ├── solar_sources.py                 The solar forecast sources, which are confirmed, and the facts of the dashboard's check (shared)
 │   └── capacity.py                      Battery capacity bounds measured from the battery power and level (`analysis_db["capacity"]`, always); the plan counts on them only through `battery_size_used()` in `engine/battery.py` with the switch `learn_battery_capacity`
 ├── sensor.py / number.py / switch.py    Main HA entity platforms
 ├── select.py / button.py / text.py      Other HA entity platforms

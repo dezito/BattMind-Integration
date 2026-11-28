@@ -155,6 +155,8 @@ class BattMindEngine(Planner, History, Energy, Analysis, Battery, Pricing, Plann
         self._job_cache = {}
         self._prune_power_cache(snapshot.now)
         try:
+            if snapshot.solar_source is not None:
+                self.set_attr("powerwall_action", "solar_check", self.solar_check())
             result.value = func(*args, **kwargs)
         except Exception as err:  # noqa: BLE001
             from .planner.replay import WhatIfCancelled

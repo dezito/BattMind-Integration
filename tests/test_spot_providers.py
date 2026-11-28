@@ -319,7 +319,7 @@ async def test_the_fee_page_asks_for_the_vat_and_the_surcharge_without_a_default
     with pytest.raises(InvalidData):
         await flow.async_configure(result["flow_id"], {**_defaults(result)})
     result = await flow.async_configure(result["flow_id"], {**_defaults(result), "spot_vat": 25.0, "spot_surcharge": 0.9})
-    assert result["step_id"] == "solar"
+    assert result["step_id"] == "solar_forecast_source"
 
 
 async def test_the_fee_page_has_no_vat_and_surcharge_for_the_other_providers(hass: HomeAssistant) -> None:

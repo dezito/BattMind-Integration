@@ -1,6 +1,13 @@
 {
   "config": {
     "step": {
+      "solar_forecast_source": {
+        "title": "Solcelleprognose",
+        "description": "Hvilken solcelleprognose bruger du? Vælg Ingen prognose, hvis du ikke har solceller eller en prognose.\n\n🧪 = endnu ikke bekræftet med rigtige data. Du kan godt vælge den: sammenlign prognosen på dashboardet efter opsætningen.",
+        "data": {
+          "solar_forecast_source": "Solcelleprognose"
+        }
+      },
       "user": {
         "title": "Tilføj BattMind",
         "description": "BattMind planlægger hvornår husbatteriet skal lade fra nettet, aflade eller sælge, ud fra priser, forbrug og solprognose. Planen udstilles som sensorer, du bruger i dine egne automationer.\n\n**Entity-prefix** bruges i alle entity id’er, f.eks. `sensor.PREFIX_powerwall_action`. Brug et forskelligt prefix til hver instans (og et andet prefix end PyScript-versionen, hvis begge kører). Det kan ikke ændres bagefter.",
@@ -244,7 +251,47 @@
       },
       "prices_stromligning": {
         "title": "Strømligning",
-        "description": "Sensorer fra Strømligning integrationen. Købsprisen er påkrævet; salgs-sensorerne skal bruges for at beregne en præcis salgspris.\n\nStrømligning slår som standard sine sensorer uden moms fra, og en deaktiveret sensor kan ikke vælges her: aktivér dem først under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*). Prisprognoserne kræver desuden *Inkluder prisudsigter for den næste uge?* i Strømlignings indstillinger.\nDeaktiveret i Strømligning nu: {stromligning_disabled}",
+        "description": "Sensorer fra Strømligning integrationen. Købsprisen er påkrævet; salgs-sensorerne skal bruges for at beregne en præcis salgspris.\n\nStrømligning slår som standard sine sensorer uden moms fra, og en deaktiveret sensor kan ikke vælges her: aktivér dem først under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*). Prisprognoserne kræver desuden *Inkluder prisudsigter for den næste uge?* i Strømlignings indstillinger.\n\n⚠️ Deaktiverede Strømligning-sensorer, som ikke kan vælges her: {stromligning_disabled}",
+        "data": {
+          "stromligning_buy_current_price": "Købspris",
+          "stromligning_buy_tomorrow_available": "Købspris i morgen",
+          "stromligning_buy_forecasts": "Købspris prognoser",
+          "stromligning_sell_current_price": "Salgspris (valgfri)",
+          "stromligning_sell_tomorrow_available": "Salgspris i morgen (valgfri)",
+          "stromligning_sell_forecasts": "Salgspris prognoser (valgfri)"
+        },
+        "data_description": {
+          "stromligning_buy_current_price": "Strømlignings nuværende pris inkl. moms (f.eks. sensor.stromligning_current_price_vat).",
+          "stromligning_buy_tomorrow_available": "Strømlignings ’tomorrow available’ entitet for købsprisen.",
+          "stromligning_buy_forecasts": "Strømlignings prognose-sensor - bruges til de timer hvor der endnu ikke er en rigtig pris.",
+          "stromligning_sell_current_price": "Strømlignings nuværende pris ekskl. moms til salg (f.eks. 15 min ex_vat sensoren). Giver adgang til tarif-siden.",
+          "stromligning_sell_tomorrow_available": "Strømlignings ’tomorrow available’ entitet for salgsprisen.",
+          "stromligning_sell_forecasts": "Strømlignings prognose-sensor for salgsprisen."
+        }
+      },
+      "prices_stromligning_ready": {
+        "title": "Strømligning",
+        "description": "Sensorer fra Strømligning integrationen. Købsprisen er påkrævet; salgs-sensorerne skal bruges for at beregne en præcis salgspris.\n\nPrisprognoserne kræver desuden *Inkluder prisudsigter for den næste uge?* i Strømlignings indstillinger.\n\n✅ Alle de Strømligning-sensorer, der kan vælges på denne side, er aktiveret.",
+        "data": {
+          "stromligning_buy_current_price": "Købspris",
+          "stromligning_buy_tomorrow_available": "Købspris i morgen",
+          "stromligning_buy_forecasts": "Købspris prognoser",
+          "stromligning_sell_current_price": "Salgspris (valgfri)",
+          "stromligning_sell_tomorrow_available": "Salgspris i morgen (valgfri)",
+          "stromligning_sell_forecasts": "Salgspris prognoser (valgfri)"
+        },
+        "data_description": {
+          "stromligning_buy_current_price": "Strømlignings nuværende pris inkl. moms (f.eks. sensor.stromligning_current_price_vat).",
+          "stromligning_buy_tomorrow_available": "Strømlignings ’tomorrow available’ entitet for købsprisen.",
+          "stromligning_buy_forecasts": "Strømlignings prognose-sensor - bruges til de timer hvor der endnu ikke er en rigtig pris.",
+          "stromligning_sell_current_price": "Strømlignings nuværende pris ekskl. moms til salg (f.eks. 15 min ex_vat sensoren). Giver adgang til tarif-siden.",
+          "stromligning_sell_tomorrow_available": "Strømlignings ’tomorrow available’ entitet for salgsprisen.",
+          "stromligning_sell_forecasts": "Strømlignings prognose-sensor for salgsprisen."
+        }
+      },
+      "prices_stromligning_missing": {
+        "title": "Strømligning",
+        "description": "Sensorer fra Strømligning integrationen. Købsprisen er påkrævet; salgs-sensorerne skal bruges for at beregne en præcis salgspris.\n\n⚠️ Der blev ikke fundet nogen Strømligning-sensorer til denne side. Sæt først Strømligning-integrationen op.",
         "data": {
           "stromligning_buy_current_price": "Købspris",
           "stromligning_buy_tomorrow_available": "Købspris i morgen",
@@ -264,7 +311,43 @@
       },
       "prices_stromligning_tariffs": {
         "title": "Strømligning - tariffer ved salg",
-        "description": "Ved salg fratrækkes tariffer og afgifter prisen, og transport-/systemtarif og salgsgebyr lægges til. Lad et felt være tomt for at bruge 0.\n\nTarif-sensorerne kan være deaktiveret i Strømligning, og så kan de ikke vælges her: aktivér dem først under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*).\nDeaktiveret i Strømligning nu: {stromligning_disabled}",
+        "description": "Ved salg fratrækkes tariffer og afgifter prisen, og transport-/systemtarif og salgsgebyr lægges til. Lad et felt være tomt for at bruge 0.\n\nTarif-sensorerne kan være deaktiveret i Strømligning, og så kan de ikke vælges her: aktivér dem først under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*).\n\n⚠️ Deaktiverede Strømligning-sensorer, som ikke kan vælges her: {stromligning_disabled}",
+        "data": {
+          "stromligning_sell_distribution": "Transporttarif",
+          "stromligning_sell_electricity_tax": "Elafgift",
+          "stromligning_sell_nettariff": "Nettarif",
+          "stromligning_sell_systemtariff": "Systemtarif",
+          "stromligning_sell_surcharge": "Tillæg til spotpris"
+        },
+        "data_description": {
+          "stromligning_sell_distribution": "Sensor med netselskabets transporttarif pr. periode. Trækkes fra når salgsprisen beregnes (dage uden tarif bruger samme tidspunkt fra seneste kendte dag).",
+          "stromligning_sell_electricity_tax": "Sensor med elafgiften. Trækkes fra når salgsprisen beregnes.",
+          "stromligning_sell_nettariff": "Sensor med Energinets nettarif. Trækkes fra salgsprisen og igen som omkostning ved salg.",
+          "stromligning_sell_systemtariff": "Sensor med systemtariffen. Trækkes fra salgsprisen og igen som omkostning ved salg.",
+          "stromligning_sell_surcharge": "Elselskabets tillæg til spotprisen. Trækkes fra når salgsprisen beregnes."
+        }
+      },
+      "prices_stromligning_tariffs_ready": {
+        "title": "Strømligning - tariffer ved salg",
+        "description": "Ved salg fratrækkes tariffer og afgifter prisen, og transport-/systemtarif og salgsgebyr lægges til. Lad et felt være tomt for at bruge 0.\n\n✅ Alle de Strømligning-sensorer, der kan vælges på denne side, er aktiveret.",
+        "data": {
+          "stromligning_sell_distribution": "Transporttarif",
+          "stromligning_sell_electricity_tax": "Elafgift",
+          "stromligning_sell_nettariff": "Nettarif",
+          "stromligning_sell_systemtariff": "Systemtarif",
+          "stromligning_sell_surcharge": "Tillæg til spotpris"
+        },
+        "data_description": {
+          "stromligning_sell_distribution": "Sensor med netselskabets transporttarif pr. periode. Trækkes fra når salgsprisen beregnes (dage uden tarif bruger samme tidspunkt fra seneste kendte dag).",
+          "stromligning_sell_electricity_tax": "Sensor med elafgiften. Trækkes fra når salgsprisen beregnes.",
+          "stromligning_sell_nettariff": "Sensor med Energinets nettarif. Trækkes fra salgsprisen og igen som omkostning ved salg.",
+          "stromligning_sell_systemtariff": "Sensor med systemtariffen. Trækkes fra salgsprisen og igen som omkostning ved salg.",
+          "stromligning_sell_surcharge": "Elselskabets tillæg til spotprisen. Trækkes fra når salgsprisen beregnes."
+        }
+      },
+      "prices_stromligning_tariffs_missing": {
+        "title": "Strømligning - tariffer ved salg",
+        "description": "Ved salg fratrækkes tariffer og afgifter prisen, og transport-/systemtarif og salgsgebyr lægges til. Lad et felt være tomt for at bruge 0.\n\n⚠️ Der blev ikke fundet nogen Strømligning-sensorer til denne side. Sæt først Strømligning-integrationen op.",
         "data": {
           "stromligning_sell_distribution": "Transporttarif",
           "stromligning_sell_electricity_tax": "Elafgift",
@@ -300,18 +383,80 @@
       },
       "solar": {
         "title": "Solceller",
-        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.\n\nForecast.Solar og Helios Forecast læses fra deres solprognose til Energi-dashboardet; de timer, de ikke dækker, planlægges ud fra vejrudsigten og den gemte solhistorik; en time uden nogen af dem regnes som ingen sol.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\nDeaktiverede Solcast-sensorer nu: {solcast_disabled}",
+        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.",
         "data": {
           "production_entity_id": "Solproduktion",
           "inverter_discharging_power_limit": "Inverterens effektgrænse",
-          "production_price": "Fast salgspris for soloverskud",
-          "forecast_entity_id": "Solprognose (valgfri)"
+          "production_price": "Fast salgspris for soloverskud"
         },
         "data_description": {
           "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW). Lad feltet være tomt hvis du ikke har solceller.",
           "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
+          "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen."
+        }
+      },
+      "solar_solcast": {
+        "title": "Solceller – Solcast PV Forecast",
+        "description": "Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\n\n⚠️ Solcast-sensorer, der er deaktiverede, mangler, ikke er tilgængelige eller ikke har timedetaljer: {solcast_problems}",
+        "data": {
+          "production_entity_id": "Solproduktion",
+          "inverter_discharging_power_limit": "Inverterens effektgrænse",
+          "production_price": "Fast salgspris for soloverskud",
+          "forecast_entity_id": "Solcast PV Forecast-sensor"
+        },
+        "data_description": {
+          "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW).",
+          "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
           "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
-          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar eller Helios Forecast. Solcast: f.eks. sensor.solcast_pv_forecast_forecast_today, de kommende dage findes automatisk. Forecast.Solar: en vilkårlig af dens sensorer; tagfladerne i samme solkilde i Energi-dashboardet lægges sammen. Helios Forecast: f.eks. sensor.helios_forecast_power_now."
+          "forecast_entity_id": "F.eks. sensor.solcast_pv_forecast_forecast_today; de kommende dage findes automatisk. Lad feltet være tomt for at vælge solcelleprognose igen."
+        }
+      },
+      "solar_solcast_ready": {
+        "title": "Solceller – Solcast PV Forecast",
+        "description": "Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`.\n\n✅ Alle de Solcast-sensorer, der skal bruges, er aktiveret.",
+        "data": {
+          "production_entity_id": "Solproduktion",
+          "inverter_discharging_power_limit": "Inverterens effektgrænse",
+          "production_price": "Fast salgspris for soloverskud",
+          "forecast_entity_id": "Solcast PV Forecast-sensor"
+        },
+        "data_description": {
+          "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW).",
+          "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
+          "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
+          "forecast_entity_id": "F.eks. sensor.solcast_pv_forecast_forecast_today; de kommende dage findes automatisk. Lad feltet være tomt for at vælge solcelleprognose igen."
+        }
+      },
+      "solar_forecast_solar": {
+        "title": "Solceller – Forecast.Solar",
+        "description": "Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`.\n\nForecast.Solar læses fra dens solprognose til Energi-dashboardet; de timer, den ikke dækker, planlægges ud fra vejrudsigten og den gemte solhistorik; en time uden nogen af dem regnes som ingen sol.",
+        "data": {
+          "production_entity_id": "Solproduktion",
+          "inverter_discharging_power_limit": "Inverterens effektgrænse",
+          "production_price": "Fast salgspris for soloverskud",
+          "forecast_entity_id": "Forecast.Solar-sensor"
+        },
+        "data_description": {
+          "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW).",
+          "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
+          "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
+          "forecast_entity_id": "En vilkårlig af dens sensorer; tagfladerne i samme solkilde i Energi-dashboardet lægges sammen. Lad feltet være tomt for at vælge solcelleprognose igen."
+        }
+      },
+      "solar_helios": {
+        "title": "Solceller – Helios Forecast",
+        "description": "Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`.\n\nHelios Forecast læses fra dens solprognose til Energi-dashboardet; de timer, den ikke dækker, planlægges ud fra vejrudsigten og den gemte solhistorik; en time uden nogen af dem regnes som ingen sol.",
+        "data": {
+          "production_entity_id": "Solproduktion",
+          "inverter_discharging_power_limit": "Inverterens effektgrænse",
+          "production_price": "Fast salgspris for soloverskud",
+          "forecast_entity_id": "Helios Forecast-sensor"
+        },
+        "data_description": {
+          "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW).",
+          "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
+          "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
+          "forecast_entity_id": "F.eks. sensor.helios_forecast_power_now. Lad feltet være tomt for at vælge solcelleprognose igen."
         }
       },
       "weather": {
@@ -367,6 +512,8 @@
       }
     },
     "error": {
+      "forecast_wrong_source": "Sensoren er ikke fra den valgte solcelleprognose. Vælg en anden sensor, eller tøm feltet for at vælge prognose igen.",
+      "forecast_sensor_missing": "Der blev ikke valgt en sensor. Vælg solcelleprognose igen, eller Ingen prognose.",
       "detection_recorder": "Forslagene kunne ikke laves: recorderen kører ikke, så der er ingen historik. De nuværende værdier beholdes.",
       "detection_timeout": "Det tog for lang tid at læse historikken. De nuværende værdier beholdes; sæt kryds i *Find igen* for at prøve igen.",
       "detection_error": "Historikken kunne ikke læses. De nuværende værdier beholdes; sæt kryds i *Find igen* for at prøve igen.",
@@ -400,6 +547,13 @@
   },
   "options": {
     "step": {
+      "solar_forecast_source": {
+        "title": "Solcelleprognose",
+        "description": "Hvilken solcelleprognose bruger du? Vælg Ingen prognose, hvis du ikke har solceller eller en prognose.\n\n🧪 = endnu ikke bekræftet med rigtige data. Du kan godt vælge den: sammenlign prognosen på dashboardet efter opsætningen.",
+        "data": {
+          "solar_forecast_source": "Solcelleprognose"
+        }
+      },
       "init": {
         "title": "BattMind",
         "description": "Vælg hvad du vil ændre. Integrationen genindlæses når du gemmer.",
@@ -639,7 +793,47 @@
       },
       "prices_stromligning": {
         "title": "Strømligning",
-        "description": "Sensorer fra Strømligning integrationen. Købsprisen er påkrævet; salgs-sensorerne skal bruges for at beregne en præcis salgspris.\n\nStrømligning slår som standard sine sensorer uden moms fra, og en deaktiveret sensor kan ikke vælges her: aktivér dem først under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*). Prisprognoserne kræver desuden *Inkluder prisudsigter for den næste uge?* i Strømlignings indstillinger.\nDeaktiveret i Strømligning nu: {stromligning_disabled}",
+        "description": "Sensorer fra Strømligning integrationen. Købsprisen er påkrævet; salgs-sensorerne skal bruges for at beregne en præcis salgspris.\n\nStrømligning slår som standard sine sensorer uden moms fra, og en deaktiveret sensor kan ikke vælges her: aktivér dem først under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*). Prisprognoserne kræver desuden *Inkluder prisudsigter for den næste uge?* i Strømlignings indstillinger.\n\n⚠️ Deaktiverede Strømligning-sensorer, som ikke kan vælges her: {stromligning_disabled}",
+        "data": {
+          "stromligning_buy_current_price": "Købspris",
+          "stromligning_buy_tomorrow_available": "Købspris i morgen",
+          "stromligning_buy_forecasts": "Købspris prognoser",
+          "stromligning_sell_current_price": "Salgspris (valgfri)",
+          "stromligning_sell_tomorrow_available": "Salgspris i morgen (valgfri)",
+          "stromligning_sell_forecasts": "Salgspris prognoser (valgfri)"
+        },
+        "data_description": {
+          "stromligning_buy_current_price": "Strømlignings nuværende pris inkl. moms (f.eks. sensor.stromligning_current_price_vat).",
+          "stromligning_buy_tomorrow_available": "Strømlignings ’tomorrow available’ entitet for købsprisen.",
+          "stromligning_buy_forecasts": "Strømlignings prognose-sensor - bruges til de timer hvor der endnu ikke er en rigtig pris.",
+          "stromligning_sell_current_price": "Strømlignings nuværende pris ekskl. moms til salg (f.eks. 15 min ex_vat sensoren). Giver adgang til tarif-siden.",
+          "stromligning_sell_tomorrow_available": "Strømlignings ’tomorrow available’ entitet for salgsprisen.",
+          "stromligning_sell_forecasts": "Strømlignings prognose-sensor for salgsprisen."
+        }
+      },
+      "prices_stromligning_ready": {
+        "title": "Strømligning",
+        "description": "Sensorer fra Strømligning integrationen. Købsprisen er påkrævet; salgs-sensorerne skal bruges for at beregne en præcis salgspris.\n\nPrisprognoserne kræver desuden *Inkluder prisudsigter for den næste uge?* i Strømlignings indstillinger.\n\n✅ Alle de Strømligning-sensorer, der kan vælges på denne side, er aktiveret.",
+        "data": {
+          "stromligning_buy_current_price": "Købspris",
+          "stromligning_buy_tomorrow_available": "Købspris i morgen",
+          "stromligning_buy_forecasts": "Købspris prognoser",
+          "stromligning_sell_current_price": "Salgspris (valgfri)",
+          "stromligning_sell_tomorrow_available": "Salgspris i morgen (valgfri)",
+          "stromligning_sell_forecasts": "Salgspris prognoser (valgfri)"
+        },
+        "data_description": {
+          "stromligning_buy_current_price": "Strømlignings nuværende pris inkl. moms (f.eks. sensor.stromligning_current_price_vat).",
+          "stromligning_buy_tomorrow_available": "Strømlignings ’tomorrow available’ entitet for købsprisen.",
+          "stromligning_buy_forecasts": "Strømlignings prognose-sensor - bruges til de timer hvor der endnu ikke er en rigtig pris.",
+          "stromligning_sell_current_price": "Strømlignings nuværende pris ekskl. moms til salg (f.eks. 15 min ex_vat sensoren). Giver adgang til tarif-siden.",
+          "stromligning_sell_tomorrow_available": "Strømlignings ’tomorrow available’ entitet for salgsprisen.",
+          "stromligning_sell_forecasts": "Strømlignings prognose-sensor for salgsprisen."
+        }
+      },
+      "prices_stromligning_missing": {
+        "title": "Strømligning",
+        "description": "Sensorer fra Strømligning integrationen. Købsprisen er påkrævet; salgs-sensorerne skal bruges for at beregne en præcis salgspris.\n\n⚠️ Der blev ikke fundet nogen Strømligning-sensorer til denne side. Sæt først Strømligning-integrationen op.",
         "data": {
           "stromligning_buy_current_price": "Købspris",
           "stromligning_buy_tomorrow_available": "Købspris i morgen",
@@ -659,7 +853,43 @@
       },
       "prices_stromligning_tariffs": {
         "title": "Strømligning - tariffer ved salg",
-        "description": "Ved salg fratrækkes tariffer og afgifter prisen, og transport-/systemtarif og salgsgebyr lægges til. Lad et felt være tomt for at bruge 0.\n\nTarif-sensorerne kan være deaktiveret i Strømligning, og så kan de ikke vælges her: aktivér dem først under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*).\nDeaktiveret i Strømligning nu: {stromligning_disabled}",
+        "description": "Ved salg fratrækkes tariffer og afgifter prisen, og transport-/systemtarif og salgsgebyr lægges til. Lad et felt være tomt for at bruge 0.\n\nTarif-sensorerne kan være deaktiveret i Strømligning, og så kan de ikke vælges her: aktivér dem først under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*).\n\n⚠️ Deaktiverede Strømligning-sensorer, som ikke kan vælges her: {stromligning_disabled}",
+        "data": {
+          "stromligning_sell_distribution": "Transporttarif",
+          "stromligning_sell_electricity_tax": "Elafgift",
+          "stromligning_sell_nettariff": "Nettarif",
+          "stromligning_sell_systemtariff": "Systemtarif",
+          "stromligning_sell_surcharge": "Tillæg til spotpris"
+        },
+        "data_description": {
+          "stromligning_sell_distribution": "Sensor med netselskabets transporttarif pr. periode. Trækkes fra når salgsprisen beregnes (dage uden tarif bruger samme tidspunkt fra seneste kendte dag).",
+          "stromligning_sell_electricity_tax": "Sensor med elafgiften. Trækkes fra når salgsprisen beregnes.",
+          "stromligning_sell_nettariff": "Sensor med Energinets nettarif. Trækkes fra salgsprisen og igen som omkostning ved salg.",
+          "stromligning_sell_systemtariff": "Sensor med systemtariffen. Trækkes fra salgsprisen og igen som omkostning ved salg.",
+          "stromligning_sell_surcharge": "Elselskabets tillæg til spotprisen. Trækkes fra når salgsprisen beregnes."
+        }
+      },
+      "prices_stromligning_tariffs_ready": {
+        "title": "Strømligning - tariffer ved salg",
+        "description": "Ved salg fratrækkes tariffer og afgifter prisen, og transport-/systemtarif og salgsgebyr lægges til. Lad et felt være tomt for at bruge 0.\n\n✅ Alle de Strømligning-sensorer, der kan vælges på denne side, er aktiveret.",
+        "data": {
+          "stromligning_sell_distribution": "Transporttarif",
+          "stromligning_sell_electricity_tax": "Elafgift",
+          "stromligning_sell_nettariff": "Nettarif",
+          "stromligning_sell_systemtariff": "Systemtarif",
+          "stromligning_sell_surcharge": "Tillæg til spotpris"
+        },
+        "data_description": {
+          "stromligning_sell_distribution": "Sensor med netselskabets transporttarif pr. periode. Trækkes fra når salgsprisen beregnes (dage uden tarif bruger samme tidspunkt fra seneste kendte dag).",
+          "stromligning_sell_electricity_tax": "Sensor med elafgiften. Trækkes fra når salgsprisen beregnes.",
+          "stromligning_sell_nettariff": "Sensor med Energinets nettarif. Trækkes fra salgsprisen og igen som omkostning ved salg.",
+          "stromligning_sell_systemtariff": "Sensor med systemtariffen. Trækkes fra salgsprisen og igen som omkostning ved salg.",
+          "stromligning_sell_surcharge": "Elselskabets tillæg til spotprisen. Trækkes fra når salgsprisen beregnes."
+        }
+      },
+      "prices_stromligning_tariffs_missing": {
+        "title": "Strømligning - tariffer ved salg",
+        "description": "Ved salg fratrækkes tariffer og afgifter prisen, og transport-/systemtarif og salgsgebyr lægges til. Lad et felt være tomt for at bruge 0.\n\n⚠️ Der blev ikke fundet nogen Strømligning-sensorer til denne side. Sæt først Strømligning-integrationen op.",
         "data": {
           "stromligning_sell_distribution": "Transporttarif",
           "stromligning_sell_electricity_tax": "Elafgift",
@@ -695,18 +925,80 @@
       },
       "solar": {
         "title": "Solceller",
-        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.\n\nForecast.Solar og Helios Forecast læses fra deres solprognose til Energi-dashboardet; de timer, de ikke dækker, planlægges ud fra vejrudsigten og den gemte solhistorik; en time uden nogen af dem regnes som ingen sol.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\nDeaktiverede Solcast-sensorer nu: {solcast_disabled}",
+        "description": "Valgfri. Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`. Lad felterne være tomme uden solceller.",
         "data": {
           "production_entity_id": "Solproduktion",
           "inverter_discharging_power_limit": "Inverterens effektgrænse",
-          "production_price": "Fast salgspris for soloverskud",
-          "forecast_entity_id": "Solprognose (valgfri)"
+          "production_price": "Fast salgspris for soloverskud"
         },
         "data_description": {
           "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW). Lad feltet være tomt hvis du ikke har solceller.",
           "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
+          "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen."
+        }
+      },
+      "solar_solcast": {
+        "title": "Solceller – Solcast PV Forecast",
+        "description": "Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`.\n\nSolcast slår som standard prognosesensorerne fra dag 3 og frem fra: aktivér dem under **Indstillinger → Enheder og tjenester → Entiteter** (*Vis deaktiverede entiteter*) og slå *Hourly detail* til under *Forecast attributes breakdown* i Solcasts indstillinger, ellers planlægges de dage uden Solcast.\n\n⚠️ Solcast-sensorer, der er deaktiverede, mangler, ikke er tilgængelige eller ikke har timedetaljer: {solcast_problems}",
+        "data": {
+          "production_entity_id": "Solproduktion",
+          "inverter_discharging_power_limit": "Inverterens effektgrænse",
+          "production_price": "Fast salgspris for soloverskud",
+          "forecast_entity_id": "Solcast PV Forecast-sensor"
+        },
+        "data_description": {
+          "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW).",
+          "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
           "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
-          "forecast_entity_id": "Solcast PV Forecast, Forecast.Solar eller Helios Forecast. Solcast: f.eks. sensor.solcast_pv_forecast_forecast_today, de kommende dage findes automatisk. Forecast.Solar: en vilkårlig af dens sensorer; tagfladerne i samme solkilde i Energi-dashboardet lægges sammen. Helios Forecast: f.eks. sensor.helios_forecast_power_now."
+          "forecast_entity_id": "F.eks. sensor.solcast_pv_forecast_forecast_today; de kommende dage findes automatisk. Lad feltet være tomt for at vælge solcelleprognose igen."
+        }
+      },
+      "solar_solcast_ready": {
+        "title": "Solceller – Solcast PV Forecast",
+        "description": "Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`.\n\n✅ Alle de Solcast-sensorer, der skal bruges, er aktiveret.",
+        "data": {
+          "production_entity_id": "Solproduktion",
+          "inverter_discharging_power_limit": "Inverterens effektgrænse",
+          "production_price": "Fast salgspris for soloverskud",
+          "forecast_entity_id": "Solcast PV Forecast-sensor"
+        },
+        "data_description": {
+          "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW).",
+          "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
+          "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
+          "forecast_entity_id": "F.eks. sensor.solcast_pv_forecast_forecast_today; de kommende dage findes automatisk. Lad feltet være tomt for at vælge solcelleprognose igen."
+        }
+      },
+      "solar_forecast_solar": {
+        "title": "Solceller – Forecast.Solar",
+        "description": "Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`.\n\nForecast.Solar læses fra dens solprognose til Energi-dashboardet; de timer, den ikke dækker, planlægges ud fra vejrudsigten og den gemte solhistorik; en time uden nogen af dem regnes som ingen sol.",
+        "data": {
+          "production_entity_id": "Solproduktion",
+          "inverter_discharging_power_limit": "Inverterens effektgrænse",
+          "production_price": "Fast salgspris for soloverskud",
+          "forecast_entity_id": "Forecast.Solar-sensor"
+        },
+        "data_description": {
+          "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW).",
+          "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
+          "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
+          "forecast_entity_id": "En vilkårlig af dens sensorer; tagfladerne i samme solkilde i Energi-dashboardet lægges sammen. Lad feltet være tomt for at vælge solcelleprognose igen."
+        }
+      },
+      "solar_helios": {
+        "title": "Solceller – Helios Forecast",
+        "description": "Med solceller forudsiger BattMind det overskud der lader batteriet gratis, kan flytte solopladning til billigere timer og opsummerer `sensor.{prefix}_kwh_charged_by_solar`.\n\nHelios Forecast læses fra dens solprognose til Energi-dashboardet; de timer, den ikke dækker, planlægges ud fra vejrudsigten og den gemte solhistorik; en time uden nogen af dem regnes som ingen sol.",
+        "data": {
+          "production_entity_id": "Solproduktion",
+          "inverter_discharging_power_limit": "Inverterens effektgrænse",
+          "production_price": "Fast salgspris for soloverskud",
+          "forecast_entity_id": "Helios Forecast-sensor"
+        },
+        "data_description": {
+          "production_entity_id": "Sensor med den aktuelle solproduktion (W/kW).",
+          "inverter_discharging_power_limit": "Inverterens maks. AC-effekt. Begrænser hvor meget sol + batteri der er til rådighed samtidig.",
+          "production_price": "Pris pr. kWh (i Home Assistants valuta) som soloverskud der sælges værdisættes til, f.eks. en fast afregningspris fra dit elselskab. Sæt til -1 for at bruge timesalgsprisen.",
+          "forecast_entity_id": "F.eks. sensor.helios_forecast_power_now. Lad feltet være tomt for at vælge solcelleprognose igen."
         }
       },
       "weather": {
@@ -798,6 +1090,8 @@
       }
     },
     "error": {
+      "forecast_wrong_source": "Sensoren er ikke fra den valgte solcelleprognose. Vælg en anden sensor, eller tøm feltet for at vælge prognose igen.",
+      "forecast_sensor_missing": "Der blev ikke valgt en sensor. Vælg solcelleprognose igen, eller Ingen prognose.",
       "detection_recorder": "Forslagene kunne ikke laves: recorderen kører ikke, så der er ingen historik. De nuværende værdier beholdes.",
       "detection_timeout": "Det tog for lang tid at læse historikken. De nuværende værdier beholdes; sæt kryds i *Find igen* for at prøve igen.",
       "detection_error": "Historikken kunne ikke læses. De nuværende værdier beholdes; sæt kryds i *Find igen* for at prøve igen.",
@@ -832,6 +1126,17 @@
     }
   },
   "selector": {
+    "solar_forecast_sources": {
+      "options": {
+        "none": "Ingen prognose",
+        "solcast_solar": "Solcast PV Forecast",
+        "solcast_solar_unconfirmed": "🧪 Solcast PV Forecast",
+        "forecast_solar": "Forecast.Solar",
+        "forecast_solar_unconfirmed": "🧪 Forecast.Solar",
+        "helios_forecast": "Helios Forecast",
+        "helios_forecast_unconfirmed": "🧪 Helios Forecast"
+      }
+    },
     "unsupported_actions": {
       "options": {
         "grid_charging": "Opladning fra nettet (grid_charging)",
