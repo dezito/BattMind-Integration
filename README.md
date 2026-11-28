@@ -35,6 +35,8 @@ The included blueprint does that once you have added your inverter's commands fo
 > [PyScript version](https://github.com/dezito/BattMind) and can import its configuration and
 > databases. See [Switching from the PyScript version](docs/migration.md).
 
+🌐 **[Documentation website](https://dezito.github.io/BattMind-Integration/)** – the documentation as a website with a menu.
+
 📖 **[Documentation](docs/README.md)** – [tested integrations by country](docs/tested-integrations.md), [getting started](docs/getting-started.md), [how BattMind plans](docs/how-it-works.md),
 every rule explained with examples, [inverter setups](docs/README.md#inverters), [how BattMind compares with other
 optimisers](docs/comparison.md) and [FAQ](docs/faq-troubleshooting.md).
