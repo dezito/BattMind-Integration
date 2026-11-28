@@ -210,7 +210,7 @@ The hourly check above waits for the plan to use an action. To find out right aw
 what each action asks, run the test: turn on **Test my automation** under *Settings* on the dashboard (the switch
 `switch.<prefix>_automation_test_run`). BattMind then publishes one action after the other on
 `sensor.<prefix>_powerwall_action`, measures what the battery does, and shows the result as a table under the switch
-(the attribute `markdown` of `sensor.<prefix>_automation_test`).
+(the attribute `markdown` of `sensor.<prefix>_automation_test`). Click *Show the test result* to see it; it is open while the test runs.
 
 The table lists every step from the moment the test starts, so you can see what will be tested and how far it is:
 ⏳ waits, ▶️ is tested now, and a step gets its result (✅, ❌ or 🔧) when it is done. A line above the table counts
