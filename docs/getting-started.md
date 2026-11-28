@@ -173,6 +173,10 @@ The page has two sections: **📈 Prices and forecast**, and **🕐 Prices only 
 Octopus Energy and Nord Pool, which need a provider from the first section next to them. At the top it shows the order the
 prices are taken in, with the providers of your country, and each section lists them in that order.
 
+A price page sent without a required sensor stays and marks the field. If you don't have the sensor (for example because
+the integration is not set up), send the page again without it: that goes back to the price providers, with what you
+filled in kept. To choose another country during the first setup, close the setup and start again.
+
 Choose one or more. With several, the priority is Strømligning,
 then Energi Data Service, then Octopus Energy, Nord Pool, EPEX Spot and GE-Spot, then Energy Price Forecast, then the spot forecast integrations: each hour uses the first one that has a price (a real price
 always goes before a forecast), and the next fills the gaps (also in the what-if and the analysis). All price sensors must be in the same currency
@@ -268,8 +272,12 @@ First comes the **solar forecast** you use, on a page of its own (**No forecast*
 PV Forecast, **🧪** Forecast.Solar or **🧪** Helios Forecast. 🧪 means **not confirmed with real data** yet; so far Solcast PV
 Forecast is confirmed. The next page is made for the chosen forecast, with its own title, explanation and sensor field. Its
 picker offers only that forecast's sensors (all three when the integration of a stored sensor is not known); leave the field
-empty to choose the forecast again. The choice is not stored: it is read from the sensor. Choosing another forecast removes
-the stored sensor (a sensor whose integration is not known is kept).
+empty to choose the forecast again. The choice is not stored: it is read from the sensor. When the stored sensor is not
+recognised as one of the three forecasts, nothing is chosen for you. Choosing another forecast removes the stored sensor
+(a sensor whose integration is not known is kept).
+
+The Solcast page lists the Solcast sensors that are not ready. If you choose a sensor there whose list is different, the
+page is shown once more with the new list; send it again to continue. In a new setup it checks all seven days, because the number of days to plan is chosen later.
 
 With a forecast the dashboard shows **Settings → Solar forecast check** (click *Show the solar forecast check*): the source,
 and for each day how many hours the forecast delivers a value for, and their sum in kWh (the attribute

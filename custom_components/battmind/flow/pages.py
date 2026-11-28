@@ -10,14 +10,14 @@ from homeassistant.data_entry_flow import section
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import selector
 
-from ..const import FLOW_STEPS, OPTIONS_MENU, PRICE_PROVIDER_KEYS, PRICE_PROVIDER_PRIORITY, default_options, price_scale
+from ..const import ENTITY_OPTION_KEYS, FLOW_STEPS, OPTIONS_MENU, PRICE_PROVIDER_KEYS, PRICE_PROVIDER_PRIORITY, default_options, price_scale
 from ..management.dependency_checks import NOTHING, disabled_sensors, sensors_registered, solcast_flow_problems
 from ..prices import STROMLIGNING_PAGE_PREFIXES, STROMLIGNING_PLATFORM, STROMLIGNING_UNUSED_PREFIXES, detect_price_scale, has_stromligning_sell_prices, price_currency_errors, price_sensor_errors, DEFAULT_COUNTRY, default_providers, provider_errors, providers_for_country, unconfirmed_providers, provider_sections
 from ..utils.cjp import cjp_charger_power_entities
 from ..utils.solcast import SOLCAST_PLATFORM, solcast_endings_for_days
 from ..utils.solar_sources import CONFIRMED_SOLAR_SOURCES, NO_SOLAR_SOURCE, SOLAR_SOURCES
 from .detection import Detection, async_detect, evidence_placeholders, verdict_values
-from .schema import BOOLEAN, ENERGIDATASERVICE_URL, PRICE_PROVIDER_NAMES, PRICE_PROVIDERS, SELECTORS, SPOT_PRICE_PROVIDERS, UNCONFIRMED_SUFFIX, ProviderSelector, build_schema, forecast_selector, normalize_input, provider_of, validate_step
+from .schema import BOOLEAN, ENERGIDATASERVICE_URL, PRICE_PROVIDER_NAMES, PRICE_PROVIDERS, SELECTORS, REQUIRED_KEYS, SPOT_PRICE_PROVIDERS, UNCONFIRMED_SUFFIX, ProviderSelector, build_schema, forecast_selector, normalize_input, provider_of, validate_step
 
 # the sensors the suggestions are made from; they are only made again when one of them was changed in this session
 DETECTION_SENSORS = ("power_consumption_entity_id", "powerwall_watt_flow_entity_id", "powerwall_battery_level_entity_id")
@@ -42,6 +42,12 @@ class BattMindFlowPages:
     _providers: list[str]
     # the solar forecast chosen on the page before the solar page (not stored); None when that page was not shown
     _solar_source: str | None = None
+    # why the price provider page is shown again (a price page was sent without a required sensor)
+    _price_error: str = ""
+    # the price page last sent without required sensors, and which: sent again like that, it leads back to the providers
+    _price_warned: tuple[str, ...] = ()
+    # what the Solcast page last shown listed as not ready
+    _solcast_shown: str = ""
     # the three sensors as they were when the options were loaded (restored, imported, stored), and what was found for a set
     _baseline: tuple[str, ...]
     _baseline_sign: bool = False  # the sign the options had then: the stored one, not what the form says now
@@ -144,6 +150,24 @@ class BattMindFlowPages:
                 registry = er.async_get(self.hass)  # type: ignore[attr-defined]
                 unique_id_of = lambda entity_id: getattr(registry.async_get(entity_id), "unique_id", None)  # noqa: E731
                 errors = {**price_currency_errors({**self._options, **values}, keys, get_state), **price_sensor_errors(values, get_state, unique_id_of), **errors}
+            missing = [key for key in self._required_price_sensors(step, keys) if not values.get(key)]
+            warned, self._price_warned = self._price_warned, (step, *missing) if missing else ()
+            if missing:
+                errors = {key: value for key, value in errors.items() if key not in missing}
+                if not errors and warned == self._price_warned:
+                    # back to the providers, then every price page of the choice again: never past a required sensor
+                    self._price_warned = ()
+                    self._options.update(values)
+                    self._queue = [*OPTIONS_MENU["prices"][1:], *(page for page in self._queue if page not in OPTIONS_MENU["prices"])]
+                    self._price_error = "price_sensor_not_chosen"
+                    return await self.async_step_price_provider()
+                # the first time the page stays, so a forgotten field costs nothing; the field says how to leave
+                errors.update(dict.fromkeys(missing, "price_sensor_required"))
+            if not errors and step == "solar" and self._solar_source == "solcast_solar" and values.get("forecast_entity_id"):
+                # the page judged the sensor it showed: another one that lacks something else is shown once, it never blocks
+                waits = self._solcast_waiting(values["forecast_entity_id"])
+                if waits and waits != self._solcast_shown:
+                    errors = {"base": "solcast_check_again"}
             if not errors and step == "solar" and self._solar_source in SOLAR_SOURCES and not values.get("forecast_entity_id"):
                 # no sensor of the chosen forecast: back to the choice (a flow has no back button), the page's values kept
                 self._options.update(values)
@@ -165,12 +189,18 @@ class BattMindFlowPages:
         )
         if step == "solar":
             data_schema = self._solar_schema(data_schema)
+        required = self._required_price_sensors(step, keys)
+        if required:
+            # optional in the form, so the page can be sent without them (see above)
+            data_schema = vol.Schema({
+                vol.Optional(str(key), description=key.description) if str(key) in required else key: field
+                for key, field in data_schema.schema.items()
+            })
         shown = SOLAR_PAGES.get(self._solar_source, step) if step == "solar" else step
         solcast_waits = ""
         if shown == SOLAR_PAGES["solcast_solar"]:
-            solcast_waits = solcast_flow_problems(
-                self.hass, values_for_form.get("forecast_entity_id") or "", solcast_endings_for_days(int(self._options.get("days_to_predict") or default_options()["days_to_predict"]))  # type: ignore[attr-defined]
-            )
+            solcast_waits = self._solcast_waiting(values_for_form.get("forecast_entity_id") or "")
+            self._solcast_shown = solcast_waits
             shown = shown if solcast_waits else SOLCAST_READY_PAGE
         stromligning_off = ""
         if step in STROMLIGNING_PAGE_PREFIXES:
@@ -275,16 +305,19 @@ class BattMindFlowPages:
             source: source if source == NO_SOLAR_SOURCE or source in CONFIRMED_SOLAR_SOURCES else source + UNCONFIRMED_SUFFIX
             for source in (NO_SOLAR_SOURCE, *SOLAR_SOURCES)
         }
-        chosen = NO_SOLAR_SOURCE if not stored else platform if platform in SOLAR_SOURCES else SOLAR_SOURCES[0]
+        # a stored sensor of no forecast source (or one that is not known) preselects nothing: a guess would relabel it
+        chosen = NO_SOLAR_SOURCE if not stored else platform if platform in SOLAR_SOURCES else None
+        marker = vol.Required("solar_forecast_source", default=listed[chosen]) if chosen else vol.Required("solar_forecast_source")
         schema = vol.Schema(
             {
-                vol.Required("solar_forecast_source", default=listed[chosen]): ProviderSelector(
+                marker: ProviderSelector(
                     selector.SelectSelectorConfig(options=list(listed.values()), mode=selector.SelectSelectorMode.LIST, translation_key="solar_forecast_sources")
                 )
             }
         )
         return self.async_show_form(  # type: ignore[attr-defined]
-            step_id="solar_forecast_source", data_schema=schema, errors=errors or {}, description_placeholders=self._placeholders()
+            step_id="solar_forecast_source" if chosen else "solar_forecast_source_unknown", data_schema=schema, errors=errors or {},
+            description_placeholders={**self._placeholders(), "stored_sensor": stored},
         )
 
     async def async_step_solar_solcast(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -301,6 +334,20 @@ class BattMindFlowPages:
 
     async def async_step_prices_stromligning_tariffs_missing(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return await self._async_page("prices_stromligning_tariffs", user_input)
+
+    @staticmethod
+    def _required_price_sensors(step: str, keys: list[str]) -> list[str]:
+        """The sensors a price page can't do without."""
+        return [key for key in keys if step.startswith("prices_") and key in REQUIRED_KEYS and key in ENTITY_OPTION_KEYS]
+
+    def _solcast_waiting(self, forecast_entity: str) -> str:
+        """What the Solcast sensors the plan needs still lack, "" when all are ready."""
+        # all seven days while the Advanced page, where the days to plan are chosen, is still to come
+        days = 7 if "advanced" in self._queue else int(self._options.get("days_to_predict") or default_options()["days_to_predict"])
+        return solcast_flow_problems(self.hass, forecast_entity, solcast_endings_for_days(days))  # type: ignore[attr-defined]
+
+    async def async_step_solar_forecast_source_unknown(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        return await self.async_step_solar_forecast_source(user_input)
 
     async def async_step_solar_solcast_ready(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return await self._async_page("solar", user_input)
@@ -336,7 +383,8 @@ class BattMindFlowPages:
         return vol.Schema({key: forecast_selector(source) if key == "forecast_entity_id" else value for key, value in schema.schema.items()})
 
     async def async_step_price_provider(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        errors: dict[str, str] = {}
+        errors: dict[str, str] = {"base": self._price_error} if self._price_error else {}
+        self._price_error = ""
         country = self._price_country()
         # only the providers that have prices in the country, in the order their prices are taken in (the lists follow it)
         offered = providers_for_country(country, PRICE_PROVIDER_PRIORITY)

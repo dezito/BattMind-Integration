@@ -738,12 +738,19 @@ electricity supplier charges for selling. Formula:
 - Solar forecast sources (`utils/solar_sources.py`, the same file in both repositories): a source is confirmed only by hand
   via `CONFIRMED_SOLAR_SOURCES` (so far only Solcast PV Forecast, user decision). The flow asks for the source on its own page
   before the solar page (marked values as for the price providers, `ProviderSelector`); no source is stored, it is read from
-  the platform of the forecast sensor, and a sensor whose platform is unknown is never cleared. Each
+  the platform of the forecast sensor, and a sensor whose platform is unknown is never cleared. A stored
+  sensor that is not from a source's integration preselects nothing (step `solar_forecast_source_unknown` names it): a guess
+  would relabel it. `solar_source` names where the rows were read from. Each
   choice has its own solar page (step ids `solar`, `solar_solcast`, `solar_solcast_ready`, `solar_forecast_solar`, `solar_helios`,
   `SOLAR_PAGES` in `flow/pages.py`) that holds only its own texts. The Solcast page says that all needed sensors are ready only
-  on `solar_solcast_ready`, when `solcast_flow_problems()` finds none; no Solcast sensor at all is a problem. The two
+  on `solar_solcast_ready`, when `solcast_flow_problems()` finds none; no Solcast sensor at all is a problem. A
+  submitted sensor whose list of problems differs from the one shown brings the page back once (it informs, it never
+  blocks). BattMind judges all seven days while the Advanced page is still to come. The two
   Strømligning pages do the same with the step ids `<page>_ready` and `<page>_missing` (each judges only the sensors it can
-  take, `STROMLIGNING_PAGE_PREFIXES`): never show an empty list as the answer, and never "ready" when there is no sensor. An empty sensor field goes back to the choice: a flow has no back button, so
+  take, `STROMLIGNING_PAGE_PREFIXES`): never show an empty list as the answer, and never "ready" when there is no sensor. No price
+  page may trap the user: its required sensors are optional in the form. A page sent without one stays and marks the field
+  (`price_sensor_required`); sent again with the same ones missing and no other error, it goes back to the price providers
+  with the values kept (`_async_page`). A flow never gets past a price page without the sensors that page requires. An empty sensor field goes back to the choice: a flow has no back button, so
   no check may leave the user without a way out. Choosing a source clears a stored sensor whose known platform is another one. The attribute `solar_check`
   states only facts about what the forecast delivers (source, confirmed, and per day the
   hours with a value and their kWh), never passed or failed: a missing

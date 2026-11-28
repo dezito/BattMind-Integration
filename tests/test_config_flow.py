@@ -187,8 +187,8 @@ async def test_energy_price_forecast_page_refuses_cents_a_wholesale_buy_sensor_a
     assert result["step_id"] == "prices_energypriceforecast"
     sell = {"energypriceforecast_sell_entity_id": "sensor.epf_wholesale"}
     # the sell sensor is required: a retail price is more than a sale pays, so it is not taken for one
-    with pytest.raises(InvalidData):
-        await hass.config_entries.flow.async_configure(result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_retail"})
+    refused = await hass.config_entries.flow.async_configure(result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_retail"})
+    assert refused["step_id"] == "prices_energypriceforecast" and refused["errors"]["energypriceforecast_sell_entity_id"] == "price_sensor_required"
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"energypriceforecast_buy_entity_id": "sensor.epf_cents", **sell})
     mismatch = {"energypriceforecast_sell_entity_id": "price_currency_mismatch"}  # the wholesale sell sensor is EUR, Energi Data Service DKK
     assert result["errors"] == {"energypriceforecast_buy_entity_id": "price_unit_subunit", **mismatch}
@@ -257,18 +257,18 @@ async def test_stromligning_pages(hass: HomeAssistant) -> None:
 
 
 @pytest.mark.parametrize(
-    ("provider", "step", "sell"),
+    ("provider", "buy", "sell"),
     [
-        ("energidataservice", "prices_energidataservice", {"energidataservice_sell_entity_id": "sensor.eds_sell"}),
-        ("stromligning", "prices_stromligning", {"stromligning_sell_current_price": "sensor.stromligning_sell"}),
+        ("energidataservice", "energidataservice_buy_entity_id", {"energidataservice_sell_entity_id": "sensor.eds_sell"}),
+        ("stromligning", "stromligning_buy_current_price", {"stromligning_sell_current_price": "sensor.stromligning_sell"}),
     ],
 )
-async def test_a_sell_entity_alone_is_rejected(hass: HomeAssistant, provider: str, step: str, sell: dict) -> None:
+async def test_a_sell_entity_alone_is_rejected(hass: HomeAssistant, provider: str, buy: str, sell: dict) -> None:
     """The planner, what-if and dashboard need the buy entity of every chosen provider."""
     result = await _to_price_provider(hass)
     result = await _configure(hass, result, "price_provider", providers_input(provider))
-    with pytest.raises(InvalidData):
-        await _configure(hass, result, step, sell)
+    refused = await hass.config_entries.flow.async_configure(result["flow_id"], sell)
+    assert refused["step_id"].startswith(f"prices_{provider}") and refused["errors"][buy] == "price_sensor_required", refused
 
 
 async def test_weather_page_skipped_without_solar(hass: HomeAssistant) -> None:

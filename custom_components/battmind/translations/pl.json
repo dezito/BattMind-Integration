@@ -8,6 +8,13 @@
           "solar_forecast_source": "Prognoza solarna"
         }
       },
+      "solar_forecast_source_unknown": {
+        "title": "Prognoza solarna",
+        "description": "Z której prognozy solarnej korzystasz? Jeśli nie masz paneli lub prognozy, wybierz Bez prognozy.\n\n🧪 = jeszcze niepotwierdzona na prawdziwych danych. Można ją wybrać: po konfiguracji porównaj prognozę na pulpicie.\n\nTeraz wybrany jest **{stored_sensor}**, ale nie jest rozpoznawany jako żadna z tych prognoz. Wybierz prognozę, której chcesz używać.",
+        "data": {
+          "solar_forecast_source": "Prognoza solarna"
+        }
+      },
       "battery_entities": {
         "data_description": {
           "powerwall_battery_level_entity_id": "Poziom magazynu energii (procent)",
@@ -515,6 +522,9 @@
       "already_configured": "Już skonfigurowano"
     },
     "error": {
+      "price_sensor_required": "Wybierz ten czujnik. Jeśli go nie masz, zatwierdź ponownie bez niego, aby wrócić do dostawców cen.",
+      "price_sensor_not_chosen": "Nie wybrano wymaganego czujnika ceny. Odznacz dostawcę bez czujnika albo zostaw go i wybierz czujnik na jego stronie.",
+      "solcast_check_again": "Niektóre czujniki Solcast do wybranego nie są gotowe (zobacz listę). Zatwierdź ponownie, aby mimo to kontynuować.",
       "forecast_wrong_source": "Ten czujnik nie pochodzi z wybranej prognozy solarnej. Wybierz inny czujnik albo wyczyść pole, aby ponownie wybrać prognozę.",
       "forecast_sensor_missing": "Nie wybrano czujnika. Wybierz ponownie prognozę solarną albo Bez prognozy.",
       "detection_recorder": "Nie udało się przygotować propozycji: rejestrator nie działa, więc nie ma historii. Obecne wartości zostają.",
@@ -550,6 +560,13 @@
       "solar_forecast_source": {
         "title": "Prognoza solarna",
         "description": "Z której prognozy solarnej korzystasz? Jeśli nie masz paneli lub prognozy, wybierz Bez prognozy.\n\n🧪 = jeszcze niepotwierdzona na prawdziwych danych. Można ją wybrać: po konfiguracji porównaj prognozę na pulpicie.",
+        "data": {
+          "solar_forecast_source": "Prognoza solarna"
+        }
+      },
+      "solar_forecast_source_unknown": {
+        "title": "Prognoza solarna",
+        "description": "Z której prognozy solarnej korzystasz? Jeśli nie masz paneli lub prognozy, wybierz Bez prognozy.\n\n🧪 = jeszcze niepotwierdzona na prawdziwych danych. Można ją wybrać: po konfiguracji porównaj prognozę na pulpicie.\n\nTeraz wybrany jest **{stored_sensor}**, ale nie jest rozpoznawany jako żadna z tych prognoz. Wybierz prognozę, której chcesz używać.",
         "data": {
           "solar_forecast_source": "Prognoza solarna"
         }
@@ -1095,6 +1112,9 @@
       "backup_failed": "Import nie powiódł się: {error}"
     },
     "error": {
+      "price_sensor_required": "Wybierz ten czujnik. Jeśli go nie masz, zatwierdź ponownie bez niego, aby wrócić do dostawców cen.",
+      "price_sensor_not_chosen": "Nie wybrano wymaganego czujnika ceny. Odznacz dostawcę bez czujnika albo zostaw go i wybierz czujnik na jego stronie.",
+      "solcast_check_again": "Niektóre czujniki Solcast do wybranego nie są gotowe (zobacz listę). Zatwierdź ponownie, aby mimo to kontynuować.",
       "forecast_wrong_source": "Ten czujnik nie pochodzi z wybranej prognozy solarnej. Wybierz inny czujnik albo wyczyść pole, aby ponownie wybrać prognozę.",
       "forecast_sensor_missing": "Nie wybrano czujnika. Wybierz ponownie prognozę solarną albo Bez prognozy.",
       "detection_recorder": "Nie udało się przygotować propozycji: rejestrator nie działa, więc nie ma historii. Obecne wartości zostają.",

@@ -8,6 +8,13 @@
           "solar_forecast_source": "Solar forecast"
         }
       },
+      "solar_forecast_source_unknown": {
+        "title": "Solar forecast",
+        "description": "Which solar forecast do you use? Without solar panels or a forecast, choose No forecast.\n\n🧪 = not yet confirmed with real data. You can still choose it: compare the forecast on the dashboard after the setup.\n\n**{stored_sensor}** is chosen now, but it is not recognised as one of these forecasts. Choose the forecast to use.",
+        "data": {
+          "solar_forecast_source": "Solar forecast"
+        }
+      },
       "user": {
         "title": "Add BattMind",
         "description": "BattMind plans when the home battery should charge from the grid, discharge or sell, based on prices, consumption and solar forecast. The plan is published as sensors you use in your own automations.\n\n**Entity prefix** is used in every entity id, e.g. `sensor.PREFIX_powerwall_action`. Use a different prefix for each instance (and another prefix than the PyScript version if both run). It cannot be changed later.",
@@ -512,6 +519,9 @@
       }
     },
     "error": {
+      "price_sensor_required": "Choose this sensor. If you don't have it, submit again without it to go back to the price providers.",
+      "price_sensor_not_chosen": "A required price sensor was not chosen. Untick the provider without a sensor, or keep it and choose the sensor on its page.",
+      "solcast_check_again": "Some Solcast sensors of the chosen one are not ready (see the list). Submit again to continue anyway.",
       "forecast_wrong_source": "This sensor is not from the chosen solar forecast. Choose another sensor, or clear the field to choose the forecast again.",
       "forecast_sensor_missing": "No sensor was chosen. Choose the solar forecast again, or No forecast.",
       "detection_recorder": "The suggestions could not be made: the recorder is not running, so there is no history. The current values are kept.",
@@ -550,6 +560,13 @@
       "solar_forecast_source": {
         "title": "Solar forecast",
         "description": "Which solar forecast do you use? Without solar panels or a forecast, choose No forecast.\n\n🧪 = not yet confirmed with real data. You can still choose it: compare the forecast on the dashboard after the setup.",
+        "data": {
+          "solar_forecast_source": "Solar forecast"
+        }
+      },
+      "solar_forecast_source_unknown": {
+        "title": "Solar forecast",
+        "description": "Which solar forecast do you use? Without solar panels or a forecast, choose No forecast.\n\n🧪 = not yet confirmed with real data. You can still choose it: compare the forecast on the dashboard after the setup.\n\n**{stored_sensor}** is chosen now, but it is not recognised as one of these forecasts. Choose the forecast to use.",
         "data": {
           "solar_forecast_source": "Solar forecast"
         }
@@ -1090,6 +1107,9 @@
       }
     },
     "error": {
+      "price_sensor_required": "Choose this sensor. If you don't have it, submit again without it to go back to the price providers.",
+      "price_sensor_not_chosen": "A required price sensor was not chosen. Untick the provider without a sensor, or keep it and choose the sensor on its page.",
+      "solcast_check_again": "Some Solcast sensors of the chosen one are not ready (see the list). Submit again to continue anyway.",
       "forecast_wrong_source": "This sensor is not from the chosen solar forecast. Choose another sensor, or clear the field to choose the forecast again.",
       "forecast_sensor_missing": "No sensor was chosen. Choose the solar forecast again, or No forecast.",
       "detection_recorder": "The suggestions could not be made: the recorder is not running, so there is no history. The current values are kept.",

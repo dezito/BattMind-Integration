@@ -8,6 +8,13 @@
           "solar_forecast_source": "Solarprognose"
         }
       },
+      "solar_forecast_source_unknown": {
+        "title": "Solarprognose",
+        "description": "Welche Solarprognose nutzt du? Wähle Keine Prognose, wenn du keine Solarmodule oder keine Prognose hast.\n\n🧪 = noch nicht mit echten Daten bestätigt. Du kannst sie trotzdem wählen: Vergleiche die Prognose nach der Einrichtung auf dem Dashboard.\n\n**{stored_sensor}** ist jetzt gewählt, wird aber nicht als eine dieser Prognosen erkannt. Wähle die Prognose, die du verwenden möchtest.",
+        "data": {
+          "solar_forecast_source": "Solarprognose"
+        }
+      },
       "battery_entities": {
         "data_description": {
           "powerwall_battery_level_entity_id": "Heimspeicher Batteriestand (Prozent)",
@@ -515,6 +522,9 @@
       "already_configured": "Bereits eingerichtet"
     },
     "error": {
+      "price_sensor_required": "Wähle diesen Sensor. Hast du ihn nicht, sende erneut ohne ihn ab, um zu den Preisanbietern zurückzugehen.",
+      "price_sensor_not_chosen": "Ein erforderlicher Preissensor wurde nicht gewählt. Entferne den Haken beim Anbieter ohne Sensor, oder behalte ihn und wähle den Sensor auf seiner Seite.",
+      "solcast_check_again": "Einige Solcast-Sensoren zum gewählten sind nicht bereit (siehe Liste). Sende erneut ab, um trotzdem fortzufahren.",
       "forecast_wrong_source": "Dieser Sensor gehört nicht zur gewählten Solarprognose. Wähle einen anderen Sensor, oder leere das Feld, um die Prognose erneut zu wählen.",
       "forecast_sensor_missing": "Es wurde kein Sensor gewählt. Wähle die Solarprognose erneut oder Keine Prognose.",
       "detection_recorder": "Die Vorschläge konnten nicht erstellt werden: Der Recorder läuft nicht, daher gibt es keinen Verlauf. Die aktuellen Werte bleiben.",
@@ -550,6 +560,13 @@
       "solar_forecast_source": {
         "title": "Solarprognose",
         "description": "Welche Solarprognose nutzt du? Wähle Keine Prognose, wenn du keine Solarmodule oder keine Prognose hast.\n\n🧪 = noch nicht mit echten Daten bestätigt. Du kannst sie trotzdem wählen: Vergleiche die Prognose nach der Einrichtung auf dem Dashboard.",
+        "data": {
+          "solar_forecast_source": "Solarprognose"
+        }
+      },
+      "solar_forecast_source_unknown": {
+        "title": "Solarprognose",
+        "description": "Welche Solarprognose nutzt du? Wähle Keine Prognose, wenn du keine Solarmodule oder keine Prognose hast.\n\n🧪 = noch nicht mit echten Daten bestätigt. Du kannst sie trotzdem wählen: Vergleiche die Prognose nach der Einrichtung auf dem Dashboard.\n\n**{stored_sensor}** ist jetzt gewählt, wird aber nicht als eine dieser Prognosen erkannt. Wähle die Prognose, die du verwenden möchtest.",
         "data": {
           "solar_forecast_source": "Solarprognose"
         }
@@ -1095,6 +1112,9 @@
       "backup_failed": "Der Import ist fehlgeschlagen: {error}"
     },
     "error": {
+      "price_sensor_required": "Wähle diesen Sensor. Hast du ihn nicht, sende erneut ohne ihn ab, um zu den Preisanbietern zurückzugehen.",
+      "price_sensor_not_chosen": "Ein erforderlicher Preissensor wurde nicht gewählt. Entferne den Haken beim Anbieter ohne Sensor, oder behalte ihn und wähle den Sensor auf seiner Seite.",
+      "solcast_check_again": "Einige Solcast-Sensoren zum gewählten sind nicht bereit (siehe Liste). Sende erneut ab, um trotzdem fortzufahren.",
       "forecast_wrong_source": "Dieser Sensor gehört nicht zur gewählten Solarprognose. Wähle einen anderen Sensor, oder leere das Feld, um die Prognose erneut zu wählen.",
       "forecast_sensor_missing": "Es wurde kein Sensor gewählt. Wähle die Solarprognose erneut oder Keine Prognose.",
       "detection_recorder": "Die Vorschläge konnten nicht erstellt werden: Der Recorder läuft nicht, daher gibt es keinen Verlauf. Die aktuellen Werte bleiben.",
