@@ -21,6 +21,7 @@ class StromligningPriceProvider(BasePriceProvider):
     display_name = "Strømligning"
     buy_key = "stromligning_buy_current_price"
     countries = frozenset({"DK"})  # Strømligning is a Danish service
+    confirmed_countries = frozenset({"DK"})
     sell_key = "stromligning_sell_current_price"
 
     def __init__(self, config: dict) -> None:

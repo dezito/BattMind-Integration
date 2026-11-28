@@ -37,6 +37,22 @@ class Pricing:
         # the prices of the plan (real and forecast) for the price chart of the dashboard, after every price update, also one that failed: the
         # chart shows what the plan has now (the cached or offline prices, or none), never the rows of an earlier update
         self.set_attr("powerwall_action", "price_chart", self.price_chart_rows())
+        self.set_attr("powerwall_action", "price_check", self.price_check())
+
+    def price_check(self) -> dict:
+        """The self test of the price providers (attribute price_check, prices/verification.py). It only reports: no price and
+        no plan depends on it, and a test that can't run gives no result, never a passed one."""
+        try:
+            now = self.now()
+            tz = self._snap.tz if self._snap else None
+            return {
+                "country": self.price_provider.country,
+                "checked": now.replace(tzinfo=tz).isoformat(timespec="minutes"),
+                "providers": self.price_provider.check_providers(now, tz),
+            }
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("The self test of the price providers failed: %s %s", err, type(err))
+            return {}
 
     def get_hour_prices(self, update_prices: bool = False, sell_prices: bool = False) -> dict:
         """Prices per period. Returned dicts are shared - do not modify them.
