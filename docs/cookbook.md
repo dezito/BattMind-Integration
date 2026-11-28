@@ -65,7 +65,7 @@ and the total and the bill incl. the cars are then left out. Right after a resta
 CJP has published its plan; the next planning picks it up.
 
 <p align="center">
-  <img src="../images/plan-electric-cars-and-solar-surplus.png" alt="Electric cars in the period and the electricity bill incl. the cars" width="380">
+  <img src="images/plan-electric-cars-and-solar-surplus.png" alt="Electric cars in the period and the electricity bill incl. the cars" width="380">
 </p>
 
 ## Careful: fewer cycles, more margin

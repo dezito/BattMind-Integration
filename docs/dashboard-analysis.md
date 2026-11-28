@@ -28,7 +28,7 @@ row (not in a table with a single row), also inside a group of hours.
 
 | Battery level forecast | Electricity prices |
 | --- | --- |
-| ![Battery level forecast with the planned charging and discharging](../images/home-battery-soc-forecast.png) | ![Electricity prices with sell price, price forecast and solar forecast](../images/electricity-prices-per-hour.png) |
+| ![Battery level forecast with the planned charging and discharging](images/home-battery-soc-forecast.png) | ![Electricity prices with sell price, price forecast and solar forecast](images/electricity-prices-per-hour.png) |
 
 At the top: **Force planning** recalculates the plan now. The sidebar has the emoji explanation – see [Emojis](emojis.md).
 
@@ -112,10 +112,10 @@ From the charging history:
 | Avg. price | the month's average buy price over all hours |
 | Savings | what the battery saved, after loss and wear |
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/economy-per-month.png" alt="Economy per month" width="760"></p>
+<p align="center"><img src="images/economy-per-month.png" alt="Economy per month" width="760"></p>
 
 </details>
 
@@ -125,10 +125,10 @@ Charged and discharged kWh per rule. For charging, **est. gain** is the charged 
 like the battery's discharges on average, minus their price and wear. For discharging, it is the actual
 savings. Both tables show the same money from two sides – don't add them up.
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/per-rule-12-months.png" alt="Charged and discharged kWh per rule over 12 months" width="380"></p>
+<p align="center"><img src="images/per-rule-12-months.png" alt="Charged and discharged kWh per rule over 12 months" width="380"></p>
 
 </details>
 
@@ -189,10 +189,10 @@ A day that starts with a full battery and has no cheap hour left to charge in ha
 own: its use of yesterday's energy is not counted as a saving that day. The score of a single day can therefore
 jump; the 30 day figure adds saved and possible over all days.
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/hindsight-score.png" alt="Hindsight score per day" width="380"></p>
+<p align="center"><img src="images/hindsight-score.png" alt="Hindsight score per day" width="380"></p>
 
 </details>
 
@@ -201,10 +201,10 @@ jump; the 30 day figure adds saved and possible over all days.
 One cycle = discharged kWh equal to the battery size. **Wear** = wear per kWh × charged kWh. Use it to
 check the wear you set against the battery's guarantee (e.g. 6000 cycles).
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/cycles-and-wear.png" alt="Cycles, wear and savings per month" width="760"></p>
+<p align="center"><img src="images/cycles-and-wear.png" alt="Cycles, wear and savings per month" width="760"></p>
 
 </details>
 
@@ -213,10 +213,10 @@ check the wear you set against the battery's guarantee (e.g. 6000 cycles).
 Where the house's consumption came from per hour: first solar, then the battery, the rest from the grid.
 **Self-sufficiency** = (solar + battery) ÷ consumption. **Export** is solar and battery energy sold.
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/self-sufficiency.png" alt="Self-sufficiency per month" width="760"></p>
+<p align="center"><img src="images/self-sufficiency.png" alt="Self-sufficiency per month" width="760"></p>
 
 </details>
 
@@ -226,10 +226,10 @@ Every evening at 23 BattMind saves what the plan wants to charge from the grid a
 compares it with what happened. Big differences come from forecast errors, and from plans that change
 during the day when prices or the battery level change.
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/planned-against-actual.png" alt="Planned grid charging and sale against actual" width="760"></p>
+<p align="center"><img src="images/planned-against-actual.png" alt="Planned grid charging and sale against actual" width="760"></p>
 
 </details>
 
@@ -241,10 +241,10 @@ hours, and the kWh and money bought from the grid in them. Many such days sugges
 - the consumption forecast is too low (see **Forecast accuracy**), or
 - the profit requirements are so high that BattMind doesn't charge.
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/empty-in-expensive-hours.png" alt="Days with an empty battery in the most expensive hours" width="380"></p>
+<p align="center"><img src="images/empty-in-expensive-hours.png" alt="Days with an empty battery in the most expensive hours" width="380"></p>
 
 </details>
 
@@ -274,10 +274,10 @@ with the smallest error the last 30 days instead:
   does not swap back and forth between nearly equal types
 - an info line under the table shows the type in use, or how many days it is still waiting for
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/forecast-accuracy.png" alt="Forecast accuracy of the consumption forecast types" width="760"></p>
+<p align="center"><img src="images/forecast-accuracy.png" alt="Forecast accuracy of the consumption forecast types" width="760"></p>
 
 </details>
 
@@ -287,10 +287,10 @@ The predicted consumption per hour for the forecast period with the three foreca
 consumption. The selected forecast type is used in the plan; [Forecast accuracy](#forecast-accuracy) shows which one is
 most accurate.
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/consumption-forecast.png" alt="Consumption forecast per hour with the three forecast types" width="100%"></p>
+<p align="center"><img src="images/consumption-forecast.png" alt="Consumption forecast per hour with the three forecast types" width="100%"></p>
 
 </details>
 
@@ -301,10 +301,10 @@ surplus: **Plan** is the combined forecast, **History (weather)** the part from 
 **Forecast integration** the solar forecast integration you selected (Solcast, Forecast.Solar or Helios Forecast).
 **Bias** > 0: too much sun was expected.
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/solar-forecast.png" alt="Planned against measured solar surplus per day" width="760"></p>
+<p align="center"><img src="images/solar-forecast.png" alt="Planned against measured solar surplus per day" width="760"></p>
 
 </details>
 
@@ -338,10 +338,10 @@ Only the buy price is measured, and only hours with a forecast from the price in
 fills from its own price history are not included. The first numbers come at 13:00 the day after the first
 start, "3 days ahead" after 3 days.
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/price-forecast.png" alt="The price forecast against the real price per day ahead" width="760"></p>
+<p align="center"><img src="images/price-forecast.png" alt="The price forecast against the real price per day ahead" width="760"></p>
 
 </details>
 
@@ -364,10 +364,10 @@ configured maximum charge/discharge power.
 If the measured loss is far from the configured one, check the battery power sensor (and its sign) before
 changing the loss.
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/measured-round-trip-loss.png" alt="Measured round trip loss per month against the configured loss" width="760"></p>
+<p align="center"><img src="images/measured-round-trip-loss.png" alt="Measured round trip loss per month against the configured loss" width="760"></p>
 
 </details>
 
@@ -484,10 +484,10 @@ measuring itself always use the configured size.
   power sensor, level sensor or sign starts the measuring again. Check *Used now* and the plan after turning the switch on; turn it off to go back to the configured
   size at once.
 
-<details>
+<details markdown="1">
 <summary>Screenshot</summary>
 
-<p align="center"><img src="../images/battery-efficiency.png" alt="Charging and discharging efficiency by power" width="760"></p>
+<p align="center"><img src="images/battery-efficiency.png" alt="Charging and discharging efficiency by power" width="760"></p>
 
 </details>
 

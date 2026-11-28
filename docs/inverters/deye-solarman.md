@@ -1,5 +1,7 @@
 # Deye hybrid (Solarman)
 
+<!-- {% raw %} -->
+
 Actions for the [blueprint](../actions.md#the-blueprint) with the
 [Solarman](https://github.com/davidrapan/ha-solarman) integration (`ha-solarman`) and a Deye hybrid
 inverter with a battery, using its `deye_hybrid` definition.
@@ -231,3 +233,5 @@ Use the same steps as *Solar charging only*: the battery doesn't discharge into 
 
 Keep **Repeat interval** at the default 5 minutes. It puts the settings right if they are changed in the
 Deye app or on the inverter, and it moves the SOC in *Solar charging only* up.
+
+<!-- {% endraw %} -->

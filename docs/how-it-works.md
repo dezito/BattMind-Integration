@@ -63,7 +63,7 @@ normal operation run as usual. `sensor.<prefix>_current_charging_rule` shows *Le
 (x/3 days)* while it lasts. With the long-term statistics above this is usually over at the first start.
 
 <p align="center">
-  <img src="../images/consumption-forecast.png" alt="Consumption forecast per hour with the average, EMA and trend forecast types" width="100%">
+  <img src="images/consumption-forecast.png" alt="Consumption forecast per hour with the average, EMA and trend forecast types" width="100%">
 </p>
 
 ### Solar forecast
@@ -182,7 +182,7 @@ is used when prices are missing:
 - **The value of the solar surplus** in the solar forecast from the stored history.
 
 The hours with prices from the database are listed under *Using offline prices for some hours* in the
-overview. The database is part of the [backup](../README.md#backup-export-and-import-of-data) and is
+overview. The database is part of the [backup](https://github.com/dezito/BattMind-Integration/blob/main/README.md#backup-export-and-import-of-data) and is
 imported from the PyScript version.
 
 ## The cost of a kWh from the battery
@@ -219,7 +219,7 @@ plus the **min. profit per kWh** you have set.
 The overview shows what the energy in the battery has cost right now, split into energy, charging loss and wear:
 
 <p align="center">
-  <img src="../images/battery-level-costs-and-plan.png" alt="Battery level costs and the charge/discharge plan in the overview" width="380">
+  <img src="images/battery-level-costs-and-plan.png" alt="Battery level costs and the charge/discharge plan in the overview" width="380">
 </p>
 
 ## The rules of thumb BattMind always keeps

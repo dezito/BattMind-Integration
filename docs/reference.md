@@ -1,6 +1,6 @@
 # Entities and services
 
-Back to the [README](../README.md) · [Documentation index](README.md)
+Back to the [README](https://github.com/dezito/BattMind-Integration/blob/main/README.md) · [Documentation index](README.md)
 
 ## Entities
 
@@ -14,7 +14,7 @@ The entity ids start with the prefix, here `battmind`.
 | `number` | Cheap price periods, increase for cheapest price / cheap periods, min. profit per kWh, min. total profit, min. kWh for export, max. hours for old kWh, recommended full charge every (days, 0 = off), hours a storm warning without an end time covers (only with a storm warning entity chosen) |
 | `select` | Forecast type (average, EMA or trend) |
 | `text` | Exclude selling hours (e.g. `17,18,19`) |
-| `button` | Force planning, export data (a [backup](../README.md#backup-export-and-import-of-data)), reset dashboard |
+| `button` | Force planning, export data (a [backup](https://github.com/dezito/BattMind-Integration/blob/main/README.md#backup-export-and-import-of-data)), reset dashboard |
 
 The plan is recalculated 5 seconds after a setting is changed. The values are kept across restarts.
 
@@ -22,7 +22,7 @@ The plan is recalculated 5 seconds after a setting is changed. The values are ke
 
 | Entity | Content |
 |---|---|
-| `sensor.battmind_powerwall_action` | What the battery should do now (see [How to control the home battery](../README.md#how-to-control-the-home-battery)), the planned hours per action as [attributes](actions.md#sensors-and-attributes) |
+| `sensor.battmind_powerwall_action` | What the battery should do now (see [How to control the home battery](https://github.com/dezito/BattMind-Integration/blob/main/README.md#how-to-control-the-home-battery)), the planned hours per action as [attributes](actions.md#sensors-and-attributes) |
 | `sensor.battmind_current_charging_rule` | Current rule as text |
 | `sensor.battmind_battery_level_needed` | Required battery level until the next charge (%) |
 | `sensor.battmind_kwh_charged_by_solar` | kWh charged by solar (only with solar panels) |
@@ -43,7 +43,7 @@ Large attributes (markdown, plans) are not stored in the recorder database.
 | `battmind.recalc_charging_history_today` | Recalculate today's charging history |
 | `battmind.debug_info` | Returns internal state for troubleshooting |
 | `battmind.export_debug` | Save an anonymised debug file for a GitHub issue |
-| `battmind.export_data` | Save a backup of data and settings (see [Backup](../README.md#backup-export-and-import-of-data)) |
+| `battmind.export_data` | Save a backup of data and settings (see [Backup](https://github.com/dezito/BattMind-Integration/blob/main/README.md#backup-export-and-import-of-data)) |
 | `battmind.import_data` | Replace data and settings with a backup |
 
 All services optionally take `config_entry_id` so they only affect one instance (`import_data` requires it).

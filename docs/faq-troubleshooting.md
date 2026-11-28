@@ -161,7 +161,7 @@ one) and keeps the newest 3. A damaged file is never copied, so it can't replace
 If a database file is empty, isn't valid JSON or can't be read at startup (e.g. after a power cut), it is
 moved aside as `….corrupt.<time>` and the newest good copy is restored. The log then has an error naming
 both files. Data saved after that copy was made is lost, at most about a day. Without a good copy the database is treated as missing, as on a new install. You can then import
-a full backup (see [Backup](../README.md#backup-export-and-import-of-data)).
+a full backup (see [Backup](https://github.com/dezito/BattMind-Integration/blob/main/README.md#backup-export-and-import-of-data)).
 
 ## Repairs
 
@@ -267,7 +267,7 @@ the latest calculations, the inputs they ran with and the latest log messages.
    field *Debug file*.
 
 <p align="center">
-  <img src="../images/problem-or-error.png" alt="The Problem or error? section with the Export debug info button" width="380">
+  <img src="images/problem-or-error.png" alt="The Problem or error? section with the Export debug info button" width="380">
 </p>
 
 ### What is in the debug file

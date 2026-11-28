@@ -1,5 +1,7 @@
 # Actions and battery control
 
+<!-- {% raw %} -->
+
 BattMind sends **no commands** to the inverter. It sets `sensor.<prefix>_powerwall_action` to what the
 battery should do right now, and your automation makes the inverter do it.
 
@@ -308,3 +310,5 @@ What the test does and does not do:
 | `switch.<prefix>_automation_test_run` | on while the test runs; turn it on to run the test and off to stop it |
 | `sensor.<prefix>_current_charging_rule` | why, as text. The attributes `worker_thread` and `calculation_seconds` show where and how fast the plan was calculated |
 | `sensor.<prefix>_battery_level_needed` | the battery level needed until the next charge (%), with the forecast in `battery_level_flow_prediction` |
+
+<!-- {% endraw %} -->

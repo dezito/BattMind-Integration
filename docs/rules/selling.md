@@ -8,7 +8,7 @@ See also [Buy to sell](charging.md#-buy-to-sell) (charge only to sell) and [Befo
 (sell before the sun fills the battery).
 
 <p align="center">
-  <img src="../../images/settings-selling.png" alt="The Selling settings" width="380">
+  <img src="../images/settings-selling.png" alt="The Selling settings" width="380">
 </p>
 
 ---
@@ -30,7 +30,7 @@ In the optimisation they steer the choice inside the period; the energy left in 
 the period is valued separately (see [Whole period optimisation](optimizer.md#what-it-does)).
 
 <p align="center">
-  <img src="../../images/settings-profit-requirements.png" alt="The Profit requirements settings" width="380">
+  <img src="../images/settings-profit-requirements.png" alt="The Profit requirements settings" width="380">
 </p>
 
 | Setting | Default | Meaning |

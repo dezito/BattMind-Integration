@@ -4,10 +4,12 @@ Only with solar panels configured. See [How BattMind plans](../how-it-works.md#s
 solar surplus is forecast.
 
 <p align="center">
-  <img src="../../images/settings-solar.png" alt="The Solar settings" width="380">
+  <img src="../images/settings-solar.png" alt="The Solar settings" width="380">
 </p>
 
 ---
+
+<a id="-solar-surplus-charging"></a>
 
 ## ☀️ Solar surplus charging
 
@@ -23,6 +25,8 @@ The overview says it in words for today and tomorrow: how much surplus the sun g
 and what there is no room for – see [The sun in words](../dashboard-analysis.md#the-sun-in-words).
 
 ---
+
+<a id="-optimise-solar-charging"></a>
 
 ## 🎛️ Optimise solar charging
 

@@ -13,6 +13,8 @@ removes them again.
 
 ---
 
+<a id="-set-it-up"></a>
+
 ## 🌪️ Set it up
 
 **Configure → Solar panels, weather and storm warning → Storm warning**

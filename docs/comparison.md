@@ -1,6 +1,6 @@
 # How BattMind compares with other home battery optimisers
 
-Back to the [README](../README.md) · [Documentation index](README.md)
+Back to the [README](https://github.com/dezito/BattMind-Integration/blob/main/README.md) · [Documentation index](README.md)
 
 Home battery optimisation can mean different things: a Home Assistant integration, a separate energy
 optimisation service, or software that directly controls supported inverters.

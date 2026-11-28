@@ -1,6 +1,6 @@
 # BattMind documentation
 
-The [README](../README.md) gives the short version. These pages go into detail: how BattMind thinks, what
+The [README](https://github.com/dezito/BattMind-Integration/blob/main/README.md) gives the short version. These pages go into detail: how BattMind thinks, what
 every rule does, and how to connect it to your inverter.
 
 ## Start here

@@ -1,5 +1,7 @@
 # SolarEdge (StorEdge)
 
+<!-- {% raw %} -->
+
 Actions for the [blueprint](../actions.md#the-blueprint) with the
 [SolarEdge Modbus Multi](https://github.com/WillCodeForCats/solaredge-modbus-multi) integration and a
 battery on a StorEdge inverter. Change `5000` to your battery's max. power (watt).
@@ -258,3 +260,5 @@ Solar charging blocked (charge limit 0, discharge to the house):
 
 Keep **Repeat interval** at the default 5 minutes. It renews the command timeout and puts the settings
 right if they are changed elsewhere, e.g. in the SolarEdge app.
+
+<!-- {% endraw %} -->

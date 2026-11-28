@@ -3,7 +3,7 @@
 **Switch:** *Control the battery with the whole period optimisation* (`switch.<prefix>_optimizer_control`) – on by default.
 
 <p align="center">
-  <img src="../../images/settings-control.png" alt="The Control settings: whole period optimisation, battery efficiency, price forecast correction and forecast type" width="380">
+  <img src="../images/settings-control.png" alt="The Control settings: whole period optimisation, battery efficiency, price forecast correction and forecast type" width="380">
 </p>
 
 ## What it does

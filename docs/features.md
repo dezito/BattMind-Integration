@@ -1,6 +1,6 @@
 # Features
 
-The full feature list. Back to the [README](../README.md) · [Documentation index](README.md)
+The full feature list. Back to the [README](https://github.com/dezito/BattMind-Integration/blob/main/README.md) · [Documentation index](README.md)
 
 - **Charging plan for several days** (1–7 days) based on electricity prices, forecasts and consumption history
 - **Two ways to control the battery** – [read more](rules/optimizer.md)
@@ -65,8 +65,8 @@ The full feature list. Back to the [README](../README.md) · [Documentation inde
 
 | Battery level costs and plan | Bill with and without battery | Charging history |
 | --- | --- | --- |
-| ![Battery level costs and the charge/discharge plan](../images/battery-level-costs-and-plan.png) | ![The bill of the period with and without the battery](../images/plan-total-with-and-without-battery.png) | ![Charging history](../images/charging-history.png) |
+| ![Battery level costs and the charge/discharge plan](images/battery-level-costs-and-plan.png) | ![The bill of the period with and without the battery](images/plan-total-with-and-without-battery.png) | ![Charging history](images/charging-history.png) |
 
 | Economy per month | Planned against actual |
 | --- | --- |
-| ![Economy per month analysis](../images/economy-per-month.png) | ![Planned against actual analysis](../images/planned-against-actual.png) |
+| ![Economy per month analysis](images/economy-per-month.png) | ![Planned against actual analysis](images/planned-against-actual.png) |
