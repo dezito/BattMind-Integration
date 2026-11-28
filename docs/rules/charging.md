@@ -20,7 +20,7 @@ The examples below use 10 % loss and 0.10 kr/kWh wear: a grid kWh at price *p* c
 of the battery.
 
 <p align="center">
-  <img src="../../images/settings-charging-from-grid.png" alt="The Charging from the grid settings" width="380">
+  <img src="../images/settings-charging-from-grid.png" alt="The Charging from the grid settings" width="380">
 </p>
 
 ---

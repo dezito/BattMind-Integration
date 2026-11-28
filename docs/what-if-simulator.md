@@ -85,7 +85,7 @@ stopped calculation leaves the previous saved result intact; removing the BattMi
 result. The attributes are not recorded in the Home Assistant database.
 
 <p align="center">
-  <img src="../images/what-if-result-notification.png" alt="The what-if action in Developer tools and the result notification comparing current and what-if" width="100%">
+  <img src="images/what-if-result-notification.png" alt="The what-if action in Developer tools and the result notification comparing current and what-if" width="100%">
 </p>
 
 Example action:

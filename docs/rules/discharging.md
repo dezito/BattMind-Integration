@@ -8,7 +8,7 @@ An hour where discharging is blocked becomes `force_solar_only_charging`: the ba
 solar, but the house uses the grid.
 
 <p align="center">
-  <img src="../../images/settings-discharging.png" alt="The Discharging settings" width="380">
+  <img src="../images/settings-discharging.png" alt="The Discharging settings" width="380">
 </p>
 
 ---
@@ -76,6 +76,8 @@ refill it. House consumption is not counted as a benefit in hours where solar su
 kWh, even though the night charge cost more.
 
 ---
+
+<a id="-max-age-of-kwh"></a>
 
 ## 🕰️ Max. age of kWh
 

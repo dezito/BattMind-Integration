@@ -14,7 +14,7 @@
 **Home battery optimisation that aims to save and earn as much money as possible from the battery.**
 
 <p align="center">
-  <a href="https://sloth.nu/battmind.mp4" target="_blank"><img src="images/dashboard-demo.gif" alt="The BattMind dashboard in use: battery level forecast, electricity prices, plan, settings and analysis" width="100%"></a>
+  <a href="https://sloth.nu/battmind.mp4" target="_blank"><img src="docs/images/dashboard-demo.gif" alt="The BattMind dashboard in use: battery level forecast, electricity prices, plan, settings and analysis" width="100%"></a>
 </p>
 
 - 💰 **Knows what every stored kWh cost** – grid or solar, charging and discharging loss and battery wear
@@ -59,7 +59,7 @@ The full list is in [Features](docs/features.md).
 
 | Battery level costs and plan | Bill with and without battery | Charging history |
 | --- | --- | --- |
-| ![Battery level costs and the charge/discharge plan](images/battery-level-costs-and-plan.png) | ![The bill of the period with and without the battery](images/plan-total-with-and-without-battery.png) | ![Charging history](images/charging-history.png) |
+| ![Battery level costs and the charge/discharge plan](docs/images/battery-level-costs-and-plan.png) | ![The bill of the period with and without the battery](docs/images/plan-total-with-and-without-battery.png) | ![Charging history](docs/images/charging-history.png) |
 
 ---
 

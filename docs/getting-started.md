@@ -385,7 +385,7 @@ Everything can be changed later under **Configure** on the integration.
 Open the **BattMind** dashboard in the sidebar:
 
 <p align="center">
-  <img src="../images/overview-dashboard.png" alt="The BattMind dashboard's Overview view" width="100%">
+  <img src="images/overview-dashboard.png" alt="The BattMind dashboard's Overview view" width="100%">
 </p>
 
 - **Overview** shows the battery level forecast, the prices and the plan with a reason for every hour.
