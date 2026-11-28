@@ -5,7 +5,7 @@ import datetime
 import hashlib
 import logging
 
-from ..const import CHARGING_TYPES, EMOJI_DESCRIPTION_GROUPS, LEARNING_MIN_DAYS
+from ..const import ACTION_VALID_INTERVALS, ACTION_VALID_MIN_MINUTES, CHARGING_TYPES, EMOJI_DESCRIPTION_GROUPS, LEARNING_MIN_DAYS
 from ..utils.formatting import active_charging_rules, emoji_parse, emoji_rules
 from ..utils.helpers import float_or_none, limit_dict_size, reset_time_to_hour, start_of_day
 
@@ -95,6 +95,21 @@ class Planning:
             if timestamp <= now < timestamp + period_length:
                 return timestamp
         return None
+
+    def stamp_action(self) -> None:
+        """When the published action was calculated (updated) and until when it counts (valid_until).
+
+        The blueprint's fail-safe ends a forced mode that is not renewed, so only a calculation that succeeded stamps it:
+        three planning intervals, at least ACTION_VALID_MIN_MINUTES (a long job may delay a run)."""
+        if self._snap is None:
+            return
+        tz = self._snap.tz
+        calculated = self.now().replace(tzinfo=tz)  # fold is kept, so the repeated hour in the autumn is the right one
+        minutes = max(ACTION_VALID_INTERVALS * int(self.config["cron_interval"]), ACTION_VALID_MIN_MINUTES)
+        # added in UTC: adding to a local time counts wall clock time across the summer time changes
+        valid_until = (calculated.astimezone(datetime.timezone.utc) + datetime.timedelta(minutes=minutes)).astimezone(tz)
+        self.set_attr("powerwall_action", "updated", calculated.isoformat(timespec="seconds"))
+        self.set_attr("powerwall_action", "valid_until", valid_until.isoformat(timespec="seconds"))
 
     def charge_if_needed(self, force_recalculate: bool = False) -> str:
         """Update the plan and decide what the battery should do right now."""
@@ -205,6 +220,7 @@ class Planning:
             self.last_powerwall_action = action
             self.error_count = 0
             self.notice("job_failing", False)
+            self.stamp_action()  # last: only a calculation that got all the way through renews the action
         except Exception as err:  # noqa: BLE001
             _LOGGER.exception("Error running charge_if_needed()")
             self.notify(

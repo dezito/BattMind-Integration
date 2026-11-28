@@ -124,6 +124,11 @@ sends the current action again, also when Home Assistant starts, so it is put ri
 set it to 0, the action is only sent when BattMind changes it, and nothing catches a lost command. See
 [Repeat interval](actions.md#repeat-interval).
 
+If the inverter runs normally although the action is a forced one, the blueprint's
+[fail-safe](actions.md#fail-safe) may have ended it: BattMind has not calculated a new action for a while.
+The attribute `valid_until` of the action sensor is then in the past, and the log and the charging rule show
+why the calculation fails or stopped.
+
 If it still doesn't follow, check the blueprint's trace (*Automations → ⋮ → Traces*): did the actions run,
 and did the inverter accept them?
 

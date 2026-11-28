@@ -318,6 +318,10 @@ private agent memory). Update or remove a note when it stops being true.
   prices, not the solar sensors). The daily summary shows the plan as it is now, never a savings figure. The what-if and replay
   engines never feed the notifier. The PyScript import never turns the push notifications on (`NOT_IMPORTED_OPTIONS`). Keep
   `notify_list` at the top level of the config: the debug export redacts it by that key.
+- `updated`/`valid_until` on the action sensor are stamped only as the last step of a successful `charge_if_needed`
+  (never in its except path or in `automation_test_settle()`). The blueprint's fail-safe never lifts
+  `battery_stopped`. It has no time_pattern watchdog on purpose: only the running automation knows what was sent once
+  the sensor is unavailable.
 
 ### HACS default-catalog review
 

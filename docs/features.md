@@ -58,6 +58,8 @@ The full feature list. Back to the [README](https://github.com/dezito/BattMind-I
 - **Fail-safe:** BattMind stores the prices in its own [price database](how-it-works.md#prices). Hours
   without a price are filled from it, and if the price integration is down, the last prices are kept for 2
   hours, and then planning falls back to the database
+- **Fail-safe for the battery action:** when BattMind stops renewing its action, the included blueprint ends a
+  forced mode with normal operation; the temperature stop is never lifted ([read more](actions.md#fail-safe))
 - **Multiple instances:** each instance has its own prefix (e.g. one per battery)
 - **Languages:** Danish, English, German, Polish and Ukrainian
 - **Does not run in Home Assistant's main thread:** all calculations run in BattMind's own worker threads (the what-if

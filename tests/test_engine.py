@@ -176,6 +176,49 @@ def test_battery_temperature_safety(temperature: float, unit: str, expected_acti
         assert result.states["powerwall_action"] == expected_action
 
 
+def _action_times(result) -> tuple[datetime.datetime, datetime.datetime]:
+    attributes = result.attributes["powerwall_action"]
+    return datetime.datetime.fromisoformat(attributes["updated"]), datetime.datetime.fromisoformat(attributes["valid_until"])
+
+
+@pytest.mark.parametrize(("cron_interval", "valid_minutes"), [(1, 15), (5, 15), (10, 30), (30, 90)])
+def test_the_action_says_when_it_was_calculated_and_how_long_it_counts(cron_interval: int, valid_minutes: int) -> None:
+    """Three planning intervals, at least 15 minutes: the blueprint's fail-safe needs no setting of its own."""
+    now = datetime.datetime.combine(DAY, datetime.time(10, 30))
+    engine = started_engine(now, 50, options={"cron_interval": cron_interval})
+    updated, valid_until = _action_times(plan(engine, now, 50))
+    assert updated == now.replace(tzinfo=TZ)
+    assert valid_until - updated == datetime.timedelta(minutes=valid_minutes)
+
+
+@pytest.mark.parametrize("failing", ["cheap_grid_charge_hours", "plan_check_note"], ids=["before publishing", "after publishing"])
+def test_a_failed_calculation_does_not_renew_the_action(monkeypatch: pytest.MonkeyPatch, failing: str) -> None:
+    now = datetime.datetime.combine(DAY, datetime.time(10, 30))
+    engine = started_engine(now, 50)
+    plan(engine, now, 50)
+
+    def broken(*_, **__) -> None:
+        raise RuntimeError("no plan")
+
+    monkeypatch.setattr(engine, failing, broken)
+    result = engine.run_job(snapshot(now + datetime.timedelta(minutes=5), 50), engine.charge_if_needed, False)
+    assert result.error is None, result.error
+    assert {"updated", "valid_until"}.isdisjoint(result.attributes.get("powerwall_action", {}))
+
+
+@pytest.mark.parametrize(("fold", "offset"), [(0, 2), (1, 1)])
+def test_the_action_times_are_right_in_both_hours_at_the_end_of_summer_time(fold: int, offset: int) -> None:
+    """02:00-03:00 happens twice: an hour wrong here would run the fail-safe for a whole hour."""
+    now = datetime.datetime(2026, 10, 25, 2, 50, fold=fold)
+    engine = started_engine(now, 50)
+    updated, valid_until = _action_times(plan(engine, now, 50))
+    assert updated.utcoffset() == datetime.timedelta(hours=offset)
+    expected = datetime.datetime(2026, 10, 25, 2, 50, tzinfo=datetime.timezone(datetime.timedelta(hours=offset)))
+    assert updated == expected.astimezone(updated.tzinfo)
+    # compared in real time: 15 minutes later, also when that is across the change
+    assert valid_until.timestamp() - updated.timestamp() == 15 * 60
+
+
 @pytest.mark.parametrize("state", ["nan", "inf", "-inf"])
 def test_battery_level_that_is_not_a_number_is_handled_like_an_unavailable_sensor(state: str) -> None:
     """A level of "nan" or "inf" used to stop the whole job (OverflowError rounding it): it is no battery level."""
