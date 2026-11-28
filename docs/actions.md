@@ -298,6 +298,7 @@ What the test does and does not do:
 | `sensor.<prefix>_powerwall_action` | the action now |
 | ↳ `battery_level_flow` | the forecast battery level per hour |
 | ↳ `price_check` | the self test of the price providers on their own prices, per provider (see [getting started](getting-started.md#prices)); it only reports |
+| ↳ `solar_check` | what the solar forecast delivers: the source, and per day the hours with a value and their kWh (see [getting started](getting-started.md#solar-panels-and-weather-optional)); only with a forecast, it only reports |
 | ↳ `price_chart` | the buy and sell prices the plan is made on, per price period for 7 days (`time`, `buy`, `sell`, `forecast`), real and forecast in one list: what the price chart of the dashboard draws |
 | ↳ `charge_timestamps`, `force_discharge_timestamps`, `discharge_timestamps`, `blocked_solar_charge_timestamps`, `force_solar_only_charging_timestamps`, `force_powerwall_max_hours_old_discharge_timestamps` | the planned hours per action, for your own automations or charts |
 | ↳ `hour_cost_prediction_ema` / `_trend` / `_avg` | the forecast consumption per hour (and `sum_*` accumulated) |

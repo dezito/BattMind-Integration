@@ -8,6 +8,7 @@ every rule does, and how to connect it to your inverter.
 | Page | Read it when |
 |---|---|
 | [Getting started](getting-started.md) | you install BattMind for the first time |
+| [Tested integrations](tested-integrations.md) | which price integrations and solar forecasts are tested, by country |
 | [How BattMind plans](how-it-works.md) | you want to understand why the battery does what it does |
 | [Actions and battery control](actions.md) | you build the automation that controls the inverter, check that the battery follows the actions, or [test your automation](actions.md#test-your-automation) |
 

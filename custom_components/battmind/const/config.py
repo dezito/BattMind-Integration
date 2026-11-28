@@ -354,7 +354,7 @@ OPTIONS_MENU: dict[str, list[str]] = {
         "prices_stromligning_tariffs",
         "price_fees",
     ],
-    "solar": ["solar", "weather", "storm"],
+    "solar": ["solar_forecast_source", "solar", "weather", "storm"],
     "notifications": ["notifications"],
     "advanced": ["advanced", "database"],
 }

@@ -194,6 +194,8 @@ async def test_the_options_flow_sets_the_storm_warning(hass: HomeAssistant, load
     result = await hass.config_entries.options.async_init(loaded_entry.entry_id)
     assert "menu_solar" in result["menu_options"]
     result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "menu_solar"})
+    assert result["step_id"] == "solar_forecast_source"
+    result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
     assert result["step_id"] == "solar"
     result = await hass.config_entries.options.async_configure(result["flow_id"], form_defaults(result))
     assert result["step_id"] == "weather"
