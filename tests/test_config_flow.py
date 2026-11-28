@@ -18,7 +18,7 @@ from custom_components.battmind.flow.detection import Detection
 from custom_components.battmind.management.backup import BACKUP_DIR
 from custom_components.battmind.utils.formatting import format_charging_rule
 
-from .conftest import BATTERY_FLOW, BATTERY_LEVEL, CONSUMPTION, PRICE, PRODUCTION, form_defaults
+from .conftest import BATTERY_FLOW, BATTERY_LEVEL, CONSUMPTION, PRICE, PRODUCTION, form_defaults, providers_input
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -70,7 +70,7 @@ async def _to_price_provider(hass: HomeAssistant, price_country: str | None = No
 async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
     hass.config.country = "SE"
     result = await _to_price_provider(hass, dashboard_icon="mdi:solar-power")
-    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "price_provider", providers_input("energidataservice"))
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     result = await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.03})
     result = await _configure(
@@ -128,7 +128,7 @@ async def test_a_new_entry_gets_the_price_scale_of_its_price_sensor(hass: HomeAs
     thresholds follow it, in kroner they stay as they are."""
     hass.states.async_set(PRICE, "0.5", {"unit_of_measurement": unit} if unit else {})
     result = await _to_price_provider(hass)
-    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "price_provider", providers_input("energidataservice"))
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     assert result["step_id"] == "price_fees"
     assert form_defaults(result)["sell_fee"] == fee  # the suggestion is 0.03 kroner in the price currency
@@ -146,7 +146,7 @@ async def test_a_new_entry_gets_the_price_scale_of_its_price_sensor(hass: HomeAs
 async def test_a_wear_cost_the_user_changed_is_kept_when_the_scale_is_found(hass: HomeAssistant) -> None:
     hass.states.async_set(PRICE, "0.5", {"unit_of_measurement": "EUR/kWh"})
     result = await _to_price_provider(hass)
-    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "price_provider", providers_input("energidataservice"))
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     result = await _configure(hass, result, "price_fees", {**form_defaults(result), "powerwall_wear_cost_per_kwh": 0.05})
     result = await _finish_after_the_price_pages(hass, result)
@@ -156,7 +156,7 @@ async def test_a_wear_cost_the_user_changed_is_kept_when_the_scale_is_found(hass
 async def test_a_sell_fee_the_user_changed_is_kept_when_the_scale_is_found(hass: HomeAssistant) -> None:
     hass.states.async_set(PRICE, "0.5", {"unit_of_measurement": "EUR/kWh"})
     result = await _to_price_provider(hass)
-    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "price_provider", providers_input("energidataservice"))
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     result = await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.05})
     result = await _finish_after_the_price_pages(hass, result)
@@ -171,7 +171,7 @@ async def test_energy_price_forecast_page_refuses_cents_a_wholesale_buy_sensor_a
     hass.states.async_set("sensor.epf_wholesale_2", "0.1", {"unit_of_measurement": "EUR/kWh", "raw_today": []})
     hass.states.async_set(PRICE, "1.2", {"unit_of_measurement": "DKK/kWh"})
     result = await _to_price_provider(hass)
-    result = await _configure(hass, result, "price_provider", {"price_providers": ["energypriceforecast", "energidataservice"]})
+    result = await _configure(hass, result, "price_provider", providers_input("energypriceforecast", "energidataservice"))
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     assert result["step_id"] == "prices_energypriceforecast"
     sell = {"energypriceforecast_sell_entity_id": "sensor.epf_wholesale"}
@@ -198,7 +198,7 @@ async def test_energy_price_forecast_alone_sets_the_scale_from_its_retail_sensor
     hass.states.async_set("sensor.epf_retail", "0.2", retail)
     hass.states.async_set("sensor.epf_wholesale", "0.1", {"unit_of_measurement": "EUR/kWh", "raw_today": []})
     result = await _to_price_provider(hass)
-    result = await _configure(hass, result, "price_provider", {"price_providers": ["energypriceforecast"]})
+    result = await _configure(hass, result, "price_provider", providers_input("energypriceforecast"))
     result = await _configure(
         hass, result, "prices_energypriceforecast", {"energypriceforecast_buy_entity_id": "sensor.epf_retail", "energypriceforecast_sell_entity_id": "sensor.epf_wholesale"}
     )
@@ -235,7 +235,7 @@ async def test_options_flow_finds_the_price_scale_and_keeps_it_without_a_unit(ha
 
 async def test_stromligning_pages(hass: HomeAssistant) -> None:
     result = await _to_price_provider(hass)
-    result = await _configure(hass, result, "price_provider", {"price_providers": ["stromligning"]})
+    result = await _configure(hass, result, "price_provider", providers_input("stromligning"))
     result = await _configure(
         hass, result, "prices_stromligning",
         {"stromligning_buy_current_price": "sensor.stromligning_current_price_vat", "stromligning_sell_current_price": "sensor.stromligning_sell"},
@@ -255,14 +255,14 @@ async def test_stromligning_pages(hass: HomeAssistant) -> None:
 async def test_a_sell_entity_alone_is_rejected(hass: HomeAssistant, provider: str, step: str, sell: dict) -> None:
     """The planner, what-if and dashboard need the buy entity of every chosen provider."""
     result = await _to_price_provider(hass)
-    result = await _configure(hass, result, "price_provider", {"price_providers": [provider]})
+    result = await _configure(hass, result, "price_provider", providers_input(provider))
     with pytest.raises(InvalidData):
         await _configure(hass, result, step, sell)
 
 
 async def test_weather_page_skipped_without_solar(hass: HomeAssistant) -> None:
     result = await _to_price_provider(hass)
-    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "price_provider", providers_input("energidataservice"))
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     result = await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.03})
     result = await _configure(hass, result, "solar", {"inverter_discharging_power_limit": 6000, "production_price": -1})
@@ -271,7 +271,7 @@ async def test_weather_page_skipped_without_solar(hass: HomeAssistant) -> None:
 
 async def test_solcast_needs_production(hass: HomeAssistant) -> None:
     result = await _to_price_provider(hass)
-    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "price_provider", providers_input("energidataservice"))
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     result = await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.03})
     result = await _configure(
@@ -300,7 +300,7 @@ def test_the_solar_forecast_picker_offers_the_three_integrations() -> None:
 @pytest.mark.parametrize("forecast", ["sensor.helios_forecast_power_now", "sensor.energy_production_today"])
 async def test_a_forecast_solar_or_helios_sensor_is_accepted(hass: HomeAssistant, forecast: str) -> None:
     result = await _to_price_provider(hass)
-    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "price_provider", providers_input("energidataservice"))
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     result = await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.03})
     result = await _configure(
@@ -356,7 +356,7 @@ async def test_battery_min_above_max(hass: HomeAssistant) -> None:
 
 async def test_no_price_provider(hass: HomeAssistant) -> None:
     result = await _to_price_provider(hass)
-    result = await _configure(hass, result, "price_provider", {"price_providers": []})
+    result = await _configure(hass, result, "price_provider", providers_input())
     assert result["errors"] == {"base": "no_price_provider"}
 
 
@@ -431,7 +431,7 @@ async def _to_solar(hass: HomeAssistant, result: dict, battery: str = ENERGY_BAT
     result = await _configure(hass, result, "consumption", {"power_consumption_entity_id": CONSUMPTION})
     result = await _configure(hass, result, "detection_review", {"invert_powerwall_watt_flow_entity_id": True})
     result = await _configure(hass, result, "country", {})
-    result = await _configure(hass, result, "price_provider", {"price_providers": ["energidataservice"]})
+    result = await _configure(hass, result, "price_provider", providers_input("energidataservice"))
     result = await _configure(hass, result, "prices_energidataservice", {"energidataservice_buy_entity_id": PRICE})
     return await _configure(hass, result, "price_fees", {"refund": 0.0, "sell_fee": 0.03})
 

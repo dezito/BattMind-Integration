@@ -32,6 +32,7 @@ custom_components/battmind/             The HA integration (HACS payload)
 │   ├── publishedprices.py               EPEX Spot, GE-Spot, Octopus Energy, Nord Pool: the user's own published prices, no forecast
 │   ├── published_rows.py                Pure row parsers of the first three (the same file in both repositories)
 │   ├── intervals.py                     The common price interval of the providers (hourly, 15 minutes) and the slots on it
+│   ├── verification.py                  The self test of each price provider on its own prices (the same file in both repositories)
 │   └── chart_rows.py                    The prices of the plan per price period for the price chart of every provider (the same file in both repositories)
 ├── management/                          Storage, backups, dashboard, and blueprint setup
 │   ├── health_checks.py                 HealthWatcher: the health repairs of an entry (sensors, units, value scale, prices, plan, frozen consumption)

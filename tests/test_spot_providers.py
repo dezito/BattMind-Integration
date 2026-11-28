@@ -26,6 +26,7 @@ from custom_components.battmind.prices import (
 from custom_components.battmind.prices.base import price_timestamp, price_unit_error
 from custom_components.battmind.prices.spot_rows import elprognos_rows, spot_forecast_rows, wattcast_rows
 
+from .conftest import providers_input
 from .test_config_flow import _to_price_provider
 from .test_price_country import _defaults, _offered
 from .test_energypriceforecast import _balanced, _generators
@@ -309,7 +310,7 @@ async def test_the_fee_page_asks_for_the_vat_and_the_surcharge_without_a_default
 
     result = await _to_price_provider(hass, price_country="SE")
     flow = hass.config_entries.flow
-    result = await flow.async_configure(result["flow_id"], {"price_providers": ["elprognos"]})
+    result = await flow.async_configure(result["flow_id"], providers_input("elprognos"))
     assert result["step_id"] == "prices_elprognos"
     result = await flow.async_configure(result["flow_id"], {"elprognos_buy_entity_id": ELPROGNOS})
     assert result["step_id"] == "price_fees"
@@ -323,7 +324,7 @@ async def test_the_fee_page_asks_for_the_vat_and_the_surcharge_without_a_default
 
 async def test_the_fee_page_has_no_vat_and_surcharge_for_the_other_providers(hass: HomeAssistant) -> None:
     result = await _to_price_provider(hass, price_country="DK")
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"price_providers": ["energidataservice"]})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], providers_input("energidataservice"))
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"energidataservice_buy_entity_id": "sensor.eds"})
     assert result["step_id"] == "price_fees" and not {"spot_vat", "spot_surcharge"} & {str(key) for key in result["data_schema"].schema}
 
@@ -333,7 +334,7 @@ async def test_wattcast_is_offered_in_finland_with_both_sensors_and_not_in_denma
     assert "wattcast" not in _offered(result) and "elprognos" not in _offered(result)
     result = await _to_price_provider(hass, price_country="FI")
     assert "wattcast" in _offered(result)
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"price_providers": ["wattcast"]})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], providers_input("wattcast"))
     assert result["step_id"] == "prices_wattcast"
     assert {str(key) for key in result["data_schema"].schema} == {"wattcast_buy_entity_id", "wattcast_forecast_entity_id"}
 
