@@ -10,6 +10,7 @@ import urllib.parse
 import zoneinfo
 
 import pytest
+import voluptuous as vol
 import yaml
 
 from homeassistant.const import __version__ as HA_VERSION
@@ -73,7 +74,7 @@ async def _solar_pages(hass: HomeAssistant, entry, forecast: str):
     await hass.async_block_till_done(wait_background_tasks=True)
     result = await hass.config_entries.options.async_init(entry.entry_id)
     result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "menu_solar"})
-    assert result["step_id"] == "solar_forecast_source", result
+    assert result["step_id"] in ("solar_forecast_source", "solar_forecast_source_unknown"), result
     return result
 
 
@@ -136,7 +137,8 @@ async def test_a_sensor_of_an_unknown_platform_is_never_cleared_or_hidden(hass: 
     """E.g. a restored backup whose forecast integration is not set up yet."""
     options = hass.config_entries.options
     result = await _solar_pages(hass, loaded_entry, UNKNOWN)
-    assert _field(result, "solar_forecast_source")[0].default() == "solcast_solar"  # never "none": that would clear it
+    assert result["step_id"] == "solar_forecast_source_unknown"  # nothing is chosen for the user
+    assert _field(result, "solar_forecast_source")[0].default is vol.UNDEFINED
     result = await options.async_configure(result["flow_id"], {"solar_forecast_source": "solcast_solar"})
     key, picker = _field(result, "forecast_entity_id")
     assert key.description["suggested_value"] == UNKNOWN and _integrations(picker) == ["solcast_solar", "forecast_solar", "helios_forecast"]
@@ -276,9 +278,10 @@ def test_the_issue_form_has_every_field_the_link_fills_in() -> None:
     assert len(ids) == len(set(ids)) and {"source", "version", "ha_version", "solar_check"} <= set(ids)
 
 
-async def test_the_source_of_the_snapshot_is_the_platform_of_the_sensor(hass: HomeAssistant, loaded_entry) -> None:
+async def test_the_source_of_the_snapshot_is_the_platform_of_the_sensor(hass: HomeAssistant, loaded_entry, monkeypatch: pytest.MonkeyPatch) -> None:
     coordinator = loaded_entry.runtime_data
-    _register(hass, FORECAST_SOLAR, "forecast_solar")
+    # the platforms are read once at the start, for the forecast readers and so for the source
+    monkeypatch.setitem(coordinator._entity_platforms, FORECAST_SOLAR, "forecast_solar")
     solar = coordinator.config["solar"]["entity_ids"]
     stored = solar["forecast_entity_id"]
     try:

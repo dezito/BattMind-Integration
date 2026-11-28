@@ -372,7 +372,9 @@ async def test_octopus_with_a_forecast_provider_in_great_britain_asks_for_its_ra
     assert result["step_id"] == "prices_octopus"
     fields = {str(key): key for key in result["data_schema"].schema}
     assert set(fields) == {"octopus_buy_entity_id", "octopus_buy_next_day_entity_id", "octopus_sell_entity_id", "octopus_sell_next_day_entity_id"}
-    assert [key.schema for key in fields.values() if type(key).__name__ == "Required"] == ["octopus_buy_entity_id", "octopus_buy_next_day_entity_id"]  # export is optional
+    refused = await flow.async_configure(result["flow_id"], {})
+    # export is optional
+    assert refused["errors"] == {"octopus_buy_entity_id": "price_sensor_required", "octopus_buy_next_day_entity_id": "price_sensor_required"}
 
 
 async def test_nord_pool_is_not_offered_in_great_britain_and_epex_spot_is_offered_anywhere(hass: HomeAssistant) -> None:
@@ -393,16 +395,15 @@ async def test_nord_pool_is_not_offered_in_great_britain_and_epex_spot_is_offere
 
 
 async def test_the_fee_page_of_a_provider_of_published_prices_has_no_vat_and_surcharge(hass: HomeAssistant) -> None:
-    from homeassistant.data_entry_flow import InvalidData
-
     result = await _to_price_provider(hass, price_country="DK")
     flow = hass.config_entries.flow
     result = await flow.async_configure(result["flow_id"], providers_input("nordpool", "energidataservice"))
     assert result["step_id"] == "prices_energidataservice"
     result = await flow.async_configure(result["flow_id"], {"energidataservice_buy_entity_id": "sensor.eds"})
     assert result["step_id"] == "prices_nordpool"
-    with pytest.raises(InvalidData):  # both sensors are required: the sell price is not the buy price
-        await flow.async_configure(result["flow_id"], {"nordpool_buy_entity_id": NORD})
+    # both sensors are required: the sell price is not the buy price
+    refused = await flow.async_configure(result["flow_id"], {"nordpool_buy_entity_id": NORD})
+    assert refused["step_id"] == "prices_nordpool" and refused["errors"] == {"nordpool_sell_entity_id": "price_sensor_required"}
     result = await flow.async_configure(result["flow_id"], {"nordpool_buy_entity_id": NORD, "nordpool_sell_entity_id": NORD_SELL})
     assert result["step_id"] == "price_fees" and not {"spot_vat", "spot_surcharge"} & {str(key) for key in result["data_schema"].schema}
     assert "sell_fee" in _defaults(result)

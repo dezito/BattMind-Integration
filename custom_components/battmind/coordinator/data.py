@@ -218,12 +218,12 @@ class CoordinatorData:
         return cars
 
     def _solar_source(self) -> str | None:
-        """The integration of the configured solar forecast sensor (entity registry), "" when it is not known, None without a sensor."""
+        """The integration the forecast rows are read by (the platform cached at the start, as both readers use it),
+        "" when it is not known, None without a sensor."""
         forecast_entity = self.config["solar"]["entity_ids"]["forecast_entity_id"]
         if not forecast_entity:
             return None
-        registered = er.async_get(self.hass).async_get(forecast_entity)
-        return registered.platform if registered else ""
+        return self._entity_platforms.get(forecast_entity) or ""
 
     def _solcast_snapshot(self) -> dict[str, list]:
         forecast_entity = self.config["solar"]["entity_ids"]["forecast_entity_id"]

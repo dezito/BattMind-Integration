@@ -8,6 +8,13 @@
           "solar_forecast_source": "Solcelleprognose"
         }
       },
+      "solar_forecast_source_unknown": {
+        "title": "Solcelleprognose",
+        "description": "Hvilken solcelleprognose bruger du? Vælg Ingen prognose, hvis du ikke har solceller eller en prognose.\n\n🧪 = endnu ikke bekræftet med rigtige data. Du kan godt vælge den: sammenlign prognosen på dashboardet efter opsætningen.\n\n**{stored_sensor}** er valgt nu, men den genkendes ikke som en af disse prognoser. Vælg den prognose, du vil bruge.",
+        "data": {
+          "solar_forecast_source": "Solcelleprognose"
+        }
+      },
       "user": {
         "title": "Tilføj BattMind",
         "description": "BattMind planlægger hvornår husbatteriet skal lade fra nettet, aflade eller sælge, ud fra priser, forbrug og solprognose. Planen udstilles som sensorer, du bruger i dine egne automationer.\n\n**Entity-prefix** bruges i alle entity id’er, f.eks. `sensor.PREFIX_powerwall_action`. Brug et forskelligt prefix til hver instans (og et andet prefix end PyScript-versionen, hvis begge kører). Det kan ikke ændres bagefter.",
@@ -512,6 +519,9 @@
       }
     },
     "error": {
+      "price_sensor_required": "Vælg denne sensor. Har du den ikke, så send igen uden den for at gå tilbage til prisudbyderne.",
+      "price_sensor_not_chosen": "En påkrævet prissensor blev ikke valgt. Fjern fluebenet ved udbyderen uden sensor, eller behold den og vælg sensoren på dens side.",
+      "solcast_check_again": "Nogle Solcast-sensorer til den valgte er ikke klar (se listen). Send igen for at fortsætte alligevel.",
       "forecast_wrong_source": "Sensoren er ikke fra den valgte solcelleprognose. Vælg en anden sensor, eller tøm feltet for at vælge prognose igen.",
       "forecast_sensor_missing": "Der blev ikke valgt en sensor. Vælg solcelleprognose igen, eller Ingen prognose.",
       "detection_recorder": "Forslagene kunne ikke laves: recorderen kører ikke, så der er ingen historik. De nuværende værdier beholdes.",
@@ -550,6 +560,13 @@
       "solar_forecast_source": {
         "title": "Solcelleprognose",
         "description": "Hvilken solcelleprognose bruger du? Vælg Ingen prognose, hvis du ikke har solceller eller en prognose.\n\n🧪 = endnu ikke bekræftet med rigtige data. Du kan godt vælge den: sammenlign prognosen på dashboardet efter opsætningen.",
+        "data": {
+          "solar_forecast_source": "Solcelleprognose"
+        }
+      },
+      "solar_forecast_source_unknown": {
+        "title": "Solcelleprognose",
+        "description": "Hvilken solcelleprognose bruger du? Vælg Ingen prognose, hvis du ikke har solceller eller en prognose.\n\n🧪 = endnu ikke bekræftet med rigtige data. Du kan godt vælge den: sammenlign prognosen på dashboardet efter opsætningen.\n\n**{stored_sensor}** er valgt nu, men den genkendes ikke som en af disse prognoser. Vælg den prognose, du vil bruge.",
         "data": {
           "solar_forecast_source": "Solcelleprognose"
         }
@@ -1090,6 +1107,9 @@
       }
     },
     "error": {
+      "price_sensor_required": "Vælg denne sensor. Har du den ikke, så send igen uden den for at gå tilbage til prisudbyderne.",
+      "price_sensor_not_chosen": "En påkrævet prissensor blev ikke valgt. Fjern fluebenet ved udbyderen uden sensor, eller behold den og vælg sensoren på dens side.",
+      "solcast_check_again": "Nogle Solcast-sensorer til den valgte er ikke klar (se listen). Send igen for at fortsætte alligevel.",
       "forecast_wrong_source": "Sensoren er ikke fra den valgte solcelleprognose. Vælg en anden sensor, eller tøm feltet for at vælge prognose igen.",
       "forecast_sensor_missing": "Der blev ikke valgt en sensor. Vælg solcelleprognose igen, eller Ingen prognose.",
       "detection_recorder": "Forslagene kunne ikke laves: recorderen kører ikke, så der er ingen historik. De nuværende værdier beholdes.",
