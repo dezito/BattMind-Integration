@@ -20,6 +20,7 @@ it is reset (reset_dashboard button, or deleting the config in the raw configura
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections.abc import Callable
@@ -33,6 +34,7 @@ from homeassistant.components import frontend
 from homeassistant.components.lovelace import dashboard as lovelace_dashboard
 from homeassistant.components.lovelace.const import LOVELACE_DATA, MODE_STORAGE
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import __version__ as HA_VERSION
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.json import cached_json_fragment, json_fragment
@@ -351,6 +353,9 @@ def render_dashboard(
     mapping = external_entities(config, forecast_platform)
     template = yaml.safe_load(template_text())
     texts = load_texts(normalize_language(config.get("language")), currency)
+    # the link to the price provider report fills them in
+    texts["dashboard.report_version"] = json.loads((Path(__file__).parent.parent / "manifest.json").read_text(encoding="utf-8"))["version"]
+    texts["dashboard.report_ha_version"] = HA_VERSION
     # the charts show the forecast period: days_to_predict minus the half day already passed
     texts["dashboard.forecast_span"] = f"{max(float(config['days_to_predict']) - 0.5, 0.5):g}d"
     template = _translate(template, texts)
